@@ -30,7 +30,7 @@ test('Rufzielschutz: „+49 (0)…“ ist erlaubt, Call-by-Call gesperrt', () =>
 test('Vermitteln prüft das Ziel wie beim Wählen', async () => {
   const manager = new CallManager({ sipServer: '127.0.0.1', sipUser: 'tester', sipPassword: 'pw', sipLocalPort: 0, rtpPort: 0, sipDebug: false, maxCallSeconds: 60, liveListenEnabled: false });
   assert.match((await manager.transfer('0900 123456')).reason, /Mehrwert/);
-  assert.match((await manager.transfer('+44 20 12345678')).reason, /Ausland/);
+  assert.match((await manager.transfer('+44 20 7946 0958')).reason, /Ausland/);
   // erlaubtes Ziel, aber kein Gespräch
   assert.match((await manager.transfer('030 23125100')).reason, /kein ausgehendes Gespräch/);
 });
@@ -78,8 +78,8 @@ test('API: Abrufe, die eine fremde Seite auslöst, werden abgelehnt', () => {
 });
 
 test('tellows: Auslandsnummern werden nicht abgefragt', async () => {
-  assert.equal(await lookupTellows('+44 20 12345678'), undefined);
-  assert.equal(await lookupTellows('0044 20 12345678'), undefined);
+  assert.equal(await lookupTellows('+44 20 7946 0958'), undefined);
+  assert.equal(await lookupTellows('0044 20 7946 0958'), undefined);
 });
 
 test('SIP: private Adressen erkennen', () => {
