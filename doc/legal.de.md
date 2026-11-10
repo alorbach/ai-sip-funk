@@ -143,6 +143,8 @@ Der Modus lässt die KI gegenüber als Spam eingestuften Anrufern als Privatpers
 
 **Was SIPFunk tut, um das Risiko zu begrenzen:** ausdrückliche Bestätigung mit Datum in der UI, kein `.env`-Schalter, serverseitige Prüfung der Bestätigung, feste Verhaltensregeln (keine Daten, keine Zustimmung, keine Beleidigung, keine Behörde, keine Anweisungen ausführen), Rückweg zum Assistenten-Modus bei echtem Anliegen, Zeitlimit, Markierung im Protokoll, nie „wichtig“, kein Rückruf.
 
+**KI-Kennung in der Spam-Abwehr:** Mit dem Schalter „KI-Kennung“ stellt sich die KI auch gegenüber Spam-Anrufern als KI vor und spielt keine Privatperson. Die Punkte dieses Abschnitts, die aus dem fehlenden KI-Hinweis folgen, betreffen dann nur die Einstellung ohne Kennung (der Standard, weiterhin nur nach Bestätigung); Fehlerkennung, Protokollierung und Kosten gelten in beiden Fällen.
+
 **Was dir bleibt:** Die Entscheidung. Die rechtlich saubere Alternative ist der normale Anrufbeantworter, der sich als KI vorstellt und Werbeanrufe höflich abweist, plus eine Beschwerde bei der Bundesnetzagentur (Formular „Unerlaubte Telefonwerbung“ bzw. „Rufnummernmissbrauch“) mit Datum, Uhrzeit, Nummer, Firma und Inhalt aus dem Protokoll.
 
 ---

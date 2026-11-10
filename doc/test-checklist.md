@@ -72,6 +72,8 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 
 - [ ] Switch on: the dialog only appears the first time, afterwards the date is shown next to the switch.
 - [ ] Set `"scamMode": "on"` in `settings.json` by hand without `scamAccepted`, restart: the web UI shows "off".
+- [ ] AI disclosure on, defence on (no confirmation dialog): spam call from the list – the AI introduces itself as an AI assistant, gives no name and fends the caller off.
+- [ ] AI disclosure off: red warning box visible; the dialog appears, "Abbrechen" (cancel) puts the switch back.
 - [ ] **Detection during the call** (list empty, play an advertising call): greeting as AI assistant at first, after a sentence or two of advertising a switch to the private person without mentioning AI; no consent, no data; the transcript contains "Spam-Abwehr: <reason>"; no call back.
 - [ ] **List match** (own mobile number on the list): greeting as a private person right away, with the role's name, voice and rate.
 - [ ] **Switch back** (number on the list, state a genuine request): the AI switches to assistant mode, introduces itself as an AI and takes down the request.

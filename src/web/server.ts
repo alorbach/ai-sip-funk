@@ -256,7 +256,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
         // Erst prüfen, dann den Handler erzeugen: Ein KI-Handler setzt das laufende Protokoll zurück und öffnet eine Verbindung
         manager.checkDial(String(body.target ?? ''));
         // Interne Schalter (Anrufbeantworter, Spam-Rolle, Rückruf mit Vermittlung) sind über die API nicht setzbar
-        for (const k of ['incoming', 'scam', 'scamAllowed', 'notifyCall', 'transferTo', 'called']) delete body[k];
+        for (const k of ['incoming', 'scam', 'scamAllowed', 'notifyCall', 'transferTo', 'called', 'principalKind', 'familyMembers']) delete body[k];
         const handler = opts.createHandler(mode, body);
         try {
           manager.dial(String(body.target ?? ''), mode, handler);

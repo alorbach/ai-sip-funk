@@ -12,13 +12,15 @@
              Weiß auf --accent 5.6:1, auf --danger 5.4:1, auf --ok 5.4:1.
              --control (Ränder von Feldern, Schalter „aus“) 3.6:1 auf --surface, 3.2:1 auf --surface-2 – Mindestwert für Bedienelemente 3:1.
              Kennzeichnungen (Pills) nutzen die dunkleren -ink-Töne: 6.0–6.4:1 auf ihrer getönten Fläche.
+             Warnkasten (.risk, 8 % --danger auf --surface): Titel in --danger-ink 6.4:1, Symbol und Rand in --danger 4.7:1 / 5.4:1, Text 14.6:1.
      Dunkel: --text-2 6.8:1 / 5.9:1; --text-3 5.9:1 / 5.1:1; --accent-text auf --accent 6.4:1; --danger-text auf --danger 6.0:1;
-             Weiß auf --ki 5.9:1; --control 4.0:1 auf --surface, 3.5:1 auf --surface-2; Weiß auf --switch-on 4.1:1. */
+             Weiß auf --ki 5.9:1; --control 4.0:1 auf --surface, 3.5:1 auf --surface-2; Weiß auf --switch-on 4.1:1.
+             Warnkasten: Titel in --danger-ink 6.6:1, Symbol und Rand in --danger 4.9:1 / 5.4:1, Text 13.3:1. */
   :root {
     --bg: #f5f5f7; --surface: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b;
     --text: #1d1d1f; --text-2: #66666b; --text-3: #66666b;
     --accent: #0066cc; --accent-text: #ffffff; --accent-ink: #004a99;
-    --danger: #d70015; --danger-text: #ffffff; --ok: #1f7a3a; --ok-ink: #17602d; --warn: #9a5b00; --warn-ink: #734400;
+    --danger: #d70015; --danger-text: #ffffff; --danger-ink: #b00012; --ok: #1f7a3a; --ok-ink: #17602d; --warn: #9a5b00; --warn-ink: #734400;
     --switch-on: #1f7a3a;
     --ki: #0066cc; --partner: #e8e8ed;
     --radius: 12px; --radius-s: 8px;
@@ -30,7 +32,7 @@
       --bg: #161618; --surface: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85;
       --text: #f2f2f4; --text-2: #a6a6ad; --text-3: #9a9aa1;
       --accent: #4c9eff; --accent-text: #0b1a2b; --accent-ink: #8cc2ff;
-      --danger: #ff5c5c; --danger-text: #2b0a0a; --ok: #4cd472; --ok-ink: #4cd472; --warn: #ffc24d; --warn-ink: #ffc24d;
+      --danger: #ff5c5c; --danger-text: #2b0a0a; --danger-ink: #ff8a8a; --ok: #4cd472; --ok-ink: #4cd472; --warn: #ffc24d; --warn-ink: #ffc24d;
       --switch-on: #2a8f4c;
       --ki: #2a62bd; --partner: #2e2e33;
       --shadow: none;
@@ -165,6 +167,13 @@
   .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
   .field textarea { min-height: 72px; resize: vertical; }
   .field small { color: var(--text-3); font-size: 12px; }
+  .field[hidden] { display: none; }
+  /* Warnkasten: das eine rote Element der Einstellungen. Rot allein trägt die Aussage nicht – Warnsymbol und Titel sagen sie auch. */
+  .risk { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 2px solid var(--danger); border-radius: var(--radius-s); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+  .risk[hidden] { display: none; }
+  .risk svg { width: 24px; height: 24px; flex: none; color: var(--danger); }
+  .risk strong { display: block; color: var(--danger-ink); font-size: 15px; font-weight: 700; line-height: 1.35; }
+  .risk p { margin: 3px 0 0; font-size: 13px; color: var(--text); }
   .grid { display: grid; gap: 12px; align-items: start; }
   .grid.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -470,9 +479,22 @@
             <div class="grid c2">
               <label class="field"><span>Name der KI</span><input id="p-name" value="Alex"></label>
               <label class="field"><span>Im Auftrag von</span><input id="p-principal" placeholder="dein Name"><small>So stellt sich die KI vor: „im Auftrag von …“</small></label>
-              <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><input id="p-extra" placeholder="z. B. kurze Sätze, etwas Humor, langsam sprechen"></label>
             </div>
-            <p class="hint" style="margin-top:12px">Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard.</p>
+            <div class="subhead" style="margin-top:18px">Verhalten im Gespräch</div>
+            <div class="grid c2" style="margin-top:10px">
+              <label class="field"><span>Antwortlänge</span><select id="p-behave-length"><option value="">Standard (höchstens zwei kurze Sätze)</option><option value="knapp">Knapp (möglichst ein Satz)</option><option value="ausfuehrlich">Ausführlicher (bis zu drei Sätze)</option></select></label>
+              <label class="field"><span>Gesprächstempo</span><select id="p-behave-pace"><option value="">Standard (passt sich dem Gegenüber an)</option><option value="zuegig">Zügig, ohne Umschweife</option><option value="geduldig">Geduldig, mit Zeit für Pausen</option></select></label>
+              <label class="field"><span>Namen, Nummern und Termine</span><select id="p-behave-confirm"><option value="">Standard (nachfragen, wenn etwas unklar ist)</option><option value="immer">Immer zur Bestätigung wiederholen</option><option value="selten">Nicht wiederholen</option></select></label>
+              <label class="field"><span>Small Talk</span><select id="p-behave-smalltalk"><option value="">Standard (wie es der Stil vorgibt)</option><option value="nein">Keiner, gleich zur Sache</option><option value="ja">Gern ein, zwei Sätze</option></select></label>
+              <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><textarea id="p-extra" placeholder="z. B. Bei Handwerkern immer nach einem Kostenrahmen fragen. Meinen Vornamen nicht nennen."></textarea><small>Freier Text für alles, was die Auswahl oben nicht abdeckt. Verhalten und Hinweise gelten für ausgehende Anrufe und den Anrufbeantworter; die Grundregeln der KI gehen vor.</small></label>
+            </div>
+            <div class="subhead" style="margin-top:18px">KI-Modell</div>
+            <div class="grid c2" style="margin-top:10px">
+              <label class="field"><span>Sprachmodell für Anrufe</span><select id="s-model"></select><small>„Besser“ versteht und spricht natürlicher, „günstig“ kostet etwa ein Drittel. Gilt für ausgehende Anrufe und den Anrufbeantworter.</small></label>
+              <label class="field adv"><span>Eigene Modell-ID</span><input id="s-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein anderes Realtime-Modell von OpenAI. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
+              <label class="field span adv"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><input id="t-summary-model" placeholder="gpt-6-luna" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <p class="hint" style="margin-top:12px">Stil, Stimme, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard.</p>
           </div>
         </section>
 
@@ -486,7 +508,7 @@
             </div>
             <div class="subhead" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">Eigene Rufnummern <button type="button" id="profile-add" class="btn small">Nummer hinzufügen</button></div>
             <p class="hint easy-only" style="margin:6px 0 10px">Hast du mehrere Rufnummern, trägst du hier ein, für wen die KI auf welcher Nummer abnimmt. Endziffern genügen.</p>
-            <p class="hint adv" style="margin:6px 0 10px">Die FRITZ!Box meldet, welche eigene Nummer gewählt wurde. Je Nummer: wie sich die KI meldet, ob dahinter eine Person oder eine Firma steht, ob und nach wie vielen Klingeln sie annimmt, und abweichend Anrede, Stil, Stimme, Auftrag und Benachrichtigungen. Leer = allgemeine Einstellung. Endziffern genügen.</p>
+            <p class="hint adv" style="margin:6px 0 10px">Die FRITZ!Box meldet, welche eigene Nummer gewählt wurde. Je Nummer: wie sich die KI meldet, ob dahinter eine Person, eine Firma oder eine Familie steht, ob und nach wie vielen Klingeln sie annimmt, und abweichend Anrede, Stil, Stimme, Auftrag und Benachrichtigungen. Leer = allgemeine Einstellung. Endziffern genügen.</p>
             <input type="hidden" id="p-incoming-profiles">
             <input type="hidden" id="p-incoming-identities">
             <div id="profiles" class="grid" style="gap:10px"></div>
@@ -548,7 +570,16 @@
           <div class="head"><h2>Spam-Abwehr</h2></div>
           <div class="body">
             <div class="grid c2">
-              <label class="switch span"><span>Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten <span class="hint" id="scam-state"></span></span><input type="checkbox" id="p-scam" role="switch"></label>
+              <label class="switch span"><span>Werbe- und Betrugsanrufer abwimmeln oder hinhalten</span><input type="checkbox" id="p-scam" role="switch"></label>
+              <label class="switch span"><span>KI-Kennung: Die KI sagt auch Spam-Anrufern, dass sie eine KI ist<small>Eingeschaltet brauchst du keine Risikobestätigung. Ausgeschaltet spielt die KI eine Privatperson.</small></span><input type="checkbox" id="p-scam-disclose" role="switch"></label>
+              <div class="risk span" id="scam-risk" role="note">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 1.8 20.5h20.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9.6v5.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.25" fill="currentColor"/></svg>
+                <div>
+                  <strong>Achtung: ohne KI-Kennung – auf eigene Verantwortung</strong>
+                  <p>Die KI verschweigt Anrufern, die sie als Werbe- oder Betrugsanrufer einstuft, dass sie eine KI ist, und spielt eine Privatperson. Du nutzt das auf eigene Verantwortung und eigenes rechtliches Risiko.</p>
+                  <p id="scam-state"></p>
+                </div>
+              </div>
               <input type="hidden" id="p-scam-accepted">
               <label class="field"><span>Verhalten</span><select id="p-scam-style"><option value="abwimmeln">Kurz abwimmeln (unter 1 Minute)</option><option value="beschaeftigen">Hinhalten und beschäftigen</option></select></label>
               <label class="field adv"><span>Hinhalten höchstens … Minuten</span><input id="p-scam-max" type="number" min="1" max="15" value="5"></label>
@@ -560,6 +591,7 @@
               <label class="field span adv"><span>Bekannte Spam-Nummern oder Vorwahlen (eine je Zeile; „anonym“ = unterdrückte Nummern sofort als Spam behandeln)</span><textarea id="p-scam-numbers" placeholder="0800&#10;030 1234567&#10;anonym" style="min-height:72px"></textarea></label>
             </div>
             <label class="switch adv" style="margin-top:12px"><span>Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen <span class="hint">– überträgt die Anrufernummer an tellows; Kontakte und Listeneinträge werden nie abgefragt</span></span><input type="checkbox" id="p-spam-lookup" role="switch"></label>
+            <p class="hint adv" style="margin-top:12px">Mit KI-Kennung nennt die KI keinen erfundenen Namen; „Name der Rolle“ und „Die Rolle ist“ gelten dann nicht.</p>
             <p class="hint adv" style="margin-top:12px">Stimme und Tempo der Rolle gelten, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer, „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleibt die Stimme des Assistenten; Name und eigene Anweisungen gelten trotzdem.</p>
             <p class="hint" style="margin-top:12px">Ohne Listentreffer meldet sich die KI normal als Assistent und wechselt erst die Rolle, wenn sie im Gespräch einen Werbe- oder Betrugsanruf erkennt. Kontakte sind davon ausgenommen. Rechtliche Hinweise: <code>doc/legal.de.md</code>.</p>
           </div>
@@ -579,7 +611,6 @@
               <label class="field"><span>Sprechgeschwindigkeit</span><input id="t-speed" type="number" min="0.25" max="1.5" step="0.05"><small>0,25 bis 1,5. Standard 1,05.</small></label>
               <label class="field"><span>Lautstärke der KI</span><input id="t-gain" type="number" min="0.2" max="4" step="0.1"><small>Verstärkung Richtung Telefon, mit weichem Begrenzer. Standard 1,5.</small></label>
               <label class="switch span"><span>Gegenüber darf die KI unterbrechen</span><input type="checkbox" id="t-interrupt" role="switch"></label>
-              <label class="field span"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><input id="t-summary-model" placeholder="gpt-6-luna"></label>
             </div>
             <div class="subhead" style="margin-top:14px">Nur in der <code>.env</code></div>
             <dl class="kv" id="env-info" style="margin-top:8px"></dl>
@@ -699,7 +730,7 @@
 <div id="toasts" role="region" aria-label="Hinweise"></div>
 
 <dialog id="scam-dialog" aria-labelledby="scam-title">
-  <div class="head"><h3 id="scam-title">Spam-Abwehr einschalten – auf eigenes Risiko</h3></div>
+  <div class="head"><h3 id="scam-title">Spam-Abwehr ohne KI-Kennung – auf eigenes Risiko</h3></div>
   <div class="body" style="font-size:14px">
     <p style="margin:0">In diesem Modus gibt sich die KI gegenüber Anrufern, die sie als Werbe- oder Betrugsanrufer einstuft, <strong>nicht</strong> als KI zu erkennen und spielt eine Privatperson. Das weicht vom Grundsatz dieser Software ab, sich immer als KI vorzustellen.</p>
     <p style="margin:0">Bitte beachte:</p>
@@ -710,11 +741,12 @@
       <li>Die KI nennt keine Daten, stimmt nichts zu, beleidigt nicht und gibt sich nicht als Behörde aus. Eine Garantie dafür gibt es nicht.</li>
     </ul>
     <p style="margin:0">Du nutzt diesen Modus auf eigene Verantwortung und eigenes rechtliches Risiko. Dies ist keine Rechtsberatung; mehr dazu in <code>doc/legal.de.md</code>.</p>
+    <p style="margin:0">Mit eingeschalteter KI-Kennung entfällt diese Bestätigung: Dann sagt die KI auch Spam-Anrufern, dass sie eine KI ist.</p>
     <label class="check"><input type="checkbox" id="scam-ack"> Ich habe das gelesen, verstanden und übernehme das Risiko.</label>
   </div>
   <div class="foot">
     <button type="button" id="scam-no" class="btn quiet">Abbrechen</button>
-    <button type="button" id="scam-yes" class="btn destructive" disabled>Spam-Abwehr einschalten</button>
+    <button type="button" id="scam-yes" class="btn destructive" disabled>Ohne KI-Kennung einschalten</button>
   </div>
 </dialog>
 
@@ -761,15 +793,18 @@ const PHASES = {
 const FORM_FIELDS = {
   mode: 'mode', task: 'task', persona: 'p-persona', voice: 'p-voice', address: 'p-address', model: 'p-model',
   aiName: 'p-name', principal: 'p-principal', personaExtra: 'p-extra',
+  behaveLength: 'p-behave-length', behavePace: 'p-behave-pace', behaveConfirm: 'p-behave-confirm', behaveSmalltalk: 'p-behave-smalltalk',
   incoming: 'p-incoming', incomingRings: 'p-incoming-rings', incomingTask: 'p-incoming-task', incomingIdentities: 'p-incoming-identities', incomingProfiles: 'p-incoming-profiles',
   notifyTray: 'p-notify-tray', notifyEmail: 'p-notify-email', notifyCall: 'p-notify-call',
-  scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
+  scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', summaryModel: 't-summary-model',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
 const DASH_KEYS = ['mode', 'task', 'persona', 'voice', 'address', 'model'];
-const SETTINGS_KEYS = Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k));
+// Das Sprachmodell steht an beiden Stellen (Dashboard und Einstellungen › KI-Assistent) und wird von beiden gespeichert
+const SETTINGS_KEYS = [...Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k)), 'model'];
+const BEHAVE_KEYS = ['behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk'];
 /** Zuletzt vom Server gelieferte Einstellungen: gespeichert wird nur, was davon abweicht. */
 let loaded = {};
 let status = null, modes = [], aiAvailable = false, contacts = [], activeContact = null, voices = [], allCalls = [], selectedCallId = null;
@@ -1286,6 +1321,7 @@ function changedFields(keys) {
 function applySettings(s, keys) {
   loaded = s;
   for (const k of keys) if (s[k] !== undefined) setField(FORM_FIELDS[k], s[k]);
+  if (keys.includes('model')) setModel(s.model);
   if (keys.includes('incomingProfiles')) { loadProfiles(s.incomingProfiles, s.incomingIdentities); renderScamState(); }
   if (s.retentionDays) $('retention').textContent = s.retentionDays;
 }
@@ -1297,12 +1333,28 @@ async function saveKeys(keys) {
   if (hadPass && !saved.smtpPass && keys.includes('smtpHost')) toast('Der Mailserver wurde geändert. Bitte das Passwort des Postfachs neu eingeben und speichern.', 'warn');
   return saved;
 }
-/** Angaben für einen Anruf: Dashboard-Felder plus Name, Auftraggeber und Verhaltenshinweise – keine sonstigen Einstellungen. */
+/** Angaben für einen Anruf: Dashboard-Felder plus Name, Auftraggeber und Verhalten – keine sonstigen Einstellungen. */
 function callParams() {
   const out = {};
-  for (const k of [...DASH_KEYS, 'aiName', 'principal', 'personaExtra']) out[k] = fieldValue(FORM_FIELDS[k]);
+  for (const k of [...DASH_KEYS, 'aiName', 'principal', 'personaExtra', ...BEHAVE_KEYS]) out[k] = fieldValue(FORM_FIELDS[k]);
   return out;
 }
+// ---- Sprachmodell: eine Einstellung, zwei Stellen (Dashboard, Einstellungen), dazu eine eigene Modell-ID ----
+let realtimeModels = [];
+function setModel(m) {
+  m = String(m || '').trim() || realtimeModels[0] || '';
+  const known = realtimeModels.includes(m);
+  const opts = realtimeModels.map((x) => `<option value="${esc(x)}">${esc(x)}${x.endsWith('-mini') ? ' (günstig)' : ' (besser)'}</option>`).join('') + (known ? '' : `<option value="${esc(m)}" data-no-i18n>${esc(m)}</option>`);
+  for (const id of ['p-model', 's-model']) { $(id).innerHTML = opts; $(id).value = m; }
+  $('s-model-custom').value = known ? '' : m;
+}
+$('p-model').onchange = () => setModel($('p-model').value);
+$('s-model').onchange = () => setModel($('s-model').value);
+$('s-model-custom').onchange = () => {
+  const v = $('s-model-custom').value.trim();
+  if (v && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(v)) { setModel($('p-model').value); return toast('Die Modell-ID darf nur Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt enthalten.'); }
+  setModel(v);
+};
 $('mode').onchange = render;
 function renderModes() {
   const cur = $('mode').value;
@@ -1339,28 +1391,40 @@ for (const [id, mode] of [['ring-trap', 'trap'], ['ring-answer', 'answer'], ['ri
   $(id).onclick = () => api('/api/ring/' + mode, {}).catch((e) => toast(e.message, 'error'));
 }
 
-// ---- Spam-Abwehr: Einschalten nur nach ausdrücklicher Bestätigung ----
+// ---- Spam-Abwehr: ohne KI-Kennung nur nach ausdrücklicher Bestätigung des Risikos ----
 function renderScamState() {
   const acc = $('p-scam-accepted').value;
-  $('scam-state').textContent = acc ? `(Risiko bestätigt am ${acc.slice(0, 10)})` : '(noch nicht bestätigt)';
+  const open = $('p-scam-disclose').checked;
+  $('scam-risk').hidden = open;
+  $('scam-state').textContent = acc ? `Risiko bestätigt am ${acc.slice(0, 10)}.` : 'Risiko noch nicht bestätigt: Die Spam-Abwehr fragt beim Einschalten danach.';
   $('p-scam-max').disabled = $('p-scam-style').value !== 'beschaeftigen';
+  // Mit KI-Kennung gibt es keine erfundene Person
+  $('p-scam-name').disabled = $('p-scam-gender').disabled = open;
 }
 $('p-scam-style').onchange = renderScamState;
-$('p-scam').onchange = () => {
-  if (!$('p-scam').checked) return;
-  if ($('p-scam-accepted').value) return;
+/** Welcher Schalter die Bestätigung ausgelöst hat; bei „Abbrechen“ springt genau der zurück. */
+let scamAskedBy = '';
+function askScamRisk(by) {
+  if (!$('p-scam').checked || $('p-scam-disclose').checked || $('p-scam-accepted').value) return;
+  scamAskedBy = by;
   $('scam-ack').checked = false; $('scam-yes').disabled = true;
   $('scam-dialog').showModal();
-};
+}
+function scamDeclined() {
+  if (scamAskedBy === 'p-scam-disclose') $('p-scam-disclose').checked = true; else $('p-scam').checked = false;
+  renderScamState();
+}
+$('p-scam').onchange = () => askScamRisk('p-scam');
+$('p-scam-disclose').onchange = () => { renderScamState(); askScamRisk('p-scam-disclose'); };
 $('scam-ack').onchange = () => { $('scam-yes').disabled = !$('scam-ack').checked; };
-$('scam-no').onclick = () => { $('scam-dialog').close(); $('p-scam').checked = false; };
-$('scam-dialog').addEventListener('cancel', () => { $('p-scam').checked = false; });
+$('scam-no').onclick = () => { $('scam-dialog').close(); scamDeclined(); };
+$('scam-dialog').addEventListener('cancel', scamDeclined);
 $('scam-yes').onclick = async () => {
   if (!$('scam-ack').checked) return;
   $('p-scam-accepted').value = new Date().toISOString();
   $('scam-dialog').close();
   renderScamState();
-  try { await saveKeys(['scamMode', 'scamAccepted']); toast('Spam-Abwehr eingeschaltet und gespeichert.', 'ok'); }
+  try { await saveKeys(['scamMode', 'scamAccepted', 'scamDisclose']); toast('Spam-Abwehr ohne KI-Kennung eingeschaltet und gespeichert.', 'ok'); }
   catch (err) { toast(err.message); }
 };
 
@@ -1381,7 +1445,8 @@ function renderProfiles() {
     d.innerHTML = `<div class="grid c3">
         <label class="field"><span>Eigene Nummer (Endziffern)</span><input data-k="number" inputmode="tel" value="${esc(pr.number)}" placeholder="23125100"></label>
         <label class="field"><span>Meldung als Assistent von</span><input data-k="name" value="${esc(pr.name)}" placeholder="Max Mustermann"></label>
-        <label class="field"><span>Dahinter steht</span><select data-k="kind"><option value="person"${pr.kind !== 'company' ? ' selected' : ''}>eine Person („ist nicht da“)</option><option value="company"${pr.kind === 'company' ? ' selected' : ''}>eine Firma („niemand erreichbar“)</option></select></label>
+        <label class="field"><span>Dahinter steht</span><select data-k="kind"><option value="person"${pr.kind !== 'company' ? ' selected' : ''}>eine Person („ist nicht da“)</option><option value="company"${pr.kind === 'company' ? ' selected' : ''}>eine Firma („niemand erreichbar“)</option><option value="family"${pr.kind === 'family' ? ' selected' : ''}>eine Familie („niemand zu Hause“)</option></select></label>
+        <label class="field span" data-family${pr.kind === 'family' ? '' : ' hidden'}><span>Familienmitglieder (optional)</span><input data-k="members" value="${esc(pr.members || '')}" maxlength="200" placeholder="z. B. Anna, Ben, Oma Erika"><small>Die KI fragt, für wen der Anruf ist, und hält es im Ergebnis fest. Die Namen zählt sie nicht von sich aus auf; sie ordnet damit nur zu, wen der Anrufer meint. Als Meldung passt „Familie Mustermann“.</small></label>
         <label class="field adv"><span>Annahme auf dieser Nummer</span><select data-k="answer"><option value=""${!pr.answer ? ' selected' : ''}>– allgemeine Einstellung –</option><option value="on"${pr.answer === 'on' ? ' selected' : ''}>KI nimmt an</option><option value="off"${pr.answer === 'off' ? ' selected' : ''}>Nur klingeln lassen</option></select></label>
         <label class="field adv"><span>Annahme beim … Klingeln</span><input data-k="rings" type="number" min="1" max="10" value="${esc(pr.rings || '')}" placeholder="allgemeine Einstellung"></label>
         <label class="field adv"><span>Anrede</span><select data-k="address"><option value=""${!pr.address ? ' selected' : ''}>– Standard –</option><option value="sie"${pr.address === 'sie' ? ' selected' : ''}>Sie</option><option value="du"${pr.address === 'du' ? ' selected' : ''}>Du</option></select></label>
@@ -1400,7 +1465,7 @@ function renderProfiles() {
 function syncProfiles() {
   profiles = [...$('profiles').querySelectorAll('.profile')].map((d) => {
     const v = (k) => d.querySelector(`[data-k="${k}"]`).value;
-    return { number: v('number'), name: v('name'), kind: v('kind'), answer: v('answer'), rings: v('rings'), address: v('address'), persona: v('persona'), voice: v('voice'), task: v('task'), extra: v('extra'), notifyTray: v('notifyTray'), notifyEmail: v('notifyEmail'), notifyCall: v('notifyCall') };
+    return { number: v('number'), name: v('name'), kind: v('kind'), members: v('kind') === 'family' ? v('members') : '', answer: v('answer'), rings: v('rings'), address: v('address'), persona: v('persona'), voice: v('voice'), task: v('task'), extra: v('extra'), notifyTray: v('notifyTray'), notifyEmail: v('notifyEmail'), notifyCall: v('notifyCall') };
   }).filter((p) => p.number.replace(/\D/g, '') || p.name.trim());
   $('p-incoming-profiles').value = JSON.stringify(profiles);
 }
@@ -1414,6 +1479,8 @@ function loadProfiles(json, legacy) {
   renderProfiles();
 }
 $('profile-add').onclick = () => { syncProfiles(); profiles.push({ number: '', name: '', kind: 'person', address: '', persona: '', voice: '', task: '', extra: '' }); renderProfiles(); $('profiles').querySelector('.profile:last-child input')?.focus(); };
+// Das Feld für die Familienmitglieder gibt es nur beim Familien-AB
+$('profiles').onchange = (ev) => { if (ev.target.dataset.k === 'kind') ev.target.closest('.profile').querySelector('[data-family]').hidden = ev.target.value !== 'family'; };
 $('profiles').onclick = (ev) => { const b = ev.target.closest('[data-remove]'); if (!b) return; syncProfiles(); profiles.splice(Number(b.dataset.remove), 1); renderProfiles(); };
 
 // ---- Einstellungen speichern: „Speichern“ sichert die Einstellungsseite, „Als Standard speichern“ die Vorgaben des Dashboards ----
@@ -1564,7 +1631,7 @@ $('su-test').onclick = async () => {
     $('p-persona').innerHTML = personaOpts; $('p-voice').innerHTML = voiceOpts;
     $('c-persona').innerHTML += personaOpts; $('c-voice').innerHTML += voiceOpts;
     $('p-scam-voice').innerHTML = '<option value="">– wie der Assistent –</option>' + voiceOpts;
-    $('p-model').innerHTML = (data.models || [data.model]).map((m) => `<option value="${m}">${m}${m.endsWith('-mini') ? ' (günstig)' : ' (besser)'}</option>`).join('');
+    realtimeModels = data.models || [data.model];
     if (data.env) {
       const e = data.env;
       const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und OPENAI_API_KEY nur in der .env; Mail-Kennwörter in settings.json']];

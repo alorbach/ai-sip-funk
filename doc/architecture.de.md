@@ -71,7 +71,7 @@ Was nicht schiefgehen darf, entscheidet der Code, nicht das Modell:
 
 - Rufzielschutz und Gesprächslimit im `CallManager` bzw. in `dialPolicy.ts`; sie gelten für Web-UI und MCP gleichermaßen.
 - Die KI hat kein Werkzeug zum Wählen. Durchstellen gibt es nur im Rückruf an den Inhaber und nur zur Nummer des ursprünglichen Anrufers.
-- Die Spam-Abwehr wirkt nur mit gespeicherter Risiko-Bestätigung (`scamActive()` in `settings.ts`); beim Speichern ohne Bestätigung wird sie ausgeschaltet. Das Zeitlimit setzt ein Timer im Server durch.
+- Die Spam-Abwehr wirkt nur mit eingeschalteter KI-Kennung oder gespeicherter Risiko-Bestätigung (`scamAllowed()` und `scamActive()` in `settings.ts`); beim Speichern ohne beides wird sie ausgeschaltet. Das Zeitlimit setzt ein Timer im Server durch.
 - Kontakte sind von der Spam-Erkennung im Gespräch ausgenommen: Für sie steht `flag_spam` gar nicht in der Werkzeugliste.
 - Kennwörter verlassen die API nur maskiert.
 

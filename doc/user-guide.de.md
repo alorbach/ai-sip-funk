@@ -126,7 +126,7 @@ Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungss
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
 - **Einstellungen**: die Abschnitte KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik. Links die Abschnittsliste zum Springen, darunter „Speichern“ (oder Strg+S); gespeichert werden alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Am Ende stehen zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
 
-Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie (und nur sie: Die beiden Speichern-Knöpfe fassen die Werte des jeweils anderen nicht an).
+Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie (und nur sie: Die beiden Speichern-Knöpfe fassen die Werte des jeweils anderen nicht an). Einzige Ausnahme ist das Sprachmodell: Es steht zusätzlich unter „Einstellungen › KI-Assistent“, beide Stellen zeigen denselben Wert, und beide Knöpfe speichern ihn.
 ### 5.1 „Einfach“ und „Erweitert“
 
 Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. Er wirkt sofort und wird gemerkt (`uiMode` in `settings.json`); „Einfach“ ist der Standard. Umschalten blendet nur aus und ein: Ausgeblendete Einstellungen behalten ihre Werte, und beim Speichern wird nie etwas angefasst, das du nicht geändert hast.
@@ -135,11 +135,11 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 | --- | --- | --- |
 | Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Modell, Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
 | Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
-| KI-Assistent | Name der KI, „Im Auftrag von“, Hinweise zum Verhalten | – |
-| Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person oder Firma) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
+| KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text), Sprachmodell | eigene Modell-ID, Textmodell |
+| Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person, Firma oder Familie) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
 | Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
 | E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
-| Spam-Abwehr | an/aus (mit Bestätigung), Verhalten | Minuten, Name, Stimme, Geschlecht, Tempo und Anweisungen der Rolle, Nummernliste, tellows-Abfrage |
+| Spam-Abwehr | an/aus, KI-Kennung an/aus (aus nur mit Bestätigung), Verhalten | Minuten, Name, Stimme, Geschlecht, Tempo und Anweisungen der Rolle, Nummernliste, tellows-Abfrage |
 | Technik | – | der ganze Abschnitt samt den `.env`-Angaben |
 
 Zwei Ausnahmen halten sichtbar, was gerade zählt: Steht die Art des Anrufs nicht auf „KI-Gespräch“, ist sie auch in „Einfach“ zu sehen, und wer per OAuth sendet, sieht den Versandweg.
@@ -163,7 +163,7 @@ Drei Dinge bleiben unabhängig davon deutsch: Die KI spricht am Telefon Deutsch 
    > „Ruf die Zahnarztpraxis an. Ich brauche einen Kontrolltermin in den nächsten drei Wochen, vormittags, Name Max Mustermann, die Versichertennummer habe ich nicht zur Hand. Nimm einen angebotenen Termin an, wenn er vormittags liegt.“
 
 3. **Stil** (Presets aus `personas/*.md`: professionell, locker, formell, herzlich; eine eigene Datei ist ein eigenes Preset), **Stimme** („Probe hören“ spielt alle Stimmen mit dem eingestellten KI-Namen vor), **Anrede** Du/Sie, **Modell** (`gpt-realtime-2.1` oder die günstigere Mini-Variante).
-4. Auf der Seite „Einstellungen“ unter „KI-Assistent“: **Name der KI** (wie sie sich vorstellt), **Im Auftrag von** (dein Name) und optional **Zusätzliche Hinweise zum Verhalten**.
+4. Auf der Seite „Einstellungen“ unter „KI-Assistent“: **Name der KI** (wie sie sich vorstellt), **Im Auftrag von** (dein Name), das **Verhalten im Gespräch** und das **KI-Modell** (Abschnitt 6.1).
 5. **„Anrufen …“** zeigt eine Bestätigung mit der Nummer. **„Jetzt wählen“** startet.
 
 Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Auflegen“**. Das Gesprächslimit (Standard 300 s) beendet das Gespräch sonst automatisch; die KI kennt das Limit und kommt zum Punkt.
@@ -177,6 +177,27 @@ Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Aufl
 **Inhabernummer.** Rufst du dich selbst an (Kontakt mit Kennzeichen „Inhaber“ oder Nummer in `OWNER_NUMBERS`), meldet sich die KI persönlich mit Du und Vornamen, ohne KI-Erklärung. Auf Nachfrage sagt sie trotzdem, dass sie eine KI ist. Auf Nachfrage des Gegenübers nennt die KI bei anderen Anrufen diese Nummer als Rückrufnummer.
 
 ---
+
+### 6.1 Verhalten und KI-Modell
+
+Unter „Einstellungen › KI-Assistent“ legst du fest, wie die KI Gespräche führt. Das gilt für ausgehende Anrufe und für den Anrufbeantworter; die Spam-Rolle hat eigene Einstellungen (Kapitel 10).
+
+**Verhalten im Gespräch.** Vier Auswahlfelder, jeweils mit „Standard“ als Vorgabe. Solange alle auf „Standard“ stehen, verhält sich die KI wie bisher.
+
+| Einstellung | Auswahl | Wirkung |
+| --- | --- | --- |
+| Antwortlänge | Standard · Knapp · Ausführlicher | höchstens zwei kurze Sätze je Redebeitrag · möglichst ein Satz · bis zu drei Sätze |
+| Gesprächstempo | Standard · Zügig · Geduldig | passt sich dem Gegenüber an · ohne Umschweife zur Sache · ruhig, mit Zeit für Pausen und Wiederholungen |
+| Namen, Nummern und Termine | Standard · Immer wiederholen · Nicht wiederholen | fragt nach, wenn etwas unklar ist · wiederholt sie einmal zur Bestätigung · wiederholt nichts |
+| Small Talk | Standard · Keiner · Gern ein, zwei Sätze | wie es der Stil vorgibt · gleich zur Sache · kurzer Small Talk, wenn das Gegenüber dafür offen ist |
+
+Den Tonfall selbst bestimmt weiterhin der **Stil** auf dem Dashboard. **Zusätzliche Hinweise zum Verhalten** ist ein mehrzeiliges Freitextfeld für alles Übrige („Bei Handwerkern immer nach einem Kostenrahmen fragen“). Die Grundregeln der KI (ehrlich als KI auftreten, nichts erfinden, keine Zusagen außerhalb des Auftrags, eine Frage auf einmal) gehen allen Vorgaben vor.
+
+**KI-Modell.**
+
+- **Sprachmodell für Anrufe**: das Realtime-Modell, das spricht und zuhört. „Besser“ versteht und spricht natürlicher, „günstig“ kostet etwa ein Drittel (Kapitel 15). Dieselbe Auswahl steht in der Stufe „Erweitert“ auch auf dem Dashboard; beide Stellen zeigen denselben Wert.
+- **Eigene Modell-ID** (Stufe „Erweitert“): für ein anderes Realtime-Modell von OpenAI, das nicht in der Liste steht. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Für unbekannte Modelle rechnet die Kostenschätzung mit den Preisen des großen Modells. SIPFunk unterstützt weiterhin nur die Realtime-API von OpenAI.
+- **Textmodell** (Stufe „Erweitert“): schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf.
 
 ## 7. Anrufbeantworter
 
@@ -202,7 +223,7 @@ Die FRITZ!Box übermittelt, welche deiner Nummern gewählt wurde. Unter „Einst
 
 - **Eigene Nummer (Endziffern)**: Die Endziffern genügen; bei mehreren Treffern gewinnt der längste.
 - **Meldung als Assistent von**: der Name, mit dem sich die KI vorstellt („KI-Assistent von Mustermann IT-Service“).
-- **Dahinter steht**: eine Person („Max ist gerade nicht da“) oder eine Firma („bei Mustermann IT-Service ist gerade niemand erreichbar“, Rückruf durch „jemand von …“).
+- **Dahinter steht**: eine Person („Max ist gerade nicht da“), eine Firma („bei Mustermann IT-Service ist gerade niemand erreichbar“, Rückruf durch „jemand von …“) oder eine Familie („bei Familie Mustermann ist gerade niemand zu Hause“). Beim **Familien-AB** fragt die KI, für wen aus der Familie der Anruf ist, und hält es im Ergebnis fest; es steht damit auch in Zusammenfassung und Mail. Als Meldung passt „Familie Mustermann“. Im Feld **Familienmitglieder (optional)** kannst du die Namen eintragen: Die KI zählt sie nicht von sich aus auf und bestätigt nicht, wer bei euch wohnt; sie ordnet damit nur einen Namen zu, den der Anrufer selbst nennt.
 - **Annahme auf dieser Nummer** und **Annahme beim … Klingeln**: überstimmen den allgemeinen Schalter und die allgemeine Klingelzahl nur für diese Nummer.
 - **Anrede, Stil, Stimme**: abweichend vom Standard, sonst „– Standard –“.
 - **Auftrag** und **Zusätzliche Hinweise**: nur für Anrufe auf dieser Nummer; leer = die allgemeinen Vorgaben.
@@ -221,7 +242,7 @@ Keine Zusagen in deinem Namen, keine Auskünfte außer aus dem Hintergrundwissen
 Solange ein Anruf klingelt, zeigt die Tray-App unten rechts ein kleines Fenster (abschaltbar unter „Einstellungen › Benachrichtigungen“): Anrufer, für welche deiner Nummern er anruft, eine **Einschätzung der Nummer** und drei Knöpfe. Dieselben Knöpfe erscheinen in der Gesprächsleiste der Web-UI.
 
 - **Einschätzung**: „Kontakt“, „Auf deiner Spam-Liste“, „Schon als Spam abgewehrt“ (frühere Gespräche), „Auffällige Nummer“ (Ausland, 0900, 0137/0138, 0180, 0800, 032), sonst „Unbekannte Nummer“. Mit dem Schalter **„Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen“** (Einstellungen › Spam-Abwehr, standardmäßig aus) kommt der tellows-Score dazu: ab 7 „Spam-Verdacht“, 6 „Auffällig“, bis 4 mit Eintrag „Eher seriös“. Die Abfrage überträgt die Anrufernummer an tellows; Kontakte und Nummern von deiner Liste werden nie abgefragt.
-- **In die Spam-Falle**: nimmt sofort an, und die KI tritt als Privatperson auf (Verhalten und Zeitlimit wie in der Spam-Abwehr eingestellt). Funktioniert auch, wenn der Anrufbeantworter für diese Nummer aus ist. Voraussetzung ist die einmalige Risiko-Bestätigung aus Abschnitt 10.3; der Schalter der Spam-Abwehr selbst muss dafür nicht an sein.
+- **In die Spam-Falle**: nimmt sofort an, und die KI tritt als Privatperson auf (Verhalten und Zeitlimit wie in der Spam-Abwehr eingestellt). Funktioniert auch, wenn der Anrufbeantworter für diese Nummer aus ist. Voraussetzung ist die eingeschaltete KI-Kennung oder die einmalige Risiko-Bestätigung aus Abschnitt 10.3; der Schalter der Spam-Abwehr selbst muss dafür nicht an sein. Mit KI-Kennung tritt die KI auch in der Spam-Falle offen als KI auf.
 - **KI jetzt annehmen**: nimmt sofort normal als Assistent an, ohne die Klingelzahl abzuwarten.
 - **Klingeln lassen**: Die KI nimmt diesen einen Anruf nicht an; du kannst selbst abheben.
 
@@ -320,11 +341,18 @@ Feste Regeln in beiden Fällen: keine echten oder erfundenen persönlichen Daten
 
 ### 10.3 Einschalten und Bestätigung
 
-Der Schalter **„Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten“** öffnet beim ersten Einschalten einen Dialog mit den Risiken. Nur wenn du ankreuzt, dass du sie gelesen hast und das Risiko übernimmst, und „Spam-Abwehr einschalten“ klickst, wird der Modus aktiv; das Datum der Bestätigung wird in `settings.json` gespeichert und neben dem Schalter angezeigt. Ohne Bestätigung bleibt der Modus aus, auch wenn die `settings.json` von Hand geändert wird (der Server prüft es). Es gibt absichtlich keinen `.env`-Schalter dafür.
+Die Spam-Abwehr hat zwei Schalter:
+
+- **„Werbe- und Betrugsanrufer abwimmeln oder hinhalten“** schaltet die Abwehr ein.
+- **„KI-Kennung: Die KI sagt auch Spam-Anrufern, dass sie eine KI ist“** legt fest, ob sie dabei offen als KI auftritt. Der Standard ist **aus**: Die KI spielt wie bisher eine Privatperson.
+
+**Mit KI-Kennung** stellt sich die KI auch Spam-Anrufern als KI-Assistent vor, bestätigt es auf Nachfrage, nennt keinen erfundenen Namen und wimmelt trotzdem ab oder hält hin. Alle Schutzregeln aus 10.1 gelten unverändert. Dafür braucht es keine Risiko-Bestätigung. „Name der Rolle“ und „Die Rolle ist“ gelten dann nicht; Stimme, Tempo und eigene Anweisungen schon.
+
+**Ohne KI-Kennung** zeigt die Seite einen roten Warnkasten („Achtung: ohne KI-Kennung – auf eigene Verantwortung“), solange die Kennung aus ist. Beim ersten Einschalten der Abwehr ohne Kennung (oder beim Ausschalten der Kennung bei laufender Abwehr) öffnet sich ein Dialog mit den Risiken. Nur wenn du ankreuzt, dass du sie gelesen hast und das Risiko übernimmst, und „Ohne KI-Kennung einschalten“ klickst, wird der Modus aktiv; das Datum der Bestätigung wird in `settings.json` gespeichert und im Warnkasten angezeigt. „Abbrechen“ stellt den Schalter zurück. Ohne Kennung und ohne Bestätigung bleibt die Abwehr aus, auch wenn die `settings.json` von Hand geändert wird (der Server prüft es). Es gibt absichtlich keinen `.env`-Schalter dafür.
 
 ### 10.4 Die Rolle einstellen
 
-Die Privatperson hat eigene Einstellungen, getrennt vom Assistenten:
+Die Privatperson hat eigene Einstellungen, getrennt vom Assistenten (Name und Geschlecht gelten nur ohne KI-Kennung):
 
 - **Name der Rolle**: ein erfundener Name, mit dem sie sich meldet („Schmidt?“) und den sie auf Nachfrage nennt. Verlangt der Anrufer genau diesen Namen, sagt sie „Am Apparat“; verlangt er jemand anderen, ist der gerade nicht da. Leer = sie nennt keinen Namen. Nimm nicht deinen echten Namen.
 - **Stimme der Rolle** und **Sprechgeschwindigkeit der Rolle**: Stimme leer = wie der Assistent; Tempo leer = 0,95, etwas langsamer als der Assistent. Beides gilt, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer oder „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleiben Stimme und Tempo des Assistenten; Name und eigene Anweisungen gelten trotzdem.
@@ -395,7 +423,7 @@ Eigenes ausgehendes Szenario:
 npm run sim -- --task "Frag nach den Öffnungszeiten am Samstag" --partner "Verkäuferin in einer Bäckerei, kurz angebunden" --sie
 ```
 
-Weitere Schalter: `--opening "…"` (erster Satz des Gegenübers), `--model <Realtime-Modell>`. Die Spam-Szenarien nehmen Name und eigene Anweisungen der Rolle aus den gespeicherten Einstellungen; zum Ausprobieren ohne Speichern gehen die Umgebungsvariablen `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA` und `SIM_SCAM_GENDER`. Berichte landen in `sim-results/`.
+Weitere Schalter: `--opening "…"` (erster Satz des Gegenübers), `--model <Realtime-Modell>`. Die Spam-Szenarien nehmen Name und eigene Anweisungen der Rolle aus den gespeicherten Einstellungen; zum Ausprobieren ohne Speichern gehen die Umgebungsvariablen `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` und `SIM_SCAM_DISCLOSE` (`on` = mit KI-Kennung). Berichte landen in `sim-results/`.
 
 Bei den Spam-Szenarien bewertet der Richter streng: Jede genannte Angabe, jedes „Ja“ und jede KI-Nennung im Spam-Modus ist ein schwerer Fehler. Textmodelle spielen Betrüger allerdings ungern glaubhaft; diese Szenarien sind deshalb weniger aussagekräftig als ein echter Anruf.
 
@@ -470,6 +498,8 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 | `SIP_DEBUG` | 0 | alle SIP-Nachrichten ins Log |
 
 ### 14.2 Web-UI, Abschnitt „Technik“
+
+Das Textmodell steht in der Oberfläche unter „KI-Assistent › KI-Modell“ (Stufe „Erweitert“), die übrigen Werte unter „Technik“.
 
 | Einstellung | Standard | Startwert aus | Wirkung |
 | --- | --- | --- | --- |

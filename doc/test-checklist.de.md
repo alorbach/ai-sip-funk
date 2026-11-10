@@ -72,6 +72,8 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 - [ ] Schalter an: Der Dialog kommt nur beim ersten Mal, das Datum steht danach neben dem Schalter.
 - [ ] `settings.json` von Hand auf `"scamMode": "on"` ohne `scamAccepted`, Neustart: Die Web-UI zeigt „aus“.
+- [ ] KI-Kennung an, Abwehr an (ohne Bestätigungsdialog): Spam-Anruf aus der Liste – die KI stellt sich als KI-Assistent vor, nennt keinen Namen und wimmelt ab.
+- [ ] KI-Kennung aus: roter Warnkasten sichtbar; der Dialog erscheint, „Abbrechen“ stellt den Schalter zurück.
 - [ ] **Erkennung im Gespräch** (Liste leer, einen Werbeanruf spielen): Begrüßung zunächst als KI-Assistent, nach ein bis zwei Sätzen Werbung Wechsel zur Privatperson ohne KI-Nennung; keine Zustimmung, keine Daten; Transkript enthält „Spam-Abwehr: <Grund>“; kein Rückruf.
 - [ ] **Listentreffer** (eigene Mobilnummer in die Liste): Begrüßung sofort als Privatperson mit Rollenname, Stimme und Tempo der Rolle.
 - [ ] **Rückwechsel** (Nummer in der Liste, echtes Anliegen vortragen): Die KI wechselt in den Assistenten-Modus, stellt sich als KI vor und nimmt das Anliegen auf.

@@ -71,7 +71,7 @@ What must not go wrong is decided by the code, not by the model:
 
 - Dial target protection and call time limit in the `CallManager` and in `dialPolicy.ts`; they apply to the web UI and MCP alike.
 - The AI has no tool for dialling. Transfer exists only in the call back to the owner and only to the number of the original caller.
-- The spam defence only takes effect with a stored risk confirmation (`scamActive()` in `settings.ts`); saving without the confirmation switches it off. The time limit is enforced by a timer in the server.
+- The spam defence only takes effect with AI disclosure switched on or with a stored risk confirmation (`scamAllowed()` and `scamActive()` in `settings.ts`); saving without either switches it off. The time limit is enforced by a timer in the server.
 - Contacts are exempt from spam detection during the call: for them `flag_spam` is not in the tool list at all.
 - Passwords leave the API only masked.
 

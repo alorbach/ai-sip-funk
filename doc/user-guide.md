@@ -137,11 +137,11 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | --- | --- | --- |
 | Dashboard | number, task, style, voice with sample, form of address, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), model, system log, codec and RTP counters, token usage |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
-| KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour notes | – |
-| Anrufbeantworter | on/off, number of rings, own numbers (number, name, person or company) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
+| KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text), voice model | custom model ID, text model |
+| Anrufbeantworter | on/off, number of rings, own numbers (number, name, person, company or family) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
-| Spam-Abwehr | on/off (with confirmation), behaviour | minutes, name, voice, gender, speed and instructions of the role, number list, tellows lookup |
+| Spam-Abwehr | on/off, AI disclosure on/off (off only with confirmation), behaviour | minutes, name, voice, gender, speed and instructions of the role, number list, tellows lookup |
 | Technik | – | the whole section including the `.env` information |
 
 Two exceptions keep things visible when they matter: if the type of call is not "KI-Gespräch", it is shown in "Einfach" too, and whoever sends mail via OAuth sees the delivery method.
@@ -165,7 +165,7 @@ Three things stay German whatever you choose: the AI speaks German on the phone 
    > "Call the dentist's office. I need a check-up appointment within the next three weeks, mornings, name Max Mustermann, I don't have my insurance number to hand. Accept an appointment they offer if it is in the morning."
 
 3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; "Probe hören" plays all voices with the configured AI name), **Anrede** (form of address) Du/Sie, **Modell** (`gpt-realtime-2.1` or the cheaper mini variant).
-4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name) and optionally **Zusätzliche Hinweise zum Verhalten** (additional behaviour notes).
+4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name), the **behaviour in the call** and the **AI model** (section 6.1).
 5. **"Anrufen …"** shows a confirmation with the number. **"Jetzt wählen"** (dial now) starts the call.
 
 During the call the transcript runs along. You can hang up at any time with **"Auflegen"**. Otherwise the call time limit (default 300 s) ends the call automatically; the AI knows the limit and gets to the point.
@@ -179,6 +179,27 @@ During the call the transcript runs along. You can hang up at any time with **"A
 **Owner number.** If you call yourself (contact flagged "Inhaber" or a number in `OWNER_NUMBERS`), the AI greets you personally, informally and by first name, without the AI explanation. If asked, it still says that it is an AI. On other calls the AI gives this number as the call-back number when asked.
 
 ---
+
+### 6.1 Behaviour and AI model
+
+Under "Einstellungen › KI-Assistent" you define how the AI conducts calls. This applies to outgoing calls and to the answering machine; the spam role has its own settings (chapter 10).
+
+**Verhalten im Gespräch** (behaviour in the call). Four choices, each defaulting to "Standard". As long as all of them are on "Standard", the AI behaves as before.
+
+| Setting | Choices | Effect |
+| --- | --- | --- |
+| Antwortlänge (length of replies) | Standard · Knapp · Ausführlicher | at most two short sentences per turn · one sentence where possible · up to three sentences |
+| Gesprächstempo (pace of the call) | Standard · Zügig · Geduldig | adapts to the other party · straight to the point · calm, with time for pauses and repetitions |
+| Namen, Nummern und Termine (names, numbers and dates) | Standard · Immer wiederholen · Nicht wiederholen | asks when something is unclear · repeats them once to confirm · repeats nothing |
+| Small Talk | Standard · Keiner · Gern ein, zwei Sätze | as the style suggests · straight to business · a little small talk if the other party is open to it |
+
+The tone itself is still set by the **Stil** (style) on the dashboard. **Zusätzliche Hinweise zum Verhalten** (additional behaviour notes) is a multi-line free text field for everything else; write it in German, because it goes into the German instructions. The basic rules of the AI (being honest about being an AI, inventing nothing, no commitments beyond the task, one question at a time) take precedence over all of these.
+
+**KI-Modell** (AI model).
+
+- **Sprachmodell für Anrufe** (voice model for calls): the Realtime model that speaks and listens. "Better" understands and speaks more naturally, "cheaper" costs about a third (chapter 15). The same choice is also on the dashboard at level "Erweitert"; both places show the same value.
+- **Eigene Modell-ID** (custom model ID, level "Erweitert"): for another OpenAI Realtime model that is not in the list. Letters, digits, dot, hyphen, underscore and colon are allowed. With an ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. For unknown models the cost estimate uses the prices of the large model. SIPFunk still supports only the OpenAI Realtime API.
+- **Textmodell** (text model, level "Erweitert"): writes call plan, summary, assessment and complaint draft.
 
 ## 7. Answering machine
 
@@ -204,7 +225,7 @@ The FRITZ!Box transmits which of your numbers was dialled. Under "Einstellungen 
 
 - **Eigene Nummer (Endziffern)** (own number, last digits): the last digits are enough; with several matches the longest wins.
 - **Meldung als Assistent von** (announce as assistant of): the name the AI introduces itself with ("AI assistant of Mustermann IT-Service").
-- **Dahinter steht** (who is behind it): a person ("Max is not in right now") or a company ("nobody is available at Mustermann IT-Service right now", call back by "someone from …").
+- **Dahinter steht** (who is behind it): a person ("Max is not in right now"), a company ("nobody is available at Mustermann IT-Service right now", call back by "someone from …") or a family ("nobody is at home at Familie Mustermann right now"). On the **family answering machine** the AI asks which family member the call is for and records it in the result, so it also appears in the summary and the mail. A fitting announcement name is "Familie Mustermann". The field **Familienmitglieder (optional)** (family members) takes the names: the AI does not list them of its own accord and does not confirm who lives there; it only uses them to match a name the caller mentions.
 - **Annahme auf dieser Nummer** (answering on this number) and **Annahme beim … Klingeln**: override the general switch and the general number of rings for this number only.
 - **Anrede, Stil, Stimme**: different from the default, otherwise "– Standard –".
 - **Auftrag** and **Zusätzliche Hinweise**: only for calls on this number; empty = the general settings.
@@ -223,7 +244,7 @@ No commitments in your name, no information other than from the background knowl
 While a call is ringing, the tray app shows a small window at the bottom right (can be switched off under "Einstellungen › Benachrichtigungen"): the caller, which of your numbers they are calling, an **assessment of the number** and three buttons. The same buttons appear in the call bar of the web UI.
 
 - **Assessment**: "Kontakt" (contact), "Auf deiner Spam-Liste" (on your spam list), "Schon als Spam abgewehrt" (already fended off as spam; earlier calls), "Auffällige Nummer" (conspicuous number: abroad, 0900, 0137/0138, 0180, 0800, 032), otherwise "Unbekannte Nummer" (unknown number). With the switch **"Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen"** (look up unknown numbers at tellows.de; Einstellungen › Spam-Abwehr, off by default) the tellows score is added: 7 and above "Spam-Verdacht" (suspected spam), 6 "Auffällig" (conspicuous), up to 4 with an entry "Eher seriös" (probably legitimate). The lookup sends the caller's number to tellows; contacts and numbers on your list are never looked up.
-- **In die Spam-Falle** (into the spam trap): answers immediately, and the AI acts as a private person (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires the one-time risk confirmation from section 10.3; the spam defence switch itself does not need to be on.
+- **In die Spam-Falle** (into the spam trap): answers immediately, and the AI acts as a private person (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires AI disclosure to be switched on or the one-time risk confirmation from section 10.3; the spam defence switch itself does not need to be on. With AI disclosure the AI openly acts as an AI in the spam trap, too.
 - **KI jetzt annehmen** (AI answer now): answers immediately as the normal assistant without waiting for the number of rings.
 - **Klingeln lassen** (let it ring): the AI does not answer this one call; you can pick up yourself.
 
@@ -322,11 +343,18 @@ Fixed rules in both cases: no real or invented personal data, no confirming an i
 
 ### 10.3 Switching on and confirmation
 
-The first time you switch on **"Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten"** (brush off or stall advertising and scam callers without AI notice), a dialog lists the risks. The mode only becomes active if you tick that you have read them and accept the risk and then click "Spam-Abwehr einschalten"; the date of the confirmation is stored in `settings.json` and shown next to the switch. Without the confirmation the mode stays off even if `settings.json` is edited by hand (the server checks). There is deliberately no `.env` switch for it.
+The spam defence has two switches:
+
+- **"Werbe- und Betrugsanrufer abwimmeln oder hinhalten"** (fend off or stall sales and scam callers) switches the defence on.
+- **"KI-Kennung: Die KI sagt auch Spam-Anrufern, dass sie eine KI ist"** (AI disclosure: the AI tells spam callers, too, that it is an AI) decides whether it openly acts as an AI while doing so. The default is **off**: the AI plays a private person as before.
+
+**With AI disclosure** the AI introduces itself as an AI assistant to spam callers as well, confirms it when asked, gives no invented name and still fends off or stalls. All protective rules from 10.1 apply unchanged. No risk confirmation is needed for this. "Name der Rolle" and "Die Rolle ist" do not apply then; voice, speaking rate and own instructions do.
+
+**Without AI disclosure** the page shows a red warning box ("Achtung: ohne KI-Kennung – auf eigene Verantwortung", warning: without AI disclosure – on your own responsibility) for as long as disclosure is off. The first time you switch the defence on without disclosure (or switch disclosure off while the defence is on), a dialog lists the risks. The mode only becomes active if you tick that you have read them and accept the risk and then click "Ohne KI-Kennung einschalten"; the date of the confirmation is stored in `settings.json` and shown in the warning box. "Abbrechen" (cancel) puts the switch back. Without disclosure and without the confirmation the defence stays off even if `settings.json` is edited by hand (the server checks). There is deliberately no `.env` switch for it.
 
 ### 10.4 Configuring the role
 
-The private person has its own settings, separate from the assistant:
+The private person has its own settings, separate from the assistant (name and gender only apply without AI disclosure):
 
 - **Name der Rolle** (name of the role): an invented name it answers with ("Schmidt?") and gives when asked. If the caller asks for exactly this name, it says "Am Apparat" (speaking); if they ask for someone else, that person is not in. Empty = it gives no name. Do not use your real name.
 - **Stimme der Rolle** (voice) and **Sprechgeschwindigkeit der Rolle** (speaking rate): voice empty = same as the assistant; rate empty = 0.95, slightly slower than the assistant. Both apply when the spam defence is certain at pick-up (list match or "In die Spam-Falle"). If the AI only switches roles in mid-call, the assistant's voice and rate remain; name and own instructions still apply.
@@ -397,7 +425,7 @@ Your own outgoing scenario:
 npm run sim -- --task "Frag nach den Öffnungszeiten am Samstag" --partner "Verkäuferin in einer Bäckerei, kurz angebunden" --sie
 ```
 
-Further switches: `--opening "…"` (first sentence of the other party), `--model <Realtime model>`. The spam scenarios take the role's name and own instructions from the saved settings; to try things without saving, use the environment variables `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA` and `SIM_SCAM_GENDER`. Reports are written to `sim-results/`.
+Further switches: `--opening "…"` (first sentence of the other party), `--model <Realtime model>`. The spam scenarios take the role's name and own instructions from the saved settings; to try things without saving, use the environment variables `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` and `SIM_SCAM_DISCLOSE` (`on` = with AI disclosure). Reports are written to `sim-results/`.
 
 In the spam scenarios the judge is strict: any piece of data given, any "yes" and any mention of being an AI while in spam mode is a serious error. Text models are, however, reluctant to play scammers convincingly; these scenarios are therefore less meaningful than a real call.
 

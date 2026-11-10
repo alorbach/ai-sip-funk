@@ -18,7 +18,7 @@ import { loadConfig } from '../config.js';
 import { responsesText } from '../ai/summary.js';
 import { buildInstructions, defaultIncomingTask, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallCheckInstruction, farewellInstruction, greetingInstruction, loadPersonas, type PromptInput } from '../ai/personas.js';
 import { formatPlan, planCall, type CallPlan } from '../ai/plan.js';
-import { buildScamInstructions, FLAG_SPAM_ACK, FLAG_SPAM_TOOL, SCAM_FAREWELL, scamGender, scamGreeting, type ScamStyle } from '../ai/scam.js';
+import { buildScamInstructions, FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, scamGender, scamGreeting, type ScamStyle } from '../ai/scam.js';
 import { loadSettings } from '../settings.js';
 
 type Kind = 'outgoing' | 'incoming' | 'scam-list';
@@ -337,7 +337,7 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
   const callerKnown = /\d{3,}/.test(s.caller ?? '');
   const task = incoming ? defaultIncomingTask(principal, s.caller) : s.task;
   const input: PromptInput = { persona, incoming, formal: s.formal, aiName: 'Salve', principalName: principal, task, owner: s.owner, maxCallSeconds: config.maxCallSeconds, callbackNumber: '0171 0000000' };
-  const scamInput = { style: s.scamStyle ?? 'abwimmeln', maxMinutes: s.scamMinutes ?? 1, callerKnown, name: process.env.SIM_SCAM_NAME ?? loadSettings().scamName, extra: process.env.SIM_SCAM_EXTRA ?? loadSettings().scamExtra, gender: scamGender(process.env.SIM_SCAM_GENDER ?? loadSettings().scamGender, loadSettings().scamVoice || loadSettings().voice) } as const;
+  const scamInput = { style: s.scamStyle ?? 'abwimmeln', maxMinutes: s.scamMinutes ?? 1, callerKnown, name: process.env.SIM_SCAM_NAME ?? loadSettings().scamName, extra: process.env.SIM_SCAM_EXTRA ?? loadSettings().scamExtra, gender: scamGender(process.env.SIM_SCAM_GENDER ?? loadSettings().scamGender, loadSettings().scamVoice || loadSettings().voice), disclose: (process.env.SIM_SCAM_DISCLOSE ?? loadSettings().scamDisclose) === 'on' } as const;
   const t0 = Date.now();
   // Gesprächsplan nur bei ausgehenden Aufträgen (wie in der App)
   const rawPlan: CallPlan = incoming ? { gegenueber: '', einstieg: '', schritte: [], hinweise: '' } : await planCall(apiKey, textModel, { task: s.task, principalName: principal, aiName: 'Salve', formal: s.formal, owner: Boolean(s.owner), contactName: s.contactName });
@@ -355,7 +355,7 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
     let partnerText: string | undefined = s.opening || undefined;
     if (incoming) {
       // Die KI hat abgenommen und sagt „Hallo?"; der Anrufer spricht danach
-      const hello = await session.respond(undefined, kind === 'scam-list' ? scamGreeting(scamInput.name) : greetingInstruction(input));
+      const hello = await session.respond(undefined, kind === 'scam-list' ? scamGreeting(scamInput.name, scamInput.disclose) : greetingInstruction(input));
       if (hello.text) dialog.push({ who: 'KI', text: hello.text });
       if (!partnerText) partnerText = await partnerReply(s, dialog);
     }
@@ -368,7 +368,7 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
         dialog.push({ who: 'System', text: `Spam-Abwehr: ${r.call.args.grund ?? ''}` });
         session.update(buildScamInstructions(scamInput), [END_CALL_TOOL]);
         scamPhase = true;
-        session.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: r.call.id, output: FLAG_SPAM_ACK } });
+        session.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: r.call.id, output: scamInput.disclose ? FLAG_SPAM_ACK_OPEN : FLAG_SPAM_ACK } });
         partnerText = undefined;
         continue;
       }

@@ -11,7 +11,7 @@ import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas, VOICES } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, REALTIME_MODELS, realtimeModel, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -70,9 +70,9 @@ const manager = new CallManager({
     const principal = prof?.name || base.principal || 'der Inhaber';
     const principalKind = prof?.kind ?? 'person';
     const s = prof
-      ? { ...base, address: prof.address || base.address, persona: prof.persona || base.persona, voice: prof.voice || base.voice, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
+      ? { ...base, familyMembers: prof.members, address: prof.address || base.address, persona: prof.persona || base.persona, voice: prof.voice || base.voice, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
       : base;
-    if (prof) log.info(`Anrufbeantworter für ${called || '?'}: Profil „${prof.name}" (${principalKind === 'company' ? 'Firma' : 'Person'}${prof.address ? `, ${prof.address}` : ''}${prof.persona ? `, ${prof.persona}` : ''}${prof.voice ? `, ${prof.voice}` : ''})`);
+    if (prof) log.info(`Anrufbeantworter für ${called || '?'}: Profil „${prof.name}" (${principalKind === 'company' ? 'Firma' : principalKind === 'family' ? 'Familie' : 'Person'}${prof.address ? `, ${prof.address}` : ''}${prof.persona ? `, ${prof.persona}` : ''}${prof.voice ? `, ${prof.voice}` : ''})`);
     // Spam-Abwehr: Nummer aus der Liste -> von Anfang an als Privatperson; sonst darf die KI per flag_spam umschalten
     const scam = scamActive(s);
     // Von Hand in die Spam-Falle umgeleitet (Pop-up beim Klingeln): gilt wie ein Listentreffer
@@ -130,11 +130,8 @@ function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: st
   const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
   const limit = scamLimit(s);
   if (current) current.spam = true;
-  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice) });
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice), disclose: s.scamDisclose === 'on' });
 }
-
-/** Zur Auswahl stehende Realtime-Modelle (Preise siehe ai/pricing.ts) */
-const REALTIME_MODELS = ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'];
 
 function createHandler(mode: string, params: Record<string, unknown>): AudioHandler {
   switch (mode) {
@@ -189,15 +186,18 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const sc = scam ? loadSettings() : undefined;
   const voice = sc && VOICES.includes(sc.scamVoice) ? sc.scamVoice : VOICES.includes(str('voice')) ? str('voice') : VOICES[0];
   const speechSpeed = sc ? scamSpeed(sc, SCAM_DEFAULT_SPEED) : t.speechSpeed;
-  if (sc) log.info(`Spam-Abwehr: Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}, Stimme ${voice} (${scamGender(sc.scamGender, voice) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
+  const scamOpen = loadSettings().scamDisclose === 'on';
+  if (sc) log.info(`Spam-Abwehr: ${scamOpen ? 'mit KI-Kennung' : `Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}`}, Stimme ${voice} (${scamGender(sc.scamGender, voice) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
   // Anruf beim Inhaber selbst: immer Du und Vorname – er weiß, wer da anruft
   const owner = !incoming && isOwnerNumber(str('target'));
   const ownerFirst = owner ? firstName(contact?.name || str('principal', '')) : '';
   const input = {
     persona,
     incoming,
-    principalKind: params.principalKind === 'company' ? ('company' as const) : ('person' as const),
+    principalKind: params.principalKind === 'company' ? ('company' as const) : params.principalKind === 'family' ? ('family' as const) : ('person' as const),
+    familyMembers: str('familyMembers'),
     extra: str('personaExtra'),
+    behavior: { length: str('behaveLength'), pace: str('behavePace'), confirm: str('behaveConfirm'), smalltalk: str('behaveSmalltalk') },
     formal: owner ? false : str('address', 'sie') !== 'du',
     aiName: str('aiName', 'Alex') || 'Alex',
     principalName: owner && ownerFirst ? ownerFirst : str('principal', 'meinem Auftraggeber') || 'meinem Auftraggeber',
@@ -212,7 +212,7 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
-  const model = REALTIME_MODELS.includes(str('model')) ? str('model') : config.openaiModel;
+  const model = realtimeModel(str('model'), config.openaiModel);
   log.info(`KI: Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 
   transcript = [];
@@ -240,8 +240,9 @@ ${input.context}` : input.task,
     model,
     instructions: scamInstructions ?? instructions,
     voice,
-    greetingInstruction: scam ? scamGreeting(sc?.scamName) : greetingInstruction(input),
+    greetingInstruction: scam ? scamGreeting(sc?.scamName, scamOpen) : greetingInstruction(input),
     scam,
+    scamDisclose: scamOpen,
     owner: input.owner,
     formal: input.formal,
     transcriptionHints: [input.principalName, contact?.name ?? '', input.aiName],
@@ -534,7 +535,8 @@ let ring: RingState | undefined;
 const traySend = (msg: Record<string, unknown>) => { try { process.send?.(msg); } catch { /* Elternprozess weg */ } };
 function ringInfo(): Record<string, unknown> {
   if (!ring) return { ringing: false };
-  const accepted = loadSettings().scamAccepted.trim().length > 0;
+  // Mit KI-Kennung braucht die Spam-Falle keine Bestätigung des Risikos
+  const accepted = scamAllowed(loadSettings());
   return { ringing: true, ...ring, canTrap: accepted && Boolean(config.openaiApiKey), trapHint: accepted ? '' : 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen' };
 }
 manager.on('ring', (r: { caller: string; called: string; willAnswer: boolean; answerAt?: number }) => {
@@ -574,7 +576,7 @@ manager.on('ringEnd', () => {
   bus.emit('message', { type: 'ring', ring: { ringing: false } });
 });
 function divertRing(mode: 'scam' | 'answer' | 'skip'): { ok: boolean; reason: string } {
-  if (mode === 'scam' && !loadSettings().scamAccepted.trim()) return { ok: false, reason: 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen (einmalig, wegen des rechtlichen Hinweises)' };
+  if (mode === 'scam' && !scamAllowed(loadSettings())) return { ok: false, reason: 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen (einmalig, wegen des rechtlichen Hinweises)' };
   return manager.divertIncoming(mode);
 }
 

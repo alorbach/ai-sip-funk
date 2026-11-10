@@ -7,7 +7,7 @@ import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { FLAG_SPAM_ACK, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
+import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 
 /** Was die KI beim end_call als Ergebnis für den Auftraggeber meldet. */
 export interface CallOutcome {
@@ -46,6 +46,8 @@ export interface RealtimeBridgeOptions {
   owner?: boolean;
   /** true = Spam-Abwehr von Anfang an (Listentreffer, von Hand umgeleitet): Verabschiedung wie eine Privatperson */
   scam?: boolean;
+  /** true = die Spam-Rolle tritt offen als KI auf (KI-Kennung der Spam-Abwehr): bestimmt die Antwort auf flag_spam */
+  scamDisclose?: boolean;
   /** Namen, die die Transkription kennen soll (Auftraggeber, Kontakt, KI-Name) */
   transcriptionHints?: string[];
   /** false = Gegenüber kann die KI nicht unterbrechen (Gegenprobe bei Echo-Problemen) */
@@ -709,7 +711,7 @@ export class RealtimeBridge implements AudioHandler {
       this.planSteps = [];
       // Neue Rolle, flag_spam ist ab jetzt nicht mehr nötig
       this.send({ type: 'session.update', session: { type: 'realtime', instructions, tools: [END_CALL_TOOL] } });
-      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: FLAG_SPAM_ACK } });
+      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: this.opts.scamDisclose ? FLAG_SPAM_ACK_OPEN : FLAG_SPAM_ACK } });
       this.send({ type: 'response.create' });
       this.audioExpected(true, 'Spam-Abwehr');
       return;

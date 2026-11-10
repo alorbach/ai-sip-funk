@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isOn, writeFileAtomic } from './fsutil.js';
 import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
+import type { PrincipalKind } from './ai/personas.js';
 
 export interface FormSettings {
   /** Sprache der Oberfläche: 'auto' (Sprache des Browsers) | 'de' | 'en'. Die KI spricht unabhängig davon Deutsch */
@@ -19,7 +20,15 @@ export interface FormSettings {
   aiName: string;
   principal: string;
   personaExtra: string;
-  model: string; // Realtime-Modell, leer = OPENAI_MODEL aus der .env
+  /** Verhalten in Stufen; '' = Standard. Antwortlänge: 'knapp' | 'ausfuehrlich' */
+  behaveLength: string;
+  /** Gesprächstempo: 'zuegig' | 'geduldig' */
+  behavePace: string;
+  /** Namen, Nummern und Termine zur Bestätigung wiederholen: 'immer' | 'selten' */
+  behaveConfirm: string;
+  /** Small Talk: 'nein' | 'ja' */
+  behaveSmalltalk: string;
+  model: string; // Realtime-Modell (Liste oder eigene Modell-ID), leer = OPENAI_MODEL aus der .env
   /** Anrufbeantworter: 'on' | 'off' (Default aus) */
   incoming: string;
   /** Annahme beim n-ten Klingeln */
@@ -56,6 +65,8 @@ export interface FormSettings {
   scamGender: string;
   /** Eigene Anweisungen für die Spam-Rolle */
   scamExtra: string;
+  /** KI-Kennung der Spam-Rolle: 'on' = sie sagt offen, dass sie eine KI ist; 'off' (Standard) = sie spielt eine Privatperson, nur mit scamAccepted */
+  scamDisclose: string;
   /** Pop-up der Tray-App, solange ein Anruf klingelt ('on'|'off') */
   ringPopup: string;
   /** Unbekannte Anrufernummern beim Klingeln bei tellows.de nachschlagen ('on'|'off'); überträgt die Nummer dorthin */
@@ -147,7 +158,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -204,6 +215,10 @@ function envDefaults(): FormSettings {
     aiName: e('AI_NAME', 'Alex'),
     principal: e('AI_PRINCIPAL'),
     personaExtra: e('AI_EXTRA'),
+    behaveLength: '',
+    behavePace: '',
+    behaveConfirm: '',
+    behaveSmalltalk: '',
     model: e('OPENAI_MODEL', 'gpt-realtime-2.1'),
     incoming: onOff(e('INCOMING_ENABLED', 'off')),
     incomingRings: e('INCOMING_ANSWER_AFTER_RINGS', '5'),
@@ -224,6 +239,8 @@ function envDefaults(): FormSettings {
     scamSpeed: '',
     scamGender: '',
     scamExtra: '',
+    // Bewusst aus: so verhält sich die Spam-Abwehr wie bisher (Privatperson, nur nach bestätigtem Risiko)
+    scamDisclose: 'off',
     ringPopup: onOff(e('RING_POPUP', 'on')),
     // Bewusst aus: die Abfrage überträgt die Anrufernummer an einen Dritten
     spamLookup: onOff(e('SPAM_LOOKUP', 'off')),
@@ -273,8 +290,10 @@ export interface IncomingProfile {
   number: string;
   /** Meldung: „KI-Assistent von <name>" */
   name: string;
-  /** Person („ist nicht da") oder Firma („dort ist gerade niemand erreichbar") */
-  kind: 'person' | 'company';
+  /** Person („ist nicht da"), Firma („dort ist gerade niemand erreichbar") oder Familie („gerade ist niemand zu Hause") */
+  kind: PrincipalKind;
+  /** Familien-AB: Namen der Familienmitglieder, frei durch Komma getrennt; leer = die KI fragt nur, für wen der Anruf ist */
+  members: string;
   /** '' = Standard aus den Einstellungen */
   address: '' | 'sie' | 'du';
   persona: string;
@@ -330,7 +349,8 @@ export function parseProfiles(json: string, legacyIdentities = ''): IncomingProf
     return {
       number,
       name,
-      kind: p.kind === 'company' ? 'company' : 'person',
+      kind: p.kind === 'company' || p.kind === 'family' ? p.kind : 'person',
+      members: String(p.members ?? '').replace(/\s+/g, ' ').trim().slice(0, 200),
       address: p.address === 'sie' || p.address === 'du' ? p.address : '',
       persona: String(p.persona ?? '').trim(),
       voice: String(p.voice ?? '').trim(),
@@ -375,9 +395,23 @@ export function identityFor(called: string, identities: string, fallback: string
   return hit?.name ?? fallback;
 }
 
-/** Spam-Abwehr ist nur aktiv, wenn eingeschaltet UND das Risiko bestätigt wurde. */
+/** Spam-Abwehr ohne KI-Kennung braucht die Bestätigung des Risikos; mit KI-Kennung nicht. */
+export function scamAllowed(s: FormSettings): boolean {
+  return s.scamDisclose === 'on' || s.scamAccepted.trim().length > 0;
+}
+
+/** Spam-Abwehr ist nur aktiv, wenn eingeschaltet UND (KI-Kennung an ODER das Risiko bestätigt wurde). */
 export function scamActive(s: FormSettings): boolean {
-  return s.scamMode === 'on' && s.scamAccepted.trim().length > 0;
+  return s.scamMode === 'on' && scamAllowed(s);
+}
+
+/** Bekannte Realtime-Modelle zur Auswahl (Preise siehe ai/pricing.ts) */
+export const REALTIME_MODELS = ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'];
+
+/** Realtime-Modell für einen Anruf: ein Listeneintrag oder eine eigene Modell-ID; leer oder unzulässige Zeichen = fallback. */
+export function realtimeModel(value: string | undefined, fallback: string): string {
+  const v = (value ?? '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(v) ? v : fallback;
 }
 
 /** Tempo der Spam-Rolle, wenn nichts eingestellt ist: einen Tick langsamer als der Assistent, das wirkt beiläufiger. */
@@ -433,17 +467,27 @@ export function saveSettings(input: Record<string, unknown>): FormSettings {
   if (incoming.smtpPass === undefined && current.smtpPass && merged.smtpHost.trim().toLowerCase() !== current.smtpHost.trim().toLowerCase()) merged.smtpPass = '';
   // Unveränderte Standardvorlage nicht festschreiben: '' folgt späteren Änderungen der eingebauten Vorlage
   for (const [k, def] of MAIL_TEMPLATES) if (sameText(merged[k], def)) merged[k] = '';
-  // Spam-Abwehr ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
-  if (!merged.scamAccepted.trim()) merged.scamMode = 'off';
+  // Spam-Abwehr ohne KI-Kennung und ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
+  if (!scamAllowed(merged)) merged.scamMode = 'off';
   writeFileAtomic(SETTINGS_FILE, JSON.stringify(merged, null, 2) + '\n');
   return merged;
 }
+
+/** Verhalten in Stufen: zulässige Werte je Einstellung ('' = Standard). */
+const BEHAVE_VALUES: [keyof FormSettings, string[]][] = [
+  ['behaveLength', ['knapp', 'ausfuehrlich']],
+  ['behavePace', ['zuegig', 'geduldig']],
+  ['behaveConfirm', ['immer', 'selten']],
+  ['behaveSmalltalk', ['nein', 'ja']],
+];
 
 /** Werte mit fester Auswahl auf einen gültigen Stand bringen. */
 function normalize(s: FormSettings): FormSettings {
   if (s.uiMode !== 'advanced') s.uiMode = 'easy';
   if (s.setupDone !== 'on') s.setupDone = 'off';
   if (s.uiLang !== 'de' && s.uiLang !== 'en') s.uiLang = 'auto';
+  if (s.scamDisclose !== 'on') s.scamDisclose = 'off';
+  for (const [k, allowed] of BEHAVE_VALUES) if (!allowed.includes(s[k])) s[k] = '';
   return s;
 }
 

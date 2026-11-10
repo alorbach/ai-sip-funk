@@ -145,6 +145,8 @@ The mode lets the AI act as a private person towards callers classified as spam,
 
 **What SIPFunk does to limit the risk:** explicit confirmation with date in the UI, no `.env` switch, server-side check of the confirmation, fixed behaviour rules (no data, no consent, no insults, no authority, no carrying out instructions), a way back to assistant mode for genuine requests, time limit, tag in the log, never "important", no call back.
 
+**AI disclosure in the spam defence:** With the switch "AI disclosure" the AI introduces itself as an AI to spam callers as well and does not play a private person. The points of this section that follow from the missing AI notice then only concern the setting without disclosure (the default, still only after confirmation); misdetection, logging and cost apply in both cases.
+
 **What is left to you:** the decision. The legally clean alternative is the normal answering machine, which introduces itself as an AI and politely turns advertising calls away, plus a complaint to the Bundesnetzagentur (form "Unerlaubte Telefonwerbung" or "Rufnummernmissbrauch") with date, time, number, company and content from the log.
 
 ---
