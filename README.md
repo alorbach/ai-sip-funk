@@ -62,7 +62,7 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 ## Configuration
 
 - **`.env`**: credentials (SIP, OpenAI), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the OpenAI key there and applies them immediately; changes made by hand require a restart.
-- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore` and do not belong in any repository, ticket or screenshot.
 

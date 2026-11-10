@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SIPFunk – eingehender Anruf</title>
+<script src="/i18n-en.js"></script>
+<script src="/i18n.js"></script>
 <style>
   /* Pop-up der Tray-App beim Klingeln. Dieselben Farben wie die Web-UI, hell und dunkel. */
   /* Kontraste wie in index.html berechnet; neu: Text auf dem roten Knopf im Dunkeln 6.0:1 (vorher Weiß auf #ff5c5c 3.0:1) */
@@ -45,7 +47,7 @@
 <div class="wrap">
   <div class="top"><span class="dot"></span><span id="head">Eingehender Anruf</span><button class="x" id="close" aria-label="Fenster schließen" title="Schließen (der Anruf läuft weiter)">✕</button></div>
   <div>
-    <div class="who" id="who">…</div>
+    <div class="who" id="who" data-no-i18n>…</div>
     <div class="sub" id="sub"></div>
   </div>
   <div class="verdict" id="verdict" data-l="unknown" role="status"><b id="v-label">Prüfe Nummer …</b><span id="v-detail"></span></div>
@@ -74,7 +76,7 @@ function render(r) {
   $('v-label').textContent = r.verdict.label;
   $('v-detail').textContent = r.verdict.detail;
   const secs = r.answerAt ? Math.max(0, Math.ceil((r.answerAt - Date.now()) / 1000)) : 0;
-  if (!done) $('note').textContent = r.willAnswer ? `Die KI nimmt in ${secs} s als Assistent an.` : 'Die KI nimmt diesen Anruf nicht an; er klingelt nur.';
+  if (!done) $('note').textContent = r.willAnswer ? I18N.t('Die KI nimmt in {0} s als Assistent an.', secs) : 'Die KI nimmt diesen Anruf nicht an; er klingelt nur.';
   $('trap').disabled = done || !r.canTrap;
   $('trap').title = r.canTrap ? 'Sofort annehmen; die KI tritt als Privatperson auf und wimmelt ab oder hält hin' : (r.trapHint || '');
   if (!r.canTrap && r.trapHint && !done) $('note').textContent += ' ' + r.trapHint + '.';
@@ -106,7 +108,11 @@ $('skip').onclick = () => act('skip', 'Die KI nimmt diesen Anruf nicht an.');
 $('close').onclick = () => window.close();
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); });
 // ?preview zeigt das Fenster ohne klingelnden Anruf (zum Ansehen des Layouts); sonst Zustand abfragen
-if (!new URLSearchParams(location.search).has('preview')) poll();
+if (!new URLSearchParams(location.search).has('preview')) {
+  poll();
+  // Sprache aus den Einstellungen übernehmen (lädt das Fenster neu, falls sie von der zuletzt benutzten abweicht)
+  fetch('/api/settings').then((r) => r.json()).then((s) => I18N.sync(s.uiLang)).catch(() => {});
+}
 </script>
 </body>
 </html>

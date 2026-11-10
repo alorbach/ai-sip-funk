@@ -25,6 +25,7 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 | `src/main.ts` | entry point: loads the configuration, wires everything together, builds the audio handler per call, notifications after the call |
 | `src/config.ts`, `src/settings.ts` | read `.env`; web UI settings (`settings.json`), per-number profiles, notification rules, enabling of the spam defence |
 | `src/setup.ts`, `src/envFile.ts` | setup assistant: check SIP credentials (test registration with a short-lived client) and the OpenAI key, write single keys to `.env` without touching the rest; `CallManager.reconfigureSip` then replaces the SIP client at runtime |
+| `public/i18n.js`, `public/i18n-en.js` | language of the interface: the pages carry the German texts; for English a MutationObserver replaces them from the dictionary (exact texts and patterns). Content from people and from the server is marked `data-no-i18n`. `test/i18n.test.ts` checks that every dictionary key still exists in the German sources |
 | `src/callManager.ts` | state machine for exactly one call: registration, dialling, answering, limit, hanging up, transfer |
 | `src/dialPolicy.ts` | dial target protection (blocked number ranges) |
 | `src/sip/` | SIP over UDP: messages, digest authentication, SDP, client with incoming and outgoing calls |

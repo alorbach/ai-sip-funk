@@ -25,6 +25,7 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 | `src/main.ts` | Einstieg: lädt Konfiguration, verdrahtet alle Teile, baut je Anruf den Audio-Handler, Benachrichtigungen nach dem Anruf |
 | `src/config.ts`, `src/settings.ts` | `.env` lesen; Einstellungen der Web-UI (`settings.json`), Profile je Rufnummer, Benachrichtigungsregeln, Freigabe der Spam-Abwehr |
 | `src/setup.ts`, `src/envFile.ts` | Einrichtungsassistent: SIP-Zugangsdaten (Probe-Anmeldung mit einem kurzlebigen Client) und OpenAI-Schlüssel prüfen, einzelne Schlüssel in die `.env` schreiben, ohne den Rest anzufassen; `CallManager.reconfigureSip` tauscht danach den SIP-Client zur Laufzeit |
+| `public/i18n.js`, `public/i18n-en.js` | Sprache der Oberfläche: Die Seiten enthalten die deutschen Texte; für Englisch ersetzt ein MutationObserver sie anhand des Wörterbuchs (genaue Texte und Muster). Inhalte von Menschen und vom Server sind mit `data-no-i18n` ausgenommen. `test/i18n.test.ts` prüft, dass jeder Schlüssel des Wörterbuchs noch in den deutschen Quellen steht |
 | `src/callManager.ts` | Zustandsmaschine für genau ein Gespräch: Registrierung, Wählen, Annehmen, Limit, Auflegen, Durchstellen |
 | `src/dialPolicy.ts` | Rufzielschutz (gesperrte Rufnummerngassen) |
 | `src/sip/` | SIP über UDP: Nachrichten, Digest-Authentifizierung, SDP, Client mit ein- und ausgehenden Anrufen |

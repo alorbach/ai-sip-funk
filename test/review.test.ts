@@ -137,3 +137,24 @@ test('Stufe der Oberfläche: Standard „easy“, wird gespeichert, ändert und 
   writeFileSync('settings.json', '{"uiMode": 42}');
   assert.equal(loadSettings().uiMode, 'easy');
 });
+
+test('Mail: neuer Server ohne neu eingegebenes Passwort verwirft das gespeicherte', () => {
+  writeFileSync('settings.json', '{}');
+  saveSettings({ smtpHost: 'smtp.example.com', smtpPass: 'geheim' });
+  // Andere Felder und die Maske lassen das Passwort stehen
+  assert.equal(saveSettings({ smtpPort: '465', smtpPass: SECRET_MASK }).smtpPass, 'geheim');
+  assert.equal(saveSettings({ smtpHost: ' SMTP.example.com ' }).smtpPass, 'geheim');
+  // Server geändert, Passwort nicht neu eingegeben (fehlt oder Maske): weg damit
+  assert.equal(saveSettings({ smtpHost: 'smtp.example.org', smtpPass: SECRET_MASK }).smtpPass, '');
+  // Server und Passwort in einem Schritt (so speichert „Automatisch einrichten“): bleibt
+  assert.equal(saveSettings({ smtpHost: 'smtp.example.net', smtpPass: 'neu' }).smtpPass, 'neu');
+  assert.equal(saveSettings({ smtpHost: 'smtp.example.org' }).smtpPass, '');
+});
+
+test('Sprache der Oberfläche: Standard „auto“, nur de/en werden gespeichert', () => {
+  writeFileSync('settings.json', '{}');
+  assert.equal(loadSettings().uiLang, 'auto');
+  assert.equal(saveSettings({ uiLang: 'en' }).uiLang, 'en');
+  assert.equal(saveSettings({ aiName: 'Kim' }).uiLang, 'en');
+  assert.equal(saveSettings({ uiLang: 'fr' }).uiLang, 'auto');
+});

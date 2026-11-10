@@ -112,6 +112,12 @@ export function startWebServer(opts: WebServerOptions): () => void {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(html);
       }
+      // Übersetzungsskript und englisches Wörterbuch für beide Seiten
+      if (req.method === 'GET' && (url.pathname === '/i18n.js' || url.pathname === '/i18n-en.js')) {
+        const js = await readFile(PUBLIC_DIR + url.pathname.slice(1));
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(js);
+      }
       if (req.method === 'GET' && url.pathname === '/ring.html') {
         const html = await readFile(PUBLIC_DIR + 'ring.html');
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });

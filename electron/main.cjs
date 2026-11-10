@@ -33,7 +33,7 @@ function showRing() {
   ringWin = new BrowserWindow({
     width: w, height: h, x: area.x + area.width - w - 16, y: area.y + area.height - h - 16,
     frame: false, resizable: false, minimizable: false, maximizable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
-    title: 'SIPFunk – eingehender Anruf', icon: ICON,
+    title: T('SIPFunk – eingehender Anruf'), icon: ICON,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   ringWin.setAlwaysOnTop(true, 'screen-saver');
@@ -45,6 +45,27 @@ function hideRing() {
   if (ringWin && !ringWin.isDestroyed()) ringWin.destroy();
   ringWin = null;
 }
+
+// Sprache des Tray-Menüs: wie in der Web-UI eingestellt (settings.json, uiLang), sonst nach dem System.
+// Deutsch ist die Quelle; fehlt eine Übersetzung, bleibt der deutsche Text stehen.
+const EN = {
+  'startet': 'starting', 'läuft': 'running', 'beendet': 'stopped', 'nicht registriert': 'not registered', 'bereit': 'ready', 'wählt': 'dialling',
+  'klingelt': 'ringing', 'eingehender Anruf': 'incoming call', 'verbunden': 'connected',
+  'Telefonanlage verbunden': 'Phone system connected', 'Telefonanlage nicht verbunden': 'Phone system not connected',
+  'Web-UI öffnen': 'Open web UI', 'Anrufbeantworter': 'Answering machine', 'Anrufbeantworter an': 'Answering machine on',
+  'Einstellungen (.env) bearbeiten': 'Edit settings (.env)', 'Datenordner öffnen': 'Open data folder', 'Beim Anmelden starten': 'Start at login',
+  'Server neu starten': 'Restart server', 'Beenden': 'Quit', 'Fehler': 'Error',
+  'dist/main.js fehlt – erst „npm run build“': 'dist/main.js is missing – run "npm run build" first',
+  'Anrufbeantworter konnte nicht umgeschaltet werden': 'The answering machine could not be switched',
+  'SIPFunk – eingehender Anruf': 'SIPFunk – incoming call',
+};
+function uiLang() {
+  let pref = 'auto';
+  try { pref = JSON.parse(fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8')).uiLang || 'auto'; } catch { /* keine Einstellungen */ }
+  if (pref === 'de' || pref === 'en') return pref;
+  return /^de\b/i.test(app.getLocale() || 'de') ? 'de' : 'en';
+}
+const T = (text) => (uiLang() === 'en' && EN[text]) || text;
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
@@ -78,12 +99,12 @@ function icon() {
 
 function phaseLabel() {
   const names = { starting: 'startet', offline: 'nicht registriert', idle: 'bereit', calling: 'wählt', ringing: 'klingelt', incoming: 'eingehender Anruf', connected: 'verbunden', ended: 'beendet' };
-  return names[state.phase] || state.phase || '–';
+  return T(names[state.phase] || state.phase || '–');
 }
 
 function stateLine() {
-  if (state.server !== 'läuft') return `Server: ${state.server}`;
-  const box = state.registered ? 'FRITZ!Box registriert' : 'FRITZ!Box offline';
+  if (state.server !== 'läuft') return `Server: ${T(state.server)}`;
+  const box = T(state.registered ? 'Telefonanlage verbunden' : 'Telefonanlage nicht verbunden');
   const call = state.target ? ` · ${state.target}` : '';
   return `${box} · ${phaseLabel()}${call}`;
 }
@@ -93,7 +114,7 @@ async function setIncoming(enabled) {
     const res = await fetch(`${webUrl()}/api/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incoming: enabled ? 'on' : 'off' }) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   } catch (err) {
-    dialog.showErrorBox('SIPFunk', `Anrufbeantworter konnte nicht umgeschaltet werden: ${err.message}`);
+    dialog.showErrorBox('SIPFunk', `${T('Anrufbeantworter konnte nicht umgeschaltet werden')}: ${err.message}`);
   }
   refresh();
 }
@@ -103,23 +124,23 @@ function buildMenu() {
   return Menu.buildFromTemplate([
     { label: `SIPFunk ${pkg.version}`, enabled: false },
     { label: stateLine(), enabled: false },
-    ...(state.error ? [{ label: `Fehler: ${state.error.slice(0, 80)}`, click: () => clipboard.writeText(state.error) }] : []),
+    ...(state.error ? [{ label: `${T('Fehler')}: ${state.error.slice(0, 80)}`, click: () => clipboard.writeText(state.error) }] : []),
     { type: 'separator' },
-    { label: 'Web-UI öffnen', enabled: running, click: () => shell.openExternal(webUrl()) },
-    { label: 'Anrufbeantworter', type: 'checkbox', checked: state.incoming, enabled: running, click: (item) => setIncoming(item.checked) },
+    { label: T('Web-UI öffnen'), enabled: running, click: () => shell.openExternal(webUrl()) },
+    { label: T('Anrufbeantworter'), type: 'checkbox', checked: state.incoming, enabled: running, click: (item) => setIncoming(item.checked) },
     { type: 'separator' },
-    { label: 'Einstellungen (.env) bearbeiten', click: openEnv },
-    { label: 'Datenordner öffnen', click: () => shell.openPath(dataDir) },
-    { label: 'Beim Anmelden starten', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }) },
+    { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
+    { label: T('Datenordner öffnen'), click: () => shell.openPath(dataDir) },
+    { label: T('Beim Anmelden starten'), type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }) },
     { type: 'separator' },
-    { label: 'Server neu starten', click: () => restart() },
-    { label: 'Beenden', click: () => app.quit() },
+    { label: T('Server neu starten'), click: () => restart() },
+    { label: T('Beenden'), click: () => app.quit() },
   ]);
 }
 
 function refresh() {
   if (!tray) return;
-  tray.setToolTip(`SIPFunk\n${stateLine()}${state.incoming && state.server === 'läuft' ? '\nAnrufbeantworter an' : ''}`);
+  tray.setToolTip(`SIPFunk\n${stateLine()}${state.incoming && state.server === 'läuft' ? `\n${T('Anrufbeantworter an')}` : ''}`);
   tray.setContextMenu(buildMenu());
 }
 

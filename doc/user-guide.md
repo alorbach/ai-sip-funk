@@ -146,6 +146,12 @@ The switch at the top right of every page sets how much the web UI shows. It app
 
 Two exceptions keep things visible when they matter: if the type of call is not "KI-Gespräch", it is shown in "Einfach" too, and whoever sends mail via OAuth sees the delivery method.
 
+### 5.2 Language of the interface
+
+The web UI, the pop-up while ringing and the tray menu are available in German and English. "Sprache" (language) at the top of the "Einstellungen" page offers "Automatisch" (follow the browser language; the tray menu follows the system language), "Deutsch" and "English"; the choice is stored as `uiLang` in `settings.json`, and the page reloads once when the language changes. In this guide the German labels are quoted with their English counterpart in brackets.
+
+Three things stay German whatever you choose: the AI speaks German on the phone (so tasks, behaviour notes and contact notes should be written in German), the system log and call results come from the server untranslated, and the e-mail templates keep their German variable names.
+
 
 **Mithören** in the call bar plays both sides of the call in the browser (live only, no recording). `LIVE_LISTEN_ENABLED=false` switches the feature off.
 
@@ -286,6 +292,8 @@ Everything is under "Einstellungen › E-Mail-Versand". The `MAIL_*` and `SMTP_*
 4. **"Verbindung prüfen"** (check connection) signs in to the server without sending anything; **"Probe-Mail senden"** sends a mail in the notification layout with sample data. Both save the settings first.
 
 Recipient empty = the mailbox itself; sender empty = the mailbox. The status line in the card header shows whether sending is ready.
+
+If you change the SMTP server without entering the password again, the stored password is discarded and has to be entered anew. This keeps a stored password from being sent to a different server.
 
 ---
 

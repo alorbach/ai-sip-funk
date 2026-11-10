@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SIPFunk</title>
+<script src="/i18n-en.js"></script>
+<script src="/i18n.js"></script>
 <style>
   /* Tokens: semantische Farben mit Light/Dark-Variante. Berechnete Kontraste (WCAG 2) gegen die Flächen:
      Hell:   --text-2 5.7:1 auf --surface, 5.0:1 auf --surface-2, 4.8:1 auf der markierten Zeile; --text-3 ist derselbe Ton.
@@ -388,13 +390,13 @@
         <section class="card">
           <div class="head"><h2>Transkript</h2><span id="usage" class="adv"></span></div>
           <div id="transcript" class="transcript" tabindex="0" aria-label="Transkript des laufenden Gesprächs"><div class="empty"><b>Kein Gespräch aktiv</b>Hier liest du live mit, was die KI und dein Gegenüber sagen.</div></div>
-          <div id="summary" class="summary"></div>
+          <div id="summary" class="summary" data-no-i18n></div>
           <div id="result"></div>
         </section>
 
         <section class="card adv">
           <div class="head"><h2>Systemprotokoll</h2><button id="log-clear" class="btn small quiet">Leeren</button></div>
-          <pre id="log" tabindex="0" aria-label="Systemprotokoll"></pre>
+          <pre id="log" data-no-i18n tabindex="0" aria-label="Systemprotokoll"></pre>
         </section>
       </div>
     </div>
@@ -418,7 +420,7 @@
       <section class="card" id="call-detail-card">
         <div class="detail-head" id="call-detail-head"><div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div></div>
         <div id="call-transcript" class="transcript" style="display:none"></div>
-        <div id="call-summary" class="summary"></div>
+        <div id="call-summary" class="summary" data-no-i18n></div>
         <div class="adv" style="padding:10px 16px;border-top:1px solid var(--line)" id="call-usage-row" hidden><span id="call-usage"></span></div>
         <div id="call-actions" class="detail-actions" style="display:none"></div>
       </section>
@@ -442,7 +444,10 @@
   <section class="page" id="page-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
     <div class="page-head">
       <h1>Einstellungen</h1>
-      <button type="button" id="setup-open" class="btn quiet">Einrichtungsassistent …</button>
+      <div class="actions">
+        <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Sprache</span><select id="ui-lang" style="width:auto"><option value="auto">Automatisch</option><option value="de" data-no-i18n>Deutsch</option><option value="en" data-no-i18n>English</option></select></label>
+        <button type="button" id="setup-open" class="btn quiet">Einrichtungsassistent …</button>
+      </div>
       <p class="hint">Änderungen gelten ab dem nächsten Anruf, sobald du sie gespeichert hast. Telefonanlage und OpenAI-Schlüssel richtest du im Einrichtungsassistenten ein.</p>
     </div>
     <div class="settings">
@@ -496,7 +501,7 @@
               <label class="switch span"><span>E-Mail mit Zusammenfassung – bei allen Anrufen</span><input type="checkbox" id="p-notify-email" role="switch"></label>
               <label class="switch span"><span>Mich auf der Inhabernummer anrufen – nur bei wichtigen Anrufen</span><input type="checkbox" id="p-notify-call" role="switch"></label>
               <label class="switch span"><span>Pop-up der Tray-App, solange ein Anruf klingelt (Anrufer, Spam-Einschätzung, Umleiten)</span><input type="checkbox" id="p-ring-popup" role="switch"></label>
-              <p class="hint span adv" style="margin:0">Das sind die allgemeinen Regeln. Je eigener Rufnummer lassen sie sich unter „Anrufbeantworter › Je eigener Rufnummer“ überstimmen (aus, nur wichtige, alle).</p>
+              <p class="hint span adv" style="margin:0">Das sind die allgemeinen Regeln. Je eigener Rufnummer lassen sie sich unter „Anrufbeantworter › Eigene Rufnummern“ überstimmen (aus, nur wichtige, alle).</p>
             </div>
             <p class="hint" style="margin-top:10px">Ob ein Anruf wichtig war (Termin, Kunde, Frist, Notfall) schätzt das Textmodell anhand der Zusammenfassung ein. Der Mailversand selbst wird in der Karte „E-Mail-Versand“ eingerichtet.</p>
           </div>
@@ -548,7 +553,7 @@
               <label class="field"><span>Verhalten</span><select id="p-scam-style"><option value="abwimmeln">Kurz abwimmeln (unter 1 Minute)</option><option value="beschaeftigen">Hinhalten und beschäftigen</option></select></label>
               <label class="field adv"><span>Hinhalten höchstens … Minuten</span><input id="p-scam-max" type="number" min="1" max="15" value="5"></label>
               <label class="field adv"><span>Name der Rolle</span><input id="p-scam-name" type="text" maxlength="40" placeholder="z. B. Schmidt" autocomplete="off"><small>Erfundener Name, mit dem sie sich meldet. Leer = sie nennt keinen Namen. Nimm nicht deinen echten.</small></label>
-              <label class="field adv"><span>Stimme der Rolle</span><select id="p-scam-voice"></select><small>Hörproben unter KI-Assistent › „Probe hören“.</small></label>
+              <label class="field adv"><span>Stimme der Rolle</span><select id="p-scam-voice"></select><small>Hörproben auf dem Dashboard unter „Probe hören“.</small></label>
               <label class="field adv"><span>Die Rolle ist</span><select id="p-scam-gender"><option value="">automatisch nach Stimme</option><option value="m">ein Mann</option><option value="w">eine Frau</option></select><small>Danach richtet sich, ob sie bei „Herrn …“ oder „Frau …“ sagt „Am Apparat“.</small></label>
               <label class="field adv"><span>Sprechgeschwindigkeit der Rolle</span><input id="p-scam-speed" type="number" min="0.25" max="1.5" step="0.05" placeholder="0.95"><small>0,25 bis 1,5. Leer = 0,95, einen Tick langsamer als der Assistent.</small></label>
               <label class="field span adv"><span>Eigene Anweisungen für die Rolle</span><textarea id="p-scam-extra" placeholder="z. B. Ältere Dame, hört schlecht, erzählt gern vom Garten. Spricht leicht schwäbisch." style="min-height:72px"></textarea><small>Figur, Ton, Eigenheiten. Die Schutzregeln (keine Daten, keine Zustimmung, höflich) gehen immer vor.</small></label>
@@ -556,7 +561,7 @@
             </div>
             <label class="switch adv" style="margin-top:12px"><span>Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen <span class="hint">– überträgt die Anrufernummer an tellows; Kontakte und Listeneinträge werden nie abgefragt</span></span><input type="checkbox" id="p-spam-lookup" role="switch"></label>
             <p class="hint adv" style="margin-top:12px">Stimme und Tempo der Rolle gelten, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer, „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleibt die Stimme des Assistenten; Name und eigene Anweisungen gelten trotzdem.</p>
-            <p class="hint" style="margin-top:12px">Ohne Listentreffer meldet sich die KI normal als Assistent und wechselt erst die Rolle, wenn sie im Gespräch einen Werbe- oder Betrugsanruf erkennt. Kontakte sind davon ausgenommen. Rechtliche Hinweise: <code>doc/Rechtliches.md</code>.</p>
+            <p class="hint" style="margin-top:12px">Ohne Listentreffer meldet sich die KI normal als Assistent und wechselt erst die Rolle, wenn sie im Gespräch einen Werbe- oder Betrugsanruf erkennt. Kontakte sind davon ausgenommen. Rechtliche Hinweise: <code>doc/legal.de.md</code>.</p>
           </div>
         </section>
 
@@ -624,14 +629,14 @@
       <p class="state" id="su-ai-state" role="status"></p>
       <p class="hint">Zum Prüfen wird der Schlüssel einmal an OpenAI geschickt, sonst nirgendwohin. Er wird nur auf diesem Rechner gespeichert und nie wieder angezeigt.</p>
     </section>
-    <section data-title="Dein Assistent" hidden>
+    <section data-title="Dein Assistent" data-step="assistant" hidden>
       <p class="hint">So stellt sich die KI am Telefon vor: „Hier ist Alex, der KI-Assistent von Max Mustermann.“</p>
       <div class="grid c2">
         <label class="field"><span>Name der KI</span><input id="su-name" placeholder="Alex"></label>
         <label class="field"><span>Im Auftrag von</span><input id="su-principal" placeholder="dein Name" autocomplete="name"></label>
       </div>
     </section>
-    <section data-title="Anrufbeantworter" hidden>
+    <section data-title="Anrufbeantworter" data-step="incoming" hidden>
       <label class="switch"><span>Die KI nimmt eingehende Anrufe an<small>Sie fragt nach dem Anliegen und notiert einen Rückrufwunsch. Lässt sich jederzeit im Tray-Menü umschalten.</small></span><input type="checkbox" id="su-incoming" role="switch"></label>
       <p class="hint">Optional: Hast du mehrere eigene Rufnummern, kann die KI sich je Nummer anders melden. Trag hier die erste ein; weitere unter „Einstellungen › Anrufbeantworter“.</p>
       <div class="grid c2">
@@ -673,7 +678,7 @@
 <dialog id="confirm" aria-labelledby="confirm-title">
   <div class="head"><h3 id="confirm-title">Diese Nummer jetzt wählen?</h3></div>
   <div class="body">
-    <div class="confirm-num" id="confirm-num"></div>
+    <div class="confirm-num" id="confirm-num" data-no-i18n></div>
     <div class="hint" id="confirm-mode"></div>
   </div>
   <div class="foot">
@@ -704,7 +709,7 @@
       <li>Das Gespräch wird wie jeder Anruf transkribiert und gespeichert. Ob die Verarbeitung ohne Hinweis zulässig ist, musst du selbst beurteilen.</li>
       <li>Die KI nennt keine Daten, stimmt nichts zu, beleidigt nicht und gibt sich nicht als Behörde aus. Eine Garantie dafür gibt es nicht.</li>
     </ul>
-    <p style="margin:0">Du nutzt diesen Modus auf eigene Verantwortung und eigenes rechtliches Risiko. Dies ist keine Rechtsberatung; mehr dazu in <code>doc/Rechtliches.md</code>.</p>
+    <p style="margin:0">Du nutzt diesen Modus auf eigene Verantwortung und eigenes rechtliches Risiko. Dies ist keine Rechtsberatung; mehr dazu in <code>doc/legal.de.md</code>.</p>
     <label class="check"><input type="checkbox" id="scam-ack"> Ich habe das gelesen, verstanden und übernehme das Risiko.</label>
   </div>
   <div class="foot">
@@ -777,7 +782,7 @@ async function api(path, body, method) {
 }
 const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const when = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }); };
+const when = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(I18N.locale, { dateStyle: 'short', timeStyle: 'short' }); };
 function toast(msg, level = 'warn') {
   addLog({ time: '', level, text: msg });
   const t = document.createElement('div'); t.className = 'toast ' + level; t.setAttribute('role', level === 'ok' ? 'status' : 'alert');
@@ -841,6 +846,11 @@ $('ui-mode').onchange = async (ev) => {
   catch (err) { toast('Die Auswahl konnte nicht gespeichert werden: ' + err.message, 'error'); }
 };
 
+$('ui-lang').onchange = async () => {
+  try { const s = await api('/api/settings', { uiLang: $('ui-lang').value }); loaded = { ...loaded, uiLang: s.uiLang }; I18N.sync(s.uiLang); }
+  catch (err) { toast(err.message, 'error'); }
+};
+
 // ---- Status ----
 function render() {
   if (!status) return;
@@ -866,9 +876,9 @@ function render() {
   const c = status.target ? contactFor(status.target) : null;
   if (ringing && !busy) { $('phase').textContent = 'Es klingelt'; $('callbar').dataset.k = 'accent'; }
   $('meta').innerHTML = ringing && !busy
-    ? `<b>${esc(ringState.callerName || ringState.caller || 'Nummer unterdrückt')}</b>${ringState.line ? ' · für ' + esc(ringState.line) : ''} · die KI nimmt nicht an`
+    ? `<b>${ringState.callerName || ringState.caller ? `<span data-no-i18n>${esc(ringState.callerName || ringState.caller)}</span>` : 'Nummer unterdrückt'}</b>${ringState.line ? ' · für ' + esc(ringState.line) : ''} · die KI nimmt nicht an`
     : status.target
-    ? `<b>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}<span class="adv">${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}</span>`
+    ? `<b data-no-i18n>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}<span class="adv">${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}</span>`
     : '';
   $('hangup').disabled = !busy;
   $('prepare').disabled = busy || !status.registered;
@@ -903,7 +913,7 @@ function renderTranscriptInto(el, entries, emptyText) {
     const d = document.createElement('div');
     d.className = `msg ${e.speaker}${e.final ? '' : ' live'}`;
     if (e.speaker !== 'system') { const b = document.createElement('b'); b.textContent = e.speaker === 'ki' ? 'KI' : 'Gegenüber'; d.appendChild(b); }
-    d.appendChild(document.createTextNode(e.text));
+    const tx = document.createElement('span'); tx.dataset.noI18n = ''; tx.textContent = e.text; d.appendChild(tx);
     el.appendChild(d);
   }
   el.scrollTop = el.scrollHeight;
@@ -918,15 +928,17 @@ const usageText = (u, model, costUsd) => `${model} · Audio ${u.inputAudioTokens
 function renderUsage(u, model, costUsd) { $('usage').textContent = usageText(u, model, costUsd); }
 
 // ---- Anrufe ----
+/** Name des Kontakts bzw. die Nummer – von der Übersetzung ausgenommen; nur „anonym“ ist ein Text der Oberfläche. */
+const nameHtml = (contact, target) => (contact || target ? `<span data-no-i18n>${esc(contact ? contact.name : target)}</span>` : 'anonym');
 function callRow(c, compact) {
   const contact = contactFor(c.target);
   const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0; d.setAttribute('role', 'button');
   if (c.id === selectedCallId && !compact) d.setAttribute('aria-current', 'true');
   const sum = ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
   const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
-  d.innerHTML = `<div class="t">${esc(contact ? contact.name : (c.target || 'anonym'))}${pills}</div>
+  d.innerHTML = `<div class="t">${nameHtml(contact, c.target)}${pills}</div>
     <div class="m">${esc(when(c.startedAt))} · ${fmt(c.durationSec)}</div>
-    <div class="s">${esc(sum || c.endReason)}</div>`;
+    <div class="s" data-no-i18n>${esc(sum || c.endReason)}</div>`;
   return d;
 }
 function renderCalls() {
@@ -965,9 +977,9 @@ async function showCall(id) {
   selectedCallId = id;
   const contact = contactFor(r.target);
   const pills = `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
-  $('call-detail-head').innerHTML = `<div class="t">${esc(contact ? contact.name : (r.target || 'anonym'))}${contact ? ` <span class="hint">${esc(r.target)}</span>` : ''}${pills}</div>
-    <div class="m">${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.endReason)}${r.called ? ' · auf ' + esc(r.called) : ''}</div>
-    ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> ${esc(r.outcome.result)}${r.outcome.open ? ' · offen: ' + esc(r.outcome.open) : ''}</div>` : ''}`;
+  $('call-detail-head').innerHTML = `<div class="t">${nameHtml(contact, r.target)}${contact ? ` <span class="hint" data-no-i18n>${esc(r.target)}</span>` : ''}${pills}</div>
+    <div class="m" data-no-i18n>${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.endReason)}${r.called ? ' · ' + esc(r.called) : ''}</div>
+    ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> <span data-no-i18n>${esc(r.outcome.result)}${r.outcome.open ? ' · ' + esc(r.outcome.open) : ''}</span></div>` : ''}`;
   $('call-transcript').style.display = '';
   renderTranscriptInto($('call-transcript'), r.entries || [], 'Kein Transkript gespeichert.');
   renderSummaryInto($('call-summary'), r.summary || '');
@@ -1034,7 +1046,7 @@ function renderContacts() {
   $('contacts-empty').style.display = contacts.length ? 'none' : 'block';
   for (const c of contacts) {
     const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id; d.setAttribute('role', 'group'); d.setAttribute('aria-label', c.name);
-    d.innerHTML = `<div><div class="n">${esc(c.name)}${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num">${esc(c.number)}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
+    d.innerHTML = `<div><div class="n"><span data-no-i18n>${esc(c.name)}</span>${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num" data-no-i18n>${esc(c.number)}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
       <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}">Löschen</button></div>`;
     el.appendChild(d);
   }
@@ -1131,7 +1143,13 @@ async function saveThen(btn, label, fn) {
   refreshMail();
 }
 for (const id of ['mail-auto', 'mail-login', 'mail-verify', 'mail-test']) $(id).dataset.label = $(id).textContent;
-$('mail-auto').onclick = () => saveThen($('mail-auto'), 'Suche …', mailAutoconfig);
+// Ohne vorheriges Speichern: Server und ein frisch eingetipptes Passwort gehen in einem Schritt zum Server
+$('mail-auto').onclick = async () => {
+  const btn = $('mail-auto'); btn.disabled = true; btn.textContent = 'Suche …';
+  try { await mailAutoconfig(); } catch (err) { toast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = btn.dataset.label;
+  refreshMail();
+};
 /** Serverdaten zur Adresse suchen und eintragen. Liefert true, wenn der Anbieter stattdessen OAuth verlangt. */
 async function mailAutoconfig() {
   const email = $('p-smtp-user').value.trim() || $('p-mail-to').value.trim();
@@ -1272,8 +1290,11 @@ function applySettings(s, keys) {
   if (s.retentionDays) $('retention').textContent = s.retentionDays;
 }
 async function saveKeys(keys) {
+  const hadPass = Boolean(loaded.smtpPass);
   const saved = await api('/api/settings', changedFields(keys));
   applySettings(saved, keys);
+  // Der Server verwirft das gespeicherte Mail-Passwort, wenn nur die Serveradresse geändert wurde
+  if (hadPass && !saved.smtpPass && keys.includes('smtpHost')) toast('Der Mailserver wurde geändert. Bitte das Passwort des Postfachs neu eingeben und speichern.', 'warn');
   return saved;
 }
 /** Angaben für einen Anruf: Dashboard-Felder plus Name, Auftraggeber und Verhaltenshinweise – keine sonstigen Einstellungen. */
@@ -1437,7 +1458,7 @@ function showSetupStep(i) {
   setupStep = Math.max(0, Math.min(setupSections.length - 1, i));
   setupSections.forEach((sec, n) => { sec.hidden = n !== setupStep; });
   $('setup-title').textContent = setupSections[setupStep].dataset.title;
-  $('setup-step').textContent = `Schritt ${setupStep + 1} von ${setupSections.length}`;
+  $('setup-step').textContent = I18N.t('Schritt {0} von {1}', setupStep + 1, setupSections.length);
   $('setup-back').hidden = setupStep === 0;
   const last = setupStep === setupSections.length - 1;
   $('setup-next').textContent = last ? 'Fertig' : setupStep === 0 ? 'Los geht’s' : 'Weiter';
@@ -1463,11 +1484,11 @@ async function openSetup(step = 0) {
 }
 /** Was der aktuelle Schritt an gewöhnlichen Einstellungen enthält, speichern (Zugangsdaten haben eigene Knöpfe). */
 async function saveSetupStep() {
-  const title = setupSections[setupStep].dataset.title;
-  if (title === 'Dein Assistent') {
+  const step = setupSections[setupStep].dataset.step;
+  if (step === 'assistant') {
     $('p-name').value = $('su-name').value.trim() || $('p-name').value; $('p-principal').value = $('su-principal').value.trim();
     await saveKeys(['aiName', 'principal']);
-  } else if (title === 'Anrufbeantworter') {
+  } else if (step === 'incoming') {
     $('p-incoming').checked = $('su-incoming').checked;
     const number = $('su-number').value.replace(/\D/g, ''), name = $('su-number-name').value.trim() || $('p-principal').value.trim();
     if (number && name) {
@@ -1518,7 +1539,6 @@ $('su-mail-save').onclick = () => setupCheck($('su-mail-save'), 'su-mail-state',
   const mail = $('su-mail').value.trim();
   if (!mail.includes('@')) throw new Error('Bitte eine E-Mail-Adresse eintragen.');
   $('p-smtp-user').value = mail; if ($('su-mail-pass').value) $('p-smtp-pass').value = $('su-mail-pass').value;
-  await saveKeys(SETTINGS_KEYS);
   if (await mailAutoconfig()) throw new Error('Dieser Anbieter verlangt die Anmeldung per OAuth. Das geht unter „Einstellungen › E-Mail-Versand“ (Stufe „Erweitert“).');
   await api('/api/mail/verify', {});
   $('su-mail-pass').value = '';
@@ -1552,6 +1572,9 @@ $('su-test').onclick = async () => {
     }
     applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
     setUiMode(settings.uiMode);
+    $('ui-lang').value = settings.uiLang || 'auto';
+    // Die Sprache steht für den schnellen Start auch im Browser; weicht sie von den Einstellungen ab, einmal neu laden
+    if (I18N.sync(settings.uiLang)) return;
     $('mode').value = settings.mode && modes.some((m) => m.id === settings.mode) && (settings.mode !== 'ai' || aiAvailable) ? settings.mode : (aiAvailable ? 'ai' : 'echo');
     contacts = cs.items;
     if (lastTarget) $('target').value = lastTarget;

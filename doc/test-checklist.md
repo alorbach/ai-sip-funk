@@ -20,6 +20,7 @@ Test only with your own numbers and extensions or with people who are in on it.
 - [ ] Last step: the echo test call to your own extension rings and you hear yourself.
 - [ ] Installed tray app, first start: the browser opens with the assistant; "Server neu starten" and "Beenden" during a call hang up the call.
 - [ ] Switch "Einfach / Erweitert": applies at once; a technical value changed in "Erweitert" is still there after switching back and saving something else in "Einfach".
+- [ ] Language: "Sprache" → "English" reloads the page in English; the tray menu is English after it is opened again; the pop-up while ringing appears in English.
 
 - [ ] `npm run test-call -- **610` (your own internal extension): the phone rings, the beep is audible.
 - [ ] With `--echo`: what you say comes back after one second.

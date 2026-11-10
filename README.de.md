@@ -60,7 +60,7 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 ## Konfiguration
 
 - **`.env`**: Zugangsdaten (SIP, OpenAI), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den OpenAI-Schlüssel dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
-- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard.
+- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard. Die Oberfläche gibt es auf Deutsch und Englisch („Sprache“ auf der Seite „Einstellungen“; standardmäßig nach der Sprache des Browsers). Die KI selbst spricht am Telefon Deutsch.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore` und gehören in kein Repository, kein Ticket und keinen Screenshot.
 

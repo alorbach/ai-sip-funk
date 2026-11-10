@@ -5,6 +5,8 @@ import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
 
 export interface FormSettings {
+  /** Sprache der Oberfläche: 'auto' (Sprache des Browsers) | 'de' | 'en'. Die KI spricht unabhängig davon Deutsch */
+  uiLang: string;
   /** Einrichtungsassistent abgeschlossen oder übersprungen ('on'): Er öffnet sich dann nicht mehr von selbst */
   setupDone: string;
   /** Stufe der Oberfläche: 'easy' (Standard, nur das Nötige) | 'advanced' (alles). Blendet nur aus, ändert keine Werte */
@@ -145,7 +147,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'setupDone', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -192,6 +194,7 @@ function envDefaults(): FormSettings {
   const e = (k: string, fallback = '') => process.env[k]?.trim() || fallback;
   return {
     uiMode: 'easy',
+    uiLang: 'auto',
     setupDone: 'off',
     mode: e('AI_DEFAULT_MODE', 'ai'),
     task: e('AI_TASK'),
@@ -425,6 +428,9 @@ export function saveSettings(input: Record<string, unknown>): FormSettings {
   // Maskierte Kennwörter aus der UI bedeuten „unverändert"
   for (const k of SECRET_KEYS) if (incoming[k] === SECRET_MASK) delete incoming[k];
   const merged = normalize({ ...current, ...incoming });
+  // Neuer Mailserver ohne neu eingegebenes Passwort: das gespeicherte verwerfen. Sonst ließe sich ein hinterlegtes
+  // Passwort an einen fremden Server schicken, indem jemand nur die Serveradresse ändert (wie beim SIP-Kennwort).
+  if (incoming.smtpPass === undefined && current.smtpPass && merged.smtpHost.trim().toLowerCase() !== current.smtpHost.trim().toLowerCase()) merged.smtpPass = '';
   // Unveränderte Standardvorlage nicht festschreiben: '' folgt späteren Änderungen der eingebauten Vorlage
   for (const [k, def] of MAIL_TEMPLATES) if (sameText(merged[k], def)) merged[k] = '';
   // Spam-Abwehr ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
@@ -437,6 +443,7 @@ export function saveSettings(input: Record<string, unknown>): FormSettings {
 function normalize(s: FormSettings): FormSettings {
   if (s.uiMode !== 'advanced') s.uiMode = 'easy';
   if (s.setupDone !== 'on') s.setupDone = 'off';
+  if (s.uiLang !== 'de' && s.uiLang !== 'en') s.uiLang = 'auto';
   return s;
 }
 
