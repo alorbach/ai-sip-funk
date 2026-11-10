@@ -22,21 +22,48 @@ export class ToneHandler implements AudioHandler {
   close(): void {}
 }
 
-/** Spielt empfangene Frames mit Verzögerung zurück: belegt Audio in beide Richtungen. */
+/**
+ * Spielt das empfangene Audio mit Verzögerung zurück: belegt Audio in beide Richtungen.
+ * Gerechnet wird in Samples, nicht in Paketen: Die FRITZ!Box schickt bei HD 10-ms-Pakete,
+ * gesendet wird aber ein 20-ms-Frame je Takt.
+ */
 export class EchoHandler implements AudioHandler {
-  private queue: Int16Array[] = [];
-  private readonly delayFrames: number;
-  constructor(delayMs = 1000) {
-    this.delayFrames = Math.round(delayMs / 20);
+  private chunks: Int16Array[] = [];
+  private buffered = 0;
+  private rate = 8000;
+  constructor(private readonly delayMs = 1000) {}
+  onConnected(sampleRate: number): void {
+    this.rate = sampleRate;
   }
   onRemoteAudio(pcm: Int16Array): void {
-    this.queue.push(pcm);
-    if (this.queue.length > this.delayFrames * 4) this.queue.splice(0, this.queue.length - this.delayFrames);
+    this.chunks.push(pcm);
+    this.buffered += pcm.length;
+    // Läuft der Puffer voll (Gegenstelle sendet schneller, als wir abspielen), auf die Verzögerung kürzen
+    const delay = (this.rate * this.delayMs) / 1000;
+    if (this.buffered > delay * 4) this.take(this.buffered - delay);
   }
   nextFrame(): Int16Array | undefined {
-    return this.queue.length > this.delayFrames ? this.queue.shift() : undefined;
+    const frame = samplesPerFrame(this.rate);
+    return this.buffered >= (this.rate * this.delayMs) / 1000 + frame ? this.take(frame) : undefined;
   }
   close(): void {
-    this.queue = [];
+    this.chunks = [];
+    this.buffered = 0;
+  }
+
+  /** Nimmt die ältesten n Samples aus dem Puffer */
+  private take(n: number): Int16Array {
+    const out = new Int16Array(n);
+    let filled = 0;
+    while (filled < n && this.chunks.length > 0) {
+      const head = this.chunks[0];
+      const part = Math.min(head.length, n - filled);
+      out.set(head.subarray(0, part), filled);
+      filled += part;
+      if (part === head.length) this.chunks.shift();
+      else this.chunks[0] = head.subarray(part);
+    }
+    this.buffered -= filled;
+    return out;
   }
 }

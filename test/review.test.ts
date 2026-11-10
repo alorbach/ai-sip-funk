@@ -14,6 +14,7 @@ import { apiFetchAllowed } from '../src/web/server.js';
 import { isPrivateIp, SipClient } from '../src/sip/client.js';
 import { getHeader, getHeaders, parseMessage, serialize } from '../src/sip/message.js';
 import { lookupTellows } from '../src/spamCheck.js';
+import { EchoHandler } from '../src/rtp/testSources.js';
 
 // settings.json liegt im Arbeitsverzeichnis: jeder Test dieser Datei arbeitet in einem leeren Ordner
 const dir = mkdtempSync(join(tmpdir(), 'sipfunk-review-'));
@@ -157,4 +158,23 @@ test('Sprache der Oberfläche: Standard „auto“, nur de/en werden gespeichert
   assert.equal(saveSettings({ uiLang: 'en' }).uiLang, 'en');
   assert.equal(saveSettings({ aiName: 'Kim' }).uiLang, 'en');
   assert.equal(saveSettings({ uiLang: 'fr' }).uiLang, 'auto');
+});
+
+test('Echo: 10-ms-Pakete der Anlage kommen vollständig und in 20-ms-Frames zurück', () => {
+  const echo = new EchoHandler(100);
+  echo.onConnected(16000);
+  // 1 s Audio in 10-ms-Paketen (160 Samples), fortlaufend nummeriert
+  let n = 0;
+  const out: number[] = [];
+  for (let tick = 0; tick < 50; tick++) {
+    for (let k = 0; k < 2; k++) echo.onRemoteAudio(Int16Array.from({ length: 160 }, () => n++ % 30000));
+    const frame = echo.nextFrame();
+    if (frame) {
+      assert.equal(frame.length, 320);
+      out.push(...frame);
+    }
+  }
+  // Alles bis auf die Verzögerung (100 ms = 1600 Samples) ist zurückgekommen, lückenlos und in der Reihenfolge
+  assert.equal(out.length, 16000 - 1600);
+  assert.ok(out.every((v, i) => v === i));
 });
