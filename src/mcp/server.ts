@@ -86,6 +86,9 @@ function formatRecord(r: CallRecord, withTranscript: boolean): string {
  * Wartet bis zum Gesprächsende und liefert das Protokoll (inkl. Zusammenfassung, sofern sie rechtzeitig kommt).
  * MCP-Clients brechen Requests meist nach ~60 s ab; deshalb kurze Wartefenster und Fortschrittsmeldungen.
  */
+/** Beginn des letzten über start_call gestarteten Anrufs */
+let lastStartedAt: string | undefined;
+
 async function waitForCall(sinceIso: string, timeoutSec: number, progress?: (msg: string) => Promise<void>): Promise<string> {
   const deadline = Date.now() + timeoutSec * 1000;
   // Phase 1: bis das Gespräch vorbei ist
@@ -184,6 +187,7 @@ server.registerTool(
     await api('/api/call/prepare', { target }); // liefert den Sperrgrund als Fehler
     const startedAt = new Date().toISOString();
     await api('/api/call/dial', { ...args, target, mode: 'ai' });
+    lastStartedAt = startedAt;
     return text(`Anruf an ${label} gestartet (${startedAt}). Mit wait_for_call auf das Ergebnis warten.`);
   },
 );
@@ -196,14 +200,15 @@ server.registerTool(
       'läuft das Gespräch dann noch, kommt eine Statusmeldung zurück – dann einfach erneut aufrufen.',
     inputSchema: {
       timeout_sec: z.number().int().min(5).max(600).optional(),
-      since: z.string().optional().describe('ISO-Zeitstempel; nur Protokolle ab diesem Zeitpunkt (Standard: jetzt minus 10 Minuten)'),
+      since: z.string().optional().describe('ISO-Zeitstempel; nur Protokolle ab diesem Zeitpunkt (Standard: Beginn des letzten start_call, sonst jetzt minus 10 Minuten)'),
     },
   },
   async ({ timeout_sec, since }, extra) => {
     const token = extra._meta?.progressToken;
     let n = 0;
     const progress = token === undefined ? undefined : (message: string) => extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: ++n, message } });
-    return text(await waitForCall(since ?? new Date(Date.now() - 600_000).toISOString(), timeout_sec ?? 50, progress));
+    // Ohne since: ab dem letzten start_call – sonst käme bei einem nicht zustande gekommenen Anruf das Protokoll des vorigen zurück
+    return text(await waitForCall(since ?? lastStartedAt ?? new Date(Date.now() - 600_000).toISOString(), timeout_sec ?? 50, progress));
   },
 );
 

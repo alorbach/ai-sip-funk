@@ -30,7 +30,9 @@ export class Mailer {
     const oauth = oauthFrom(m);
     if (m.provider === 'smtp') {
       const ok = Boolean(m.smtp);
-      return { provider: 'smtp', configured: ok, loggedIn: ok, user: m.smtp?.user, to: m.to, hint: ok ? undefined : 'SMTP-Server, Benutzer und Passwort eintragen oder „Automatisch einrichten"' };
+      // Ohne Empfänger (weder „Empfänger" noch Postfach) scheitert jeder Versand: nicht als „bereit" melden
+      const ready = ok && Boolean(m.to);
+      return { provider: 'smtp', configured: ok, loggedIn: ready, user: m.smtp?.user, to: m.to, hint: ready ? undefined : ok ? 'Empfänger oder Postfach eintragen' : 'SMTP-Server, Benutzer und Passwort eintragen oder „Automatisch einrichten"' };
     }
     const configured = Boolean(oauth?.clientId && oauth.user);
     const token = this.tokens.read();

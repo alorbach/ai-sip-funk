@@ -40,7 +40,7 @@ export class RtpSession extends EventEmitter {
   private packetBytes: number;
   private tsPerByte = 1;
   private peerKnown = false;
-  private lastRecv?: { ts: number; bytes: number };
+  private lastRecv?: { seq: number; ts: number; bytes: number };
 
   constructor(private localPort: number, readonly codec: Codec) {
     super();
@@ -127,7 +127,7 @@ export class RtpSession extends EventEmitter {
     if (buf[0] & 0x20) end -= buf[end - 1]; // Padding
     if (payloadType !== this.payloadType) return; // DTMF, Comfort Noise, anderer Codec: ignorieren
     this.packetsReceived++;
-    this.learnPeer(buf.readUInt32BE(4), end - offset);
+    this.learnPeer(buf.readUInt16BE(2), buf.readUInt32BE(4), end - offset);
     this.emit('frame', buf.subarray(offset, end));
   }
 
@@ -135,11 +135,12 @@ export class RtpSession extends EventEmitter {
    * Paketgröße und Zeitstempel-Takt der Gegenstelle aus den ersten Paketen ablesen und übernehmen.
    * Die FRITZ!Box schickt bei 16 kHz z. B. 10-ms-Pakete; weicht unser Takt ab, spielt sie abgehackt.
    */
-  private learnPeer(ts: number, bytes: number): void {
+  private learnPeer(seq: number, ts: number, bytes: number): void {
     if (this.peerKnown) return;
     const last = this.lastRecv;
-    this.lastRecv = { ts, bytes };
-    if (!last || last.bytes !== bytes || bytes === 0) return;
+    this.lastRecv = { seq, ts, bytes };
+    // Nur aufeinanderfolgende Pakete vergleichen: Nach einem Verlust wäre der Zeitstempel-Schritt doppelt so groß
+    if (!last || last.bytes !== bytes || bytes === 0 || seq !== ((last.seq + 1) & 0xffff)) return;
     const step = (ts - last.ts) >>> 0;
     if (step === 0 || step > 8 * this.samplesPerFrame) return; // Dubletten, Sprünge: nächstes Paar abwarten
     this.peerKnown = true;

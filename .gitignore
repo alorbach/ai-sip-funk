@@ -10,3 +10,5 @@ release/
 voice-samples/
 mail-token.json
 .claude/
+*.tmp
+*.defekt

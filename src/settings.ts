@@ -1,5 +1,7 @@
 // Formular-Standardwerte: .env liefert die Basis, settings.json (per UI gespeichert) überschreibt sie.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { isOn, writeFileAtomic } from './fsutil.js';
+import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
 
 export interface FormSettings {
@@ -194,7 +196,7 @@ function envDefaults(): FormSettings {
     principal: e('AI_PRINCIPAL'),
     personaExtra: e('AI_EXTRA'),
     model: e('OPENAI_MODEL', 'gpt-realtime-2.1'),
-    incoming: ['1', 'true', 'on', 'ja'].includes(e('INCOMING_ENABLED', 'off').toLowerCase()) ? 'on' : 'off',
+    incoming: onOff(e('INCOMING_ENABLED', 'off')),
     incomingRings: e('INCOMING_ANSWER_AFTER_RINGS', '5'),
     incomingTask: e('INCOMING_TASK'),
     incomingIdentities: e('INCOMING_IDENTITIES').replace(/;\s*/g, '\n'),
@@ -244,7 +246,7 @@ function envDefaults(): FormSettings {
   };
 }
 
-const onOff = (v: string): string => (['1', 'true', 'on', 'ja'].includes(v.toLowerCase()) ? 'on' : 'off');
+const onOff = (v: string): string => (isOn(v) ? 'on' : 'off');
 
 /** „23125100 = Max Mustermann" je Zeile -> Liste; Nummern werden auf Ziffern reduziert. */
 export function parseIdentities(text: string): { number: string; name: string }[] {
@@ -389,18 +391,29 @@ export function incomingFrom(s: FormSettings): { enabled: boolean; answerAfterRi
   return { enabled: s.incoming === 'on', answerAfterRings: Number.parseInt(s.incomingRings, 10) || 5 };
 }
 
+/** Eine defekte settings.json nur einmal je Inhalt melden (loadSettings läuft bei jedem Anruf mehrfach). */
+let warnedBroken = '';
+
 export function loadSettings(): FormSettings {
   const base = envDefaults();
   if (!existsSync(SETTINGS_FILE)) return base;
+  let text = '';
   try {
-    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8')) as Partial<FormSettings>;
-    return { ...base, ...pick(saved) };
-  } catch {
+    text = readFileSync(SETTINGS_FILE, 'utf8');
+    const saved = JSON.parse(text) as unknown;
+    if (!saved || typeof saved !== 'object') throw new Error('kein JSON-Objekt');
+    return { ...base, ...pick(saved as Record<string, unknown>) };
+  } catch (err) {
+    if (warnedBroken !== text) {
+      warnedBroken = text;
+      log.warn(`settings.json ist nicht lesbar (${(err as Error).message}) – es gelten die Vorgaben aus der .env`);
+    }
     return base;
   }
 }
 
 export function saveSettings(input: Record<string, unknown>): FormSettings {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Einstellungen müssen ein JSON-Objekt sein');
   const current = loadSettings();
   const incoming = pick(input);
   // Maskierte Kennwörter aus der UI bedeuten „unverändert"
@@ -410,7 +423,7 @@ export function saveSettings(input: Record<string, unknown>): FormSettings {
   for (const [k, def] of MAIL_TEMPLATES) if (sameText(merged[k], def)) merged[k] = '';
   // Spam-Abwehr ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
   if (!merged.scamAccepted.trim()) merged.scamMode = 'off';
-  writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2) + '\n');
+  writeFileAtomic(SETTINGS_FILE, JSON.stringify(merged, null, 2) + '\n');
   return merged;
 }
 

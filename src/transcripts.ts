@@ -90,7 +90,9 @@ export class TranscriptStore {
     const file = join(this.dir, `${id}.json`);
     if (!existsSync(file)) return undefined;
     try {
-      return JSON.parse(readFileSync(file, 'utf8')) as CallRecord;
+      const r = JSON.parse(readFileSync(file, 'utf8')) as CallRecord | null;
+      // Eine fremde oder beschädigte Datei darf die ganze Anrufliste nicht zum Absturz bringen
+      return r && typeof r === 'object' && typeof r.id === 'string' && Array.isArray(r.entries) ? r : undefined;
     } catch {
       return undefined;
     }

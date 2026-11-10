@@ -376,6 +376,8 @@ manager.on('callEnded', (reason: string) => {
     .catch((err) => {
       log.error((err as Error).message);
       bus.emit('message', { type: 'summary', text: `Keine Zusammenfassung: ${(err as Error).message}` });
+      // Auch ohne Zusammenfassung (OpenAI gerade nicht erreichbar) soll der Inhaber vom Anruf erfahren
+      if (c.incoming) notifyAfterIncoming(record, c.incoming).catch((e) => log.error(`Benachrichtigung: ${(e as Error).message}`));
     });
 });
 
@@ -421,7 +423,6 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
 
   log.info(`Benachrichtigung (${profile ? `Profil ${profile.name}` : 'Standard'}): Tray ${policy.tray}, E-Mail ${policy.email}, Rückruf ${policy.call}`);
   if (shouldNotify(policy.tray, assessment.important)) trayNotice(title, `${assessment.headline || who} · ${when}${assessment.important ? `\n${assessment.reason}` : ''}`);
-
 
   if (shouldNotify(policy.email, assessment.important)) {
     const ms = mailer.status();
@@ -482,23 +483,21 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
       : 'Der Anrufer hat seine Nummer unterdrückt; sag das.',
   ].join(' ');
 
-  {
-    const owner = contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0];
-    if (!owner) {
-      log.warn('Rückruf bei wichtigem Anruf ist an, aber kein Inhaber-Kontakt bzw. OWNER_NUMBERS hinterlegt');
-    } else {
-      const task = [
-        `Sag ${ownerName} Bescheid: Du hast gerade als Anrufbeantworter einen Anruf angenommen. Du duzt ${ownerName}.`,
-        report,
-        digits ? `Verlangt ${ownerName} ausdrücklich, mit dem Anrufer verbunden zu werden („verbinde mich", „stell durch"), sag „Ich verbinde dich" und rufe transfer_call auf. Sagt er „nein", „nee, das war's", „danke" oder etwas Unklares, verbindest du NICHT; im Zweifel frag einmal nach.` : '',
-        `Frag danach kurz, ob ${ownerName} noch etwas wissen will oder verbunden werden möchte; beantworte Fragen aus dem Hintergrundwissen. Wenn nichts mehr offen ist oder er sich verabschiedet, rufe end_call auf – ohne Ankündigung. Verabschiede dich locker, nicht förmlich.`,
-      ]
-        .filter(Boolean)
-        .join(' ');
-      // Der Bericht am Stück ist gewollt lang: Token-Notbremse höher als im normalen Gespräch
-      await dialAi(owner, { ...s, task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
-    }
+  const owner = contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0];
+  if (!owner) {
+    log.warn('Rückruf bei wichtigem Anruf ist an, aber kein Inhaber-Kontakt bzw. OWNER_NUMBERS hinterlegt');
+    return;
   }
+  const task = [
+    `Sag ${ownerName} Bescheid: Du hast gerade als Anrufbeantworter einen Anruf angenommen. Du duzt ${ownerName}.`,
+    report,
+    digits ? `Verlangt ${ownerName} ausdrücklich, mit dem Anrufer verbunden zu werden („verbinde mich", „stell durch"), sag „Ich verbinde dich" und rufe transfer_call auf. Sagt er „nein", „nee, das war's", „danke" oder etwas Unklares, verbindest du NICHT; im Zweifel frag einmal nach.` : '',
+    `Frag danach kurz, ob ${ownerName} noch etwas wissen will oder verbunden werden möchte; beantworte Fragen aus dem Hintergrundwissen. Wenn nichts mehr offen ist oder er sich verabschiedet, rufe end_call auf – ohne Ankündigung. Verabschiede dich locker, nicht förmlich.`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  // Der Bericht am Stück ist gewollt lang: Token-Notbremse höher als im normalen Gespräch
+  await dialAi(owner, { ...s, task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
 }
 
 /** Wählt, sobald die Leitung frei ist, und wartet das Gesprächsende ab (die Benachrichtigungen laufen nacheinander). */
@@ -525,7 +524,7 @@ async function dialAi(target: string, params: Record<string, unknown>, logLine: 
   }
 }
 
-// E-Mail: Versandweg aus der .env, OAuth-Token im Datenordner, Anmeldung über die Web-UI (Redirect auf 127.0.0.1)
+// E-Mail: OAuth-Token im Datenordner, Anmeldung über die Web-UI (Redirect auf 127.0.0.1)
 const mailTokens = new TokenStore(join(dataDir, 'mail-token.json'));
 // ---- Klingelnder Anruf: Einschätzung der Nummer fürs Pop-up, Umleiten auf Knopfdruck ----
 interface RingState { caller: string; called: string; callerName?: string; line: string; willAnswer: boolean; answerAt?: number; verdict: SpamVerdict }
@@ -623,9 +622,8 @@ const stopWeb = startWebServer({
     model: config.openaiModel,
     models: REALTIME_MODELS,
     aiAvailable: Boolean(config.openaiApiKey),
-    retentionDays: tuning().retentionDays,
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
-    env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, mail: config.mail.provider, ownerNumbers: config.ownerNumbers.length },
+    env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
   },
 });
 await manager.start();
@@ -638,11 +636,19 @@ if (typeof process.send === 'function') {
   logEvents.on('line', (line: { level: string; text: string }) => { if (line.level === 'error') send({ type: 'error', message: line.text }); });
 }
 
+let shuttingDown = false;
 async function shutdown(): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
   log.info('Beende ...');
   stopWeb();
   await manager.stop();
   process.exit(0);
 }
+// Die Tray-App bittet per IPC ums Beenden: SIGTERM beendet einen Kindprozess unter Windows sofort,
+// ohne dass ein laufendes Gespräch aufgelegt oder die Registrierung abgemeldet wird
+process.on('message', (msg: unknown) => {
+  if (msg && typeof msg === 'object' && (msg as { type?: string }).type === 'shutdown') void shutdown();
+});
 process.on('SIGINT', () => void shutdown());
 process.on('SIGTERM', () => void shutdown());

@@ -47,11 +47,23 @@ export interface WebServerOptions {
   contacts: ContactStore;
 }
 
+/** Größter angenommener Request-Body; die längsten echten Eingaben (Mail-Vorlage, Notizen) liegen weit darunter. */
+const MAX_BODY_BYTES = 1_000_000;
+
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY_BYTES) throw new Error('Anfrage zu groß');
+    chunks.push(chunk as Buffer);
+  }
   const text = Buffer.concat(chunks).toString('utf8');
-  return text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  if (!text) return {};
+  const data = JSON.parse(text) as unknown;
+  // null, Listen und einfache Werte sind gültiges JSON, aber kein Formular
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('JSON-Objekt erwartet');
+  return data as Record<string, unknown>;
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -71,12 +83,22 @@ export function localRequestAllowed(host: string | undefined, origin: string | u
   return origin === undefined || origin === `http://${host}`;
 }
 
+/**
+ * Die API zusätzlich gegen Abrufe ohne Origin schützen, die eine fremde Seite auslöst (<img>, <audio>, <script>):
+ * Browser melden deren Herkunft in Sec-Fetch-Site. Solche Abrufe könnten sonst z. B. kostenpflichtige Hörproben auslösen.
+ * Fehlt der Header (Tray-App, MCP-Server, alte Browser), bleibt es bei der Prüfung von Host und Origin.
+ */
+export function apiFetchAllowed(secFetchSite: string | undefined): boolean {
+  return secFetchSite === undefined || secFetchSite === 'same-origin' || secFetchSite === 'none';
+}
+
 export function startWebServer(opts: WebServerOptions): () => void {
   const { manager } = opts;
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!localRequestAllowed(req.headers.host, req.headers.origin)) return sendJson(res, 403, { error: 'Nur lokal erreichbar' });
+    if (url.pathname.startsWith('/api/') && !apiFetchAllowed(req.headers['sec-fetch-site'] as string | undefined)) return sendJson(res, 403, { error: 'Nur von der eigenen Seite aufrufbar' });
     try {
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         const html = await readFile(PUBLIC_DIR + 'index.html');
@@ -255,6 +277,11 @@ export function startWebServer(opts: WebServerOptions): () => void {
     if (s.phase === 'connected') broadcast(JSON.stringify({ type: 'status', status: s }));
   }, 1000);
 
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    // Ohne Behandlung endet der Prozess mit einem Stacktrace; so steht die Ursache im Log und im Tray
+    log.error(err.code === 'EADDRINUSE' ? `Web-UI: Port ${opts.port} ist belegt – läuft SIPFunk schon? Sonst WEB_PORT in der .env ändern.` : `Web-UI: ${err.message}`);
+    process.exitCode = 1;
+  });
   server.listen(opts.port, '127.0.0.1', () => {
     log.info(`Web-UI: http://127.0.0.1:${opts.port}`);
   });

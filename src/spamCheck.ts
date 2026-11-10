@@ -97,6 +97,8 @@ export function parseTellows(body: string): TellowsResult | undefined {
 
 /** Abfrage bei tellows.de (überträgt die Anrufernummer dorthin; nur mit eingeschalteter Einstellung aufrufen). */
 export async function lookupTellows(caller: string, timeoutMs = 4000): Promise<TellowsResult | undefined> {
+  // Auslandsnummern nicht abfragen: Ohne Ländervorwahl gehörte der Score zu einer anderen (deutschen) Nummer
+  if (/^(\+|00)(?!49)/.test(caller.replace(/[^\d+]/g, ''))) return undefined;
   const d = normalize(caller);
   if (d.length < 5) return undefined;
   const ctl = new AbortController();

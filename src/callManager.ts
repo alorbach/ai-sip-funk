@@ -122,12 +122,12 @@ export class CallManager extends EventEmitter {
     this.sip.on('incoming', (inc: IncomingCall) => this.onIncoming(inc));
   }
 
-  /** Anrufbeantworter zur Laufzeit umschalten (UI/Settings). */
   /** Gesprächslimit aus den Einstellungen übernehmen (gilt ab dem nächsten Anruf). */
   setMaxCallSeconds(seconds: number): void {
     this.opts.maxCallSeconds = seconds;
   }
 
+  /** Anrufbeantworter zur Laufzeit umschalten (UI/Settings). */
   setIncoming(settings: Partial<IncomingSettings>): void {
     this.incoming = { ...this.incoming, ...settings };
     this.incoming.answerAfterRings = Math.max(1, Math.min(10, Math.round(this.incoming.answerAfterRings) || 5));
@@ -241,17 +241,8 @@ export class CallManager extends EventEmitter {
     if (!inc) return { ok: false, reason: 'Es klingelt gerade kein Anruf' };
     if (mode === 'skip') {
       if (!tracked) return { ok: true, reason: 'klingelt nur' };
-      clearTimeout(this.answerTimer);
-      this.handler?.close();
-      this.handler = undefined;
-      this.call = undefined;
-      this.ringingInc = undefined;
-      this.isIncoming = false;
-      this.target = undefined;
-      this.pendingInc = inc;
       log.info(`Eingehender Anruf von ${inc.caller}: von Hand auf „klingeln lassen" gestellt`);
-      this.setPhase(this.registered ? 'idle' : 'offline');
-      this.emit('ring', { caller: inc.caller, called: inc.called, willAnswer: false });
+      this.untrack(inc);
       return { ok: true, reason: 'klingelt nur' };
     }
     if (!this.opts.createIncomingHandler) return { ok: false, reason: 'Kein KI-Handler (OPENAI_API_KEY fehlt)' };
@@ -269,11 +260,27 @@ export class CallManager extends EventEmitter {
       }
     } catch (err) {
       log.error(`Umleiten fehlgeschlagen: ${(err as Error).message}`);
+      // Ohne Handler kann die KI nicht annehmen: Der Anruf klingelt nur weiter, statt als „eingehender Anruf" hängen zu bleiben
+      this.untrack(inc);
       return { ok: false, reason: (err as Error).message };
     }
     log.info(`Eingehender Anruf von ${inc.caller}: von Hand ${mode === 'scam' ? 'in die Spam-Falle umgeleitet' : 'sofort angenommen'}`);
     this.answerNow(inc);
     return { ok: true, reason: mode === 'scam' ? 'Spam-Falle' : 'angenommen' };
+  }
+
+  /** Klingelnden Anruf wieder abgeben: Die KI nimmt ihn nicht an, er klingelt nur weiter (umleitbar bleibt er). */
+  private untrack(inc: IncomingCall): void {
+    clearTimeout(this.answerTimer);
+    this.handler?.close();
+    this.handler = undefined;
+    this.call = undefined;
+    this.ringingInc = undefined;
+    this.isIncoming = false;
+    this.target = undefined;
+    this.pendingInc = inc;
+    this.setPhase(this.registered ? 'idle' : 'offline');
+    this.emit('ring', { caller: inc.caller, called: inc.called, willAnswer: false });
   }
 
   async start(): Promise<void> {
@@ -356,7 +363,9 @@ export class CallManager extends EventEmitter {
       if (state === 'ringing') this.setPhase('ringing');
     });
     call.on('answered', (sdp: string) => this.onAnswered(sdp));
-    call.on('ended', (reason: string) => this.onEnded(reason));
+    call.on('ended', (reason: string) => {
+      if (this.call === call) this.onEnded(reason);
+    });
   }
 
   /**
@@ -364,6 +373,12 @@ export class CallManager extends EventEmitter {
    * unseren Gesprächspartner mit `target` und beendet danach unser Gespräch.
    */
   transfer(target: string): Promise<{ ok: boolean; reason: string }> {
+    // Auch beim Vermitteln gilt der Rufzielschutz: Das Ziel ist die Nummer eines Anrufers, also von außen vorgegeben
+    const blocked = checkDialTarget(target);
+    if (blocked) {
+      log.warn(`Vermittlung abgelehnt: ${blocked}`);
+      return Promise.resolve({ ok: false, reason: blocked });
+    }
     if (!this.call || this.isIncoming || !(this.call instanceof Call)) return Promise.resolve({ ok: false, reason: 'kein ausgehendes Gespräch' });
     const number = normalizeTarget(target);
     log.info(`Vermittle an ${number}`);

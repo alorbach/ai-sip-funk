@@ -215,9 +215,11 @@ function stopServer() {
     if (!child) return resolve();
     const proc = child;
     child = null;
-    const t = setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} resolve(); }, 3000);
+    const t = setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} resolve(); }, 4000);
     proc.once('exit', () => { clearTimeout(t); resolve(); });
-    try { proc.kill('SIGTERM'); } catch { clearTimeout(t); resolve(); }
+    // Erst höflich per IPC: Unter Windows beendet kill() den Prozess sofort – ein laufendes Gespräch würde
+    // nicht aufgelegt und die Registrierung an der FRITZ!Box nicht abgemeldet
+    try { proc.send({ type: 'shutdown' }); } catch { try { proc.kill('SIGTERM'); } catch { clearTimeout(t); resolve(); } }
   });
 }
 
@@ -249,4 +251,8 @@ app.whenReady().then(() => {
 
 app.on('second-instance', openUi);
 app.on('window-all-closed', (e) => e.preventDefault());
-app.on('before-quit', () => { quitting = true; if (child) { try { child.kill('SIGTERM'); } catch {} } });
+app.on('before-quit', (e) => {
+  quitting = true;
+  // Erst den Server sauber beenden (auflegen, abmelden), dann die App
+  if (child) { e.preventDefault(); stopServer().then(() => app.quit()); }
+});

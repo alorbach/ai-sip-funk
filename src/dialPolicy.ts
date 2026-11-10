@@ -11,6 +11,8 @@ const BLOCKED_PREFIXES: [string, string][] = [
   ['0138', 'Massenverkehr/Televoting'],
   ['0180', 'Service-Nummer'],
   ['019', 'Sondernummer'],
+  // Call-by-Call-Vorwahl: dahinter könnte eine sonst gesperrte Nummer stehen
+  ['010', 'Call-by-Call'],
   ['00', 'Ausland'],
 ];
 
@@ -24,7 +26,8 @@ export function checkDialTarget(rawTarget: string): string | undefined {
   if (!/^(\*\*\d+|\+?\d+)$/.test(target)) return 'Ungültige Rufnummer';
   if (target.startsWith('**')) return undefined; // interne FRITZ!Box-Nebenstelle
   if (target.startsWith('+')) {
-    return target.startsWith('+49') ? checkDialTarget('0' + target.slice(3)) : 'Ausland';
+    // „+49 (0)30 …“ ist eine übliche Schreibweise: die eingeklammerte Null nicht doppelt zählen
+    return target.startsWith('+49') ? checkDialTarget('0' + target.slice(3).replace(/^0/, '')) : 'Ausland';
   }
   for (const [prefix, reason] of BLOCKED_PREFIXES) {
     if (target.startsWith(prefix)) return `Gesperrt: ${reason}`;

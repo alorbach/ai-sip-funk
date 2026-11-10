@@ -255,8 +255,12 @@ class TextSession {
     return new Promise((resolve, reject) => {
       const texts: string[] = [];
       let call: { id: string; name: string; args: Record<string, string> } | undefined;
+      // Bricht die Verbindung mitten in der Antwort ab, bliebe der Simulator sonst für immer hängen
+      const onClose = () => reject(new Error('Verbindung zu OpenAI während der Antwort beendet'));
+      this.ws.once('close', onClose);
       const onMsg = (d: WebSocket.RawData) => {
         const ev = JSON.parse(d.toString()) as Record<string, unknown>;
+        if (ev.type === 'response.done' || ev.type === 'error') this.ws.off('close', onClose);
         switch (ev.type) {
           case 'response.output_text.done':
           case 'response.text.done':

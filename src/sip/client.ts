@@ -25,6 +25,11 @@ const USER_AGENT = 'SIPFunk/0.1';
 
 const rand = (bytes = 6) => randomBytes(bytes).toString('hex');
 
+/** Private und lokale IPv4-Adressen (RFC 1918, Loopback, Link-Local). */
+export function isPrivateIp(ip: string): boolean {
+  return /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
+}
+
 export interface SipClientOptions {
   server: string; // z. B. fritz.box – dient auch als SIP-Domain
   user: string;
@@ -68,6 +73,8 @@ export class SipClient extends EventEmitter {
   private regCseq = 0;
   private regTimer?: NodeJS.Timeout;
   private stopped = false;
+  /** Socket ist geschlossen: nichts mehr senden */
+  private closed = false;
   private nc = 0;
 
   constructor(readonly opts: SipClientOptions) {
@@ -106,12 +113,24 @@ export class SipClient extends EventEmitter {
     this.stopped = true;
     clearTimeout(this.regTimer);
     for (const call of this.calls.values()) call.hangup();
-    try {
-      await this.register(0);
-    } catch {
-      // Abmelden ist best effort
+    // Abmelden ist best effort und darf das Beenden nicht aufhalten (unerreichbare Box: sonst 32 s Timeout)
+    if (this.boundPort && this.serverIp) {
+      await Promise.race([this.register(0).catch(() => undefined), new Promise((r) => setTimeout(r, 2000).unref())]);
     }
-    this.socket.close();
+    // Offene Transaktionen (BYE, CANCEL, REGISTER) würden sonst auf dem geschlossenen Socket weitersenden – das wirft im Timer
+    for (const tx of this.transactions.values()) {
+      clearTimeout(tx.timer);
+      tx.reject(new Error(`${tx.method}: SIP-Client gestoppt`));
+    }
+    this.transactions.clear();
+    this.closed = true;
+    await new Promise<void>((resolve) => {
+      try {
+        this.socket.close(() => resolve());
+      } catch {
+        resolve(); // nie gebunden oder schon zu
+      }
+    });
   }
 
   async register(expires = 300): Promise<void> {
@@ -137,7 +156,9 @@ export class SipClient extends EventEmitter {
       log.info('SIP: abgemeldet');
       return;
     }
-    const granted = Number(getParam(getHeader(res, 'Contact') ?? '', 'expires') ?? getHeader(res, 'Expires') ?? expires);
+    // Unlesbare Gültigkeit (NaN) ergäbe einen Timer mit 1 ms und damit eine REGISTER-Dauerschleife
+    const g = Number(getParam(getHeader(res, 'Contact') ?? '', 'expires') ?? getHeader(res, 'Expires') ?? expires);
+    const granted = Number.isFinite(g) && g > 0 ? g : expires;
     log.info(`SIP: registriert als ${this.aor} (gültig ${granted}s)`);
     this.emit('registered');
     this.scheduleRegister(Math.max(granted * 0.8, 30) * 1000, expires);
@@ -232,6 +253,7 @@ export class SipClient extends EventEmitter {
   }
 
   private sendRaw(raw: string, port = this.serverPort, ip = this.serverIp): void {
+    if (this.closed) return;
     if (this.opts.debug) log.info(`SIP >>> ${ip}:${port}\n${raw}`);
     this.socket.send(raw, port, ip);
   }
@@ -246,8 +268,14 @@ export class SipClient extends EventEmitter {
       log.warn('SIP: nicht lesbare Nachricht verworfen', (err as Error).message);
       return;
     }
-    if (msg.status !== undefined) this.onResponse(msg);
-    else this.onRequest(msg, rinfo);
+    if (msg.status !== undefined) return this.onResponse(msg);
+    // Steht die Telefonanlage im eigenen Netz (FRITZ!Box), kommen Anrufe nur von ihr: Ein INVITE von einem anderen
+    // Gerät im LAN würde sonst den Anrufbeantworter auslösen. Bei Anbietern im Internet senden oft mehrere Server.
+    if (msg.method === 'INVITE' && isPrivateIp(this.serverIp) && rinfo.address !== this.serverIp) {
+      log.warn(`SIP: INVITE von ${rinfo.address} verworfen (nicht die Telefonanlage)`);
+      return;
+    }
+    this.onRequest(msg, rinfo);
   }
 
   private onResponse(res: SipMessage): void {
@@ -437,7 +465,10 @@ export class IncomingCall extends EventEmitter {
   hangup(): void {
     if (this.state === 'ended') return;
     if (this.state === 'ringing') return this.reject();
-    this.sendBye().finally(() => this.end('aufgelegt'));
+    // Nicht auf die Antwort der Box warten: Bleibt sie aus, liefen RTP und KI-Sitzung sonst bis zum Timeout (32 s) weiter.
+      // Das Ende wird wie bisher erst nach dem aktuellen Aufruf gemeldet (Aufrufer hängen ihre Listener danach an)
+    void this.sendBye();
+    setImmediate(() => this.end('aufgelegt'));
   }
 
   remoteHangup(): void {
@@ -537,7 +568,10 @@ export class Call extends EventEmitter {
     if (this.state === 'ended' || this.hangupRequested) return;
     this.hangupRequested = true;
     if (this.state === 'connected') {
-      this.sendBye().finally(() => this.end('aufgelegt'));
+      // Nicht auf die Antwort der Box warten: Bleibt sie aus, liefen RTP und KI-Sitzung sonst bis zum Timeout (32 s) weiter.
+      // Das Ende wird wie bisher erst nach dem aktuellen Aufruf gemeldet (Aufrufer hängen ihre Listener danach an)
+      void this.sendBye();
+      setImmediate(() => this.end('aufgelegt'));
     } else if (this.inviteMsg) {
       this.sendCancel();
       // Fallback, falls die Box auf CANCEL nicht reagiert
@@ -639,9 +673,10 @@ export class Call extends EventEmitter {
     this.client.sendMessage(this.lastAck);
 
     if (this.hangupRequested) {
-      // CANCEL kam zu spät, Gespräch wurde trotzdem angenommen
-      this.state = 'connected';
-      this.sendBye().finally(() => this.end('abgebrochen'));
+      // CANCEL kam zu spät, Gespräch wurde trotzdem angenommen: beenden. War der Anruf schon als beendet gemeldet
+      // (Box reagierte 5 s nicht auf CANCEL), bleibt es dabei – ein zweites „ended" träfe womöglich ein neues Gespräch
+      void this.sendBye();
+      this.end('abgebrochen');
       return;
     }
     this.setState('connected');

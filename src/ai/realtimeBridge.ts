@@ -208,6 +208,8 @@ export class RealtimeBridge implements AudioHandler {
       if (!this.closed) {
         log.warn(`Realtime-Verbindung geschlossen (${code} ${reason.toString()})`);
         this.closed = true;
+        // Timer mit abräumen: close() kehrt später sofort zurück, und ein laufender Auflege-Timer träfe sonst das nächste Gespräch
+        this.clearTimers();
         opts.onError('Verbindung zu OpenAI beendet');
       }
     });
@@ -293,9 +295,7 @@ export class RealtimeBridge implements AudioHandler {
     if (this.ready) this.send({ type: 'session.update', session: { type: 'realtime', instructions } });
   }
 
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
+  private clearTimers(): void {
     clearTimeout(this.hangupTimer);
     clearTimeout(this.endSafetyTimer);
     clearTimeout(this.farewellDecisionTimer);
@@ -305,6 +305,12 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(this.stallTimer);
     if (this.hold) clearTimeout(this.hold.timer);
     this.hold = undefined;
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.clearTimers();
     this.outQueue = [];
     this.queuedItems = [];
     try {
@@ -524,7 +530,7 @@ export class RealtimeBridge implements AudioHandler {
         }
         this.greetingResponse = false;
         if (this.limitedSamples > 0 && st.framesPlayed > 0) {
-          log.info(`Realtime: Begrenzer griff bei ${((100 * this.limitedSamples) / (st.framesPlayed * 160)).toFixed(1)} % der Samples (AI_OUTPUT_GAIN ${this.opts.outputGain})`);
+          log.info(`Realtime: Begrenzer griff bei ${((100 * this.limitedSamples) / (st.framesPlayed * samplesPerFrame(this.callRate))).toFixed(1)} % der Samples (AI_OUTPUT_GAIN ${this.opts.outputGain})`);
           this.limitedSamples = 0;
         }
         this.stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, deltas: 0 };

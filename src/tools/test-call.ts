@@ -10,9 +10,10 @@ import { CallManager } from '../callManager.js';
 import { EchoHandler, ToneHandler } from '../rtp/testSources.js';
 
 const args = process.argv.slice(2);
-const target = args.find((a) => !a.startsWith('--'));
 const echo = args.includes('--echo');
 const secondsIdx = args.indexOf('--seconds');
+// Der Wert hinter --seconds ist kein Rufziel
+const target = args.find((a, i) => !a.startsWith('--') && i !== secondsIdx + 1 - (secondsIdx < 0 ? 1 : 0));
 const config = loadConfig();
 const maxSeconds = secondsIdx >= 0 ? Number(args[secondsIdx + 1]) : Math.min(30, config.maxCallSeconds);
 

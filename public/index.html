@@ -389,7 +389,7 @@
         <button type="button" data-section="settings-tech">Technik</button>
         <div class="save">
           <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
-          <span class="hint">Speichert alle Abschnitte (Strg+S).</span>
+          <span class="hint">Speichert alle Abschnitte dieser Seite (Strg+S).</span>
         </div>
       </nav>
       <div class="col">
@@ -610,6 +610,11 @@ const FORM_FIELDS = {
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', summaryModel: 't-summary-model',
 };
+// Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
+const DASH_KEYS = ['mode', 'task', 'persona', 'voice', 'address', 'model'];
+const SETTINGS_KEYS = Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k));
+/** Zuletzt vom Server gelieferte Einstellungen: gespeichert wird nur, was davon abweicht. */
+let loaded = {};
 let status = null, modes = [], aiAvailable = false, contacts = [], activeContact = null, voices = [], allCalls = [], selectedCallId = null;
 
 async function api(path, body, method) {
@@ -702,6 +707,12 @@ function render() {
   $('result').textContent = status.result ? 'Ergebnis: ' + status.result : '';
   if (!status.liveListen) { $('listen').disabled = true; $('listen').title = 'Mithören deaktiviert (LIVE_LISTEN_ENABLED)'; }
   $('persona').style.display = $('mode').value === 'ai' ? '' : 'none';
+  // Anrufbeantworter wurde woanders umgeschaltet (Tray-Menü): Schalter nachziehen, sofern er hier nicht gerade geändert wird
+  const inc = status.incomingSettings && status.incomingSettings.enabled ? 'on' : 'off';
+  if (loaded.incoming !== undefined && loaded.incoming !== inc) {
+    if (fieldValue('p-incoming') === loaded.incoming) setField('p-incoming', inc);
+    loaded.incoming = inc;
+  }
 }
 // Höhe der Kopfleiste (mit/ohne Gesprächsleiste) für die haftende Abschnittsliste der Einstellungen
 new ResizeObserver(() => document.documentElement.style.setProperty('--header-h', $('header').offsetHeight + 'px')).observe($('header'));
@@ -743,7 +754,8 @@ function renderCalls() {
   const q = $('calls-filter').value.trim().toLowerCase();
   let items = allCalls;
   if (activeContact) items = items.filter((c) => sameNumber(c.target, activeContact.number));
-  if (q) items = items.filter((c) => { const n = contactFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (c.summary || '').toLowerCase().includes(q); });
+  const qDigits = /^[\d\s+*\-/()]+$/.test(q) ? q.replace(/[^\d*]/g, '') : '';
+  if (q) items = items.filter((c) => { const n = contactFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (qDigits && (c.target || '').includes(qDigits)) || (c.summary || '').toLowerCase().includes(q); });
   const el = $('calls'); el.innerHTML = '';
   $('calls-empty').style.display = items.length ? 'none' : 'block';
   for (const c of items) el.appendChild(callRow(c, false));
@@ -755,9 +767,13 @@ function renderCalls() {
   for (const c of allCalls.slice(0, 5)) r.appendChild(callRow(c, true));
 }
 async function refreshCalls() {
+  const before = allCalls.find((c) => c.id === selectedCallId);
   allCalls = (await api('/api/transcripts')).items;
   renderCalls();
-  if (selectedCallId && !allCalls.some((c) => c.id === selectedCallId)) clearCallDetail();
+  const now = allCalls.find((c) => c.id === selectedCallId);
+  if (selectedCallId && !now) clearCallDetail();
+  // Die Zusammenfassung kommt nach dem Protokoll: das offene Detail nachziehen
+  else if (now && before && now.summary !== before.summary) await showCall(selectedCallId);
 }
 function clearCallDetail() {
   selectedCallId = null;
@@ -819,9 +835,12 @@ function onSpamList(number) {
 }
 async function addToSpamList(number) {
   if (!(await ask('Nummer in die Spam-Liste?', `${number} wird in „Bekannte Spam-Nummern“ eingetragen und gespeichert. Anrufe von dieser Nummer empfängt die KI dann als Privatperson – sofern die Spam-Abwehr eingeschaltet ist.`, 'Eintragen'))) return;
+  // Nur die Liste speichern – nicht nebenbei alles, was sonst gerade ungespeichert im Formular steht
+  const list = ((loaded.scamNumbers || '').trim() ? loaded.scamNumbers.trim() + '\n' : '') + number;
   const ta = $('p-scam-numbers');
-  ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + number;
-  await api('/api/settings', collectForm());
+  const dirty = ta.value !== loaded.scamNumbers;
+  loaded = { ...loaded, scamNumbers: (await api('/api/settings', { scamNumbers: list })).scamNumbers };
+  ta.value = dirty ? (ta.value.trim() ? ta.value.trim() + '\n' : '') + number : loaded.scamNumbers;
   toast($('p-scam').checked ? 'Nummer in die Spam-Liste eingetragen.' : 'Nummer eingetragen. Die Spam-Abwehr ist aber ausgeschaltet.', $('p-scam').checked ? 'ok' : 'warn');
 }
 $('complaint-close').onclick = () => $('complaint-dialog').close();
@@ -925,7 +944,7 @@ async function refreshMail() {
 }
 async function saveThen(btn, label, fn) {
   btn.disabled = true; btn.textContent = label;
-  try { await api('/api/settings', collectForm()); await fn(); }
+  try { await saveKeys(SETTINGS_KEYS); await fn(); }
   catch (err) { toast(err.message, 'error'); }
   btn.disabled = false; btn.textContent = btn.dataset.label;
   refreshMail();
@@ -946,7 +965,7 @@ $('mail-auto').onclick = () => saveThen($('mail-auto'), 'Suche …', async () =>
   if (r.user) $('p-smtp-user').value = r.user;
   const src = { ispdb: 'Thunderbird-Datenbank', preset: 'bekannter Anbieter', mx: 'DNS (MX)', probe: 'Verbindungsprobe' }[r.source] || r.source;
   $('mail-auto-hint').textContent = `Gefunden (${src}): ${r.host}:${r.port}, ${r.secure ? 'SSL/TLS' : 'STARTTLS'}.${r.note ? ' ' + r.note : ''}${r.oauth ? ' Alternativ per OAuth über „' + (r.oauth === 'gmail' ? 'Gmail' : 'Microsoft 365') + '“.' : ''}`;
-  await api('/api/settings', collectForm());
+  await saveKeys(SETTINGS_KEYS);
   toast('Serverdaten eingetragen und gespeichert. Jetzt Passwort eintragen und „Verbindung prüfen“.', 'ok');
 });
 $('mail-login').onclick = () => saveThen($('mail-login'), 'Öffne …', async () => {
@@ -1027,8 +1046,14 @@ function addLog(line) {
   el.scrollTop = el.scrollHeight;
 }
 $('log-clear').onclick = () => { $('log').innerHTML = ''; };
+let wsWasDown = false;
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`); ws.binaryType = 'arraybuffer';
+  ws.onopen = () => {
+    // Nach einer Unterbrechung (Server neu gestartet) kann sich alles geändert haben
+    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); }
+    wsWasDown = false;
+  };
   ws.onmessage = (ev) => {
     if (ev.data instanceof ArrayBuffer) return playFrame(ev.data);
     const msg = JSON.parse(ev.data);
@@ -1041,13 +1066,38 @@ function connect() {
     else if (msg.type === 'ring') { ringState = msg.ring; render(); }
     else if (msg.type === 'aiError') addLog({ time: '', level: 'error', text: 'KI: ' + msg.message });
   };
-  ws.onclose = () => { $('regtext').textContent = 'Server getrennt'; $('regdot').className = 'dot off'; setTimeout(connect, 2000); };
+  ws.onclose = () => { wsWasDown = true; $('regtext').textContent = 'Server getrennt'; $('regdot').className = 'dot off'; setTimeout(connect, 2000); };
 }
 
 // ---- Anruf ----
 function fieldValue(id) { const el = $(id); return el.type === 'checkbox' ? (el.checked ? 'on' : 'off') : el.value; }
 function setField(id, v) { const el = $(id); if (el.type === 'checkbox') el.checked = v === 'on'; else el.value = v; }
-function collectForm() { syncProfiles(); const out = {}; for (const [k, id] of Object.entries(FORM_FIELDS)) out[k] = fieldValue(id); return out; }
+/** Werte der genannten Felder, die vom zuletzt geladenen Stand abweichen. Unberührtes wird nicht mitgeschickt:
+ *  So überschreibt ein veraltetes Formular nichts, was inzwischen woanders (Tray, zweites Fenster) geändert wurde. */
+function changedFields(keys) {
+  syncProfiles();
+  const out = {};
+  for (const k of keys) { const v = fieldValue(FORM_FIELDS[k]); if (v !== loaded[k]) out[k] = v; }
+  return out;
+}
+/** Geladene/gespeicherte Einstellungen in die Felder der genannten Schlüssel übernehmen. */
+function applySettings(s, keys) {
+  loaded = s;
+  for (const k of keys) if (s[k] !== undefined) setField(FORM_FIELDS[k], s[k]);
+  if (keys.includes('incomingProfiles')) { loadProfiles(s.incomingProfiles, s.incomingIdentities); renderScamState(); }
+  if (s.retentionDays) $('retention').textContent = s.retentionDays;
+}
+async function saveKeys(keys) {
+  const saved = await api('/api/settings', changedFields(keys));
+  applySettings(saved, keys);
+  return saved;
+}
+/** Angaben für einen Anruf: Dashboard-Felder plus Name, Auftraggeber und Verhaltenshinweise – keine sonstigen Einstellungen. */
+function callParams() {
+  const out = {};
+  for (const k of [...DASH_KEYS, 'aiName', 'principal', 'personaExtra']) out[k] = fieldValue(FORM_FIELDS[k]);
+  return out;
+}
 $('mode').onchange = render;
 $('prepare').onclick = async () => {
   if ($('mode').value === 'ai' && !$('p-principal').value.trim()) {
@@ -1068,7 +1118,7 @@ $('confirm-no').onclick = () => $('confirm').close();
 $('confirm-yes').onclick = async () => {
   $('confirm').close();
   try {
-    await api('/api/call/dial', { ...collectForm(), target: $('confirm-num').textContent });
+    await api('/api/call/dial', { ...callParams(), target: $('confirm-num').textContent });
     try { localStorage.setItem('sipfunk.target', $('target').value); } catch {}
   } catch (err) { toast(err.message); }
 };
@@ -1100,15 +1150,15 @@ $('scam-yes').onclick = async () => {
   $('p-scam-accepted').value = new Date().toISOString();
   $('scam-dialog').close();
   renderScamState();
-  try { await api('/api/settings', collectForm()); toast('Spam-Abwehr eingeschaltet und gespeichert.', 'ok'); }
+  try { await saveKeys(['scamMode', 'scamAccepted']); toast('Spam-Abwehr eingeschaltet und gespeichert.', 'ok'); }
   catch (err) { toast(err.message); }
 };
 
 // ---- Anrufbeantworter-Profile je eigener Nummer ----
 let profiles = [];
 function profileOptions(sel, cur) {
-  const personas = [...$('p-persona').options].map((o) => `<option value="${o.value}"${o.value === cur ? ' selected' : ''}>${o.textContent}</option>`).join('');
-  return `<option value=""${cur ? '' : ' selected'}>– Standard –</option>` + (sel === 'persona' ? personas : voices.map((v) => `<option value="${v}"${v === cur ? ' selected' : ''}>${v}</option>`).join(''));
+  const personas = [...$('p-persona').options].map((o) => `<option value="${esc(o.value)}"${o.value === cur ? ' selected' : ''}>${esc(o.textContent)}</option>`).join('');
+  return `<option value=""${cur ? '' : ' selected'}>– Standard –</option>` + (sel === 'persona' ? personas : voices.map((v) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`).join(''));
 }
 function policyOptions(cur) {
   return [['', '– allgemeine Einstellung –'], ['off', 'Aus'], ['important', 'Nur bei wichtigen Anrufen'], ['all', 'Bei allen Anrufen']].map(([v, l]) => `<option value="${v}"${(cur || '') === v ? ' selected' : ''}>${l}</option>`).join('');
@@ -1156,19 +1206,15 @@ function loadProfiles(json, legacy) {
 $('profile-add').onclick = () => { syncProfiles(); profiles.push({ number: '', name: '', kind: 'person', address: '', persona: '', voice: '', task: '', extra: '' }); renderProfiles(); $('profiles').querySelector('.profile:last-child input')?.focus(); };
 $('profiles').onclick = (ev) => { const b = ev.target.closest('[data-remove]'); if (!b) return; syncProfiles(); profiles.splice(Number(b.dataset.remove), 1); renderProfiles(); };
 
-// ---- Einstellungen speichern (beide Knöpfe speichern alles) ----
-async function saveAll(btn, label) {
+// ---- Einstellungen speichern: „Speichern“ sichert die Einstellungsseite, „Als Standard speichern“ die Vorgaben des Dashboards ----
+async function saveAll(btn, label, keys) {
   try {
-    const saved = await api('/api/settings', collectForm());
-    for (const [k, id] of Object.entries(FORM_FIELDS)) { if (k !== 'mode' && saved[k] !== undefined) setField(id, saved[k]); }
-    loadProfiles(saved.incomingProfiles, saved.incomingIdentities);
-    renderScamState();
-    if (saved.retentionDays) $('retention').textContent = saved.retentionDays;
+    await saveKeys(keys);
     btn.textContent = 'Gespeichert ✓'; setTimeout(() => { btn.textContent = label; }, 2000);
   } catch (err) { toast(err.message, 'error'); }
 }
-$('save-settings').onclick = () => saveAll($('save-settings'), 'Speichern');
-$('save-defaults').onclick = () => saveAll($('save-defaults'), 'Als Standard speichern');
+$('save-settings').onclick = () => saveAll($('save-settings'), 'Speichern', SETTINGS_KEYS);
+$('save-defaults').onclick = () => saveAll($('save-defaults'), 'Als Standard speichern', DASH_KEYS);
 // Abschnittsliste der Einstellungen: springt zur Karte, markiert beim Scrollen den sichtbaren Abschnitt
 const subnav = document.querySelector('.subnav');
 subnav.onclick = (ev) => { const b = ev.target.closest('[data-section]'); if (b) $(b.dataset.section).scrollIntoView({ block: 'start' }); };
@@ -1185,21 +1231,18 @@ document.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) &&
     const [data, settings, calls, cs] = await Promise.all([api('/api/status'), api('/api/settings'), api('/api/transcripts'), api('/api/contacts')]);
     modes = data.modes; aiAvailable = data.aiAvailable; voices = data.voices || [];
     $('mode').innerHTML = modes.map((m) => `<option value="${m.id}"${m.id === 'ai' && !aiAvailable ? ' disabled' : ''}>${m.label}${m.id === 'ai' && !aiAvailable ? ' (OPENAI_API_KEY fehlt)' : ''}</option>`).join('');
-    const personaOpts = (data.personas || []).map((p) => `<option value="${p.id}">${p.label}</option>`).join('');
-    const voiceOpts = (data.voices || []).map((v) => `<option value="${v}">${v}</option>`).join('');
+    const personaOpts = (data.personas || []).map((p) => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
+    const voiceOpts = (data.voices || []).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
     $('p-persona').innerHTML = personaOpts; $('p-voice').innerHTML = voiceOpts;
     $('c-persona').innerHTML += personaOpts; $('c-voice').innerHTML += voiceOpts;
     $('p-scam-voice').innerHTML = '<option value="">– wie der Assistent –</option>' + voiceOpts;
     $('p-model').innerHTML = (data.models || [data.model]).map((m) => `<option value="${m}">${m}${m.endsWith('-mini') ? ' (günstig)' : ' (besser)'}</option>`).join('');
-    if (data.retentionDays) $('retention').textContent = data.retentionDays;
     if (data.env) {
       const e = data.env;
       const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und OPENAI_API_KEY nur in der .env; Mail-Kennwörter in settings.json']];
       $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     }
-    for (const [k, id] of Object.entries(FORM_FIELDS)) { if (k !== 'mode' && settings[k] !== undefined) setField(id, settings[k]); }
-    loadProfiles(settings.incomingProfiles, settings.incomingIdentities);
-    renderScamState();
+    applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
     $('mode').value = settings.mode && modes.some((m) => m.id === settings.mode) && (settings.mode !== 'ai' || aiAvailable) ? settings.mode : (aiAvailable ? 'ai' : 'echo');
     contacts = cs.items;
     if (lastTarget) $('target').value = lastTarget;

@@ -1,7 +1,9 @@
 // Kontakte in contacts.json (lokal, nicht im Git). Alles außer Name und Nummer ist optional.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { normalizeTarget } from './dialPolicy.js';
+import { writeFileAtomic } from './fsutil.js';
+import { log } from './log.js';
 
 export interface Contact {
   id: string;
@@ -29,6 +31,8 @@ export function numberKey(raw: string): string {
 
 export class ContactStore {
   private contacts: Contact[] = [];
+  /** contacts.json war beim Laden defekt und ist noch nicht gesichert */
+  private broken = false;
 
   constructor(private file: string) {
     this.load();
@@ -37,14 +41,26 @@ export class ContactStore {
   private load(): void {
     if (!existsSync(this.file)) return;
     try {
-      this.contacts = JSON.parse(readFileSync(this.file, 'utf8')) as Contact[];
-    } catch {
-      this.contacts = [];
+      const data = JSON.parse(readFileSync(this.file, 'utf8')) as unknown;
+      if (!Array.isArray(data)) throw new Error('keine Liste');
+      this.contacts = (data as Contact[]).filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string' && typeof c.number === 'string');
+    } catch (err) {
+      // Nicht stillschweigend leer weiterarbeiten: der nächste gespeicherte Kontakt würde die Datei überschreiben
+      this.broken = true;
+      log.warn(`contacts.json ist nicht lesbar (${(err as Error).message}) – Kontakte bleiben leer; die Datei wird beim nächsten Speichern als contacts.json.defekt gesichert`);
     }
   }
 
   private persist(): void {
-    writeFileSync(this.file, JSON.stringify(this.contacts, null, 2) + '\n');
+    if (this.broken) {
+      this.broken = false;
+      try {
+        copyFileSync(this.file, `${this.file}.defekt`);
+      } catch {
+        /* Sicherung ist best effort */
+      }
+    }
+    writeFileAtomic(this.file, JSON.stringify(this.contacts, null, 2) + '\n');
   }
 
   list(): Contact[] {
