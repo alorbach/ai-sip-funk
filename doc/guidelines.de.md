@@ -8,7 +8,7 @@ Diese Richtlinien beschreiben, wie SIPFunk gedacht ist und wofür nicht. Sie erg
 
 ## 1. Grundsätze
 
-1. **Transparenz.** Die KI stellt sich in jedem Gespräch als KI vor und bestreitet es auch auf Nachfrage nicht. Einzige, bewusst eingeschränkte Ausnahme ist die Spam-Abwehr (Abschnitt 6), die der Betreiber ausdrücklich auf eigenes Risiko einschaltet.
+1. **Transparenz.** Die KI stellt sich in jedem Gespräch als KI vor und bestreitet es auch auf Nachfrage nicht. Einzige, bewusst eingeschränkte Ausnahme ist die Spam-Abwehr ohne KI-Kennung (Abschnitt 6), die der Betreiber ausdrücklich auf eigenes Risiko einschaltet.
 2. **Ein Mensch bleibt verantwortlich.** Jeder ausgehende Anruf wird von dir ausgelöst und bestätigt (Web-UI-Dialog) oder von einem Agenten, dem du die MCP-Schnittstelle bewusst gegeben hast. Die KI entscheidet nie selbst, wen sie anruft.
 3. **Datensparsamkeit.** Es wird kein Audio gespeichert. Transkripte werden nur so lange aufbewahrt, wie sie gebraucht werden („Protokolle aufbewahren“ unter Einstellungen › Technik). Hintergrundwissen für die KI enthält nur, was sie für den Auftrag braucht.
 4. **Keine Entscheidungen mit Tragweite.** Die KI schließt keine Verträge, zahlt nichts, bestellt nichts, gibt keine sensiblen Daten (Gesundheit, Zahlung, Ausweis, Passwörter) weiter und nimmt keine an. Was der Auftrag nicht abdeckt, nimmt sie als Frage mit.
@@ -67,7 +67,7 @@ Der Gesprächsplan, den das Textmodell daraus baut, steht nach dem Gespräch im 
 
 ## 6. Spam-Abwehr: Bedingungen für den Einsatz
 
-Die Spam-Abwehr weicht vom Transparenzgrundsatz ab. Sie ist nur vertretbar unter diesen Bedingungen; wer sie einschaltet, bestätigt sie in der Web-UI.
+Standardmäßig gibt sich die KI auch in der Spam-Abwehr als KI zu erkennen (Schalter „KI-Kennung“). Ohne KI-Kennung weicht die Spam-Abwehr vom Transparenzgrundsatz ab. Das ist nur vertretbar unter diesen Bedingungen; wer die Kennung ausschaltet, bestätigt sie in der Web-UI. Die Punkte 2 bis 7 gelten auch mit KI-Kennung.
 
 1. **Eigenes Risiko, eigene Entscheidung.** Die Rechtslage ist nicht abschließend geklärt (KI-Verordnung, DSGVO, Nutzungsbedingungen des KI-Anbieters). Siehe [legal.de.md](legal.de.md). Die Bestätigung in der UI dokumentiert, dass du das weißt.
 2. **Nur gegen unerbetene Anrufe.** Der Modus ist für Werbung, Umfragen und Betrugsversuche gedacht, die dich ohne Einwilligung anrufen, also selbst rechtswidrig handeln. Er ist nicht dafür da, lästige, aber legitime Anrufer (Vermieter, Behörde, Inkasso mit echtem Bezug) hinzuhalten. Dafür gibt es den normalen Anrufbeantworter mit eigenem Auftrag.

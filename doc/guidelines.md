@@ -8,7 +8,7 @@ These guidelines describe what SIPFunk is meant for and what it is not. They com
 
 ## 1. Principles
 
-1. **Transparency.** The AI introduces itself as an AI in every call and does not deny it when asked. The only, deliberately limited exception is the spam defence (section 6), which the operator switches on explicitly and at their own risk.
+1. **Transparency.** The AI introduces itself as an AI in every call and does not deny it when asked. The only, deliberately limited exception is the spam defence without AI disclosure (section 6), which the operator switches on explicitly and at their own risk.
 2. **A human remains responsible.** Every outgoing call is triggered and confirmed by you (dialog in the web UI) or by an agent you have deliberately given the MCP interface to. The AI never decides by itself whom to call.
 3. **Data minimisation.** No audio is stored. Transcripts are kept only as long as they are needed ("Protokolle aufbewahren" under Einstellungen › Technik). Background knowledge for the AI contains only what it needs for the task.
 4. **No decisions of consequence.** The AI concludes no contracts, pays nothing, orders nothing, passes on no sensitive data (health, payment, ID, passwords) and accepts none. What the task does not cover it takes back as a question.
@@ -67,7 +67,7 @@ The call plan the text model builds from the task is in the log after the call. 
 
 ## 6. Spam defence: conditions for use
 
-The spam defence deviates from the transparency principle. It is only defensible under these conditions; whoever switches it on confirms them in the web UI.
+By default the AI identifies itself as an AI in the spam defence as well (switch "AI disclosure"). Without AI disclosure the spam defence deviates from the transparency principle. That is only defensible under these conditions; whoever switches disclosure off confirms them in the web UI. Points 2 to 7 also apply with AI disclosure.
 
 1. **Your own risk, your own decision.** The legal situation is not settled (AI Act, GDPR, terms of use of the AI provider). See [legal.md](legal.md). The confirmation in the UI documents that you know this.
 2. **Only against unsolicited calls.** The mode is intended for advertising, surveys and fraud attempts that call you without consent, that is, callers who are themselves acting unlawfully. It is not there to stall annoying but legitimate callers (landlord, authority, debt collection with a real connection). For those there is the normal answering machine with a task of your own.
