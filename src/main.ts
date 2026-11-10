@@ -181,6 +181,9 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   if (!persona) throw new Error('Keine Persona-Dateien in personas/ gefunden');
   const incoming = params.incoming === true;
   const scam = incoming && params.scam === true;
+  // Modell und Verhalten: Nennt der Aufrufer nichts (z. B. ein Anruf über MCP), gelten die gespeicherten Einstellungen
+  const saved = loadSettings();
+  const orSaved = (k: 'model' | 'behaveLength' | 'behavePace' | 'behaveConfirm' | 'behaveSmalltalk') => (typeof params[k] === 'string' ? (params[k] as string) : saved[k]);
   const t = tuning();
   // Spam-Rolle ab Annahme: eigene Stimme und eigenes Tempo, sofern eingestellt
   const sc = scam ? loadSettings() : undefined;
@@ -197,7 +200,7 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
     principalKind: params.principalKind === 'company' ? ('company' as const) : params.principalKind === 'family' ? ('family' as const) : ('person' as const),
     familyMembers: str('familyMembers'),
     extra: str('personaExtra'),
-    behavior: { length: str('behaveLength'), pace: str('behavePace'), confirm: str('behaveConfirm'), smalltalk: str('behaveSmalltalk') },
+    behavior: { length: orSaved('behaveLength'), pace: orSaved('behavePace'), confirm: orSaved('behaveConfirm'), smalltalk: orSaved('behaveSmalltalk') },
     formal: owner ? false : str('address', 'sie') !== 'du',
     aiName: str('aiName', 'Alex') || 'Alex',
     principalName: owner && ownerFirst ? ownerFirst : str('principal', 'meinem Auftraggeber') || 'meinem Auftraggeber',
@@ -212,7 +215,7 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
-  const model = realtimeModel(str('model'), config.openaiModel);
+  const model = realtimeModel(orSaved('model'), config.openaiModel);
   log.info(`KI: Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 
   transcript = [];
@@ -694,7 +697,7 @@ const stopWeb = startWebServer({
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
     voices: VOICES,
-    model: config.openaiModel,
+    model: realtimeModel(loadSettings().model, config.openaiModel),
     models: REALTIME_MODELS,
     aiAvailable: Boolean(config.openaiApiKey),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
