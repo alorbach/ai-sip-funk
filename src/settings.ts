@@ -5,6 +5,8 @@ import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
 
 export interface FormSettings {
+  /** Stufe der Oberfläche: 'easy' (Standard, nur das Nötige) | 'advanced' (alles). Blendet nur aus, ändert keine Werte */
+  uiMode: string;
   mode: string;
   task: string;
   persona: string;
@@ -141,7 +143,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -187,6 +189,7 @@ const SETTINGS_FILE = 'settings.json';
 function envDefaults(): FormSettings {
   const e = (k: string, fallback = '') => process.env[k]?.trim() || fallback;
   return {
+    uiMode: 'easy',
     mode: e('AI_DEFAULT_MODE', 'ai'),
     task: e('AI_TASK'),
     persona: e('AI_PERSONA', 'professionell'),
@@ -402,7 +405,7 @@ export function loadSettings(): FormSettings {
     text = readFileSync(SETTINGS_FILE, 'utf8');
     const saved = JSON.parse(text) as unknown;
     if (!saved || typeof saved !== 'object') throw new Error('kein JSON-Objekt');
-    return { ...base, ...pick(saved as Record<string, unknown>) };
+    return normalize({ ...base, ...pick(saved as Record<string, unknown>) });
   } catch (err) {
     if (warnedBroken !== text) {
       warnedBroken = text;
@@ -418,13 +421,19 @@ export function saveSettings(input: Record<string, unknown>): FormSettings {
   const incoming = pick(input);
   // Maskierte Kennwörter aus der UI bedeuten „unverändert"
   for (const k of SECRET_KEYS) if (incoming[k] === SECRET_MASK) delete incoming[k];
-  const merged = { ...current, ...incoming };
+  const merged = normalize({ ...current, ...incoming });
   // Unveränderte Standardvorlage nicht festschreiben: '' folgt späteren Änderungen der eingebauten Vorlage
   for (const [k, def] of MAIL_TEMPLATES) if (sameText(merged[k], def)) merged[k] = '';
   // Spam-Abwehr ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
   if (!merged.scamAccepted.trim()) merged.scamMode = 'off';
   writeFileAtomic(SETTINGS_FILE, JSON.stringify(merged, null, 2) + '\n');
   return merged;
+}
+
+/** Werte mit fester Auswahl auf einen gültigen Stand bringen. */
+function normalize(s: FormSettings): FormSettings {
+  if (s.uiMode !== 'advanced') s.uiMode = 'easy';
+  return s;
 }
 
 function pick(obj: Record<string, unknown>): Partial<FormSettings> {

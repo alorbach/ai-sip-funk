@@ -115,3 +115,25 @@ test('SIP: stop() mit offener Transaktion kehrt zügig zurück und sendet danach
   assert.equal(afterStop, 0);
   box.close();
 });
+
+test('Stufe der Oberfläche: Standard „easy“, wird gespeichert, ändert und verliert keine anderen Werte', () => {
+  writeFileSync('settings.json', '{}');
+  assert.equal(loadSettings().uiMode, 'easy');
+  saveSettings({ stallMs: '4500', scamName: 'Schmidt', mailBody: 'Eigene Vorlage {anrufer}' });
+  // Umschalten speichert nur dieses eine Feld; alles in „Einfach“ Ausgeblendete bleibt, wie es war
+  const adv = saveSettings({ uiMode: 'advanced' });
+  assert.equal(adv.uiMode, 'advanced');
+  const easy = saveSettings({ uiMode: 'easy' });
+  assert.equal(easy.uiMode, 'easy');
+  assert.equal(easy.stallMs, '4500');
+  assert.equal(easy.scamName, 'Schmidt');
+  assert.equal(easy.mailBody, 'Eigene Vorlage {anrufer}');
+  // Speichern aus der einfachen Ansicht (nur geänderte Felder) lässt die Stufe und die Technik-Werte stehen
+  const after = saveSettings({ aiName: 'Kim' });
+  assert.equal(after.uiMode, 'easy');
+  assert.equal(after.stallMs, '4500');
+  // Unbekannte Werte fallen auf den Standard zurück
+  assert.equal(saveSettings({ uiMode: 'profi' }).uiMode, 'easy');
+  writeFileSync('settings.json', '{"uiMode": 42}');
+  assert.equal(loadSettings().uiMode, 'easy');
+});

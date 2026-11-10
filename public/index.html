@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-ui="easy">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -46,6 +46,9 @@
   a { color: var(--accent); }
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Stufen der Oberfläche: „Einfach“ blendet aus, was man zum Benutzen nicht braucht. Die Felder bleiben im Dokument
+     und behalten ihre Werte; gespeichert wird ohnehin nur, was geändert wurde. */
+  [data-ui="easy"] .adv, [data-ui="advanced"] .easy-only { display: none !important; }
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
@@ -62,6 +65,13 @@
   .conn .dot.on { background: var(--ok); }
   /* Zustand nicht nur über die Farbe: „aus“ ist ein Ring, „an“ ein gefüllter Punkt (der Text daneben sagt es ohnehin) */
   .conn .dot.off { background: transparent; box-shadow: inset 0 0 0 2px var(--danger); }
+  /* Stufenschalter: zwei Optionen, immer sichtbar im Kopf */
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line); flex: none; }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .seg span { display: block; padding: 3px 12px; min-height: 26px; line-height: 20px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+  .seg input:checked + span { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--control), 0 1px 2px rgba(0,0,0,.12); }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
   /* Navigation: Tab-Leiste, Hauptbereiche, immer sichtbar */
   nav.tabs { display: flex; gap: 2px; align-self: stretch; }
   nav.tabs button { border: 0; background: transparent; color: var(--text-2); font-weight: 500; padding: 0 14px; min-height: 52px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 7px; }
@@ -84,7 +94,9 @@
   .callbar .meta b { color: var(--text); font-weight: 600; }
   .controls { display: flex; align-items: center; gap: 10px; flex: none; }
   @media (max-width: 900px) {
-    .line { flex-wrap: wrap; gap: 0 16px; padding-top: 8px; }
+    .line { flex-wrap: wrap; gap: 4px 16px; padding-top: 8px; }
+    .conn { order: 2; flex: 1 1 100%; margin-left: 0; }
+    .seg { margin-left: auto; }
     nav.tabs { order: 3; flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; }
     nav.tabs button { min-height: 40px; padding: 0 10px; white-space: nowrap; }
     .callbar .inner { flex-wrap: wrap; gap: 8px 16px; }
@@ -287,6 +299,10 @@
       <button role="tab" id="tab-settings" data-page="settings" aria-selected="false" aria-controls="page-settings" tabindex="-1">Einstellungen</button>
     </nav>
     <div class="conn" id="conn" role="status"><span id="regdot" class="dot" aria-hidden="true"></span><span id="regtext">verbinde …</span></div>
+    <div class="seg" role="radiogroup" aria-label="Umfang der Oberfläche" id="ui-mode" title="„Einfach“ zeigt nur, was man zum Benutzen braucht. „Erweitert“ zeigt zusätzlich alle technischen Einstellungen.">
+      <label><input type="radio" name="ui-mode" value="easy" checked><span>Einfach</span></label>
+      <label><input type="radio" name="ui-mode" value="advanced"><span>Erweitert</span></label>
+    </div>
   </div>
   <div class="callbar" id="callbar" data-k="" hidden>
     <div class="inner">
@@ -324,7 +340,7 @@
             </div>
             <p class="dial-note" id="dial-note" hidden></p>
             <label class="field" style="margin-top:12px"><span>Auftrag an die KI</span><textarea id="task" placeholder="z. B. Frag nach den Öffnungszeiten am Samstag."></textarea></label>
-            <div class="grid c2" style="margin-top:12px" id="mode-row">
+            <div class="grid c2 adv" style="margin-top:12px" id="mode-row">
               <label class="field"><span>Art des Anrufs</span><select id="mode"></select><small>Echo und Testton prüfen Leitung und Ton ohne KI und ohne Kosten.</small></label>
             </div>
             <div id="persona">
@@ -332,7 +348,7 @@
                 <label class="field"><span>Stil</span><select id="p-persona"></select></label>
                 <div class="field"><span class="field-head"><label for="p-voice">Stimme</label> <button type="button" id="voices-open" class="linkish">Probe hören</button></span><select id="p-voice"></select></div>
                 <label class="field"><span>Anrede</span><select id="p-address"><option value="sie">Sie</option><option value="du">Du</option></select></label>
-                <label class="field"><span>Modell</span><select id="p-model"></select></label>
+                <label class="field adv"><span>Modell</span><select id="p-model"></select></label>
               </div>
             </div>
             <div class="footer-row">
@@ -351,13 +367,13 @@
 
       <div class="col">
         <section class="card">
-          <div class="head"><h2>Transkript</h2><span id="usage"></span></div>
+          <div class="head"><h2>Transkript</h2><span id="usage" class="adv"></span></div>
           <div id="transcript" class="transcript" tabindex="0" aria-label="Transkript des laufenden Gesprächs"><div class="empty"><b>Kein Gespräch aktiv</b>Hier liest du live mit, was die KI und dein Gegenüber sagen.</div></div>
           <div id="summary" class="summary"></div>
           <div id="result"></div>
         </section>
 
-        <section class="card">
+        <section class="card adv">
           <div class="head"><h2>Systemprotokoll</h2><button id="log-clear" class="btn small quiet">Leeren</button></div>
           <pre id="log" tabindex="0" aria-label="Systemprotokoll"></pre>
         </section>
@@ -384,7 +400,7 @@
         <div class="detail-head" id="call-detail-head"><div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div></div>
         <div id="call-transcript" class="transcript" style="display:none"></div>
         <div id="call-summary" class="summary"></div>
-        <div style="padding:10px 16px;border-top:1px solid var(--line)" id="call-usage-row" hidden><span id="call-usage"></span></div>
+        <div class="adv" style="padding:10px 16px;border-top:1px solid var(--line)" id="call-usage-row" hidden><span id="call-usage"></span></div>
         <div id="call-actions" class="detail-actions" style="display:none"></div>
       </section>
     </div>
@@ -416,7 +432,7 @@
         <button type="button" data-section="settings-notify">Benachrichtigungen</button>
         <button type="button" data-section="settings-mail">E-Mail-Versand</button>
         <button type="button" data-section="settings-scam">Spam-Abwehr</button>
-        <button type="button" data-section="settings-tech">Technik</button>
+        <button type="button" data-section="settings-tech" class="adv">Technik</button>
         <div class="save">
           <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
           <span class="hint">Speichert alle Abschnitte dieser Seite (Strg+S).</span>
@@ -441,10 +457,11 @@
             <div class="grid c2">
               <label class="switch span"><span>KI nimmt eingehende Anrufe an (allgemein)</span><input type="checkbox" id="p-incoming" role="switch"></label>
               <label class="field"><span>Annahme beim … Klingeln (allgemein)</span><input id="p-incoming-rings" type="number" min="1" max="10" value="5"></label>
-              <label class="field span"><span>Auftrag bei eingehenden Anrufen (allgemein)</span><input id="p-incoming-task" placeholder="leer = Anliegen und Rückrufwunsch aufnehmen"></label>
+              <label class="field span adv"><span>Auftrag bei eingehenden Anrufen (allgemein)</span><input id="p-incoming-task" placeholder="leer = Anliegen und Rückrufwunsch aufnehmen"></label>
             </div>
-            <div class="subhead" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Je eigener Rufnummer <button type="button" id="profile-add" class="btn small">Nummer hinzufügen</button></div>
-            <p class="hint" style="margin:6px 0 10px">Die FRITZ!Box meldet, welche eigene Nummer gewählt wurde. Je Nummer: wie sich die KI meldet, ob dahinter eine Person oder eine Firma steht, ob und nach wie vielen Klingeln sie annimmt, und abweichend Anrede, Stil, Stimme, Auftrag und Benachrichtigungen. Leer = allgemeine Einstellung. Endziffern genügen.</p>
+            <div class="subhead" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">Eigene Rufnummern <button type="button" id="profile-add" class="btn small">Nummer hinzufügen</button></div>
+            <p class="hint easy-only" style="margin:6px 0 10px">Hast du mehrere Rufnummern, trägst du hier ein, für wen die KI auf welcher Nummer abnimmt. Endziffern genügen.</p>
+            <p class="hint adv" style="margin:6px 0 10px">Die FRITZ!Box meldet, welche eigene Nummer gewählt wurde. Je Nummer: wie sich die KI meldet, ob dahinter eine Person oder eine Firma steht, ob und nach wie vielen Klingeln sie annimmt, und abweichend Anrede, Stil, Stimme, Auftrag und Benachrichtigungen. Leer = allgemeine Einstellung. Endziffern genügen.</p>
             <input type="hidden" id="p-incoming-profiles">
             <input type="hidden" id="p-incoming-identities">
             <div id="profiles" class="grid" style="gap:10px"></div>
@@ -459,7 +476,7 @@
               <label class="switch span"><span>E-Mail mit Zusammenfassung – bei allen Anrufen</span><input type="checkbox" id="p-notify-email" role="switch"></label>
               <label class="switch span"><span>Mich auf der Inhabernummer anrufen – nur bei wichtigen Anrufen</span><input type="checkbox" id="p-notify-call" role="switch"></label>
               <label class="switch span"><span>Pop-up der Tray-App, solange ein Anruf klingelt (Anrufer, Spam-Einschätzung, Umleiten)</span><input type="checkbox" id="p-ring-popup" role="switch"></label>
-              <p class="hint span" style="margin:0">Das sind die allgemeinen Regeln. Je eigener Rufnummer lassen sie sich unter „Anrufbeantworter › Je eigener Rufnummer“ überstimmen (aus, nur wichtige, alle).</p>
+              <p class="hint span adv" style="margin:0">Das sind die allgemeinen Regeln. Je eigener Rufnummer lassen sie sich unter „Anrufbeantworter › Je eigener Rufnummer“ überstimmen (aus, nur wichtige, alle).</p>
             </div>
             <p class="hint" style="margin-top:10px">Ob ein Anruf wichtig war (Termin, Kunde, Frist, Notfall) schätzt das Textmodell anhand der Zusammenfassung ein. Der Mailversand selbst wird in der Karte „E-Mail-Versand“ eingerichtet.</p>
           </div>
@@ -469,17 +486,17 @@
           <div class="head"><h2>E-Mail-Versand</h2><span class="hint" id="mail-status">E-Mail: …</span></div>
           <div class="body">
             <div class="grid c2">
-              <label class="field"><span>Versandweg</span><select id="p-mail-provider"><option value="smtp">SMTP mit Passwort (alle Anbieter)</option><option value="gmail">Gmail – Anmeldung per OAuth</option><option value="m365">Microsoft 365 / Outlook – Anmeldung per OAuth</option></select></label>
+              <label class="field adv" id="mail-provider-field"><span>Versandweg</span><select id="p-mail-provider"><option value="smtp">SMTP mit Passwort (alle Anbieter)</option><option value="gmail">Gmail – Anmeldung per OAuth</option><option value="m365">Microsoft 365 / Outlook – Anmeldung per OAuth</option></select></label>
               <label class="field"><span>Empfänger der Benachrichtigungen</span><input id="p-mail-to" type="email" placeholder="leer = das Postfach selbst"></label>
             </div>
             <div id="mail-smtp" class="grid c2" style="margin-top:12px">
               <label class="field"><span>Postfach / Benutzername</span><input id="p-smtp-user" type="email" placeholder="name@anbieter.de" autocomplete="off"></label>
               <label class="field"><span>Passwort</span><input id="p-smtp-pass" type="password" placeholder="leer = kein Passwort" autocomplete="new-password"><small>Bei Google, Apple, Yahoo und Telekom ein App-Passwort, nicht das Konto-Passwort.</small></label>
               <div class="span actions"><button type="button" id="mail-auto" class="btn small">Automatisch einrichten</button><span class="hint" id="mail-auto-hint">Sucht Server, Port und Verschlüsselung für die Adresse (Thunderbird-Datenbank, bekannte Anbieter, DNS).</span></div>
-              <label class="field"><span>SMTP-Server</span><input id="p-smtp-host" placeholder="smtp.anbieter.de" autocomplete="off"></label>
-              <label class="field"><span>Port</span><input id="p-smtp-port" type="number" min="1" max="65535" placeholder="587"></label>
-              <label class="field"><span>Verschlüsselung</span><select id="p-smtp-secure"><option value="off">STARTTLS (meist Port 587)</option><option value="on">SSL/TLS (meist Port 465)</option></select></label>
-              <label class="field"><span>Absender</span><input id="p-mail-from" placeholder="leer = Postfach"></label>
+              <label class="field adv"><span>SMTP-Server</span><input id="p-smtp-host" placeholder="smtp.anbieter.de" autocomplete="off"></label>
+              <label class="field adv"><span>Port</span><input id="p-smtp-port" type="number" min="1" max="65535" placeholder="587"></label>
+              <label class="field adv"><span>Verschlüsselung</span><select id="p-smtp-secure"><option value="off">STARTTLS (meist Port 587)</option><option value="on">SSL/TLS (meist Port 465)</option></select></label>
+              <label class="field adv"><span>Absender</span><input id="p-mail-from" placeholder="leer = Postfach"></label>
             </div>
             <div id="mail-oauth" class="grid c2" style="margin-top:12px">
               <label class="field"><span>Postfach</span><input id="p-mail-user" type="email" placeholder="name@gmail.com" autocomplete="off"></label>
@@ -489,8 +506,8 @@
               <p class="hint span" style="margin:0" id="mail-oauth-hint"></p>
               <div class="span actions"><button type="button" id="mail-login" class="btn small">Mail-Konto verbinden</button><span class="hint">Öffnet die Anmeldung des Anbieters im Browser; der Zugang landet in <code>mail-token.json</code>.</span></div>
             </div>
-            <div class="subhead" style="margin-top:16px">Aufbau der Benachrichtigungs-Mail</div>
-            <div class="grid" style="margin-top:8px">
+            <div class="subhead adv" style="margin-top:16px">Aufbau der Benachrichtigungs-Mail</div>
+            <div class="grid adv" style="margin-top:8px">
               <label class="field"><span>Betreff</span><input id="p-mail-subject" autocomplete="off" spellcheck="false"></label>
               <label class="field"><span>Text</span><textarea id="p-mail-body" style="min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:13px" spellcheck="false"></textarea></label>
               <p class="hint" style="margin:0">Variablen in geschweiften Klammern werden je Anruf ersetzt: <code>{status}</code> (Wichtig, Anruf, Spam abgewehrt), <code>{anrufer}</code> (Name, sonst Nummer), <code>{name}</code>, <code>{nummer}</code>, <code>{kontakt}</code> (Name und Nummer), <code>{anliegen}</code>, <code>{zeit}</code>, <code>{dauer}</code>, <code>{gewaehlt}</code> (eigene Nummer), <code>{fuer}</code>, <code>{leitung}</code>, <code>{todo}</code>, <code>{worum}</code>, <code>{zusammenfassung}</code>, <code>{einschaetzung}</code>, <code>{verlauf}</code>, <code>{link}</code>, <code>{id}</code>, <code>{kosten}</code>. Zeilen und Absätze, deren Variablen leer sind, entfallen (bei Spam etwa der Verlauf). Zeilen in GROSSBUCHSTABEN werden in der HTML-Ansicht zu Überschriften. Feld leeren und speichern stellt den Standard wieder her; „Probe-Mail senden“ zeigt das Ergebnis mit Beispieldaten.</p>
@@ -498,7 +515,7 @@
             <div class="actions" style="margin-top:14px">
               <button type="button" id="mail-verify" class="btn small">Verbindung prüfen</button>
               <button type="button" id="mail-test" class="btn small">Probe-Mail senden</button>
-              <span class="hint">Beide speichern vorher die Einstellungen. Kennwörter liegen in <code>settings.json</code> im Datenordner.</span>
+              <span class="hint">Beide speichern vorher die Einstellungen.<span class="adv"> Kennwörter liegen in <code>settings.json</code> im Datenordner.</span></span>
             </div>
           </div>
         </section>
@@ -509,21 +526,21 @@
               <label class="switch span"><span>Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten <span class="hint" id="scam-state"></span></span><input type="checkbox" id="p-scam" role="switch"></label>
               <input type="hidden" id="p-scam-accepted">
               <label class="field"><span>Verhalten</span><select id="p-scam-style"><option value="abwimmeln">Kurz abwimmeln (unter 1 Minute)</option><option value="beschaeftigen">Hinhalten und beschäftigen</option></select></label>
-              <label class="field"><span>Hinhalten höchstens … Minuten</span><input id="p-scam-max" type="number" min="1" max="15" value="5"></label>
-              <label class="field"><span>Name der Rolle</span><input id="p-scam-name" type="text" maxlength="40" placeholder="z. B. Schmidt" autocomplete="off"><small>Erfundener Name, mit dem sie sich meldet. Leer = sie nennt keinen Namen. Nimm nicht deinen echten.</small></label>
-              <label class="field"><span>Stimme der Rolle</span><select id="p-scam-voice"></select><small>Hörproben unter KI-Assistent › „Probe hören“.</small></label>
-              <label class="field"><span>Die Rolle ist</span><select id="p-scam-gender"><option value="">automatisch nach Stimme</option><option value="m">ein Mann</option><option value="w">eine Frau</option></select><small>Danach richtet sich, ob sie bei „Herrn …“ oder „Frau …“ sagt „Am Apparat“.</small></label>
-              <label class="field"><span>Sprechgeschwindigkeit der Rolle</span><input id="p-scam-speed" type="number" min="0.25" max="1.5" step="0.05" placeholder="0.95"><small>0,25 bis 1,5. Leer = 0,95, einen Tick langsamer als der Assistent.</small></label>
-              <label class="field span"><span>Eigene Anweisungen für die Rolle</span><textarea id="p-scam-extra" placeholder="z. B. Ältere Dame, hört schlecht, erzählt gern vom Garten. Spricht leicht schwäbisch." style="min-height:72px"></textarea><small>Figur, Ton, Eigenheiten. Die Schutzregeln (keine Daten, keine Zustimmung, höflich) gehen immer vor.</small></label>
-              <label class="field span"><span>Bekannte Spam-Nummern oder Vorwahlen (eine je Zeile; „anonym“ = unterdrückte Nummern sofort als Spam behandeln)</span><textarea id="p-scam-numbers" placeholder="0800&#10;030 1234567&#10;anonym" style="min-height:72px"></textarea></label>
+              <label class="field adv"><span>Hinhalten höchstens … Minuten</span><input id="p-scam-max" type="number" min="1" max="15" value="5"></label>
+              <label class="field adv"><span>Name der Rolle</span><input id="p-scam-name" type="text" maxlength="40" placeholder="z. B. Schmidt" autocomplete="off"><small>Erfundener Name, mit dem sie sich meldet. Leer = sie nennt keinen Namen. Nimm nicht deinen echten.</small></label>
+              <label class="field adv"><span>Stimme der Rolle</span><select id="p-scam-voice"></select><small>Hörproben unter KI-Assistent › „Probe hören“.</small></label>
+              <label class="field adv"><span>Die Rolle ist</span><select id="p-scam-gender"><option value="">automatisch nach Stimme</option><option value="m">ein Mann</option><option value="w">eine Frau</option></select><small>Danach richtet sich, ob sie bei „Herrn …“ oder „Frau …“ sagt „Am Apparat“.</small></label>
+              <label class="field adv"><span>Sprechgeschwindigkeit der Rolle</span><input id="p-scam-speed" type="number" min="0.25" max="1.5" step="0.05" placeholder="0.95"><small>0,25 bis 1,5. Leer = 0,95, einen Tick langsamer als der Assistent.</small></label>
+              <label class="field span adv"><span>Eigene Anweisungen für die Rolle</span><textarea id="p-scam-extra" placeholder="z. B. Ältere Dame, hört schlecht, erzählt gern vom Garten. Spricht leicht schwäbisch." style="min-height:72px"></textarea><small>Figur, Ton, Eigenheiten. Die Schutzregeln (keine Daten, keine Zustimmung, höflich) gehen immer vor.</small></label>
+              <label class="field span adv"><span>Bekannte Spam-Nummern oder Vorwahlen (eine je Zeile; „anonym“ = unterdrückte Nummern sofort als Spam behandeln)</span><textarea id="p-scam-numbers" placeholder="0800&#10;030 1234567&#10;anonym" style="min-height:72px"></textarea></label>
             </div>
-            <label class="switch" style="margin-top:12px"><span>Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen <span class="hint">– überträgt die Anrufernummer an tellows; Kontakte und Listeneinträge werden nie abgefragt</span></span><input type="checkbox" id="p-spam-lookup" role="switch"></label>
-            <p class="hint" style="margin-top:12px">Stimme und Tempo der Rolle gelten, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer, „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleibt die Stimme des Assistenten; Name und eigene Anweisungen gelten trotzdem.</p>
+            <label class="switch adv" style="margin-top:12px"><span>Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen <span class="hint">– überträgt die Anrufernummer an tellows; Kontakte und Listeneinträge werden nie abgefragt</span></span><input type="checkbox" id="p-spam-lookup" role="switch"></label>
+            <p class="hint adv" style="margin-top:12px">Stimme und Tempo der Rolle gelten, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer, „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleibt die Stimme des Assistenten; Name und eigene Anweisungen gelten trotzdem.</p>
             <p class="hint" style="margin-top:12px">Ohne Listentreffer meldet sich die KI normal als Assistent und wechselt erst die Rolle, wenn sie im Gespräch einen Werbe- oder Betrugsanruf erkennt. Kontakte sind davon ausgenommen. Rechtliche Hinweise: <code>doc/Rechtliches.md</code>.</p>
           </div>
         </section>
 
-        <section class="card" id="settings-tech">
+        <section class="card adv" id="settings-tech">
           <div class="head"><h2>Technik</h2></div>
           <div class="body">
             <div class="grid c2">
@@ -680,6 +697,7 @@ const contactFor = (number) => contacts.find((x) => sameNumber(x.number, number)
 
 // ---- Seiten (Tab-Leiste): Dashboard, Anrufe, Kontakte, Einstellungen; letzte Seite wird gemerkt ----
 const PAGES = ['dashboard', 'calls', 'contacts', 'settings'];
+const subnav = document.querySelector('.subnav');
 function showPage(id) {
   if (!PAGES.includes(id)) id = 'dashboard';
   for (const p of PAGES) {
@@ -702,6 +720,21 @@ document.querySelector('nav.tabs').onkeydown = (ev) => {
 };
 document.body.addEventListener('click', (ev) => { const b = ev.target.closest('[data-goto]'); if (b) showPage(b.dataset.goto); });
 window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+
+// ---- Stufe der Oberfläche: gilt sofort, wird als einzelnes Feld gespeichert ----
+function setUiMode(mode) {
+  mode = mode === 'advanced' ? 'advanced' : 'easy';
+  document.documentElement.dataset.ui = mode;
+  document.querySelector(`#ui-mode input[value="${mode}"]`).checked = true;
+  // Die Abschnittsmarke könnte auf einem jetzt ausgeblendeten Abschnitt stehen
+  const cur = subnav.querySelector('[aria-current="true"]');
+  if (cur && cur.classList.contains('adv') && mode === 'easy') for (const b of subnav.querySelectorAll('[data-section]')) b.setAttribute('aria-current', String(b.dataset.section === 'settings-ai'));
+}
+$('ui-mode').onchange = async (ev) => {
+  setUiMode(ev.target.value);
+  try { loaded = { ...loaded, uiMode: (await api('/api/settings', { uiMode: ev.target.value })).uiMode }; }
+  catch (err) { toast('Die Auswahl konnte nicht gespeichert werden: ' + err.message, 'error'); }
+};
 
 // ---- Status ----
 function render() {
@@ -730,7 +763,7 @@ function render() {
   $('meta').innerHTML = ringing && !busy
     ? `<b>${esc(ringState.callerName || ringState.caller || 'Nummer unterdrückt')}</b>${ringState.line ? ' · für ' + esc(ringState.line) : ''} · die KI nimmt nicht an`
     : status.target
-    ? `<b>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}`
+    ? `<b>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}<span class="adv">${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}</span>`
     : '';
   $('hangup').disabled = !busy;
   $('prepare').disabled = busy || !status.registered;
@@ -965,6 +998,8 @@ function renderMailForm() {
   $('mail-smtp').style.display = prov === 'smtp' ? '' : 'none';
   $('mail-oauth').style.display = prov === 'smtp' ? 'none' : '';
   $('p-mail-tenant').closest('label').style.display = prov === 'm365' ? '' : 'none';
+  // Wer per OAuth sendet, braucht den Versandweg auch in der einfachen Ansicht
+  $('mail-provider-field').classList.toggle('adv', prov === 'smtp');
   $('mail-oauth-hint').textContent = prov === 'gmail'
     ? 'Gmail: In der Google Cloud Console einen OAuth-Client vom Typ „Desktop-App“ anlegen und Client-ID (und Secret) hier eintragen. Die Gmail-API muss nicht aktiviert sein.'
     : prov === 'm365' ? `Microsoft 365: In Entra eine App-Registrierung anlegen, Redirect-URI http://127.0.0.1:${location.port || 80}/oauth/callback, Berechtigung „SMTP.Send“; SMTP-AUTH für das Postfach muss erlaubt sein. Mandant = Mandanten-ID oder „common“.` : '';
@@ -1209,16 +1244,16 @@ function renderProfiles() {
         <label class="field"><span>Eigene Nummer (Endziffern)</span><input data-k="number" inputmode="tel" value="${esc(pr.number)}" placeholder="23125100"></label>
         <label class="field"><span>Meldung als Assistent von</span><input data-k="name" value="${esc(pr.name)}" placeholder="Max Mustermann"></label>
         <label class="field"><span>Dahinter steht</span><select data-k="kind"><option value="person"${pr.kind !== 'company' ? ' selected' : ''}>eine Person („ist nicht da“)</option><option value="company"${pr.kind === 'company' ? ' selected' : ''}>eine Firma („niemand erreichbar“)</option></select></label>
-        <label class="field"><span>Annahme auf dieser Nummer</span><select data-k="answer"><option value=""${!pr.answer ? ' selected' : ''}>– allgemeine Einstellung –</option><option value="on"${pr.answer === 'on' ? ' selected' : ''}>KI nimmt an</option><option value="off"${pr.answer === 'off' ? ' selected' : ''}>Nur klingeln lassen</option></select></label>
-        <label class="field"><span>Annahme beim … Klingeln</span><input data-k="rings" type="number" min="1" max="10" value="${esc(pr.rings || '')}" placeholder="allgemeine Einstellung"></label>
-        <label class="field"><span>Anrede</span><select data-k="address"><option value=""${!pr.address ? ' selected' : ''}>– Standard –</option><option value="sie"${pr.address === 'sie' ? ' selected' : ''}>Sie</option><option value="du"${pr.address === 'du' ? ' selected' : ''}>Du</option></select></label>
-        <label class="field"><span>Stil</span><select data-k="persona">${profileOptions('persona', pr.persona)}</select></label>
-        <label class="field"><span>Stimme</span><select data-k="voice">${profileOptions('voice', pr.voice)}</select></label>
-        <label class="field span"><span>Auftrag bei Anrufen auf dieser Nummer</span><input data-k="task" value="${esc(pr.task)}" placeholder="leer = Standard-Auftrag von oben"></label>
-        <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><input data-k="extra" value="${esc(pr.extra)}" placeholder="leer = Standard"></label>
-        <label class="field"><span>Hinweis im Tray</span><select data-k="notifyTray">${policyOptions(pr.notifyTray)}</select></label>
-        <label class="field"><span>E-Mail</span><select data-k="notifyEmail">${policyOptions(pr.notifyEmail)}</select></label>
-        <label class="field"><span>Mich auf der Inhabernummer anrufen</span><select data-k="notifyCall">${policyOptions(pr.notifyCall)}</select></label>
+        <label class="field adv"><span>Annahme auf dieser Nummer</span><select data-k="answer"><option value=""${!pr.answer ? ' selected' : ''}>– allgemeine Einstellung –</option><option value="on"${pr.answer === 'on' ? ' selected' : ''}>KI nimmt an</option><option value="off"${pr.answer === 'off' ? ' selected' : ''}>Nur klingeln lassen</option></select></label>
+        <label class="field adv"><span>Annahme beim … Klingeln</span><input data-k="rings" type="number" min="1" max="10" value="${esc(pr.rings || '')}" placeholder="allgemeine Einstellung"></label>
+        <label class="field adv"><span>Anrede</span><select data-k="address"><option value=""${!pr.address ? ' selected' : ''}>– Standard –</option><option value="sie"${pr.address === 'sie' ? ' selected' : ''}>Sie</option><option value="du"${pr.address === 'du' ? ' selected' : ''}>Du</option></select></label>
+        <label class="field adv"><span>Stil</span><select data-k="persona">${profileOptions('persona', pr.persona)}</select></label>
+        <label class="field adv"><span>Stimme</span><select data-k="voice">${profileOptions('voice', pr.voice)}</select></label>
+        <label class="field span adv"><span>Auftrag bei Anrufen auf dieser Nummer</span><input data-k="task" value="${esc(pr.task)}" placeholder="leer = Standard-Auftrag von oben"></label>
+        <label class="field span adv"><span>Zusätzliche Hinweise zum Verhalten</span><input data-k="extra" value="${esc(pr.extra)}" placeholder="leer = Standard"></label>
+        <label class="field adv"><span>Hinweis im Tray</span><select data-k="notifyTray">${policyOptions(pr.notifyTray)}</select></label>
+        <label class="field adv"><span>E-Mail</span><select data-k="notifyEmail">${policyOptions(pr.notifyEmail)}</select></label>
+        <label class="field adv"><span>Mich auf der Inhabernummer anrufen</span><select data-k="notifyCall">${policyOptions(pr.notifyCall)}</select></label>
       </div>
       <div class="row"><span class="hint">Gilt für Anrufe, die auf dieser Nummer eingehen.</span><button type="button" class="btn small quiet" data-remove="${i}">Entfernen</button></div>`;
     el.appendChild(d);
@@ -1253,7 +1288,6 @@ async function saveAll(btn, label, keys) {
 $('save-settings').onclick = () => saveAll($('save-settings'), 'Speichern', SETTINGS_KEYS);
 $('save-defaults').onclick = () => saveAll($('save-defaults'), 'Als Standard speichern', DASH_KEYS);
 // Abschnittsliste der Einstellungen: springt zur Karte, markiert beim Scrollen den sichtbaren Abschnitt
-const subnav = document.querySelector('.subnav');
 subnav.onclick = (ev) => { const b = ev.target.closest('[data-section]'); if (b) $(b.dataset.section).scrollIntoView({ block: 'start' }); };
 const sectionWatch = new IntersectionObserver((entries) => {
   for (const e of entries) if (e.isIntersecting) for (const b of subnav.querySelectorAll('[data-section]')) b.setAttribute('aria-current', String(b.dataset.section === e.target.id));
@@ -1280,6 +1314,7 @@ document.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) &&
       $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     }
     applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
+    setUiMode(settings.uiMode);
     $('mode').value = settings.mode && modes.some((m) => m.id === settings.mode) && (settings.mode !== 'ai' || aiAvailable) ? settings.mode : (aiAvailable ? 'ai' : 'echo');
     contacts = cs.items;
     if (lastTarget) $('target').value = lastTarget;
