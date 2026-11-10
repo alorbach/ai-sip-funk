@@ -15,6 +15,7 @@ const secondsIdx = args.indexOf('--seconds');
 // Der Wert hinter --seconds ist kein Rufziel
 const target = args.find((a, i) => !a.startsWith('--') && i !== secondsIdx + 1 - (secondsIdx < 0 ? 1 : 0));
 const config = loadConfig();
+if (!config.sipUser || !config.sipPassword) throw new Error('Konfiguration fehlt: SIP_USER und SIP_PASSWORD (siehe .env.example)');
 const maxSeconds = secondsIdx >= 0 ? Number(args[secondsIdx + 1]) : Math.min(30, config.maxCallSeconds);
 
 const manager = new CallManager({

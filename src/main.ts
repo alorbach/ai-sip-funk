@@ -11,7 +11,7 @@ import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas, VOICES } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, notifyPolicies, parseProfiles, profileFor, scamActive, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -26,6 +26,8 @@ import { estimateCostUsd } from './ai/pricing.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
 import { ContactStore, numberKey } from './contacts.js';
+import { writeEnvValues } from './envFile.js';
+import { checkOpenAiKey, cleanOpenAiKey, cleanSipAccount, explainSipError, testSipAccount } from './setup.js';
 
 // Datenordner: .env, settings.json, contacts.json, transcripts/. Standard = Projektordner; die Tray-App
 // setzt SIPFUNK_DATA_DIR auf den Benutzerdaten-Ordner, damit das installierte Programm beschreibbar bleibt.
@@ -169,7 +171,7 @@ ${last.summary}`);
 }
 
 function createAiHandler(params: Record<string, unknown>): AudioHandler {
-  if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY fehlt in der .env');
+  if (!config.openaiApiKey) throw new Error('Der OpenAI-Schlüssel fehlt noch (Einstellungen › Einrichtungsassistent)');
   const str = (k: string, fallback = '') => (typeof params[k] === 'string' ? (params[k] as string) : fallback);
   // Kontakt-Standardwerte greifen, wo das Formular nichts vorgibt
   const contact = contacts.findByNumber(str('target'));
@@ -576,6 +578,76 @@ function divertRing(mode: 'scam' | 'answer' | 'skip'): { ok: boolean; reason: st
   return manager.divertIncoming(mode);
 }
 
+function needKey(what: string): string {
+  if (!config.openaiApiKey) throw new Error(`${what} braucht den OpenAI-Schlüssel (Einstellungen › Einrichtungsassistent)`);
+  return config.openaiApiKey;
+}
+
+// ---- Einrichtungsassistent: Zustand ohne Geheimnisse; Zugangsdaten werden geprüft und erst dann in die .env geschrieben ----
+const envFile = join(dataDir, '.env');
+function setupStatus(): Record<string, unknown> {
+  const s = loadSettings();
+  const st = manager.status();
+  const sipConfigured = Boolean(config.sipUser && config.sipPassword);
+  return {
+    available: true,
+    // Der Assistent meldet sich von selbst, solange das Nötigste fehlt und er nicht übersprungen wurde
+    needed: s.setupDone !== 'on' && (!sipConfigured || !config.openaiApiKey || !s.principal.trim()),
+    done: s.setupDone === 'on',
+    sip: { server: config.sipServer, user: config.sipUser, hasPassword: Boolean(config.sipPassword), configured: sipConfigured, registered: st.registered, error: st.sipError ? explainSipError(st.sipError, config.sipServer) : undefined },
+    openai: { hasKey: Boolean(config.openaiApiKey) },
+    principal: s.principal.trim().length > 0,
+  };
+}
+
+async function saveSip(input: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+  // Maske oder leer = das hinterlegte Kennwort behalten – aber nur, wenn Anlage und Benutzer dieselben bleiben:
+  // Sonst ginge das gespeicherte Kennwort (als Digest) an eine andere, womöglich fremde Gegenstelle
+  const sameTarget = String(input.server ?? '').trim().toLowerCase() === config.sipServer.toLowerCase() && String(input.user ?? '').trim() === config.sipUser;
+  const keep = input.password === SECRET_MASK || input.password === '' || input.password === undefined;
+  if (keep && !(sameTarget && config.sipPassword)) return { ok: false, error: 'Bitte das Kennwort eingeben.' };
+  let account;
+  try {
+    account = cleanSipAccount({ ...input, password: keep ? config.sipPassword : input.password });
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  if (manager.status().phase !== 'idle' && manager.status().phase !== 'offline' && manager.status().phase !== 'starting') return { ok: false, error: 'Bitte erst das laufende Gespräch beenden.' };
+  const test = await testSipAccount(account, { localIp: config.localIp });
+  if (!test.ok) {
+    log.warn(`Einrichtung: Anmeldung an ${account.server} fehlgeschlagen (${test.error})`);
+    return test;
+  }
+  try {
+    writeEnvValues(envFile, { SIP_SERVER: account.server, SIP_USER: account.user, SIP_PASSWORD: account.password });
+  } catch (err) {
+    return { ok: false, error: `Die Zugangsdaten stimmen, ließen sich aber nicht speichern: ${(err as Error).message}` };
+  }
+  Object.assign(config, { sipServer: account.server, sipUser: account.user, sipPassword: account.password });
+  log.info(`Einrichtung: Zugangsdaten zur Telefonanlage ${account.server} gespeichert (.env) – melde neu an`);
+  const r = await manager.reconfigureSip(account);
+  return r.ok ? { ok: true } : { ok: false, error: `Gespeichert, aber die Anmeldung steht noch nicht: ${explainSipError(r.error ?? '', account.server)}` };
+}
+
+async function saveOpenAi(input: unknown): Promise<{ ok: boolean; error?: string }> {
+  let key;
+  try {
+    key = cleanOpenAiKey(input);
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  const check = await checkOpenAiKey(key);
+  if (!check.ok) return check;
+  try {
+    writeEnvValues(envFile, { OPENAI_API_KEY: key });
+  } catch (err) {
+    return { ok: false, error: `Der Schlüssel stimmt, ließ sich aber nicht speichern: ${(err as Error).message}` };
+  }
+  config.openaiApiKey = key;
+  log.info('Einrichtung: OpenAI-Schlüssel geprüft und gespeichert (.env)');
+  return { ok: true };
+}
+
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
 const mailConfig = () => mailConfigFrom(loadSettings());
 const mailer = new Mailer(mailConfig, mailTokens);
@@ -608,15 +680,16 @@ const stopWeb = startWebServer({
     store.setRetention(t.retentionDays);
   },
   ring: { info: ringInfo, divert: divertRing },
-  complaint: config.openaiApiKey ? (record) => draftComplaint(config.openaiApiKey!, tuning().summaryModel, record, contacts.findByNumber(record.target)?.name) : undefined,
-  voiceSample: config.openaiApiKey
-    ? (voice) => {
-        if (!VOICES.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
-        const s = loadSettings();
-        return voiceSample(config.openaiApiKey!, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples'));
-      }
-    : undefined,
-  uiData: {
+  // Der Schlüssel kann zur Laufzeit dazukommen (Einrichtungsassistent): bei jedem Aufruf neu prüfen
+  complaint: async (record) => draftComplaint(needKey('Der Beschwerde-Entwurf'), tuning().summaryModel, record, contacts.findByNumber(record.target)?.name),
+  voiceSample: async (voice) => {
+    const key = needKey('Die Hörprobe');
+    if (!VOICES.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
+    const s = loadSettings();
+    return voiceSample(key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples'));
+  },
+  setup: { status: setupStatus, saveSip, saveOpenAi },
+  uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
     voices: VOICES,
     model: config.openaiModel,
@@ -624,14 +697,14 @@ const stopWeb = startWebServer({
     aiAvailable: Boolean(config.openaiApiKey),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
     env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
-  },
+  }),
 });
 await manager.start();
 
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
 if (typeof process.send === 'function') {
   const send = (msg: Record<string, unknown>) => { try { process.send?.(msg); } catch { /* Elternprozess weg */ } };
-  send({ type: 'ready', webPort: config.webPort, dataDir });
+  send({ type: 'ready', webPort: config.webPort, dataDir, setupNeeded: setupStatus().needed === true });
   manager.on('status', (s) => send({ type: 'status', phase: s.phase, registered: s.registered, incoming: s.incomingSettings.enabled, target: s.target }));
   logEvents.on('line', (line: { level: string; text: string }) => { if (line.level === 'error') send({ type: 'error', message: line.text }); });
 }

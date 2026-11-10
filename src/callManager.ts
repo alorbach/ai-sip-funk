@@ -47,6 +47,17 @@ export interface Status {
   result?: string;
   maxCallSeconds: number;
   liveListen: boolean;
+  /** false = es sind noch keine SIP-Zugangsdaten hinterlegt (Einrichtung offen) */
+  sipConfigured: boolean;
+  /** Grund der letzten fehlgeschlagenen Anmeldung an der Telefonanlage */
+  sipError?: string;
+}
+
+/** Zugangsdaten zur Telefonanlage (FRITZ!Box oder SIP-Anschluss). */
+export interface SipAccount {
+  server: string;
+  user: string;
+  password: string;
 }
 
 export interface CallManagerOptions {
@@ -94,32 +105,51 @@ export class CallManager extends EventEmitter {
   private codec?: string;
   private result?: string;
   private limitTimer?: NodeJS.Timeout;
+  /** Erneuter Anmeldeversuch nach einem fehlgeschlagenen Start */
+  private retryTimer?: NodeJS.Timeout;
+  private sipError?: string;
   private ringTimer?: NodeJS.Timeout;
   private remoteQueue: Int16Array[] = [];
 
   constructor(private opts: CallManagerOptions) {
     super();
-    this.sip = new SipClient({
-      server: opts.sipServer,
-      serverPort: opts.sipServerPort,
-      user: opts.sipUser,
-      password: opts.sipPassword,
-      localPort: opts.sipLocalPort,
-      localIp: opts.localIp,
-      debug: opts.sipDebug,
+    this.sip = this.createSip();
+    this.incoming = opts.incoming ?? { enabled: false, answerAfterRings: 5 };
+  }
+
+  /** SIP-Client mit den aktuellen Zugangsdaten; Ereignisse eines abgelösten Clients werden ignoriert. */
+  private createSip(): SipClient {
+    const sip = new SipClient({
+      server: this.opts.sipServer,
+      serverPort: this.opts.sipServerPort,
+      user: this.opts.sipUser,
+      password: this.opts.sipPassword,
+      localPort: this.opts.sipLocalPort,
+      localIp: this.opts.localIp,
+      debug: this.opts.sipDebug,
     });
-    this.sip.on('registered', () => {
+    sip.on('registered', () => {
+      if (sip !== this.sip) return;
       this.registered = true;
+      this.sipError = undefined;
       if (this.phase === 'starting' || this.phase === 'offline') this.setPhase('idle');
       else this.emitStatus();
     });
-    this.sip.on('registrationFailed', () => {
+    sip.on('registrationFailed', (err?: Error) => {
+      if (sip !== this.sip) return;
       this.registered = false;
+      this.sipError = err?.message;
       if (!this.call) this.setPhase('offline');
       else this.emitStatus();
     });
-    this.incoming = opts.incoming ?? { enabled: false, answerAfterRings: 5 };
-    this.sip.on('incoming', (inc: IncomingCall) => this.onIncoming(inc));
+    sip.on('incoming', (inc: IncomingCall) => {
+      if (sip === this.sip) this.onIncoming(inc);
+    });
+    return sip;
+  }
+
+  private get sipConfigured(): boolean {
+    return Boolean(this.opts.sipUser && this.opts.sipPassword);
   }
 
   /** Gesprächslimit aus den Einstellungen übernehmen (gilt ab dem nächsten Anruf). */
@@ -283,18 +313,56 @@ export class CallManager extends EventEmitter {
     this.emit('ring', { caller: inc.caller, called: inc.called, willAnswer: false });
   }
 
-  async start(): Promise<void> {
+  /** Meldet sich an der Telefonanlage an. Ohne Zugangsdaten (Einrichtung offen) bleibt die App „nicht verbunden“. */
+  async start(): Promise<{ ok: boolean; error?: string }> {
+    clearTimeout(this.retryTimer);
+    if (!this.sipConfigured) {
+      log.info('SIP: noch keine Zugangsdaten – Einrichtung über die Web-UI');
+      this.setPhase('offline');
+      return { ok: false, error: 'Noch keine Zugangsdaten hinterlegt' };
+    }
+    const sip = this.sip;
     try {
-      await this.sip.start();
+      await sip.start();
+      return { ok: true };
     } catch (err) {
-      log.error('SIP-Start fehlgeschlagen:', (err as Error).message);
+      const error = (err as Error).message;
+      // Inzwischen durch neue Zugangsdaten abgelöst: der alte Versuch geht niemanden mehr an
+      if (sip !== this.sip) return { ok: false, error };
+      log.error('SIP-Start fehlgeschlagen:', error);
+      this.sipError = error;
       this.setPhase('offline');
       // nach einer Minute erneut versuchen
-      setTimeout(() => this.start(), 60_000).unref();
+      this.retryTimer = setTimeout(() => void this.start(), 60_000);
+      this.retryTimer.unref();
+      return { ok: false, error };
     }
   }
 
+  /**
+   * Neue Zugangsdaten zur Laufzeit übernehmen: alten SIP-Client abmelden und schließen, neuen starten.
+   * Wartet höchstens `waitMs` auf die Anmeldung; danach läuft der Versuch im Hintergrund weiter.
+   */
+  async reconfigureSip(account: SipAccount, waitMs = 10_000): Promise<{ ok: boolean; error?: string }> {
+    if (this.call || this.pendingInc) throw new Error('Während eines Gesprächs lassen sich die Zugangsdaten nicht ändern');
+    clearTimeout(this.retryTimer);
+    const old = this.sip;
+    this.opts = { ...this.opts, sipServer: account.server, sipUser: account.user, sipPassword: account.password };
+    this.registered = false;
+    this.sipError = undefined;
+    // Erst den neuen Client zum aktuellen machen: Ereignisse des alten zählen ab hier nicht mehr
+    this.sip = this.createSip();
+    this.setPhase('starting');
+    await old.stop().catch(() => undefined);
+    const attempt = this.start();
+    const timeout = new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      setTimeout(() => resolve({ ok: false, error: `Keine Antwort von ${account.server} – läuft die Telefonanlage, und stimmt die Adresse?` }), waitMs).unref();
+    });
+    return Promise.race([attempt, timeout]);
+  }
+
   async stop(): Promise<void> {
+    clearTimeout(this.retryTimer);
     this.hangup('Anwendung beendet');
     await this.sip.stop();
   }
@@ -316,6 +384,8 @@ export class CallManager extends EventEmitter {
       result: this.result,
       maxCallSeconds: this.opts.maxCallSeconds,
       liveListen: this.opts.liveListenEnabled,
+      sipConfigured: this.sipConfigured,
+      sipError: this.registered ? undefined : this.sipError,
     };
   }
 
@@ -332,7 +402,8 @@ export class CallManager extends EventEmitter {
    */
   checkDial(rawTarget: string): string {
     if (this.call) throw new Error('Es läuft bereits ein Gespräch');
-    if (!this.registered) throw new Error('Nicht an der FRITZ!Box registriert');
+    if (!this.sipConfigured) throw new Error('Die Telefonanlage ist noch nicht eingerichtet (Einstellungen › Einrichtungsassistent)');
+    if (!this.registered) throw new Error('Nicht an der Telefonanlage angemeldet');
     return this.prepare(rawTarget);
   }
 

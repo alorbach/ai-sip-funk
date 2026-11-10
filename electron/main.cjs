@@ -22,6 +22,8 @@ let child = null;
 let state = { server: 'startet', phase: '', registered: false, incoming: false, target: '', webPort: Number(process.env.WEB_PORT || 8080), error: '' };
 let quitting = false;
 let ringWin = null;
+/** Die Web-UI wurde für die Ersteinrichtung schon einmal geöffnet (nicht bei jedem Server-Neustart wieder) */
+let setupOpened = false;
 
 /** Pop-up unten rechts, solange ein Anruf klingelt: Anrufer, Spam-Einschätzung, Umleiten. Nimmt den Fokus nicht weg. */
 function showRing() {
@@ -157,7 +159,7 @@ function writeLog(data) {
 }
 
 function startServer() {
-  const hadEnv = ensureEnv();
+  ensureEnv();
   state = { ...state, server: 'startet', error: '', phase: '', registered: false, target: '' };
   refresh();
   if (!fs.existsSync(SERVER)) {
@@ -181,7 +183,11 @@ function startServer() {
   });
   proc.on('message', (msg) => {
     if (!msg || typeof msg !== 'object') return;
-    if (msg.type === 'ready') { state.server = 'läuft'; state.webPort = Number(msg.webPort) || state.webPort; }
+    if (msg.type === 'ready') {
+      state.server = 'läuft'; state.webPort = Number(msg.webPort) || state.webPort;
+      // Noch nicht eingerichtet: Web-UI öffnen, dort führt der Einrichtungsassistent durch das Nötigste
+      if (msg.setupNeeded && !setupOpened) { setupOpened = true; shell.openExternal(webUrl()); }
+    }
     else if (msg.type === 'status') { state.phase = msg.phase; state.registered = !!msg.registered; state.incoming = !!msg.incoming; state.target = msg.target || ''; }
     else if (msg.type === 'error') state.error = String(msg.message || '');
     else if (msg.type === 'ring') showRing();
@@ -203,11 +209,6 @@ function startServer() {
     state.server = code === 0 ? 'beendet' : `abgestürzt (Code ${code})`;
     refresh();
   });
-  if (!hadEnv) {
-    state.error = 'Erst einrichten: .env ausfüllen, dann „Server neu starten“';
-    refresh();
-    openEnv();
-  }
 }
 
 function stopServer() {

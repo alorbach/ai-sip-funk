@@ -20,16 +20,22 @@ export interface WebServerOptions {
   /** Erzeugt den Audio-Handler für einen Anruf; 'tone' und 'echo' gibt es immer, 'ai' nur mit OPENAI_API_KEY. */
   createHandler: HandlerFactory;
   modes: { id: string; label: string }[];
-  /** Zusätzliche Stammdaten für die UI (Personas, Stimmen) */
-  uiData: Record<string, unknown>;
+  /** Zusätzliche Stammdaten für die UI (Personas, Stimmen); wird je Abruf neu gebildet, weil sich z. B. der OpenAI-Schlüssel zur Laufzeit ändern kann */
+  uiData: () => Record<string, unknown>;
+  /** Einrichtungsassistent: Zustand ohne Geheimnisse, Zugangsdaten prüfen und in die .env schreiben */
+  setup?: {
+    status: () => Record<string, unknown>;
+    saveSip: (input: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
+    saveOpenAi: (key: unknown) => Promise<{ ok: boolean; error?: string }>;
+  };
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme als MP3 (nur mit OpenAI-Key) */
-  voiceSample?: (voice: string) => Promise<Buffer>;
+  voiceSample: (voice: string) => Promise<Buffer>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
   ring?: { info: () => Record<string, unknown>; divert: (mode: 'scam' | 'answer' | 'skip') => { ok: boolean; reason: string } };
   /** Beschwerde-Entwurf (Bundesnetzagentur) aus einem Spam-Protokoll (nur mit OpenAI-Key) */
-  complaint?: (record: CallRecord) => Promise<string>;
+  complaint: (record: CallRecord) => Promise<string>;
   /** E-Mail: Zustand, OAuth-Anmeldung, Probe-Mail */
   mail?: {
     status: () => Record<string, unknown>;
@@ -121,7 +127,17 @@ export function startWebServer(opts: WebServerOptions): () => void {
         return r.ok ? sendJson(res, 200, r) : sendJson(res, 409, { error: r.reason });
       }
       if (req.method === 'GET' && url.pathname === '/api/status') {
-        return sendJson(res, 200, { status: manager.status(), modes: opts.modes, ...opts.uiData });
+        return sendJson(res, 200, { status: manager.status(), modes: opts.modes, ...opts.uiData() });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/setup') {
+        return sendJson(res, 200, opts.setup ? opts.setup.status() : { available: false });
+      }
+      if (req.method === 'POST' && (url.pathname === '/api/setup/sip' || url.pathname === '/api/setup/openai')) {
+        if (!opts.setup) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        const body = await readJson(req);
+        // Die Antwort enthält nur „ok“ oder eine Meldung – nie die übergebenen Zugangsdaten
+        const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveOpenAi(body.key);
+        return r.ok ? sendJson(res, 200, { ok: true, setup: opts.setup.status() }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {
         return sendJson(res, 200, publicSettings(loadSettings()));
@@ -134,7 +150,6 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       const vx = /^\/api\/voices\/([a-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {
-        if (!opts.voiceSample) return sendJson(res, 404, { error: 'Hörprobe braucht OPENAI_API_KEY' });
         const mp3 = await opts.voiceSample(vx[1]);
         res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': mp3.length, 'Cache-Control': 'private, max-age=3600' });
         return res.end(mp3);
@@ -208,7 +223,6 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       const cpx = /^\/api\/transcripts\/([^/]+)\/complaint$/.exec(url.pathname);
       if (cpx && req.method === 'POST') {
-        if (!opts.complaint) return sendJson(res, 400, { error: 'Beschwerde-Entwurf braucht OPENAI_API_KEY' });
         const record = opts.store.read(decodeURIComponent(cpx[1]));
         if (!record) return sendJson(res, 404, { error: 'Nicht gefunden' });
         const text = await opts.complaint(record);

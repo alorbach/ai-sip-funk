@@ -43,8 +43,9 @@ export function loadConfig(): Config {
   if (existsSync('.env')) process.loadEnvFile('.env');
   return {
     sipServer: env('SIP_SERVER', 'fritz.box'),
-    sipUser: env('SIP_USER'),
-    sipPassword: env('SIP_PASSWORD'),
+    // Dürfen fehlen: Dann startet die App ohne Telefonanlage und der Einrichtungsassistent fragt danach
+    sipUser: env('SIP_USER', ''),
+    sipPassword: env('SIP_PASSWORD', ''),
     sipLocalPort: envInt('SIP_LOCAL_PORT', 5062),
     rtpPort: envInt('RTP_PORT', 40000),
     localIp: env('LOCAL_IP', '') || undefined,
