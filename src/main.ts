@@ -1,0 +1,648 @@
+// Einstieg: SIP-Registrierung und lokale Web-UI starten.
+import { EventEmitter } from 'node:events';
+import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { loadConfig } from './config.js';
+import { CallManager, type AudioHandler } from './callManager.js';
+import { log, logEvents } from './log.js';
+import { EchoHandler, ToneHandler } from './rtp/testSources.js';
+import { startWebServer } from './web/server.js';
+import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
+import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas, VOICES } from './ai/personas.js';
+import { sampleText, voiceSample } from './ai/voiceSample.js';
+import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, notifyPolicies, parseProfiles, profileFor, scamActive, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
+import { draftComplaint } from './ai/complaint.js';
+import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
+import { formatPlan, planCall } from './ai/plan.js';
+import { summarize } from './ai/summary.js';
+import { assessCall } from './ai/assess.js';
+import { Mailer, oauthFrom } from './notify/email.js';
+import { buildCallMail, buildTestMail } from './notify/mailFormat.js';
+import { suggestMail } from './notify/autoconfig.js';
+import { OAuthLogin, TokenStore } from './notify/oauth.js';
+import { estimateCostUsd } from './ai/pricing.js';
+import { TranscriptStore, type CallRecord } from './transcripts.js';
+import { normalizeTarget } from './dialPolicy.js';
+import { ContactStore, numberKey } from './contacts.js';
+
+// Datenordner: .env, settings.json, contacts.json, transcripts/. Standard = Projektordner; die Tray-App
+// setzt SIPFUNK_DATA_DIR auf den Benutzerdaten-Ordner, damit das installierte Programm beschreibbar bleibt.
+const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const dataDir = process.env.SIPFUNK_DATA_DIR ? resolve(process.env.SIPFUNK_DATA_DIR) : projectRoot;
+mkdirSync(dataDir, { recursive: true });
+process.chdir(dataDir);
+
+const config = loadConfig();
+const personas = loadPersonas(join(projectRoot, 'personas'));
+const bus = new EventEmitter();
+const contacts = new ContactStore(join(dataDir, 'contacts.json'));
+// Technische Werte (Limits, Wächter, Modelle) kommen aus den Einstellungen; die .env liefert nur die Basis
+const tuning = () => tuningFrom(loadSettings());
+const store = new TranscriptStore(join(dataDir, 'transcripts'), tuning().retentionDays);
+store.startCleanupTimer();
+
+const manager = new CallManager({
+  sipServer: config.sipServer,
+  sipUser: config.sipUser,
+  sipPassword: config.sipPassword,
+  sipLocalPort: config.sipLocalPort,
+  rtpPort: config.rtpPort,
+  localIp: config.localIp,
+  sipDebug: config.sipDebug,
+  maxCallSeconds: tuning().maxCallSeconds,
+  liveListenEnabled: config.liveListenEnabled,
+  hdAudio: config.hdAudio,
+  incoming: incomingFrom(loadSettings()),
+  // Je gewählter Nummer kann das Profil Annahme und Klingelzahl überstimmen
+  incomingFor: (called) => {
+    const s = loadSettings();
+    return incomingOverride(profileFor(called, parseProfiles(s.incomingProfiles, s.incomingIdentities)));
+  },
+  // Anrufbeantworter: KI-Gespräch mit den gespeicherten Standardwerten und dem Anrufbeantworter-Auftrag
+  createIncomingHandler: (caller, called, opts) => {
+    const base = loadSettings();
+    // Profil je gewählter Nummer: Meldung („KI-Assistent von <Name>"), Person/Firma und abweichende Vorgaben
+    const prof = profileFor(called, parseProfiles(base.incomingProfiles, base.incomingIdentities));
+    const principal = prof?.name || base.principal || 'der Inhaber';
+    const principalKind = prof?.kind ?? 'person';
+    const s = prof
+      ? { ...base, address: prof.address || base.address, persona: prof.persona || base.persona, voice: prof.voice || base.voice, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
+      : base;
+    if (prof) log.info(`Anrufbeantworter für ${called || '?'}: Profil „${prof.name}" (${principalKind === 'company' ? 'Firma' : 'Person'}${prof.address ? `, ${prof.address}` : ''}${prof.persona ? `, ${prof.persona}` : ''}${prof.voice ? `, ${prof.voice}` : ''})`);
+    // Spam-Abwehr: Nummer aus der Liste -> von Anfang an als Privatperson; sonst darf die KI per flag_spam umschalten
+    const scam = scamActive(s);
+    // Von Hand in die Spam-Falle umgeleitet (Pop-up beim Klingeln): gilt wie ein Listentreffer
+    if (opts?.forceScam) {
+      log.info(`Spam-Abwehr: Anruf von ${caller || 'anonym'} von Hand in die Spam-Falle umgeleitet (${s.scamStyle})`);
+      return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
+    }
+    if (scam && isScamNumber(caller, s.scamNumbers)) {
+      log.info(`Spam-Abwehr: Nummer ${caller || 'anonym'} steht auf der Liste – KI tritt als Privatperson auf (${s.scamStyle})`);
+      return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
+    }
+    // Bekannte Kontakte darf die KI nie im Gespräch als Spam einstufen; nur die Liste (ausdrücklicher Wille) gilt für sie
+    const known = Boolean(contacts.findByNumber(caller));
+    if (scam && known) log.info('Spam-Abwehr: Anrufer ist ein Kontakt – Erkennung im Gespräch ausgeschaltet');
+    return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: s.incomingTask || defaultIncomingTask(principal, caller, principalKind), incoming: true, scamAllowed: scam && !known });
+  },
+});
+
+const modes = [
+  { id: 'ai', label: 'KI-Gespräch' },
+  { id: 'echo', label: 'Echo (1 s)' },
+  { id: 'tone', label: 'Testton' },
+];
+
+/** Laufendes KI-Gespräch: Transkript, Usage und Metadaten fürs Protokoll. */
+let transcript: TranscriptEntry[] = [];
+let current:
+  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean }
+  | undefined;
+/** Zeitlimit der Spam-Abwehr (läuft ab Umschalten bzw. Annahme) */
+let spamTimer: NodeJS.Timeout | undefined;
+
+/** Zeitlimit der Spam-Abwehr in Sekunden (je nach Stil). */
+function scamLimit(s: ReturnType<typeof loadSettings>): number {
+  return s.scamStyle === 'beschaeftigen' ? scamMaxSeconds(s, tuningFrom(s).maxCallSeconds) : Math.min(120, tuningFrom(s).maxCallSeconds);
+}
+
+/** Zeitlimit der Spam-Abwehr starten: beim Umschalten im Gespräch sofort, bei Listentreffern erst mit der Annahme. */
+function armSpamLimit(s: ReturnType<typeof loadSettings>): void {
+  const mine = current;
+  clearTimeout(spamTimer);
+  spamTimer = setTimeout(() => {
+    spamTimer = undefined;
+    // Nur das Gespräch beenden, für das das Limit gestartet wurde
+    if (current === mine && manager.status().phase !== 'idle') {
+      log.info('Spam-Abwehr: Zeitlimit erreicht – lege auf');
+      manager.hangup('Spam-Abwehr: Zeitlimit');
+    }
+  }, scamLimit(s) * 1000);
+  spamTimer.unref();
+}
+
+/** Spam-Abwehr: Anweisungen bauen und das Gespräch markieren (das Zeitlimit startet armSpamLimit). */
+function startScam(s: ReturnType<typeof loadSettings>, caller: string, styleText: string, voice: string): string {
+  const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
+  const limit = scamLimit(s);
+  if (current) current.spam = true;
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), styleText, name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice) });
+}
+
+/** Zur Auswahl stehende Realtime-Modelle (Preise siehe ai/pricing.ts) */
+const REALTIME_MODELS = ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'];
+
+function createHandler(mode: string, params: Record<string, unknown>): AudioHandler {
+  switch (mode) {
+    case 'tone':
+      return new ToneHandler();
+    case 'echo':
+      return new EchoHandler();
+    case 'ai':
+      return createAiHandler(params);
+    default:
+      throw new Error(`Unbekannter Modus: ${mode}`);
+  }
+}
+
+/** Inhabernummer: Kontakt mit Kennzeichen „Inhaber" oder OWNER_NUMBERS aus der .env. */
+function isOwnerNumber(target: string): boolean {
+  const t = numberKey(target);
+  return t.length > 0 && (contacts.isOwnerNumber(target) || config.ownerNumbers.some((n) => numberKey(n) === t));
+}
+
+/** Hintergrundwissen aus Kontakt und Historie: Notizen und die letzte Zusammenfassung. */
+function contactContext(target: string, incoming = false): string {
+  const parts: string[] = [];
+  const c = contacts.findByNumber(target);
+  if (c) {
+    parts.push(`${incoming ? `Die Nummer des Anrufers ist als Kontakt „${c.name}" gespeichert; wer wirklich dran ist, sagt er selbst.` : `Du rufst ${c.name} an.`}${c.notes ? ` Notizen zu diesem Kontakt: ${c.notes}` : ''}`);
+  }
+  const last = store.listByNumber(target).find((r) => r.summary);
+  if (last) {
+    parts.push(`Letztes Gespräch mit dieser Nummer am ${last.startedAt.slice(0, 10)} (${last.durationSec}s). Zusammenfassung:
+${last.summary}`);
+  }
+  return parts.join('\n\n');
+}
+
+function createAiHandler(params: Record<string, unknown>): AudioHandler {
+  if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY fehlt in der .env');
+  const str = (k: string, fallback = '') => (typeof params[k] === 'string' ? (params[k] as string) : fallback);
+  // Kontakt-Standardwerte greifen, wo das Formular nichts vorgibt
+  const contact = contacts.findByNumber(str('target'));
+  if (contact) {
+    for (const k of ['persona', 'voice', 'address', 'task'] as const) {
+      if (!str(k) && contact[k]) params[k] = contact[k];
+    }
+  }
+  const persona = personas.find((p) => p.id === str('persona')) ?? personas[0];
+  if (!persona) throw new Error('Keine Persona-Dateien in personas/ gefunden');
+  const incoming = params.incoming === true;
+  const scam = incoming && params.scam === true;
+  const t = tuning();
+  // Spam-Rolle ab Annahme: eigene Stimme und eigenes Tempo, sofern eingestellt
+  const sc = scam ? loadSettings() : undefined;
+  const voice = sc && VOICES.includes(sc.scamVoice) ? sc.scamVoice : VOICES.includes(str('voice')) ? str('voice') : VOICES[0];
+  const speechSpeed = sc ? scamSpeed(sc, SCAM_DEFAULT_SPEED) : t.speechSpeed;
+  if (sc) log.info(`Spam-Abwehr: Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}, Stimme ${voice} (${scamGender(sc.scamGender, voice) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
+  // Anruf beim Inhaber selbst: immer Du und Vorname – er weiß, wer da anruft
+  const owner = !incoming && isOwnerNumber(str('target'));
+  const ownerFirst = owner ? firstName(contact?.name || str('principal', '')) : '';
+  const input = {
+    persona,
+    incoming,
+    principalKind: params.principalKind === 'company' ? ('company' as const) : ('person' as const),
+    extra: str('personaExtra'),
+    formal: owner ? false : str('address', 'sie') !== 'du',
+    aiName: str('aiName', 'Alex') || 'Alex',
+    principalName: owner && ownerFirst ? ownerFirst : str('principal', 'meinem Auftraggeber') || 'meinem Auftraggeber',
+    task: str('task'),
+    context: [str('context'), contactContext(str('target'), incoming)].filter(Boolean).join('\n\n') || undefined,
+    // Inhaber-Logik („dein Agent") nur beim Anrufen des Inhabers; beim Anrufbeantworter bleibt die KI der Assistent
+    owner,
+    // Rückrufnummer: der Inhaber-Kontakt, sofern wir nicht gerade ihn selbst anrufen
+    callbackNumber: isOwnerNumber(str('target')) ? undefined : (contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0]),
+    maxCallSeconds: t.maxCallSeconds,
+  };
+  const instructions = buildInstructions(input);
+  if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
+  if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
+  const model = REALTIME_MODELS.includes(str('model')) ? str('model') : config.openaiModel;
+  log.info(`KI: Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
+
+  transcript = [];
+  // Zeitlimit eines früheren Spam-Anrufs (z. B. auf „klingeln lassen" gestellt) gilt nicht für dieses Gespräch
+  clearTimeout(spamTimer);
+  spamTimer = undefined;
+  current = {
+    startedAt: new Date(),
+    model,
+    task: input.context ? `${input.task}
+
+Hintergrundwissen:
+${input.context}` : input.task,
+    persona: { stil: persona.label, stimme: voice, anrede: input.formal ? 'Sie' : 'Du', name: input.aiName, auftraggeber: input.principalName },
+    incoming: incoming ? { caller: str('target'), called: str('called'), principal: input.principalName } : undefined,
+    notify: params.notifyCall === true || undefined,
+  };
+  bus.emit('message', { type: 'transcript', entries: transcript });
+  bus.emit('message', { type: 'summary', text: '' });
+
+  // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
+  const scamInstructions = scam ? startScam(loadSettings(), str('target'), persona.text, voice) : undefined;
+  const bridge = new RealtimeBridge({
+    apiKey: config.openaiApiKey,
+    model,
+    instructions: scamInstructions ?? instructions,
+    voice,
+    greetingInstruction: scam ? scamGreeting(sc?.scamName) : greetingInstruction(input),
+    scam,
+    owner: input.owner,
+    formal: input.formal,
+    transcriptionHints: [input.principalName, contact?.name ?? '', input.aiName],
+    allowInterrupt: t.allowInterrupt,
+    outputGain: t.outputGain,
+    speechSpeed,
+    maxOutputTokens: typeof params.maxOutputTokens === 'number' ? params.maxOutputTokens : scam ? 500 : undefined,
+    vadSilenceMs: t.vadSilenceMs,
+    vadThreshold: t.vadThreshold,
+    hangupGraceMs: t.hangupGraceMs,
+    stallMs: t.stallMs,
+    // Beim Anrufbeantworter meldet sich die KI sofort, der Anrufer erwartet eine Ansage
+    greetingWaitMs: incoming ? 0 : t.greetingWaitMs,
+    // Anrufbeantworter: erst nur „Hallo?"; sagt der Anrufer nichts, stellt sich die KI nach kurzer Pause vor
+    greetingFollowUp: scam
+      ? { afterMs: 3000, instruction: 'Der Anrufer hat nichts gesagt. Sag noch einmal fragend „Hallo? Ist da jemand?" und warte.' }
+      : incoming
+        ? { afterMs: 2500, instruction: incomingFollowUpInstruction(input) }
+        : undefined,
+    onTranscript: (entry) => {
+      // Zwischenstände der KI werden ersetzt, finale Einträge angehängt
+      const last = transcript.at(-1);
+      if (last && !last.final && last.speaker === entry.speaker) transcript[transcript.length - 1] = entry;
+      else transcript.push(entry);
+      bus.emit('message', { type: 'transcript', entries: transcript });
+    },
+    onUsage: (usage: Usage) => {
+      if (current) current.usage = usage;
+      bus.emit('message', { type: 'usage', usage, model, costUsd: estimateCostUsd(model, usage) });
+    },
+    onEndCall: (reason) => manager.hangup(reason),
+    onOutcome: (outcome) => {
+      if (current) current.outcome = outcome;
+    },
+    // Rückruf an den Inhaber: auf Wunsch zum Anrufer durchstellen (REFER an die Box)
+    onTransfer: str('transferTo') ? () => manager.transfer(str('transferTo')) : undefined,
+    // Anrufbeantworter mit aktiver Spam-Abwehr: Die KI darf Werbe-/Betrugsanrufe melden und wechselt dann die Rolle
+    onFlagSpam:
+      params.scamAllowed === true
+        ? (reason) => {
+            transcript.push({ speaker: 'system', text: `Spam-Abwehr: ${reason || 'als Werbe-/Betrugsanruf erkannt'}`, final: true });
+            bus.emit('message', { type: 'transcript', entries: transcript });
+            const s = loadSettings();
+            armSpamLimit(s);
+            return startScam(s, str('target'), persona.text, voice);
+          }
+        : undefined,
+    onConnected: scam ? () => armSpamLimit(loadSettings()) : undefined,
+    onError: (message) => {
+      bus.emit('message', { type: 'aiError', message });
+      // KI fällt schon beim Klingeln aus: Anruf nicht abweisen, sondern nur klingeln lassen (andere Telefone klingeln weiter)
+      if (manager.status().phase === 'incoming' && manager.divertIncoming('skip').ok) {
+        log.warn(`KI nicht verfügbar (${message}) – eingehender Anruf klingelt nur`);
+        return;
+      }
+      // Ohne KI-Verbindung macht das Gespräch keinen Sinn: sauber auflegen
+      if (manager.status().phase !== 'idle') manager.hangup(`KI-Fehler: ${message}`);
+    },
+  });
+
+  // Gesprächsplan parallel zum Wählen erstellen; das Klingeln dauert meist länger als das Modell.
+  // Ohne Auftrag (Testgespräch) gibt es nichts zu planen. Beim Anrufbeantworter und beim Rückruf an den
+  // Inhaber ist der Auftrag schon fest strukturiert; der Plan brachte dort nur Selbstprüfungs-Schleifen am Ende.
+  if (input.task.trim() && !incoming && params.plan !== false) {
+    const started = current;
+    planCall(config.openaiApiKey, tuning().summaryModel, {
+      task: input.task,
+      context: str('context') || undefined,
+      principalName: input.principalName,
+      aiName: input.aiName,
+      formal: input.formal,
+      contactName: contact?.name,
+      owner: input.owner,
+    })
+      .then((plan) => {
+        if (!started || current !== started) return; // Gespräch inzwischen vorbei
+        const text = formatPlan(plan);
+        started.plan = text;
+        bridge.updateInstructions(buildInstructions({ ...input, plan: text }), plan.schritte);
+        log.info(`Gesprächsplan: ${plan.schritte.length} Schritt(e) – ${plan.schritte.join(' | ')}`);
+      })
+      .catch((err) => log.warn(`Kein Gesprächsplan, KI telefoniert ohne: ${(err as Error).message}`));
+  }
+  return bridge;
+}
+
+// Nach einem KI-Gespräch: Protokoll speichern, Zusammenfassung holen, UI informieren
+manager.on('callEnded', (reason: string) => {
+  const st = manager.status();
+  if (!current || st.mode !== 'ai') return;
+  const c = current;
+  current = undefined;
+  clearTimeout(spamTimer);
+  spamTimer = undefined;
+  if (!st.connectedAt) {
+    // Nie verbunden (nicht abgenommen, besetzt, abgelehnt): kein leeres Protokoll anlegen
+    log.info(`Kein Protokoll: Gespräch kam nicht zustande (${reason})`);
+    bus.emit('message', { type: 'summary', text: '' });
+    return;
+  }
+  const record: CallRecord = {
+    id: TranscriptStore.makeId(c.startedAt, st.target ?? ''),
+    startedAt: c.startedAt.toISOString(),
+    endedAt: new Date().toISOString(),
+    target: st.target ?? '',
+    mode: 'ai',
+    durationSec: st.durationSec,
+    codec: st.codec,
+    endReason: reason,
+    task: c.task || undefined,
+    plan: c.plan,
+    outcome: c.outcome,
+    persona: c.persona,
+    model: c.model,
+    entries: transcript.filter((e) => e.final),
+    usage: c.usage,
+    costUsd: c.usage ? estimateCostUsd(c.model, c.usage) : undefined,
+    spam: c.spam || undefined,
+    called: c.incoming?.called || undefined,
+    notify: c.notify,
+  };
+  store.save(record);
+  bus.emit('message', { type: 'transcripts', items: store.list() });
+  bus.emit('message', { type: 'summary', text: 'Zusammenfassung wird erstellt …' });
+  summarize(config.openaiApiKey!, tuning().summaryModel, record.task, record.entries, record.outcome)
+    .then((summary) => {
+      record.summary = summary;
+      store.save(record);
+      log.info(`Protokoll gespeichert: ${record.id}`);
+      bus.emit('message', { type: 'summary', text: summary });
+      bus.emit('message', { type: 'transcripts', items: store.list() });
+      if (c.incoming) notifyAfterIncoming(record, c.incoming).catch((err) => log.error(`Benachrichtigung: ${(err as Error).message}`));
+    })
+    .catch((err) => {
+      log.error((err as Error).message);
+      bus.emit('message', { type: 'summary', text: `Keine Zusammenfassung: ${(err as Error).message}` });
+    });
+});
+
+/** Tray-Hinweis an die Tray-App (electron/main.cjs), falls wir als Kindprozess laufen. */
+function trayNotice(title: string, body: string): void {
+  if (typeof process.send !== 'function') return;
+  try {
+    process.send({ type: 'notice', title, body });
+  } catch {
+    /* Elternprozess weg */
+  }
+}
+
+/**
+ * Nach einem angenommenen Anruf: Einschätzung (wichtig?), dann Tray-Hinweis, E-Mail und bei wichtigen
+ * Anrufen ein Rückruf beim Inhaber – jedes davon in den Einstellungen abschaltbar.
+ */
+async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; called: string; principal: string }): Promise<void> {
+  const s = loadSettings();
+  // Je eigener Nummer kann das Profil die Kanäle überstimmen (aus / nur wichtige / alle)
+  const profile = profileFor(inc.called, parseProfiles(s.incomingProfiles, s.incomingIdentities));
+  const policy = notifyPolicies(s, profile);
+  if (policy.tray === 'off' && policy.email === 'off' && policy.call === 'off') {
+    log.info(`Benachrichtigungen für ${inc.called || 'diese Nummer'}: alle Kanäle aus`);
+    return;
+  }
+  const contact = contacts.findByNumber(inc.caller);
+  const who = contact ? `${contact.name} (${inc.caller})` : inc.caller;
+  let assessment = { important: false, reason: 'keine Einschätzung', headline: `Anruf von ${who}` };
+  let assessed = false;
+  if (record.spam) {
+    // Spam-Abwehr: nie wichtig, kein Rückruf; Hinweis und Mail nur zur Information
+    assessment = { important: false, reason: 'Spam-Abwehr war aktiv', headline: `Spam-Anruf von ${who || 'anonym'} abgewehrt` };
+  } else try {
+    assessment = await assessCall(config.openaiApiKey!, tuning().summaryModel, { caller: inc.caller, callerName: contact?.name, summary: record.summary ?? '', task: record.task });
+    assessed = true;
+    log.info(`Einschätzung: ${assessment.important ? 'wichtig' : 'unwichtig'} – ${assessment.reason}`);
+  } catch (err) {
+    log.warn(`Keine Einschätzung (${(err as Error).message}) – behandle den Anruf als unwichtig`);
+  }
+  const title = record.spam ? `Spam-Anruf von ${contact?.name ?? (inc.caller || 'anonym')}` : `${assessment.important ? 'Wichtiger Anruf' : 'Anruf'} von ${contact?.name ?? inc.caller}`;
+  const when = new Date(record.startedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+
+  log.info(`Benachrichtigung (${profile ? `Profil ${profile.name}` : 'Standard'}): Tray ${policy.tray}, E-Mail ${policy.email}, Rückruf ${policy.call}`);
+  if (shouldNotify(policy.tray, assessment.important)) trayNotice(title, `${assessment.headline || who} · ${when}${assessment.important ? `\n${assessment.reason}` : ''}`);
+
+
+  if (shouldNotify(policy.email, assessment.important)) {
+    const ms = mailer.status();
+    if (!ms.loggedIn) {
+      log.warn(`E-Mail-Benachrichtigung ist an, aber nicht einsatzbereit: ${ms.hint ?? ms.provider}`);
+    } else {
+      // Die Ersatz-Kurzzeilen („Anruf von …“) gehören nicht in den Betreff; dort steht der Anrufer ohnehin
+      const mail = buildCallMail({
+        record: { ...record, called: record.called || inc.called },
+        assessment: assessed ? assessment : { ...assessment, headline: '' },
+        contactName: contact?.name,
+        principal: inc.principal,
+        webPort: config.webPort,
+        spam: record.spam,
+        templates: { subject: s.mailSubject, body: s.mailBody },
+      });
+      try {
+        await mailer.send(mail.subject, mail.text, mail.html);
+        log.info(`E-Mail an ${mailConfig().to} gesendet (${mailConfig().provider})`);
+      } catch (err) {
+        log.error(`E-Mail fehlgeschlagen: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  // Rückruf: nie bei Spam; sonst nach Regel (Standard nur wichtige, je Profil auch alle)
+  if (record.spam || !shouldNotify(policy.call, assessment.important)) return;
+
+  // Wichtiger Anruf: Inhaber anrufen (Handy)
+  const ownerName = firstName(contacts.list().find((c) => c.owner)?.name || s.principal || inc.principal);
+  const digits = inc.caller.replace(/\D/g, '');
+  const numberSpoken = digits ? digits.replace(/(\d{3})(?=\d)/g, '$1 ').split('').join(' ').replace(/\s{2,}/g, ' – ') : '';
+  const context = [
+    `Angenommener Anruf von ${who} am ${when} auf der Leitung „${profile?.name || inc.principal}"${inc.called ? ` (${inc.called})` : ''}.`,
+    ...(digits ? [`Rückrufnummer des Anrufers: ${digits}`] : []),
+    `Zusammenfassung:\n${record.summary ?? ''}`,
+    ...(record.outcome?.result ? [`Ergebnis laut KI: ${record.outcome.result}`] : []),
+    '— Transkript —',
+    ...record.entries.filter((e) => e.speaker !== 'system').map((e) => `${e.speaker === 'ki' ? 'KI' : 'Anrufer'}: ${e.text}`),
+  ].join('\n\n');
+  // Auf welcher eigenen Leitung der Anruf einging (Profilname) – das will der Inhaber als Erstes wissen
+  const line = profile?.name || inc.principal;
+  const lineHint = `Sag zuerst, auf welcher Leitung der Anruf einging: auf der Nummer von „${line}"${inc.called ? ` (Endziffern ${inc.called.replace(/\D/g, '').slice(-3).split('').join(' ')})` : ''} – z. B. „Auf der Nummer von ${line} war gerade ein Anruf".`;
+  // Ruft jemand von der Inhabernummer selbst an (Test) oder passt der Kontaktname nicht, zählt der Name aus dem Gespräch
+  const fromOwner = isOwnerNumber(inc.caller);
+  const callerHint = fromOwner
+    ? `der Anrufer hat sich im Gespräch selbst vorgestellt – nimm den Namen aus dem Gespräch; der Anruf kam von ${ownerName}s eigener Nummer, erwähne das nur in einem Halbsatz und sag NICHT „auf deinem Handy"`
+    : contact?.name
+      ? `${contact.name} laut Kontakten; hat sich der Anrufer im Gespräch anders vorgestellt, nimm den Namen aus dem Gespräch`
+      : digits
+        ? 'Name aus dem Gespräch, sonst „eine unbekannte Nummer"'
+        : 'Name aus dem Gespräch, Nummer unterdrückt';
+  const report = [
+    lineHint,
+    `Berichte gleich nach der Begrüßung ALLES am Stück, ohne dass er nachfragen muss, aber wie eine Kollegin, die kurz Bescheid sagt – nicht wie ein Protokoll: wer angerufen hat (${callerHint}), wann (${when}; sag nur die Uhrzeit oder „gerade eben", kein Datum), worum es ging, was der Anrufer möchte, und in einem Halbsatz deine Einschätzung (${assessment.important ? 'wichtig' : 'eher unwichtig'}: ${assessment.reason}).`,
+    digits
+      ? `Nenne dabei die Rückrufnummer des Anrufers, Ziffern einzeln in Dreiergruppen: ${numberSpoken}. Wiederhole sie auf Wunsch.`
+      : 'Der Anrufer hat seine Nummer unterdrückt; sag das.',
+  ].join(' ');
+
+  {
+    const owner = contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0];
+    if (!owner) {
+      log.warn('Rückruf bei wichtigem Anruf ist an, aber kein Inhaber-Kontakt bzw. OWNER_NUMBERS hinterlegt');
+    } else {
+      const task = [
+        `Sag ${ownerName} Bescheid: Du hast gerade als Anrufbeantworter einen Anruf angenommen. Du duzt ${ownerName}.`,
+        report,
+        digits ? `Verlangt ${ownerName} ausdrücklich, mit dem Anrufer verbunden zu werden („verbinde mich", „stell durch"), sag „Ich verbinde dich" und rufe transfer_call auf. Sagt er „nein", „nee, das war's", „danke" oder etwas Unklares, verbindest du NICHT; im Zweifel frag einmal nach.` : '',
+        `Frag danach kurz, ob ${ownerName} noch etwas wissen will oder verbunden werden möchte; beantworte Fragen aus dem Hintergrundwissen. Wenn nichts mehr offen ist oder er sich verabschiedet, rufe end_call auf – ohne Ankündigung. Verabschiede dich locker, nicht förmlich.`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      // Der Bericht am Stück ist gewollt lang: Token-Notbremse höher als im normalen Gespräch
+      await dialAi(owner, { ...s, task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
+    }
+  }
+}
+
+/** Wählt, sobald die Leitung frei ist, und wartet das Gesprächsende ab (die Benachrichtigungen laufen nacheinander). */
+async function dialAi(target: string, params: Record<string, unknown>, logLine: string): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const st = manager.status();
+    if (st.phase === 'idle' && st.registered) break;
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  try {
+    // Erst prüfen, dann den Handler erzeugen: createAiHandler setzt Protokoll und Transkript des laufenden Gesprächs zurück
+    manager.checkDial(target);
+    const handler = createAiHandler({ ...params, target });
+    try {
+      manager.dial(target, 'ai', handler);
+    } catch (err) {
+      handler.close();
+      throw err;
+    }
+    log.info(logLine);
+    await new Promise<void>((resolve) => manager.once('callEnded', () => resolve()));
+  } catch (err) {
+    log.error(`Anruf an ${target} nicht möglich: ${(err as Error).message}`);
+  }
+}
+
+// E-Mail: Versandweg aus der .env, OAuth-Token im Datenordner, Anmeldung über die Web-UI (Redirect auf 127.0.0.1)
+const mailTokens = new TokenStore(join(dataDir, 'mail-token.json'));
+// ---- Klingelnder Anruf: Einschätzung der Nummer fürs Pop-up, Umleiten auf Knopfdruck ----
+interface RingState { caller: string; called: string; callerName?: string; line: string; willAnswer: boolean; answerAt?: number; verdict: SpamVerdict }
+let ring: RingState | undefined;
+const traySend = (msg: Record<string, unknown>) => { try { process.send?.(msg); } catch { /* Elternprozess weg */ } };
+function ringInfo(): Record<string, unknown> {
+  if (!ring) return { ringing: false };
+  const accepted = loadSettings().scamAccepted.trim().length > 0;
+  return { ringing: true, ...ring, canTrap: accepted && Boolean(config.openaiApiKey), trapHint: accepted ? '' : 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen' };
+}
+manager.on('ring', (r: { caller: string; called: string; willAnswer: boolean; answerAt?: number }) => {
+  const s = loadSettings();
+  if (ring && ring.caller === r.caller && ring.called === r.called) {
+    // Derselbe Anruf, nur anderer Zustand (z. B. „klingeln lassen")
+    Object.assign(ring, { willAnswer: r.willAnswer, answerAt: r.answerAt });
+    bus.emit('message', { type: 'ring', ring: ringInfo() });
+    return;
+  }
+  const contact = contacts.findByNumber(r.caller);
+  const prof = profileFor(r.called, parseProfiles(s.incomingProfiles, s.incomingIdentities));
+  const numbered = /\d{3,}/.test(r.caller.replace(/\D/g, ''));
+  const spamCalls = numbered ? store.listByNumber(r.caller).filter((x) => x.spam).length : 0;
+  const local = localVerdict(r.caller, { contactName: contact?.name, scamNumbers: s.scamNumbers, spamCalls });
+  const mine: RingState = { caller: r.caller, called: r.called, callerName: contact?.name, line: prof?.name || s.principal || '', willAnswer: r.willAnswer, answerAt: r.answerAt, verdict: local };
+  ring = mine;
+  log.info(`Klingeln: Einschätzung „${local.label}" (${local.source})`);
+  if (s.ringPopup !== 'off') traySend({ type: 'ring' });
+  bus.emit('message', { type: 'ring', ring: ringInfo() });
+  // Online-Abfrage nur, wenn erlaubt, und nie für Kontakte oder Nummern von der eigenen Liste
+  if (s.spamLookup === 'on' && numbered && local.level !== 'contact' && local.source !== 'liste') {
+    lookupTellows(r.caller)
+      .then((t) => {
+        if (ring !== mine || !t) return;
+        mine.verdict = withTellows(local, t);
+        log.info(`Klingeln: tellows-Score ${t.score} → „${mine.verdict.label}"`);
+        bus.emit('message', { type: 'ring', ring: ringInfo() });
+      })
+      .catch(() => undefined);
+  }
+});
+manager.on('ringEnd', () => {
+  if (!ring) return;
+  ring = undefined;
+  traySend({ type: 'ringEnd' });
+  bus.emit('message', { type: 'ring', ring: { ringing: false } });
+});
+function divertRing(mode: 'scam' | 'answer' | 'skip'): { ok: boolean; reason: string } {
+  if (mode === 'scam' && !loadSettings().scamAccepted.trim()) return { ok: false, reason: 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen (einmalig, wegen des rechtlichen Hinweises)' };
+  return manager.divertIncoming(mode);
+}
+
+// Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
+const mailConfig = () => mailConfigFrom(loadSettings());
+const mailer = new Mailer(mailConfig, mailTokens);
+const mailLogin = new OAuthLogin(() => oauthFrom(mailConfig()), `http://127.0.0.1:${config.webPort}/oauth/callback`, mailTokens);
+
+const stopWeb = startWebServer({
+  mail: {
+    status: () => mailer.status() as unknown as Record<string, unknown>,
+    loginUrl: () => mailLogin.authUrl(),
+    callback: (code, state) => mailLogin.handleCallback(code, state),
+    sendTest: () => {
+      const st = loadSettings();
+      const mail = buildTestMail(mailConfigFrom(st).provider, { subject: st.mailSubject, body: st.mailBody });
+      return mailer.send(mail.subject, mail.text, mail.html);
+    },
+    verify: () => mailer.verify(),
+    autoconfig: (email) => suggestMail(email),
+  },
+  port: config.webPort,
+  manager,
+  createHandler,
+  modes,
+  bus,
+  store,
+  contacts,
+  onSettingsChanged: (s) => {
+    manager.setIncoming(incomingFrom(s));
+    const t = tuningFrom(s);
+    manager.setMaxCallSeconds(t.maxCallSeconds);
+    store.setRetention(t.retentionDays);
+  },
+  ring: { info: ringInfo, divert: divertRing },
+  complaint: config.openaiApiKey ? (record) => draftComplaint(config.openaiApiKey!, tuning().summaryModel, record, contacts.findByNumber(record.target)?.name) : undefined,
+  voiceSample: config.openaiApiKey
+    ? (voice) => {
+        if (!VOICES.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
+        const s = loadSettings();
+        return voiceSample(config.openaiApiKey!, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples'));
+      }
+    : undefined,
+  uiData: {
+    personas: personas.map(({ id, label }) => ({ id, label })),
+    voices: VOICES,
+    model: config.openaiModel,
+    models: REALTIME_MODELS,
+    aiAvailable: Boolean(config.openaiApiKey),
+    retentionDays: tuning().retentionDays,
+    // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
+    env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, mail: config.mail.provider, ownerNumbers: config.ownerNumbers.length },
+  },
+});
+await manager.start();
+
+// Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
+if (typeof process.send === 'function') {
+  const send = (msg: Record<string, unknown>) => { try { process.send?.(msg); } catch { /* Elternprozess weg */ } };
+  send({ type: 'ready', webPort: config.webPort, dataDir });
+  manager.on('status', (s) => send({ type: 'status', phase: s.phase, registered: s.registered, incoming: s.incomingSettings.enabled, target: s.target }));
+  logEvents.on('line', (line: { level: string; text: string }) => { if (line.level === 'error') send({ type: 'error', message: line.text }); });
+}
+
+async function shutdown(): Promise<void> {
+  log.info('Beende ...');
+  stopWeb();
+  await manager.stop();
+  process.exit(0);
+}
+process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => void shutdown());

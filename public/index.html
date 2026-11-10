@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPFunk</title>
+<style>
+  /* Tokens: semantische Farben mit Light/Dark-Variante. Gemessene Kontraste (WCAG) gegen die Flächen:
+     Hell: --text-2 5.7:1 auf --surface, 5.0:1 auf --surface-2; --text-3 5.3:1 / 4.7:1; Weiß auf --accent 5.6:1, auf --danger 5.4:1.
+     Dunkel: --text-2 6.8:1 / 5.9:1; --text-3 5.9:1 / 5.1:1; --accent-text auf --accent 6.4:1; --danger-text auf --danger 6.0:1; Weiß auf --ki 5.9:1. */
+  :root {
+    --bg: #f5f5f7; --surface: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de;
+    --text: #1d1d1f; --text-2: #66666b; --text-3: #6b6b70;
+    --accent: #0066cc; --accent-text: #ffffff;
+    --danger: #d70015; --danger-text: #ffffff; --ok: #1f7a3a; --warn: #9a5b00;
+    --ki: #0066cc; --partner: #e8e8ed;
+    --radius: 12px; --radius-s: 8px;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+    --header-h: 56px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161618; --surface: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f;
+      --text: #f2f2f4; --text-2: #a6a6ad; --text-3: #9a9aa1;
+      --accent: #4c9eff; --accent-text: #0b1a2b;
+      --danger: #ff5c5c; --danger-text: #2b0a0a; --ok: #4cd472; --warn: #ffc24d;
+      --ki: #2a62bd; --partner: #2e2e33;
+      --shadow: none;
+    }
+  }
+  @media (prefers-contrast: more) { :root { --line: #8a8a8f; --text-2: #3a3a3f; --text-3: #4a4a4f; } }
+  @media (prefers-contrast: more) and (prefers-color-scheme: dark) { :root { --line: #8a8a8f; --text-2: #d6d6db; --text-3: #c4c4c9; } }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: var(--accent); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  /* Kopfleiste: eine Zeile mit Marke, Bereichen und Leitungszustand. Ruhig, solange nichts läuft. */
+  header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .line { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 24px; min-height: 52px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; font-size: 16px; }
+  .conn { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; white-space: nowrap; }
+  .conn .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); flex: none; }
+  .conn .dot.on { background: var(--ok); }
+  .conn .dot.off { background: var(--danger); }
+  /* Navigation: Tab-Leiste, Hauptbereiche, immer sichtbar */
+  nav.tabs { display: flex; gap: 2px; align-self: stretch; }
+  nav.tabs button { border: 0; background: transparent; color: var(--text-2); font-weight: 500; padding: 0 14px; min-height: 52px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 7px; }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  nav.tabs .live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; display: none; }
+  nav.tabs .live.on { display: inline-block; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  /* Gesprächsleiste: erscheint nur, wenn ein Anruf läuft oder gerade beendet wurde. Das eine auffällige Element der Oberfläche. */
+  .callbar { border-top: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+  .callbar[data-k="ok"] { background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+  .callbar[data-k="warn"] { background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+  .callbar[hidden] { display: none; }
+  .callbar .inner { max-width: 1280px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 20px; }
+  .callbar .phase { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .callbar .phase::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+  .callbar[data-k="ok"] .phase::before { background: var(--ok); animation: none; }
+  .callbar[data-k="warn"] .phase::before { background: var(--warn); animation: none; }
+  .callbar .meta { color: var(--text-2); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .callbar .meta b { color: var(--text); font-weight: 600; }
+  .controls { display: flex; align-items: center; gap: 10px; flex: none; }
+  @media (max-width: 900px) {
+    .line { flex-wrap: wrap; gap: 0 16px; padding-top: 8px; }
+    nav.tabs { order: 3; flex: 1 1 100%; }
+    nav.tabs button { min-height: 40px; padding: 0 10px; }
+    .callbar .inner { flex-wrap: wrap; gap: 8px 16px; }
+    .callbar .meta { flex: 1 1 100%; white-space: normal; }
+  }
+
+  /* Buttons */
+  .btn { border: 1px solid transparent; border-radius: var(--radius-s); padding: 7px 14px; min-height: 32px; cursor: pointer; background: var(--surface-2); color: var(--text); font-weight: 500; transition: background .12s, opacity .12s; }
+  .btn:hover { background: var(--line); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .btn.primary:hover { background: var(--accent); filter: brightness(1.08); }
+  .btn.danger { background: var(--danger); color: var(--danger-text); font-weight: 700; font-size: 15px; padding: 9px 22px; min-height: 38px; }
+  .btn.danger:hover { background: var(--danger); filter: brightness(1.1); }
+  .btn.quiet { background: transparent; border-color: var(--line); }
+  .btn.quiet:hover { background: var(--surface-2); }
+  .btn.small { padding: 4px 10px; min-height: 28px; font-size: 13px; }
+  .btn.destructive { background: var(--danger); color: var(--danger-text); font-weight: 600; }
+
+  /* Seiten */
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 40px; }
+  .page[hidden] { display: none; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; flex-wrap: wrap; }
+  .page-head h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .page-head .hint { flex: 1 1 100%; }
+  .two { display: grid; grid-template-columns: minmax(380px, 2fr) minmax(0, 3fr); gap: 20px; align-items: start; }
+  /* Spalten und Karten dürfen schmaler werden als ihr Inhalt: lange Zeilen umbrechen statt die Seite zu dehnen */
+  .two > *, .col, .card, .page { min-width: 0; }
+  @media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  /* Einstellungen: Abschnittsliste links (bleibt stehen, trägt den Speichern-Knopf), eine Spalte Karten rechts */
+  .settings { display: grid; grid-template-columns: 200px minmax(0, 840px); gap: 24px; align-items: start; }
+  .subnav { position: sticky; top: calc(var(--header-h) + 20px); display: grid; gap: 2px; }
+  .subnav button { border: 0; background: transparent; color: var(--text-2); text-align: left; padding: 6px 10px; min-height: 32px; border-radius: var(--radius-s); cursor: pointer; font-weight: 500; }
+  .subnav button:hover { background: var(--surface-2); color: var(--text); }
+  .subnav button[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--text); font-weight: 600; }
+  .subnav .save { margin-top: 12px; display: grid; gap: 6px; }
+  .subnav .save .hint { font-size: 12px; }
+  .settings .card { scroll-margin-top: calc(var(--header-h) + 20px); }
+  @media (max-width: 900px) {
+    .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .subnav { position: sticky; top: var(--header-h); z-index: 4; background: var(--bg); display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0; align-items: center; }
+    .subnav .save { margin: 0 0 0 auto; grid-template-columns: auto; }
+    .subnav .save .hint { display: none; }
+  }
+  .col { display: grid; gap: 20px; align-content: start; }
+  .card.narrow { max-width: 840px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card > .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .card > .head h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
+  .card > .body { padding: 16px; }
+  .card > .body > p.hint:first-child { margin-bottom: 12px; }
+  .hint { color: var(--text-2); font-size: 13px; margin: 0; }
+  .empty { color: var(--text-3); font-size: 13px; padding: 18px 16px; text-align: center; }
+
+  /* Formular */
+  .field { display: grid; gap: 5px; }
+  .field > span { font-size: 12px; font-weight: 500; color: var(--text-2); }
+  .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .field textarea { min-height: 72px; resize: vertical; }
+  .field small { color: var(--text-3); font-size: 12px; }
+  .grid { display: grid; gap: 12px; }
+  .grid.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 1100px) { .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .span { grid-column: 1 / -1; }
+  .dial { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 150px) auto; gap: 12px; align-items: end; }
+  .dial > * { min-width: 0; }
+  .dial input { font-size: 18px; font-weight: 600; letter-spacing: .02em; }
+  .dial .btn { white-space: nowrap; }
+  .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .subhead { grid-column: 1 / -1; margin: 10px 0 -4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .profile { border: 1px solid var(--line); border-radius: var(--radius-s); padding: 12px; display: grid; gap: 10px; background: var(--surface-2); }
+  .profile .grid { gap: 10px; }
+  .profile .field input, .profile .field select, .profile .field textarea { background: var(--surface); }
+  .profile .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--text-2); }
+  .kv dd { margin: 0; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+
+  /* Mithören */
+  .listen { display: flex; align-items: center; gap: 10px; }
+  .listen input[type=range] { width: 110px; accent-color: var(--accent); }
+
+  /* Listen: Kontakte, Gespräche */
+  .contact, .call { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .contact:last-child, .call:last-child { border-bottom: 0; }
+  .contact { cursor: pointer; }
+  .contact:hover, .call.row:hover { background: var(--surface-2); }
+  .contact.active, .call.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .contact .n, .call .t { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .contact .num { color: var(--text-2); font-size: 13px; }
+  .contact .tools, .call .tools { display: flex; gap: 4px; opacity: .55; transition: opacity .12s; flex-wrap: wrap; justify-content: flex-end; }
+  .contact:hover .tools, .contact:focus-within .tools, .contact.active .tools, .call:hover .tools, .call:focus-within .tools, .call.active .tools { opacity: 1; }
+  .call.row { cursor: pointer; }
+  .call .s { color: var(--text-2); font-size: 13px; grid-column: 1 / -1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .call .m { color: var(--text-3); font-size: 12px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+  .badge.owner { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); border-color: transparent; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); vertical-align: middle; }
+  .pill.in { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .pill.out { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+  .ringbox { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .ringbox .v { font-weight: 600; }
+  .ringbox .v[data-l="spam"] { color: var(--danger); }
+  .ringbox .v[data-l="suspicious"] { color: var(--warn); }
+  .ringbox .v[data-l="contact"], .ringbox .v[data-l="ok"] { color: var(--ok); }
+  .search { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
+  .search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .list-scroll { max-height: calc(100vh - 260px); overflow: auto; }
+
+  /* Transkript */
+  .transcript { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; max-height: 480px; overflow: auto; padding: 16px; }
+  .msg { max-width: 78%; overflow-wrap: anywhere; padding: 8px 12px; border-radius: 14px; line-height: 1.45; }
+  .msg b { display: block; font-size: 11px; font-weight: 600; opacity: .75; margin-bottom: 2px; }
+  .msg.ki { background: var(--ki); color: #fff; justify-self: end; border-bottom-right-radius: 4px; }
+  .msg.partner { background: var(--partner); justify-self: start; border-bottom-left-radius: 4px; }
+  .msg.system { font-size: 12px; color: var(--text-3); justify-self: center; background: transparent; padding: 2px 0; }
+  .msg.live { opacity: .65; }
+  .summary { margin: 0 16px 16px; padding: 12px 14px; border-radius: var(--radius-s); background: var(--surface-2); border-left: 3px solid var(--ok); white-space: pre-wrap; overflow-wrap: anywhere; display: none; }
+  #usage, #call-usage { color: var(--text-3); font-size: 12px; font-weight: 500; }
+  #result { margin: 0 16px 16px; padding: 10px 14px; border-radius: var(--radius-s); background: var(--surface-2); color: var(--text-2); font-size: 13px; display: none; }
+  .detail-head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+  .detail-head .t { font-weight: 600; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .detail-head .m { color: var(--text-2); font-size: 13px; }
+  .detail-actions { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--line); }
+
+  /* Protokoll */
+  #log { font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; margin: 0; padding: 12px 16px; color: var(--text-2); }
+  #log .warn { color: var(--warn); } #log .error { color: var(--danger); }
+
+  /* Schalter (An/Aus) */
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; cursor: pointer; }
+  .switch > span { font-size: 13px; }
+  .switch input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; margin: 0; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
+  .switch input:checked { background: var(--ok); }
+  .switch input:checked::after { transform: translateX(16px); }
+  .switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Hinweise statt alert(): nicht-modal, bleiben bis zum Schließen stehen */
+  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: grid; gap: 8px; z-index: 20; width: min(520px, 92vw); }
+  .toast { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 14px; border-radius: var(--radius-s); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-left: 3px solid var(--warn); box-shadow: 0 8px 30px rgba(0,0,0,.18); font-size: 13px; }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.ok { border-left-color: var(--ok); }
+  .toast span { flex: 1; }
+  .toast button { border: 0; background: transparent; color: var(--text-2); cursor: pointer; padding: 0 4px; font-size: 15px; line-height: 1; min-width: 28px; min-height: 20px; }
+  .toast button:hover { color: var(--text); }
+
+  /* Dialoge */
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); padding: 0; width: min(560px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog .head { padding: 16px 20px 0; }
+  dialog h3 { margin: 0 0 4px; font-size: 17px; }
+  dialog .body { padding: 14px 20px; display: grid; gap: 12px; }
+  dialog .foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; }
+  .confirm-num { font-size: 30px; font-weight: 700; letter-spacing: .03em; margin: 6px 0 2px; }
+  .field-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .linkish { border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; padding: 0 2px; min-height: 20px; }
+  .linkish:hover { text-decoration: underline; }
+  .voice { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .voice:last-child { border-bottom: 0; }
+  .voice .name { flex: 1; font-weight: 500; }
+  .voice .name small { color: var(--text-2); font-weight: 400; margin-left: 6px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  /* Schmale Fenster: alles einspaltig (steht am Ende, damit es die Komponentenregeln überstimmt) */
+  @media (max-width: 600px) {
+    .line, main, .callbar .inner { padding-left: 16px; padding-right: 16px; }
+    .dial, .grid.c2, .grid.c3, .grid.c4 { grid-template-columns: minmax(0, 1fr); }
+    .contact, .call { grid-template-columns: minmax(0, 1fr); }
+    .contact .tools, .call .tools { opacity: 1; justify-content: flex-start; }
+    .list-scroll { max-height: none; }
+  }
+</style>
+</head>
+<body>
+<header id="header">
+  <div class="line">
+    <div class="brand">SIPFunk</div>
+    <nav class="tabs" role="tablist" aria-label="Bereiche">
+      <button role="tab" data-page="dashboard" aria-selected="true" aria-controls="page-dashboard">Dashboard <span class="live" id="tab-live" aria-label="Gespräch läuft"></span></button>
+      <button role="tab" data-page="calls" aria-selected="false" aria-controls="page-calls">Anrufe</button>
+      <button role="tab" data-page="contacts" aria-selected="false" aria-controls="page-contacts">Kontakte</button>
+      <button role="tab" data-page="settings" aria-selected="false" aria-controls="page-settings">Einstellungen</button>
+    </nav>
+    <div class="conn" id="conn" aria-live="polite"><span id="regdot" class="dot"></span><span id="regtext">verbinde …</span></div>
+  </div>
+  <div class="callbar" id="callbar" data-k="" hidden>
+    <div class="inner">
+      <div class="phase" id="phase">–</div>
+      <div class="meta" id="meta"></div>
+      <div class="ringbox" id="ringbox" hidden>
+        <span class="v" id="ring-verdict" data-l="unknown"></span>
+        <button id="ring-trap" class="btn small">In die Spam-Falle</button>
+        <button id="ring-answer" class="btn small">KI jetzt annehmen</button>
+        <button id="ring-skip" class="btn small quiet">Klingeln lassen</button>
+      </div>
+      <div class="controls">
+        <div class="listen">
+          <button id="listen" class="btn quiet" aria-pressed="false">Mithören</button>
+          <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="Lautstärke Mithören">
+        </div>
+        <button id="hangup" class="btn danger" disabled>Auflegen</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ================= Dashboard ================= -->
+  <section class="page" id="page-dashboard" role="tabpanel">
+    <div class="two">
+      <div class="col">
+        <section class="card">
+          <div class="head"><h2>Anruf</h2><span id="contact-hint" class="hint"></span></div>
+          <div class="body">
+            <div class="dial">
+              <label class="field"><span>Rufnummer</span><input id="target" placeholder="**610 oder 0171 …" autocomplete="off" inputmode="tel"></label>
+              <label class="field"><span>Audio</span><select id="mode"></select></label>
+              <button id="prepare" class="btn primary">Anrufen …</button>
+            </div>
+            <label class="field" style="margin-top:12px"><span>Auftrag an die KI</span><textarea id="task" placeholder="z. B. Frag nach den Öffnungszeiten am Samstag."></textarea></label>
+            <div id="persona">
+              <div class="grid c2" style="margin-top:12px">
+                <label class="field"><span>Stil</span><select id="p-persona"></select></label>
+                <label class="field"><span class="field-head">Stimme <button type="button" id="voices-open" class="linkish">Probe hören</button></span><select id="p-voice"></select></label>
+                <label class="field"><span>Anrede</span><select id="p-address"><option value="sie">Sie</option><option value="du">Du</option></select></label>
+                <label class="field"><span>Modell</span><select id="p-model"></select></label>
+              </div>
+            </div>
+            <div class="footer-row">
+              <p class="hint">„Anrufen“ zeigt erst eine Bestätigung. Notruf-, Sonder- und Auslandsnummern sind gesperrt. Interne Nebenstellen mit <code>**</code>. Name und Auftraggeber der KI stehen in den Einstellungen.</p>
+              <button id="save-defaults" class="btn quiet small" title="Speichert Auftrag, Stil, Stimme, Anrede und Modell als Standard">Als Standard speichern</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="head"><h2>Letzte Anrufe</h2><button class="btn small quiet" data-goto="calls">Alle anzeigen</button></div>
+          <div id="recent"></div>
+          <div id="recent-empty" class="empty">Noch keine Anrufe.</div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card">
+          <div class="head"><h2>Transkript</h2><span id="usage"></span></div>
+          <div id="transcript" class="transcript"><div class="empty">Kein Gespräch aktiv. Hier erscheint das laufende Gespräch live.</div></div>
+          <div id="summary" class="summary"></div>
+          <div id="result"></div>
+        </section>
+
+        <section class="card">
+          <div class="head"><h2>Protokoll</h2><button id="log-clear" class="btn small quiet">Leeren</button></div>
+          <pre id="log"></pre>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Anrufe ================= -->
+  <section class="page" id="page-calls" role="tabpanel" hidden>
+    <div class="page-head">
+      <h1 id="calls-title">Anrufe</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="calls-all" class="btn small quiet" style="display:none">Filter aufheben</button>
+        <input id="calls-filter" class="search" type="search" placeholder="Name oder Nummer suchen" aria-label="Anrufe durchsuchen" style="width:260px">
+      </div>
+      <p class="hint">Gespeicherte Protokolle, automatisch gelöscht nach <span id="retention">7</span> Tagen. Jeder Anruf ist als „Eingehend“, „Ausgehend“ oder „Rückruf an dich“ gekennzeichnet, Spam-Gespräche zusätzlich als „Spam-Abwehr“.</p>
+    </div>
+    <div class="two">
+      <section class="card">
+        <div id="calls" class="list-scroll"></div>
+        <div id="calls-empty" class="empty">Keine gespeicherten Anrufe.</div>
+      </section>
+      <section class="card" id="call-detail-card">
+        <div class="detail-head" id="call-detail-head"><div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div></div>
+        <div id="call-transcript" class="transcript" style="display:none"></div>
+        <div id="call-summary" class="summary"></div>
+        <div class="head" style="border-top:1px solid var(--line);border-bottom:0"><span id="call-usage"></span></div>
+        <div id="call-actions" class="detail-actions" style="display:none"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================= Kontakte ================= -->
+  <section class="page" id="page-contacts" role="tabpanel" hidden>
+    <div class="page-head">
+      <h1>Kontakte</h1>
+      <button id="contact-new" class="btn primary">Neuer Kontakt</button>
+      <p class="hint">Kontakte belegen beim Anruf Stil, Stimme, Anrede und Auftrag vor; ihre Notizen bekommt die KI als Hintergrundwissen. Kontakte werden von der Spam-Erkennung im Gespräch nie als Spam eingestuft.</p>
+    </div>
+    <section class="card narrow">
+      <div id="contacts"></div>
+      <div id="contacts-empty" class="empty">Noch keine Kontakte. „Neuer Kontakt“ legt den ersten an.</div>
+    </section>
+  </section>
+
+  <!-- ================= Einstellungen ================= -->
+  <section class="page" id="page-settings" role="tabpanel" hidden>
+    <div class="page-head">
+      <h1>Einstellungen</h1>
+      <p class="hint">Alles hier wird in <code>settings.json</code> gespeichert und gilt ab dem nächsten Anruf. Zugangsdaten (FRITZ!Box, OpenAI, E-Mail) stehen nur in der <code>.env</code>.</p>
+    </div>
+    <div class="settings">
+      <nav class="subnav" aria-label="Abschnitte der Einstellungen">
+        <button type="button" data-section="settings-ai" aria-current="true">KI-Assistent</button>
+        <button type="button" data-section="settings-incoming">Anrufbeantworter</button>
+        <button type="button" data-section="settings-notify">Benachrichtigungen</button>
+        <button type="button" data-section="settings-mail">E-Mail-Versand</button>
+        <button type="button" data-section="settings-scam">Spam-Abwehr</button>
+        <button type="button" data-section="settings-tech">Technik</button>
+        <div class="save">
+          <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
+          <span class="hint">Speichert alle Abschnitte (Strg+S).</span>
+        </div>
+      </nav>
+      <div class="col">
+        <section class="card" id="settings-ai">
+          <div class="head"><h2>KI-Assistent</h2></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="field"><span>Name der KI</span><input id="p-name" value="Alex"></label>
+              <label class="field"><span>Im Auftrag von</span><input id="p-principal" placeholder="dein Name"><small>So stellt sich die KI vor: „im Auftrag von …“</small></label>
+              <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><input id="p-extra" placeholder="z. B. kurze Sätze, etwas Humor, langsam sprechen"></label>
+            </div>
+            <p class="hint" style="margin-top:12px">Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard.</p>
+          </div>
+        </section>
+
+        <section class="card" id="settings-incoming">
+          <div class="head"><h2>Anrufbeantworter</h2></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="switch span"><span>KI nimmt eingehende Anrufe an (allgemein)</span><input type="checkbox" id="p-incoming" role="switch"></label>
+              <label class="field"><span>Annahme beim … Klingeln (allgemein)</span><input id="p-incoming-rings" type="number" min="1" max="10" value="5"></label>
+              <label class="field span"><span>Auftrag bei eingehenden Anrufen (allgemein)</span><input id="p-incoming-task" placeholder="leer = Anliegen und Rückrufwunsch aufnehmen"></label>
+            </div>
+            <div class="subhead" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Je eigener Rufnummer <button type="button" id="profile-add" class="btn small">Nummer hinzufügen</button></div>
+            <p class="hint" style="margin:6px 0 10px">Die FRITZ!Box meldet, welche eigene Nummer gewählt wurde. Je Nummer: wie sich die KI meldet, ob dahinter eine Person oder eine Firma steht, ob und nach wie vielen Klingeln sie annimmt, und abweichend Anrede, Stil, Stimme, Auftrag und Benachrichtigungen. Leer = allgemeine Einstellung. Endziffern genügen.</p>
+            <input type="hidden" id="p-incoming-profiles">
+            <input type="hidden" id="p-incoming-identities">
+            <div id="profiles" class="grid" style="gap:10px"></div>
+          </div>
+        </section>
+
+        <section class="card" id="settings-notify">
+          <div class="head"><h2>Benachrichtigungen</h2></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="switch span"><span>Hinweis im Tray – bei allen Anrufen</span><input type="checkbox" id="p-notify-tray" role="switch"></label>
+              <label class="switch span"><span>E-Mail mit Zusammenfassung – bei allen Anrufen</span><input type="checkbox" id="p-notify-email" role="switch"></label>
+              <label class="switch span"><span>Mich auf der Inhabernummer anrufen – nur bei wichtigen Anrufen</span><input type="checkbox" id="p-notify-call" role="switch"></label>
+              <label class="switch span"><span>Pop-up der Tray-App, solange ein Anruf klingelt (Anrufer, Spam-Einschätzung, Umleiten)</span><input type="checkbox" id="p-ring-popup" role="switch"></label>
+              <p class="hint span" style="margin:0">Das sind die allgemeinen Regeln. Je eigener Rufnummer lassen sie sich unter „Anrufbeantworter › Je eigener Rufnummer“ überstimmen (aus, nur wichtige, alle).</p>
+            </div>
+            <p class="hint" style="margin-top:10px">Ob ein Anruf wichtig war (Termin, Kunde, Frist, Notfall) schätzt das Textmodell anhand der Zusammenfassung ein. Der Mailversand selbst wird in der Karte „E-Mail-Versand“ eingerichtet.</p>
+          </div>
+        </section>
+
+        <section class="card" id="settings-mail">
+          <div class="head"><h2>E-Mail-Versand</h2><span class="hint" id="mail-status">E-Mail: …</span></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="field"><span>Versandweg</span><select id="p-mail-provider"><option value="smtp">SMTP mit Passwort (alle Anbieter)</option><option value="gmail">Gmail – Anmeldung per OAuth</option><option value="m365">Microsoft 365 / Outlook – Anmeldung per OAuth</option></select></label>
+              <label class="field"><span>Empfänger der Benachrichtigungen</span><input id="p-mail-to" type="email" placeholder="leer = das Postfach selbst"></label>
+            </div>
+            <div id="mail-smtp" class="grid c2" style="margin-top:12px">
+              <label class="field"><span>Postfach / Benutzername</span><input id="p-smtp-user" type="email" placeholder="name@anbieter.de" autocomplete="off"></label>
+              <label class="field"><span>Passwort</span><input id="p-smtp-pass" type="password" placeholder="leer = kein Passwort" autocomplete="new-password"><small>Bei Google, Apple, Yahoo und Telekom ein App-Passwort, nicht das Konto-Passwort.</small></label>
+              <div class="span" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="mail-auto" class="btn small">Automatisch einrichten</button><span class="hint" id="mail-auto-hint">Sucht Server, Port und Verschlüsselung für die Adresse (Thunderbird-Datenbank, bekannte Anbieter, DNS).</span></div>
+              <label class="field"><span>SMTP-Server</span><input id="p-smtp-host" placeholder="smtp.anbieter.de" autocomplete="off"></label>
+              <label class="field"><span>Port</span><input id="p-smtp-port" type="number" min="1" max="65535" placeholder="587"></label>
+              <label class="field"><span>Verschlüsselung</span><select id="p-smtp-secure"><option value="off">STARTTLS (meist Port 587)</option><option value="on">SSL/TLS (meist Port 465)</option></select></label>
+              <label class="field"><span>Absender</span><input id="p-mail-from" placeholder="leer = Postfach"></label>
+            </div>
+            <div id="mail-oauth" class="grid c2" style="margin-top:12px">
+              <label class="field"><span>Postfach</span><input id="p-mail-user" type="email" placeholder="name@gmail.com" autocomplete="off"></label>
+              <label class="field"><span>Mandant (nur Microsoft 365)</span><input id="p-mail-tenant" placeholder="common"></label>
+              <label class="field"><span>Client-ID</span><input id="p-mail-client-id" autocomplete="off"></label>
+              <label class="field"><span>Client-Secret</span><input id="p-mail-client-secret" type="password" autocomplete="new-password" placeholder="leer, wenn der Client keins hat"></label>
+              <p class="hint span" style="margin:0" id="mail-oauth-hint"></p>
+              <div class="span" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="mail-login" class="btn small">Mail-Konto verbinden</button><span class="hint">Öffnet die Anmeldung des Anbieters im Browser; der Zugang landet in <code>mail-token.json</code>.</span></div>
+            </div>
+            <div class="subhead" style="margin-top:16px">Aufbau der Benachrichtigungs-Mail</div>
+            <div class="grid" style="margin-top:8px">
+              <label class="field"><span>Betreff</span><input id="p-mail-subject" autocomplete="off" spellcheck="false"></label>
+              <label class="field"><span>Text</span><textarea id="p-mail-body" style="min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:13px" spellcheck="false"></textarea></label>
+              <p class="hint" style="margin:0">Variablen in geschweiften Klammern werden je Anruf ersetzt: <code>{status}</code> (Wichtig, Anruf, Spam abgewehrt), <code>{anrufer}</code> (Name, sonst Nummer), <code>{name}</code>, <code>{nummer}</code>, <code>{kontakt}</code> (Name und Nummer), <code>{anliegen}</code>, <code>{zeit}</code>, <code>{dauer}</code>, <code>{gewaehlt}</code> (eigene Nummer), <code>{fuer}</code>, <code>{leitung}</code>, <code>{todo}</code>, <code>{worum}</code>, <code>{zusammenfassung}</code>, <code>{einschaetzung}</code>, <code>{verlauf}</code>, <code>{link}</code>, <code>{id}</code>, <code>{kosten}</code>. Zeilen und Absätze, deren Variablen leer sind, entfallen (bei Spam etwa der Verlauf). Zeilen in GROSSBUCHSTABEN werden in der HTML-Ansicht zu Überschriften. Feld leeren und speichern stellt den Standard wieder her; „Probe-Mail senden“ zeigt das Ergebnis mit Beispieldaten.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px">
+              <button type="button" id="mail-verify" class="btn small">Verbindung prüfen</button>
+              <button type="button" id="mail-test" class="btn small">Probe-Mail senden</button>
+              <span class="hint">Beide speichern vorher die Einstellungen. Kennwörter liegen in <code>settings.json</code> im Datenordner.</span>
+            </div>
+          </div>
+        </section>
+        <section class="card" id="settings-scam">
+          <div class="head"><h2>Spam-Abwehr (Scam-Modus)</h2></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="switch span"><span>Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten <span class="hint" id="scam-state"></span></span><input type="checkbox" id="p-scam" role="switch"></label>
+              <input type="hidden" id="p-scam-accepted">
+              <label class="field"><span>Verhalten</span><select id="p-scam-style"><option value="abwimmeln">Kurz abwimmeln (unter 1 Minute)</option><option value="beschaeftigen">Hinhalten und beschäftigen</option></select></label>
+              <label class="field"><span>Hinhalten höchstens … Minuten</span><input id="p-scam-max" type="number" min="1" max="15" value="5"></label>
+              <label class="field"><span>Name der Rolle</span><input id="p-scam-name" type="text" maxlength="40" placeholder="z. B. Schmidt" autocomplete="off"><small>Erfundener Name, mit dem sie sich meldet. Leer = sie nennt keinen Namen. Nimm nicht deinen echten.</small></label>
+              <label class="field"><span>Stimme der Rolle</span><select id="p-scam-voice"></select><small>Hörproben unter KI-Assistent › „Probe hören“.</small></label>
+              <label class="field"><span>Die Rolle ist</span><select id="p-scam-gender"><option value="">automatisch nach Stimme</option><option value="m">ein Mann</option><option value="w">eine Frau</option></select><small>Danach richtet sich, ob sie bei „Herrn …“ oder „Frau …“ sagt „Am Apparat“.</small></label>
+              <label class="field"><span>Sprechgeschwindigkeit der Rolle</span><input id="p-scam-speed" type="number" min="0.25" max="1.5" step="0.05" placeholder="0.95"><small>0,25 bis 1,5. Leer = 0,95, einen Tick langsamer als der Assistent.</small></label>
+              <label class="field span"><span>Eigene Anweisungen für die Rolle</span><textarea id="p-scam-extra" placeholder="z. B. Ältere Dame, hört schlecht, erzählt gern vom Garten. Spricht leicht schwäbisch." style="min-height:72px"></textarea><small>Figur, Ton, Eigenheiten. Die Schutzregeln (keine Daten, keine Zustimmung, höflich) gehen immer vor.</small></label>
+              <label class="field span"><span>Bekannte Spam-Nummern oder Vorwahlen (eine je Zeile; „anonym“ = unterdrückte Nummern sofort als Spam behandeln)</span><textarea id="p-scam-numbers" placeholder="0800&#10;030 1234567&#10;anonym" style="min-height:72px"></textarea></label>
+            </div>
+            <label class="switch" style="margin-top:12px"><span>Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen <span class="hint">– überträgt die Anrufernummer an tellows; Kontakte und Listeneinträge werden nie abgefragt</span></span><input type="checkbox" id="p-spam-lookup" role="switch"></label>
+            <p class="hint" style="margin-top:12px">Stimme und Tempo der Rolle gelten, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer, „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleibt die Stimme des Assistenten; Name und eigene Anweisungen gelten trotzdem.</p>
+            <p class="hint" style="margin-top:12px">Ohne Listentreffer meldet sich die KI normal als Assistent und wechselt erst die Rolle, wenn sie im Gespräch einen Werbe- oder Betrugsanruf erkennt. Kontakte sind davon ausgenommen. Rechtliche Hinweise: <code>doc/Rechtliches.md</code>.</p>
+          </div>
+        </section>
+
+        <section class="card" id="settings-tech">
+          <div class="head"><h2>Technik</h2></div>
+          <div class="body">
+            <div class="grid c2">
+              <label class="field"><span>Gesprächslimit (Sekunden)</span><input id="t-max-call" type="number" min="30" max="3600" step="10"><small>Danach wird hart aufgelegt. Standard 300.</small></label>
+              <label class="field"><span>Protokolle aufbewahren (Tage)</span><input id="t-retention" type="number" min="1" max="3650"><small>Ältere Protokolle werden gelöscht. Standard 7.</small></label>
+              <label class="field"><span>Stillstandswächter (ms)</span><input id="t-stall" type="number" min="0" max="60000" step="500"><small>Stille nach der KI-Ausgabe, bevor sie angestoßen wird. 0 = aus. Standard 6000.</small></label>
+              <label class="field"><span>Stille bis Satzende (ms)</span><input id="t-vad" type="number" min="200" max="5000" step="50"><small>Zu kurz: die KI redet in Denkpausen hinein. Standard 900.</small></label>
+              <label class="field"><span>Schwelle der Spracherkennung</span><input id="t-vad-threshold" type="number" min="0.3" max="0.9" step="0.05"><small>Höher: Geräusche unterbrechen die KI seltener, leises Sprechen wird aber eher überhört. Standard 0,6.</small></label>
+              <label class="field"><span>Nachhören nach Verabschiedung (ms)</span><input id="t-grace" type="number" min="0" max="10000" step="100"><small>Sagt das Gegenüber noch etwas, geht es weiter. Standard 2000.</small></label>
+              <label class="field"><span>Warten nach Abnehmen (ms)</span><input id="t-greet" type="number" min="0" max="10000" step="100"><small>Ausgehend: so lange darf das Gegenüber zuerst sprechen. Standard 2500.</small></label>
+              <label class="field"><span>Sprechgeschwindigkeit</span><input id="t-speed" type="number" min="0.25" max="1.5" step="0.05"><small>0,25 bis 1,5. Standard 1,05.</small></label>
+              <label class="field"><span>Lautstärke der KI</span><input id="t-gain" type="number" min="0.2" max="4" step="0.1"><small>Verstärkung Richtung Telefon, mit weichem Begrenzer. Standard 1,5.</small></label>
+              <label class="switch span"><span>Gegenüber darf die KI unterbrechen</span><input type="checkbox" id="t-interrupt" role="switch"></label>
+              <label class="field span"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><input id="t-summary-model" placeholder="gpt-6-luna"></label>
+            </div>
+            <div class="subhead" style="margin-top:14px">Nur in der <code>.env</code></div>
+            <dl class="kv" id="env-info" style="margin-top:8px"></dl>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="confirm">
+  <div class="head"><h3>Diese Nummer jetzt wählen?</h3></div>
+  <div class="body">
+    <div class="confirm-num" id="confirm-num"></div>
+    <div class="hint" id="confirm-mode"></div>
+  </div>
+  <div class="foot">
+    <button id="confirm-no" class="btn quiet">Abbrechen</button>
+    <button id="confirm-yes" class="btn primary">Jetzt wählen</button>
+  </div>
+</dialog>
+
+<dialog id="ask">
+  <div class="head"><h3 id="ask-title"></h3></div>
+  <div class="body"><p class="hint" id="ask-text" style="font-size:14px;color:var(--text)"></p></div>
+  <div class="foot">
+    <button id="ask-no" class="btn quiet">Abbrechen</button>
+    <button id="ask-yes" class="btn destructive"></button>
+  </div>
+</dialog>
+
+<div id="toasts" aria-live="polite"></div>
+
+<dialog id="scam-dialog">
+  <div class="head"><h3>Spam-Abwehr einschalten – auf eigenes Risiko</h3></div>
+  <div class="body" style="font-size:14px">
+    <p style="margin:0">In diesem Modus gibt sich die KI gegenüber Anrufern, die sie als Werbe- oder Betrugsanrufer einstuft, <strong>nicht</strong> als KI zu erkennen und spielt eine Privatperson. Das weicht vom Grundsatz dieser Software ab, sich immer als KI vorzustellen.</p>
+    <p style="margin:0">Bitte beachte:</p>
+    <ul style="margin:0;padding-left:18px;display:grid;gap:4px">
+      <li>Die EU-KI-Verordnung (Art. 50) verlangt, dass Menschen erfahren, wenn sie mit einer KI sprechen. Ob und wie das für private Nutzung gegenüber unerbetenen Anrufern gilt, ist nicht abschließend geklärt.</li>
+      <li>Die Erkennung kann sich irren: Ein echter Anrufer (Kunde, Behörde, Bekannter) könnte hingehalten werden. Die KI soll dann zurück in den Assistenten-Modus wechseln, das ist aber nicht garantiert.</li>
+      <li>Das Gespräch wird wie jeder Anruf transkribiert und gespeichert. Ob die Verarbeitung ohne Hinweis zulässig ist, musst du selbst beurteilen.</li>
+      <li>Die KI nennt keine Daten, stimmt nichts zu, beleidigt nicht und gibt sich nicht als Behörde aus. Eine Garantie dafür gibt es nicht.</li>
+    </ul>
+    <p style="margin:0">Du nutzt diesen Modus auf eigene Verantwortung und eigenes rechtliches Risiko. Dies ist keine Rechtsberatung; mehr dazu in <code>doc/Rechtliches.md</code>.</p>
+    <label class="check"><input type="checkbox" id="scam-ack"> Ich habe das gelesen, verstanden und übernehme das Risiko.</label>
+  </div>
+  <div class="foot">
+    <button type="button" id="scam-no" class="btn quiet">Abbrechen</button>
+    <button type="button" id="scam-yes" class="btn destructive" disabled>Spam-Abwehr einschalten</button>
+  </div>
+</dialog>
+
+<dialog id="complaint-dialog">
+  <div class="head"><h3>Beschwerde-Entwurf (Bundesnetzagentur)</h3><p class="hint">Vorschlag aus dem Protokoll. Bitte prüfen, ergänzen (Name, Anschrift) und selbst im Online-Formular der Bundesnetzagentur zu unerlaubter Telefonwerbung einreichen. Keine Rechtsberatung.</p></div>
+  <div class="body"><textarea id="complaint-text" style="min-height:280px;width:100%;font:inherit;font-size:13px" spellcheck="false"></textarea></div>
+  <div class="foot"><button type="button" id="complaint-close" class="btn quiet">Schließen</button><button type="button" id="complaint-copy" class="btn primary">Kopieren</button></div>
+</dialog>
+
+<dialog id="voices">
+  <div class="head"><h3>Stimmen anhören</h3><p class="hint">Hörprobe über die Sprachausgabe von OpenAI mit dem eingestellten KI-Namen. Am Telefon klingt jede Stimme etwas dumpfer.</p></div>
+  <div class="body" id="voices-list" style="gap:0"></div>
+  <div class="foot"><button type="button" id="voices-close" class="btn quiet">Schließen</button></div>
+</dialog>
+
+<dialog id="contact-dialog">
+  <form id="contact-form">
+    <div class="head"><h3 id="contact-title">Neuer Kontakt</h3><p class="hint">Nur Name und Nummer sind Pflicht. Die übrigen Felder werden beim Anruf vorbelegt.</p></div>
+    <div class="body">
+      <div class="grid c2">
+        <label class="field"><span>Name</span><input id="c-name" required></label>
+        <label class="field"><span>Nummer</span><input id="c-number" required inputmode="tel" placeholder="0171 … oder **610"></label>
+        <label class="field"><span>Anrede</span><select id="c-address"><option value="">– Standard –</option><option value="sie">Sie</option><option value="du">Du</option></select></label>
+        <label class="field"><span>Stil</span><select id="c-persona"><option value="">– Standard –</option></select></label>
+        <label class="field"><span>Stimme</span><select id="c-voice"><option value="">– Standard –</option></select></label>
+        <label class="check" style="align-self:end"><input type="checkbox" id="c-owner"> Das bin ich (Inhaber) – KI meldet sich als „dein Agent“</label>
+      </div>
+      <label class="field"><span>Standard-Auftrag</span><textarea id="c-task" placeholder="Wird ins Auftragsfeld übernommen, wenn der Kontakt gewählt wird"></textarea></label>
+      <label class="field"><span>Notizen (bekommt die KI als Hintergrundwissen)</span><textarea id="c-notes" placeholder="z. B. Ansprechpartnerin Frau Meier, Rückruf meist nachmittags"></textarea></label>
+    </div>
+    <div class="foot">
+      <button type="button" id="contact-cancel" class="btn quiet">Abbrechen</button>
+      <button type="submit" id="contact-save" class="btn primary">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const PHASES = {
+  starting: ['startet', ''], offline: ['nicht registriert', 'danger'], idle: ['bereit', 'ok'],
+  calling: ['wählt', 'accent'], ringing: ['klingelt', 'accent'], incoming: ['eingehender Anruf', 'accent'], connected: ['verbunden', 'ok'], ended: ['beendet', 'warn'],
+};
+const FORM_FIELDS = {
+  mode: 'mode', task: 'task', persona: 'p-persona', voice: 'p-voice', address: 'p-address', model: 'p-model',
+  aiName: 'p-name', principal: 'p-principal', personaExtra: 'p-extra',
+  incoming: 'p-incoming', incomingRings: 'p-incoming-rings', incomingTask: 'p-incoming-task', incomingIdentities: 'p-incoming-identities', incomingProfiles: 'p-incoming-profiles',
+  notifyTray: 'p-notify-tray', notifyEmail: 'p-notify-email', notifyCall: 'p-notify-call',
+  scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
+  mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
+  maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', summaryModel: 't-summary-model',
+};
+let status = null, modes = [], aiAvailable = false, contacts = [], activeContact = null, voices = [], allCalls = [], selectedCallId = null;
+
+async function api(path, body, method) {
+  const res = await fetch(path, { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const when = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }); };
+function toast(msg, level = 'warn') {
+  addLog({ time: '', level, text: msg });
+  const t = document.createElement('div'); t.className = 'toast ' + level;
+  const span = document.createElement('span'); span.textContent = msg;
+  const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Hinweis schließen'); x.onclick = () => t.remove();
+  t.append(span, x); $('toasts').appendChild(t);
+  while ($('toasts').children.length > 3) $('toasts').firstChild.remove();
+}
+function ask(title, text, label) {
+  return new Promise((resolve) => {
+    $('ask-title').textContent = title; $('ask-text').textContent = text; $('ask-yes').textContent = label;
+    const done = (v) => { $('ask').close(); resolve(v); };
+    $('ask-yes').onclick = () => done(true); $('ask-no').onclick = () => done(false);
+    $('ask').oncancel = (ev) => { ev.preventDefault(); done(false); };
+    $('ask').showModal(); $('ask-no').focus();
+  });
+}
+function key(n) { n = String(n || '').replace(/[\s\-/()]/g, ''); return n.startsWith('**') ? n : n.replace(/^\+49|^0049/, '0').replace(/\D/g, ''); }
+const sameNumber = (a, b) => key(a) !== '' && key(a) === key(b);
+const contactFor = (number) => contacts.find((x) => sameNumber(x.number, number));
+
+// ---- Seiten (Tab-Leiste): Dashboard, Anrufe, Kontakte, Einstellungen; letzte Seite wird gemerkt ----
+const PAGES = ['dashboard', 'calls', 'contacts', 'settings'];
+function showPage(id) {
+  if (!PAGES.includes(id)) id = 'dashboard';
+  for (const p of PAGES) {
+    $('page-' + p).hidden = p !== id;
+    document.querySelector(`nav.tabs [data-page="${p}"]`).setAttribute('aria-selected', String(p === id));
+  }
+  if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+  try { localStorage.setItem('sipfunk.page', id); } catch {}
+  if (id === 'settings') refreshMail();
+  window.scrollTo({ top: 0 });
+}
+document.querySelector('nav.tabs').onclick = (ev) => { const b = ev.target.closest('[data-page]'); if (b) showPage(b.dataset.page); };
+document.querySelector('nav.tabs').onkeydown = (ev) => {
+  if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
+  const cur = PAGES.indexOf(document.querySelector('nav.tabs [aria-selected="true"]').dataset.page);
+  const next = PAGES[(cur + (ev.key === 'ArrowRight' ? 1 : PAGES.length - 1)) % PAGES.length];
+  showPage(next); document.querySelector(`nav.tabs [data-page="${next}"]`).focus();
+};
+document.body.addEventListener('click', (ev) => { const b = ev.target.closest('[data-goto]'); if (b) showPage(b.dataset.goto); });
+window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+
+// ---- Status ----
+function render() {
+  if (!status) return;
+  const [label, k] = PHASES[status.phase] || [status.phase, ''];
+  const busy = ['calling', 'ringing', 'incoming', 'connected'].includes(status.phase);
+  // Leitung: ein Satz rechts im Kopf. Solange noch registriert wird, nicht „offline“ melden.
+  const reg = status.registered ? 'on' : status.phase === 'starting' ? '' : 'off';
+  $('regdot').className = 'dot ' + reg;
+  $('regtext').textContent = (status.registered ? 'FRITZ!Box verbunden' : status.phase === 'starting' ? 'Verbinde mit FRITZ!Box …' : 'FRITZ!Box nicht erreichbar')
+    + (status.incomingSettings && status.incomingSettings.enabled ? ' · Anrufbeantworter an' : '');
+  // Gesprächsleiste: nur während eines Anrufs und kurz danach
+  const ringing = !!(ringState && ringState.ringing);
+  const showBar = busy || status.phase === 'ended' || ringing;
+  $('ringbox').hidden = !ringing;
+  if (ringing) {
+    $('ring-verdict').textContent = ringState.verdict.label; $('ring-verdict').dataset.l = ringState.verdict.level; $('ring-verdict').title = ringState.verdict.detail;
+    $('ring-trap').disabled = !ringState.canTrap; $('ring-trap').title = ringState.canTrap ? 'Sofort annehmen; die KI tritt als Privatperson auf' : (ringState.trapHint || '');
+    $('ring-skip').disabled = !ringState.willAnswer;
+  }
+  $('callbar').hidden = !showBar;
+  $('callbar').dataset.k = status.phase === 'connected' ? 'ok' : status.phase === 'ended' ? 'warn' : 'accent';
+  $('phase').textContent = busy || status.phase === 'ended' ? label.charAt(0).toUpperCase() + label.slice(1) : label;
+  const c = status.target ? contactFor(status.target) : null;
+  if (ringing && !busy) { $('phase').textContent = 'Es klingelt'; $('callbar').dataset.k = 'accent'; }
+  $('meta').innerHTML = ringing && !busy
+    ? `<b>${esc(ringState.callerName || ringState.caller || 'Nummer unterdrückt')}</b>${ringState.line ? ' · für ' + esc(ringState.line) : ''} · die KI nimmt nicht an`
+    : status.target
+    ? `<b>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}`
+    : '';
+  $('hangup').disabled = !busy;
+  $('prepare').disabled = busy || !status.registered;
+  $('prepare').title = busy ? 'Es läuft bereits ein Gespräch' : !status.registered ? 'Anrufen erst möglich, wenn die FRITZ!Box verbunden ist' : '';
+  $('tab-live').classList.toggle('on', busy);
+  $('result').style.display = status.result && !busy ? 'block' : 'none';
+  $('result').textContent = status.result ? 'Ergebnis: ' + status.result : '';
+  if (!status.liveListen) { $('listen').disabled = true; $('listen').title = 'Mithören deaktiviert (LIVE_LISTEN_ENABLED)'; }
+  $('persona').style.display = $('mode').value === 'ai' ? '' : 'none';
+}
+// Höhe der Kopfleiste (mit/ohne Gesprächsleiste) für die haftende Abschnittsliste der Einstellungen
+new ResizeObserver(() => document.documentElement.style.setProperty('--header-h', $('header').offsetHeight + 'px')).observe($('header'));
+
+// ---- Transkript (live auf dem Dashboard, gespeichert auf der Seite Anrufe) ----
+function renderTranscriptInto(el, entries, emptyText) {
+  el.innerHTML = '';
+  if (!entries.length) { el.innerHTML = `<div class="empty">${esc(emptyText)}</div>`; return; }
+  for (const e of entries) {
+    const d = document.createElement('div');
+    d.className = `msg ${e.speaker}${e.final ? '' : ' live'}`;
+    if (e.speaker !== 'system') { const b = document.createElement('b'); b.textContent = e.speaker === 'ki' ? 'KI' : 'Gegenüber'; d.appendChild(b); }
+    d.appendChild(document.createTextNode(e.text));
+    el.appendChild(d);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+const renderTranscript = (entries) => renderTranscriptInto($('transcript'), entries, 'Gespräch läuft, noch kein Text.');
+function renderSummaryInto(el, text) {
+  el.style.display = text ? 'block' : 'none';
+  el.innerHTML = text ? esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : '';
+}
+const renderSummary = (text) => renderSummaryInto($('summary'), text);
+const usageText = (u, model, costUsd) => `${model} · Audio ${u.inputAudioTokens}/${u.outputAudioTokens} Token · ca. ${(costUsd ?? 0).toFixed(3)} USD`;
+function renderUsage(u, model, costUsd) { $('usage').textContent = usageText(u, model, costUsd); }
+
+// ---- Anrufe ----
+function callRow(c, compact) {
+  const contact = contactFor(c.target);
+  const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0;
+  const sum = ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
+  const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
+  d.innerHTML = `<div class="t">${esc(contact ? contact.name : (c.target || 'anonym'))}${pills}</div>
+    <div class="m">${esc(when(c.startedAt))} · ${fmt(c.durationSec)}</div>
+    <div class="s">${esc(sum || c.endReason)}</div>`;
+  return d;
+}
+function renderCalls() {
+  const q = $('calls-filter').value.trim().toLowerCase();
+  let items = allCalls;
+  if (activeContact) items = items.filter((c) => sameNumber(c.target, activeContact.number));
+  if (q) items = items.filter((c) => { const n = contactFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (c.summary || '').toLowerCase().includes(q); });
+  const el = $('calls'); el.innerHTML = '';
+  $('calls-empty').style.display = items.length ? 'none' : 'block';
+  for (const c of items) el.appendChild(callRow(c, false));
+  $('calls-title').textContent = activeContact ? `Anrufe mit ${activeContact.name}` : 'Anrufe';
+  $('calls-all').style.display = activeContact ? '' : 'none';
+  // Dashboard: die letzten fünf
+  const r = $('recent'); r.innerHTML = '';
+  $('recent-empty').style.display = allCalls.length ? 'none' : 'block';
+  for (const c of allCalls.slice(0, 5)) r.appendChild(callRow(c, true));
+}
+async function refreshCalls() {
+  allCalls = (await api('/api/transcripts')).items;
+  renderCalls();
+  if (selectedCallId && !allCalls.some((c) => c.id === selectedCallId)) clearCallDetail();
+}
+function clearCallDetail() {
+  selectedCallId = null;
+  $('call-detail-head').innerHTML = '<div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div>';
+  $('call-transcript').style.display = 'none'; $('call-summary').style.display = 'none'; $('call-usage').textContent = ''; $('call-actions').style.display = 'none';
+  renderCalls();
+}
+async function showCall(id) {
+  const r = await api('/api/transcripts/' + encodeURIComponent(id));
+  selectedCallId = id;
+  const contact = contactFor(r.target);
+  const pills = `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
+  $('call-detail-head').innerHTML = `<div class="t">${esc(contact ? contact.name : (r.target || 'anonym'))}${contact ? ` <span class="hint">${esc(r.target)}</span>` : ''}${pills}</div>
+    <div class="m">${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.endReason)}${r.called ? ' · auf ' + esc(r.called) : ''}</div>
+    ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> ${esc(r.outcome.result)}${r.outcome.open ? ' · offen: ' + esc(r.outcome.open) : ''}</div>` : ''}`;
+  $('call-transcript').style.display = '';
+  renderTranscriptInto($('call-transcript'), r.entries || [], 'Kein Transkript gespeichert.');
+  renderSummaryInto($('call-summary'), r.summary || '');
+  $('call-usage').textContent = r.usage ? usageText(r.usage, r.model, r.costUsd) : '';
+  const digits = (r.target || '').replace(/\D/g, '');
+  const a = $('call-actions'); a.style.display = ''; a.innerHTML = '';
+  if (r.called && digits.length >= 3 && !contact && !onSpamList(r.target)) a.innerHTML += `<button class="btn small quiet" data-spam="${esc(r.target)}">Nummer auf die Spam-Liste</button>`;
+  if (r.spam) a.innerHTML += `<button class="btn small quiet" data-complaint="${esc(r.id)}">Beschwerde-Entwurf</button>`;
+  if (!contact && digits.length >= 3) a.innerHTML += `<button class="btn small quiet" data-newcontact="${esc(r.target)}">Als Kontakt speichern</button>`;
+  a.innerHTML += `<button class="btn small quiet" data-del="${esc(r.id)}">Protokoll löschen</button>`;
+  renderCalls();
+}
+$('calls-filter').oninput = renderCalls;
+$('calls').onclick = (ev) => { const row = ev.target.closest('.call'); if (row) showCall(row.dataset.id).catch((e) => toast(e.message)); };
+$('calls').onkeydown = (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList.contains('call')) { ev.preventDefault(); showCall(ev.target.dataset.id).catch((e) => toast(e.message)); } };
+$('recent').onclick = (ev) => { const row = ev.target.closest('.call'); if (row) { showPage('calls'); showCall(row.dataset.id).catch((e) => toast(e.message)); } };
+$('recent').onkeydown = (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList.contains('call')) { ev.preventDefault(); showPage('calls'); showCall(ev.target.dataset.id).catch((e) => toast(e.message)); } };
+$('call-actions').onclick = async (ev) => {
+  const btn = ev.target.closest('button'); if (!btn) return;
+  try {
+    if (btn.dataset.del) {
+      if (!(await ask('Gesprächsprotokoll löschen?', 'Das Protokoll wird endgültig gelöscht.', 'Löschen'))) return;
+      await api('/api/transcripts/' + encodeURIComponent(btn.dataset.del), undefined, 'DELETE');
+      clearCallDetail(); await refreshCalls();
+    } else if (btn.dataset.spam) {
+      await addToSpamList(btn.dataset.spam);
+      if (selectedCallId) await showCall(selectedCallId);
+    } else if (btn.dataset.complaint) {
+      btn.disabled = true; btn.textContent = 'Entwurf wird erstellt …';
+      try {
+        const r = await api('/api/transcripts/' + encodeURIComponent(btn.dataset.complaint) + '/complaint', {});
+        $('complaint-text').value = r.text; $('complaint-dialog').showModal();
+      } finally { btn.disabled = false; btn.textContent = 'Beschwerde-Entwurf'; }
+    } else if (btn.dataset.newcontact) {
+      openContactDialog(null, btn.dataset.newcontact);
+    }
+  } catch (err) { toast(err.message); }
+};
+$('calls-all').onclick = () => { activeContact = null; renderCalls(); renderContacts(); };
+// ---- Spam-Liste aus einem Gespräch heraus füllen ----
+function onSpamList(number) {
+  const d = (number || '').replace(/\D/g, '').replace(/^0049/, '0').replace(/^49(?=[1-9])/, '0');
+  return $('p-scam-numbers').value.split(/\r?\n/).map((l) => l.replace(/#.*$/, '').replace(/\D/g, '').replace(/^0049/, '0').replace(/^49(?=[1-9])/, '0')).filter((l) => l.length >= 3).some((l) => d.startsWith(l));
+}
+async function addToSpamList(number) {
+  if (!(await ask('Nummer in die Spam-Liste?', `${number} wird in „Bekannte Spam-Nummern“ eingetragen und gespeichert. Anrufe von dieser Nummer empfängt die KI dann als Privatperson – sofern die Spam-Abwehr eingeschaltet ist.`, 'Eintragen'))) return;
+  const ta = $('p-scam-numbers');
+  ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + number;
+  await api('/api/settings', collectForm());
+  toast($('p-scam').checked ? 'Nummer in die Spam-Liste eingetragen.' : 'Nummer eingetragen. Die Spam-Abwehr ist aber ausgeschaltet.', $('p-scam').checked ? 'ok' : 'warn');
+}
+$('complaint-close').onclick = () => $('complaint-dialog').close();
+$('complaint-copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('complaint-text').value); $('complaint-copy').textContent = 'Kopiert ✓'; setTimeout(() => { $('complaint-copy').textContent = 'Kopieren'; }, 2000); }
+  catch { $('complaint-text').select(); toast('Zwischenablage nicht verfügbar – Text ist markiert, bitte mit Strg+C kopieren.'); }
+};
+
+// ---- Kontakte ----
+function renderContacts() {
+  const el = $('contacts'); el.innerHTML = '';
+  $('contacts-empty').style.display = contacts.length ? 'none' : 'block';
+  for (const c of contacts) {
+    const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id;
+    d.innerHTML = `<div><div class="n">${esc(c.name)}${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num">${esc(c.number)}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
+      <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}" aria-label="Kontakt löschen" title="Kontakt löschen">✕</button></div>`;
+    el.appendChild(d);
+  }
+  render();
+}
+async function refreshContacts() { contacts = (await api('/api/contacts')).items; renderContacts(); renderCalls(); }
+function selectContact(c) {
+  activeContact = c;
+  if (c) {
+    $('target').value = c.number;
+    if (c.address) $('p-address').value = c.address;
+    if (c.persona) $('p-persona').value = c.persona;
+    if (c.voice) $('p-voice').value = c.voice;
+    if (c.task) $('task').value = c.task;
+  }
+  $('contact-hint').textContent = c ? `Kontakt: ${c.name}${c.owner ? ' (Inhaber)' : ''}` : '';
+  renderContacts(); renderCalls();
+}
+$('contacts').onclick = async (ev) => {
+  const btn = ev.target.closest('button');
+  const row = ev.target.closest('.contact');
+  try {
+    if (btn?.dataset.edit) return openContactDialog(contacts.find((c) => c.id === btn.dataset.edit));
+    if (btn?.dataset.call) { selectContact(contacts.find((c) => c.id === btn.dataset.call)); showPage('dashboard'); $('task').focus(); return; }
+    if (btn?.dataset.calls) { selectContact(contacts.find((c) => c.id === btn.dataset.calls)); showPage('calls'); return; }
+    if (btn?.dataset.del) {
+      const c = contacts.find((x) => x.id === btn.dataset.del);
+      if (!(await ask(`Kontakt „${c.name}“ löschen?`, 'Gespeicherte Gespräche bleiben erhalten, nur der Kontakt wird entfernt.', 'Löschen'))) return;
+      await api('/api/contacts/' + c.id, undefined, 'DELETE');
+      if (activeContact?.id === c.id) activeContact = null;
+      await refreshContacts();
+      return;
+    }
+    if (row) selectContact(contacts.find((c) => c.id === row.dataset.id));
+  } catch (err) { toast(err.message); }
+};
+$('contacts').onkeydown = (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList.contains('contact')) { ev.preventDefault(); selectContact(contacts.find((c) => c.id === ev.target.dataset.id)); } };
+$('target').oninput = () => {
+  const c = contactFor($('target').value) || null;
+  if (c?.id !== activeContact?.id) { activeContact = c; $('contact-hint').textContent = c ? `Kontakt: ${c.name}` : ''; renderContacts(); renderCalls(); }
+};
+
+let editingId = null;
+function openContactDialog(c, presetNumber) {
+  editingId = c?.id || null;
+  $('contact-title').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
+  $('c-name').value = c?.name || '';
+  $('c-number').value = c?.number || presetNumber || (!activeContact ? $('target').value : '');
+  $('c-address').value = c?.address || ''; $('c-persona').value = c?.persona || ''; $('c-voice').value = c?.voice || '';
+  $('c-owner').checked = !!c?.owner; $('c-task').value = c?.task || ''; $('c-notes').value = c?.notes || '';
+  $('contact-dialog').showModal(); $('c-name').focus();
+}
+$('contact-new').onclick = () => openContactDialog(null);
+$('contact-cancel').onclick = () => $('contact-dialog').close();
+$('contact-form').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const body = { name: $('c-name').value, number: $('c-number').value, address: $('c-address').value, persona: $('c-persona').value, voice: $('c-voice').value, owner: $('c-owner').checked, task: $('c-task').value, notes: $('c-notes').value };
+  try {
+    const saved = editingId ? await api('/api/contacts/' + editingId, body, 'PUT') : await api('/api/contacts', body);
+    $('contact-dialog').close();
+    await refreshContacts();
+    if (selectedCallId) await showCall(selectedCallId);
+    if (!$('page-dashboard').hidden) selectContact(contacts.find((c) => c.id === saved.id));
+  } catch (err) { toast(err.message); }
+};
+
+// ---- E-Mail-Versand ----
+function renderMailForm() {
+  const prov = $('p-mail-provider').value;
+  $('mail-smtp').style.display = prov === 'smtp' ? '' : 'none';
+  $('mail-oauth').style.display = prov === 'smtp' ? 'none' : '';
+  $('p-mail-tenant').closest('label').style.display = prov === 'm365' ? '' : 'none';
+  $('mail-oauth-hint').textContent = prov === 'gmail'
+    ? 'Gmail: In der Google Cloud Console einen OAuth-Client vom Typ „Desktop-App“ anlegen und Client-ID (und Secret) hier eintragen. Die Gmail-API muss nicht aktiviert sein.'
+    : prov === 'm365' ? `Microsoft 365: In Entra eine App-Registrierung anlegen, Redirect-URI http://127.0.0.1:${location.port || 80}/oauth/callback, Berechtigung „SMTP.Send“; SMTP-AUTH für das Postfach muss erlaubt sein. Mandant = Mandanten-ID oder „common“.` : '';
+}
+$('p-mail-provider').onchange = () => { renderMailForm(); $('mail-status').textContent = 'Versandweg geändert – noch nicht gespeichert'; };
+async function refreshMail() {
+  renderMailForm();
+  try {
+    const m = await api('/api/mail/status');
+    const name = { smtp: 'SMTP', gmail: 'Gmail (OAuth)', m365: 'Microsoft 365 (OAuth)' }[m.provider] || m.provider;
+    $('mail-status').textContent = `${name}: ${m.loggedIn ? `bereit${m.user ? ' als ' + m.user : ''}${m.to ? ' → ' + m.to : ''}` : (m.hint || 'nicht eingerichtet')}`;
+    $('mail-login').textContent = m.loggedIn ? 'Mail-Konto neu verbinden' : 'Mail-Konto verbinden';
+  } catch (err) { $('mail-status').textContent = 'E-Mail: ' + err.message; }
+}
+async function saveThen(btn, label, fn) {
+  btn.disabled = true; btn.textContent = label;
+  try { await api('/api/settings', collectForm()); await fn(); }
+  catch (err) { toast(err.message, 'error'); }
+  btn.disabled = false; btn.textContent = btn.dataset.label;
+  refreshMail();
+}
+for (const id of ['mail-auto', 'mail-login', 'mail-verify', 'mail-test']) $(id).dataset.label = $(id).textContent;
+$('mail-auto').onclick = () => saveThen($('mail-auto'), 'Suche …', async () => {
+  const email = $('p-smtp-user').value.trim() || $('p-mail-to').value.trim();
+  if (!email.includes('@')) throw new Error('Bitte zuerst das Postfach (E-Mail-Adresse) eintragen.');
+  const r = await api('/api/mail/autoconfig', { email });
+  if (r.oauth && r.provider !== 'smtp') {
+    // Anbieter will OAuth: Versandweg umschalten, Postfach übernehmen
+    $('p-mail-provider').value = r.oauth; $('p-mail-user').value = email; renderMailForm();
+    $('mail-auto-hint').textContent = r.note || 'Dieser Anbieter braucht die Anmeldung per OAuth.';
+    toast(`${r.note || 'Anmeldung per OAuth nötig.'} Versandweg umgestellt – Client-ID eintragen, speichern, dann „Mail-Konto verbinden“.`, 'warn');
+    return;
+  }
+  $('p-smtp-host').value = r.host || ''; $('p-smtp-port').value = r.port || ''; $('p-smtp-secure').value = r.secure ? 'on' : 'off';
+  if (r.user) $('p-smtp-user').value = r.user;
+  const src = { ispdb: 'Thunderbird-Datenbank', preset: 'bekannter Anbieter', mx: 'DNS (MX)', probe: 'Verbindungsprobe' }[r.source] || r.source;
+  $('mail-auto-hint').textContent = `Gefunden (${src}): ${r.host}:${r.port}, ${r.secure ? 'SSL/TLS' : 'STARTTLS'}.${r.note ? ' ' + r.note : ''}${r.oauth ? ' Alternativ per OAuth über „' + (r.oauth === 'gmail' ? 'Gmail' : 'Microsoft 365') + '“.' : ''}`;
+  await api('/api/settings', collectForm());
+  toast('Serverdaten eingetragen und gespeichert. Jetzt Passwort eintragen und „Verbindung prüfen“.', 'ok');
+});
+$('mail-login').onclick = () => saveThen($('mail-login'), 'Öffne …', async () => {
+  const r = await api('/api/mail/login', {});
+  window.open(r.url, '_blank', 'noopener');
+  toast('Anmeldung im neuen Fenster abschließen, danach „Verbindung prüfen“.', 'warn');
+  setTimeout(refreshMail, 15000);
+});
+$('mail-verify').onclick = () => saveThen($('mail-verify'), 'Prüfe …', async () => {
+  await api('/api/mail/verify', {});
+  toast('Verbindung und Anmeldung beim Mailserver sind in Ordnung.', 'ok');
+});
+$('mail-test').onclick = () => saveThen($('mail-test'), 'Sende …', async () => {
+  await api('/api/mail/test', {});
+  toast('Probe-Mail gesendet – bitte Postfach prüfen.', 'ok');
+});
+
+// ---- Stimmen-Hörprobe ----
+let voiceAudio = null;
+function openVoices() {
+  if (!aiAvailable) return toast('Hörprobe braucht OPENAI_API_KEY', 'error');
+  const list = $('voices-list'); list.innerHTML = '';
+  for (const v of voices) {
+    const row = document.createElement('div'); row.className = 'voice';
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = v;
+    if (v === $('p-voice').value) { const s = document.createElement('small'); s.textContent = 'eingestellt'; name.appendChild(s); }
+    const play = document.createElement('button'); play.type = 'button'; play.className = 'btn small'; play.textContent = '▶ Anhören'; play.setAttribute('aria-label', `Stimme ${v} anhören`);
+    play.onclick = async () => {
+      voiceAudio?.pause();
+      play.disabled = true; play.textContent = 'lädt …';
+      const a = new Audio(`/api/voices/${v}/sample`); voiceAudio = a;
+      const reset = () => { play.disabled = false; play.textContent = '▶ Anhören'; };
+      a.onplaying = reset;
+      a.onerror = () => { reset(); toast(`Hörprobe für ${v} nicht verfügbar`, 'error'); };
+      try { await a.play(); } catch { a.onerror(); }
+    };
+    const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn small'; pick.textContent = 'Wählen';
+    pick.onclick = () => { $('p-voice').value = v; voiceAudio?.pause(); $('voices').close(); };
+    row.append(name, play, pick); list.appendChild(row);
+  }
+  $('voices').showModal();
+}
+$('voices-open').onclick = (ev) => { ev.preventDefault(); openVoices(); };
+$('voices-close').onclick = () => { voiceAudio?.pause(); $('voices').close(); };
+$('voices').onclose = () => voiceAudio?.pause();
+
+// ---- Mithören ----
+let ctx = null, gain = null, nextTime = 0, listening = false;
+$('listen').onclick = () => {
+  listening = !listening;
+  if (listening && !ctx) { ctx = new AudioContext(); gain = ctx.createGain(); gain.gain.value = Number($('vol').value); gain.connect(ctx.destination); }
+  if (ctx) listening ? ctx.resume() : ctx.suspend();
+  nextTime = 0;
+  $('listen').setAttribute('aria-pressed', String(listening));
+  $('listen').title = listening ? 'Mithören beenden' : 'Beide Gesprächsseiten im Browser hören';
+  $('listen').classList.toggle('primary', listening); $('listen').classList.toggle('quiet', !listening);
+};
+$('vol').oninput = () => { if (gain) gain.gain.value = Number($('vol').value); };
+function playFrame(buf) {
+  if (!listening || !ctx) return;
+  const pcm = new Int16Array(buf);
+  const rate = (status && status.sampleRate) || 8000;
+  const audio = ctx.createBuffer(1, pcm.length, rate);
+  const ch = audio.getChannelData(0);
+  for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+  const src = ctx.createBufferSource(); src.buffer = audio; src.connect(gain);
+  const now = ctx.currentTime;
+  if (nextTime < now || nextTime > now + 0.4) nextTime = now + 0.06;
+  src.start(nextTime); nextTime += pcm.length / rate;
+}
+
+// ---- Protokoll + WebSocket ----
+function addLog(line) {
+  const el = $('log'); const span = document.createElement('span');
+  span.className = line.level; span.textContent = `${line.time} ${line.text}\n`;
+  el.appendChild(span);
+  while (el.childNodes.length > 400) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+$('log-clear').onclick = () => { $('log').innerHTML = ''; };
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`); ws.binaryType = 'arraybuffer';
+  ws.onmessage = (ev) => {
+    if (ev.data instanceof ArrayBuffer) return playFrame(ev.data);
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'status') { status = msg.status; render(); }
+    else if (msg.type === 'log') addLog(msg);
+    else if (msg.type === 'transcript') renderTranscript(msg.entries);
+    else if (msg.type === 'usage') renderUsage(msg.usage, msg.model, msg.costUsd);
+    else if (msg.type === 'summary') renderSummary(msg.text);
+    else if (msg.type === 'transcripts') refreshCalls().catch(() => {});
+    else if (msg.type === 'ring') { ringState = msg.ring; render(); }
+    else if (msg.type === 'aiError') addLog({ time: '', level: 'error', text: 'KI: ' + msg.message });
+  };
+  ws.onclose = () => { $('regtext').textContent = 'Server getrennt'; $('regdot').className = 'dot off'; setTimeout(connect, 2000); };
+}
+
+// ---- Anruf ----
+function fieldValue(id) { const el = $(id); return el.type === 'checkbox' ? (el.checked ? 'on' : 'off') : el.value; }
+function setField(id, v) { const el = $(id); if (el.type === 'checkbox') el.checked = v === 'on'; else el.value = v; }
+function collectForm() { syncProfiles(); const out = {}; for (const [k, id] of Object.entries(FORM_FIELDS)) out[k] = fieldValue(id); return out; }
+$('mode').onchange = render;
+$('prepare').onclick = async () => {
+  if ($('mode').value === 'ai' && !$('p-principal').value.trim()) {
+    showPage('settings'); $('p-principal').focus();
+    return toast('Bitte „Im Auftrag von“ ausfüllen – die KI stellt sich damit vor.');
+  }
+  try {
+    const { target } = await api('/api/call/prepare', { target: $('target').value });
+    const c = contactFor(target);
+    $('confirm-num').textContent = target;
+    $('confirm-mode').textContent = (c ? `${c.name}${c.owner ? ' (Inhaber)' : ''} · ` : '') + ($('mode').value === 'ai'
+      ? `KI ${$('p-name').value} · ${$('p-persona').selectedOptions[0]?.textContent} · ${$('p-voice').value} · ${$('p-address').value === 'du' ? 'Du' : 'Sie'} · ${$('p-model').value}`
+      : 'Audio: ' + ($('mode').selectedOptions[0]?.textContent || ''));
+    $('confirm').showModal();
+  } catch (err) { toast(err.message); }
+};
+$('confirm-no').onclick = () => $('confirm').close();
+$('confirm-yes').onclick = async () => {
+  $('confirm').close();
+  try {
+    await api('/api/call/dial', { ...collectForm(), target: $('confirm-num').textContent });
+    try { localStorage.setItem('sipfunk.target', $('target').value); } catch {}
+  } catch (err) { toast(err.message); }
+};
+$('hangup').onclick = () => api('/api/call/hangup', {}).catch((e) => toast(e.message));
+// ---- Klingelnder Anruf: von Hand lenken ----
+let ringState = null;
+for (const [id, mode] of [['ring-trap', 'trap'], ['ring-answer', 'answer'], ['ring-skip', 'skip']]) {
+  $(id).onclick = () => api('/api/ring/' + mode, {}).catch((e) => toast(e.message, 'error'));
+}
+
+// ---- Spam-Abwehr: Einschalten nur nach ausdrücklicher Bestätigung ----
+function renderScamState() {
+  const acc = $('p-scam-accepted').value;
+  $('scam-state').textContent = acc ? `(Risiko bestätigt am ${acc.slice(0, 10)})` : '(noch nicht bestätigt)';
+  $('p-scam-max').disabled = $('p-scam-style').value !== 'beschaeftigen';
+}
+$('p-scam-style').onchange = renderScamState;
+$('p-scam').onchange = () => {
+  if (!$('p-scam').checked) return;
+  if ($('p-scam-accepted').value) return;
+  $('scam-ack').checked = false; $('scam-yes').disabled = true;
+  $('scam-dialog').showModal();
+};
+$('scam-ack').onchange = () => { $('scam-yes').disabled = !$('scam-ack').checked; };
+$('scam-no').onclick = () => { $('scam-dialog').close(); $('p-scam').checked = false; };
+$('scam-dialog').addEventListener('cancel', () => { $('p-scam').checked = false; });
+$('scam-yes').onclick = async () => {
+  if (!$('scam-ack').checked) return;
+  $('p-scam-accepted').value = new Date().toISOString();
+  $('scam-dialog').close();
+  renderScamState();
+  try { await api('/api/settings', collectForm()); toast('Spam-Abwehr eingeschaltet und gespeichert.', 'ok'); }
+  catch (err) { toast(err.message); }
+};
+
+// ---- Anrufbeantworter-Profile je eigener Nummer ----
+let profiles = [];
+function profileOptions(sel, cur) {
+  const personas = [...$('p-persona').options].map((o) => `<option value="${o.value}"${o.value === cur ? ' selected' : ''}>${o.textContent}</option>`).join('');
+  return `<option value=""${cur ? '' : ' selected'}>– Standard –</option>` + (sel === 'persona' ? personas : voices.map((v) => `<option value="${v}"${v === cur ? ' selected' : ''}>${v}</option>`).join(''));
+}
+function policyOptions(cur) {
+  return [['', '– allgemeine Einstellung –'], ['off', 'Aus'], ['important', 'Nur bei wichtigen Anrufen'], ['all', 'Bei allen Anrufen']].map(([v, l]) => `<option value="${v}"${(cur || '') === v ? ' selected' : ''}>${l}</option>`).join('');
+}
+function renderProfiles() {
+  const el = $('profiles'); el.innerHTML = '';
+  if (!profiles.length) { el.innerHTML = '<p class="hint">Keine eigene Nummer eingetragen: Die KI meldet sich überall als Assistent von „Im Auftrag von“.</p>'; return; }
+  profiles.forEach((pr, i) => {
+    const d = document.createElement('div'); d.className = 'profile'; d.dataset.i = i;
+    d.innerHTML = `<div class="grid c3">
+        <label class="field"><span>Eigene Nummer (Endziffern)</span><input data-k="number" inputmode="tel" value="${esc(pr.number)}" placeholder="23125100"></label>
+        <label class="field"><span>Meldung als Assistent von</span><input data-k="name" value="${esc(pr.name)}" placeholder="Max Mustermann"></label>
+        <label class="field"><span>Dahinter steht</span><select data-k="kind"><option value="person"${pr.kind !== 'company' ? ' selected' : ''}>eine Person („ist nicht da“)</option><option value="company"${pr.kind === 'company' ? ' selected' : ''}>eine Firma („niemand erreichbar“)</option></select></label>
+        <label class="field"><span>Annahme auf dieser Nummer</span><select data-k="answer"><option value=""${!pr.answer ? ' selected' : ''}>– allgemeine Einstellung –</option><option value="on"${pr.answer === 'on' ? ' selected' : ''}>KI nimmt an</option><option value="off"${pr.answer === 'off' ? ' selected' : ''}>Nur klingeln lassen</option></select></label>
+        <label class="field"><span>Annahme beim … Klingeln</span><input data-k="rings" type="number" min="1" max="10" value="${esc(pr.rings || '')}" placeholder="allgemeine Einstellung"></label>
+        <label class="field"><span>Anrede</span><select data-k="address"><option value=""${!pr.address ? ' selected' : ''}>– Standard –</option><option value="sie"${pr.address === 'sie' ? ' selected' : ''}>Sie</option><option value="du"${pr.address === 'du' ? ' selected' : ''}>Du</option></select></label>
+        <label class="field"><span>Stil</span><select data-k="persona">${profileOptions('persona', pr.persona)}</select></label>
+        <label class="field"><span>Stimme</span><select data-k="voice">${profileOptions('voice', pr.voice)}</select></label>
+        <label class="field span"><span>Auftrag bei Anrufen auf dieser Nummer</span><input data-k="task" value="${esc(pr.task)}" placeholder="leer = Standard-Auftrag von oben"></label>
+        <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><input data-k="extra" value="${esc(pr.extra)}" placeholder="leer = Standard"></label>
+        <label class="field"><span>Hinweis im Tray</span><select data-k="notifyTray">${policyOptions(pr.notifyTray)}</select></label>
+        <label class="field"><span>E-Mail</span><select data-k="notifyEmail">${policyOptions(pr.notifyEmail)}</select></label>
+        <label class="field"><span>Mich auf der Inhabernummer anrufen</span><select data-k="notifyCall">${policyOptions(pr.notifyCall)}</select></label>
+      </div>
+      <div class="row"><span class="hint">Gilt für Anrufe, die auf dieser Nummer eingehen.</span><button type="button" class="btn small quiet" data-remove="${i}">Entfernen</button></div>`;
+    el.appendChild(d);
+  });
+}
+function syncProfiles() {
+  profiles = [...$('profiles').querySelectorAll('.profile')].map((d) => {
+    const v = (k) => d.querySelector(`[data-k="${k}"]`).value;
+    return { number: v('number'), name: v('name'), kind: v('kind'), answer: v('answer'), rings: v('rings'), address: v('address'), persona: v('persona'), voice: v('voice'), task: v('task'), extra: v('extra'), notifyTray: v('notifyTray'), notifyEmail: v('notifyEmail'), notifyCall: v('notifyCall') };
+  }).filter((p) => p.number.replace(/\D/g, '') || p.name.trim());
+  $('p-incoming-profiles').value = JSON.stringify(profiles);
+}
+function loadProfiles(json, legacy) {
+  try { profiles = JSON.parse(json || '[]'); } catch { profiles = []; }
+  if (!Array.isArray(profiles)) profiles = [];
+  if (!profiles.length && legacy) {
+    // Alte Zeilen „Nummer = Name" übernehmen
+    profiles = legacy.split(/\r?\n/).map((l) => /^\s*([+\d\s/()-]+?)\s*[=:]\s*(.+?)\s*$/.exec(l)).filter(Boolean).map((m) => ({ number: m[1].replace(/\D/g, ''), name: m[2], kind: 'person', address: '', persona: '', voice: '', task: '', extra: '' }));
+  }
+  renderProfiles();
+}
+$('profile-add').onclick = () => { syncProfiles(); profiles.push({ number: '', name: '', kind: 'person', address: '', persona: '', voice: '', task: '', extra: '' }); renderProfiles(); $('profiles').querySelector('.profile:last-child input')?.focus(); };
+$('profiles').onclick = (ev) => { const b = ev.target.closest('[data-remove]'); if (!b) return; syncProfiles(); profiles.splice(Number(b.dataset.remove), 1); renderProfiles(); };
+
+// ---- Einstellungen speichern (beide Knöpfe speichern alles) ----
+async function saveAll(btn, label) {
+  try {
+    const saved = await api('/api/settings', collectForm());
+    for (const [k, id] of Object.entries(FORM_FIELDS)) { if (k !== 'mode' && saved[k] !== undefined) setField(id, saved[k]); }
+    loadProfiles(saved.incomingProfiles, saved.incomingIdentities);
+    renderScamState();
+    if (saved.retentionDays) $('retention').textContent = saved.retentionDays;
+    btn.textContent = 'Gespeichert ✓'; setTimeout(() => { btn.textContent = label; }, 2000);
+  } catch (err) { toast(err.message, 'error'); }
+}
+$('save-settings').onclick = () => saveAll($('save-settings'), 'Speichern');
+$('save-defaults').onclick = () => saveAll($('save-defaults'), 'Als Standard speichern');
+// Abschnittsliste der Einstellungen: springt zur Karte, markiert beim Scrollen den sichtbaren Abschnitt
+const subnav = document.querySelector('.subnav');
+subnav.onclick = (ev) => { const b = ev.target.closest('[data-section]'); if (b) $(b.dataset.section).scrollIntoView({ block: 'start' }); };
+const sectionWatch = new IntersectionObserver((entries) => {
+  for (const e of entries) if (e.isIntersecting) for (const b of subnav.querySelectorAll('[data-section]')) b.setAttribute('aria-current', String(b.dataset.section === e.target.id));
+}, { rootMargin: '-15% 0px -70% 0px' });
+for (const card of document.querySelectorAll('.settings .card')) sectionWatch.observe(card);
+document.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 's' && !$('page-settings').hidden) { ev.preventDefault(); $('save-settings').click(); } });
+
+// ---- Start ----
+(async () => {
+  try {
+    let lastTarget = ''; try { lastTarget = localStorage.getItem('sipfunk.target') || ''; } catch {}
+    const [data, settings, calls, cs] = await Promise.all([api('/api/status'), api('/api/settings'), api('/api/transcripts'), api('/api/contacts')]);
+    modes = data.modes; aiAvailable = data.aiAvailable; voices = data.voices || [];
+    $('mode').innerHTML = modes.map((m) => `<option value="${m.id}"${m.id === 'ai' && !aiAvailable ? ' disabled' : ''}>${m.label}${m.id === 'ai' && !aiAvailable ? ' (OPENAI_API_KEY fehlt)' : ''}</option>`).join('');
+    const personaOpts = (data.personas || []).map((p) => `<option value="${p.id}">${p.label}</option>`).join('');
+    const voiceOpts = (data.voices || []).map((v) => `<option value="${v}">${v}</option>`).join('');
+    $('p-persona').innerHTML = personaOpts; $('p-voice').innerHTML = voiceOpts;
+    $('c-persona').innerHTML += personaOpts; $('c-voice').innerHTML += voiceOpts;
+    $('p-scam-voice').innerHTML = '<option value="">– wie der Assistent –</option>' + voiceOpts;
+    $('p-model').innerHTML = (data.models || [data.model]).map((m) => `<option value="${m}">${m}${m.endsWith('-mini') ? ' (günstig)' : ' (besser)'}</option>`).join('');
+    if (data.retentionDays) $('retention').textContent = data.retentionDays;
+    if (data.env) {
+      const e = data.env;
+      const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und OPENAI_API_KEY nur in der .env; Mail-Kennwörter in settings.json']];
+      $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+    }
+    for (const [k, id] of Object.entries(FORM_FIELDS)) { if (k !== 'mode' && settings[k] !== undefined) setField(id, settings[k]); }
+    loadProfiles(settings.incomingProfiles, settings.incomingIdentities);
+    renderScamState();
+    $('mode').value = settings.mode && modes.some((m) => m.id === settings.mode) && (settings.mode !== 'ai' || aiAvailable) ? settings.mode : (aiAvailable ? 'ai' : 'echo');
+    contacts = cs.items;
+    if (lastTarget) $('target').value = lastTarget;
+    allCalls = calls.items;
+    status = data.status; renderContacts(); renderCalls();
+  } catch (err) { toast(err.message, 'error'); }
+  let page = location.hash.slice(1); try { page = page || localStorage.getItem('sipfunk.page') || 'dashboard'; } catch {}
+  showPage(page);
+  connect();
+})();
+</script>
+</body>
+</html>

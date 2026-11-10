@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+transcripts/
+*.log
+settings.json
+contacts.json
+sim-results/
+release/
+voice-samples/
+mail-token.json
+.claude/

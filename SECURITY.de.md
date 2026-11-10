@@ -1,0 +1,23 @@
+# Sicherheit
+
+[English](SECURITY.md) · **Deutsch**
+
+## Bedrohungsmodell
+
+SIPFunk ist für einen einzelnen Benutzer auf dem eigenen Rechner im eigenen Heim- oder Büronetz gedacht. Daraus folgt, was das Programm schützt und was nicht:
+
+- Die Web-UI und ihre API sind nur an `127.0.0.1` gebunden und haben **keine Anmeldung**. Jedes Programm, das auf demselben Rechner unter deinem Benutzer läuft, kann Anrufe starten und Protokolle lesen. Fremde Webseiten im Browser können das nicht: API und WebSocket prüfen Host und Herkunft der Anfrage. Gib den Port nicht frei (kein Port-Forwarding, kein Reverse-Proxy, kein Tunnel).
+- SIP und RTP laufen unverschlüsselt über UDP zur Telefonanlage im LAN.
+- Zugangsdaten liegen im Klartext im Datenordner: SIP-Kennwort und OpenAI-Schlüssel in der `.env`, Mail-Kennwort und OAuth-Secret in `settings.json`, das OAuth-Token in `mail-token.json`. Protokolle, Kontakte und Log enthalten Rufnummern und Gesprächsinhalte. Der Datenordner ist der Projektordner bzw. `%APPDATA%\SIPFunk`; schütze ihn wie ein Postfach (Benutzerkonto mit Kennwort, Festplattenverschlüsselung, verschlüsselte Backups).
+- Gesprächsaudio und Texte gehen an OpenAI, Benachrichtigungen an deinen Mail-Anbieter, bei eingeschaltetem Nachschlagen die Anrufernummer an tellows.
+- Was Anrufer sagen, ist für die KI Gesprächsinhalt und keine Anweisung. Die KI kann nur auflegen, beim Rückruf an den Inhaber zum Anrufer durchstellen und einen Anruf als Spam melden; sie kann keine Nummern wählen. Der Rufzielschutz (Notruf, Sonder-, Mehrwert- und Auslandsnummern) und das Gesprächslimit werden im Kern geprüft, nicht vom Modell.
+
+## Schwachstelle melden
+
+Bitte nicht als öffentliches Issue. Nutze die private Meldefunktion der Plattform, auf der das Repository liegt (bei GitHub: „Security → Report a vulnerability“). Beschreibe, wie sich das Problem nachstellen lässt, und füge keine echten Rufnummern, Zugangsdaten oder Gesprächsinhalte bei.
+
+Es gibt keine zugesagten Reaktionszeiten und kein Prämienprogramm. Unterstützt wird nur der aktuelle Stand des Hauptzweigs.
+
+## Wenn Zugangsdaten nach außen gelangt sind
+
+SIP-Kennwort in der Telefonanlage ändern, OpenAI-Schlüssel widerrufen und neu erzeugen, App-Passwort des Postfachs ändern bzw. den OAuth-Zugriff beim Anbieter entfernen und `mail-token.json` löschen.

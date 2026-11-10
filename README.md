@@ -1,0 +1,146 @@
+# SIPFunk
+
+**English** · [Deutsch](README.de.md)
+
+SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP phone and connects the call audio to a live speech model from OpenAI. The AI can place outgoing calls and carry out a task, answer incoming calls as an answering machine, and notify you afterwards. Everything runs on your own computer: one user, one extension, one call at a time.
+
+> **The software speaks German.** The web UI, the instructions given to the AI and the dialling rules are German and built for Germany. This documentation is available in English and German; quoted UI labels are the German ones you will see on screen.
+>
+> **Use at your own risk.** The software comes with no warranty. Whoever runs SIPFunk is responsible for every call the AI places or answers.
+>
+> **Read the legal notes first.** Calls are sent to OpenAI and logged as text; the AI has to identify itself as an AI; the optional spam defence deliberately omits that notice and is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
+>
+> **OpenAI Realtime only.** SIPFunk currently works exclusively with the OpenAI Realtime API. Other live speech models may be added later.
+
+## What it does
+
+- **Outgoing calls with a task.** You describe in plain language what the AI should do ("Ask the dentist's office for an appointment next week, mornings"). A text model turns this into a call plan, the AI works through it and reports a result.
+- **Answering machine.** The AI picks up after a configurable number of rings, introduces itself as an AI assistant and takes down the caller's request and whether they want a call back. You can set up a profile per own phone number (greeting, person or company, style, voice, task, notifications).
+- **Notification after the call.** Tray notification, e-mail with a summary (SMTP, or OAuth for Gmail and Microsoft 365, with editable templates) and, for important calls, a call back to you with a report and the option to be put through to the caller.
+- **Pop-up while ringing** with an assessment of the number (contact, your own spam list, earlier spam calls, conspicuous number range, optional lookup at tellows) and buttons to answer immediately or let it ring.
+- **Spam defence.** Towards advertising and scam callers the AI acts as a private person, brushes them off or keeps them busy. The role has its own name, voice, pace and instructions. Only after you have explicitly confirmed the risk in the web UI.
+- **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
+- **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
+- **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone.
+- **MCP interface** that lets an AI agent start calls and read results.
+
+## Requirements
+
+- **FRITZ!Box** with the "LAN/WLAN (IP-Telefon)" feature. SIPFunk was developed and tested against a FRITZ!Box; other SIP systems with registration over UDP and G.711 may work but are untested (the per-number profiles need the `P-Called-Party-ID` header).
+- **Node.js 20.12 or later.**
+- **Windows 10 or 11** for the tray app. Server and web UI are plain Node.js; untested on other systems.
+- **OpenAI API key** with access to the Realtime models.
+- The computer has to be running for as long as the answering machine should take calls.
+
+## Quick start
+
+1. Create an IP phone in the FRITZ!Box (Telefonie → Telefoniegeräte → Gerät einrichten → Telefon → LAN/WLAN (IP-Telefon)) and assign a user name and password. Details in the [user guide, chapter 3](doc/user-guide.md#3-setting-up-the-fritzbox).
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Copy `.env.example` to `.env` and fill in at least `SIP_USER`, `SIP_PASSWORD` and `OPENAI_API_KEY`. A copy with German comments is `.env.example.de`.
+4. Start:
+
+   ```bash
+   npm start
+   ```
+
+5. Open <http://127.0.0.1:8080>. For a first test, call an internal extension (e.g. `**610`, usually the first cordless phone) and choose "Testton" (test tone) or "Echo" as audio; this costs nothing and proves that SIP and audio work.
+
+On first start the Windows firewall asks about the UDP ports for SIP and RTP: allow them for private networks.
+
+### Tray app (Windows)
+
+```bash
+npm run tray
+```
+
+SIPFunk then runs without a console in the notification area; double-clicking the icon opens the web UI. `npm run dist:win` builds an installer and a portable ZIP file (output in `release/`). When installed, configuration and data live under `%APPDATA%\SIPFunk`.
+
+## Configuration
+
+- **`.env`**: credentials (SIP, OpenAI), ports and initial values. All variables are listed with comments in [.env.example](.env.example). Changes require a restart.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call.
+
+`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore` and do not belong in any repository, ticket or screenshot.
+
+## Usage in brief
+
+The web UI has four pages:
+
+- **Dashboard**: start a call (number or contact, task, style, voice, form of address, model), transcript of the running call, server log. "Anrufen …" (call) always shows a confirmation first.
+- **Anrufe** (calls): stored calls with transcript, summary, result and cost.
+- **Kontakte** (contacts): names, numbers, defaults and notes.
+- **Einstellungen** (settings): see above.
+
+While a call is running, the header shows its phase, the other party and the duration, plus "Mithören" (listen in) and "Auflegen" (hang up).
+
+The simulator lets you check conversation behaviour without a phone:
+
+```bash
+npm run sim
+```
+
+For AI agents there is an MCP server over stdio (the web UI has to be running):
+
+```bash
+npm run mcp
+```
+
+Client setup and all tools: [user guide, chapter 13](doc/user-guide.md#13-mcp-interface).
+
+## Cost
+
+OpenAI bills by token; a ChatGPT subscription does not cover the API. The web UI shows usage and an estimate in US dollars per call (price table in `src/ai/pricing.ts`, which has to be updated when prices change). Summary, assessment and call plan are negligible. Set a budget limit at OpenAI. Your line's call charges come on top.
+
+A note from the author: SIPFunk is a good use for existing OpenAI API credit, for example credit you received in connection with Codex. Whether you get such credit, and how much, depends on OpenAI and on your account.
+
+## Limitations
+
+- OpenAI Realtime is the only supported speech model (see above).
+- One call at a time; during a call the extension is busy.
+- German: web UI, AI instructions and dialling rules are built for Germany. Emergency, special, premium-rate and international numbers are blocked.
+- No touch tones (DTMF), hence no phone menus; no taking over the call by microphone.
+- SIP over UDP without encryption, intended for your own LAN.
+- The web UI is bound to `127.0.0.1` only and has no login. Do not expose it to a network.
+- Speech models make mistakes: the AI can mishear, promise something wrong or misjudge a call. Check the logs.
+
+## Intended use and liability
+
+SIPFunk is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to OpenAI for processing; only text logs are stored (7 days by default), no audio. The spam defence deviates from this, is off by default and can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
+
+## Documentation
+
+| | English | Deutsch |
+| --- | --- | --- |
+| Setup, all features and settings, troubleshooting | [User guide](doc/user-guide.md) | [Benutzerhandbuch](doc/user-guide.de.md) |
+| What SIPFunk is meant for and what not | [Usage guidelines](doc/guidelines.md) | [Richtlinien](doc/guidelines.de.md) |
+| AI Act, data protection, telephone advertising, risks of the spam defence | [Legal aspects](doc/legal.md) | [Rechtliches](doc/legal.de.md) |
+| Structure, call flow, design decisions | [Architecture](doc/architecture.md) | [Architektur](doc/architecture.de.md) |
+| What can only be checked on a real line | [Manual test checklist](doc/test-checklist.md) | [Testliste](doc/test-checklist.de.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.de.md](CONTRIBUTING.de.md) |
+| Security | [SECURITY.md](SECURITY.md) | [SECURITY.de.md](SECURITY.de.md) |
+| Changes per version | [CHANGELOG.md](CHANGELOG.md) | [CHANGELOG.de.md](CHANGELOG.de.md) |
+
+## Development
+
+```bash
+npm run typecheck
+```
+
+```bash
+npm test
+```
+
+The tests run offline against a simulated phone system on localhost; they call no one and need no API key.
+
+## License
+
+Copyright (C) 2026 alorbach
+
+SIPFunk is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. Anyone who distributes a modified version, or offers one to others as a service over a network, has to make its source code available under the same license.
+
+SIPFunk is distributed in the hope that it will be useful, but **without any warranty**; without even the implied warranty of merchantability or fitness for a particular purpose. See the GNU Affero General Public License in [LICENSE](LICENSE) for more details.

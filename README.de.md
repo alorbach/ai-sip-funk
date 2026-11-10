@@ -1,0 +1,142 @@
+# SIPFunk
+
+[English](README.md) · **Deutsch**
+
+SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP-Telefon an einer FRITZ!Box an und verbindet das Telefonaudio mit einem Live-Sprachmodell von OpenAI. Die KI kann ausgehend anrufen und einen Auftrag erledigen, eingehende Anrufe als Anrufbeantworter annehmen und dich danach benachrichtigen. Alles läuft auf dem eigenen Rechner: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig.
+
+> **Nutzung auf eigene Verantwortung.** Die Software wird ohne Gewährleistung bereitgestellt. Wer SIPFunk betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt.
+>
+> **Rechtliches vorher lesen.** Gespräche werden an OpenAI übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr verzichtet bewusst auf diesen Hinweis und ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
+>
+> **Nur OpenAI Realtime.** SIPFunk funktioniert derzeit ausschließlich mit der OpenAI Realtime API. Andere Live-Sprachmodelle kommen eventuell später hinzu.
+
+## Was es kann
+
+- **Ausgehende Anrufe mit Auftrag.** Du schreibst in normaler Sprache, was die KI erledigen soll („Frag in der Praxis nach einem Termin nächste Woche vormittags“). Ein Textmodell erstellt daraus einen Gesprächsplan, die KI arbeitet ihn ab und meldet ein Ergebnis.
+- **Anrufbeantworter.** Die KI nimmt nach einer einstellbaren Klingelzahl ab, stellt sich als KI-Assistent vor und nimmt Anliegen und Rückrufwunsch auf. Je eigener Rufnummer lässt sich ein Profil anlegen (Meldung, Person oder Firma, Stil, Stimme, Auftrag, Benachrichtigungen).
+- **Benachrichtigung nach dem Anruf.** Hinweis im Tray, E-Mail mit Zusammenfassung (SMTP oder OAuth für Gmail und Microsoft 365, Vorlagen anpassbar) und bei wichtigen Anrufen ein Rückruf an dich mit Bericht und Durchstellen zum Anrufer.
+- **Pop-up beim Klingeln** mit einer Einschätzung der Nummer (Kontakt, eigene Spam-Liste, frühere Spam-Gespräche, auffällige Rufnummerngasse, optional Abfrage bei tellows) und Knöpfen zum sofortigen Annehmen oder Klingelnlassen.
+- **Spam-Abwehr.** Gegenüber Werbe- und Betrugsanrufern tritt die KI als Privatperson auf, wimmelt ab oder hält hin. Die Rolle hat eigenen Namen, Stimme, Tempo und Anweisungen. Nur nach ausdrücklicher Bestätigung des Risikos in der Web-UI.
+- **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
+- **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen; je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
+- **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen.
+- **MCP-Schnittstelle**, über die ein KI-Agent Anrufe starten und Ergebnisse lesen kann.
+
+## Voraussetzungen
+
+- **FRITZ!Box** mit der Funktion „LAN/WLAN (IP-Telefon)“. Entwickelt und getestet wurde an einer FRITZ!Box; andere SIP-Anlagen mit Registrierung über UDP und G.711 können funktionieren, sind aber ungetestet (die Profile je eigener Rufnummer brauchen den Header `P-Called-Party-ID`).
+- **Node.js ab 20.12.**
+- **Windows 10 oder 11** für die Tray-App. Server und Web-UI sind reines Node.js; auf anderen Systemen ungetestet.
+- **OpenAI-API-Schlüssel** mit Zugriff auf die Realtime-Modelle.
+- Der Rechner muss laufen, solange der Anrufbeantworter Anrufe annehmen soll.
+
+## Schnellstart
+
+1. In der FRITZ!Box ein IP-Telefon anlegen (Telefonie → Telefoniegeräte → Gerät einrichten → Telefon → LAN/WLAN (IP-Telefon)) und Benutzername und Kennwort vergeben. Details im [Handbuch, Kapitel 3](doc/user-guide.de.md#3-fritzbox-einrichten).
+2. Abhängigkeiten installieren:
+
+   ```bash
+   npm install
+   ```
+
+3. `.env.example.de` (deutsch kommentiert; inhaltlich gleich mit `.env.example`) nach `.env` kopieren und mindestens `SIP_USER`, `SIP_PASSWORD` und `OPENAI_API_KEY` eintragen.
+4. Starten:
+
+   ```bash
+   npm start
+   ```
+
+5. <http://127.0.0.1:8080> öffnen. Für den ersten Test eine interne Nebenstelle anrufen (z. B. `**610`, meist das erste Schnurlostelefon) und als Audio „Testton“ oder „Echo“ wählen; das kostet nichts und belegt, dass SIP und Audio funktionieren.
+
+Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP: für „Private Netzwerke“ zulassen.
+
+### Tray-App (Windows)
+
+```bash
+npm run tray
+```
+
+SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öffnet die Web-UI. Einen Installer und eine portable ZIP-Datei baut `npm run dist:win` (Ergebnis in `release/`). Installiert liegen Konfiguration und Daten unter `%APPDATA%\SIPFunk`.
+
+## Konfiguration
+
+- **`.env`**: Zugangsdaten (SIP, OpenAI), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Änderungen brauchen einen Neustart.
+- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf.
+
+`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore` und gehören in kein Repository, kein Ticket und keinen Screenshot.
+
+## Bedienung in Kürze
+
+Die Web-UI hat vier Seiten:
+
+- **Dashboard**: Anruf starten (Rufnummer oder Kontakt, Auftrag, Stil, Stimme, Anrede, Modell), Transkript des laufenden Gesprächs, Protokoll des Servers. „Anrufen …“ zeigt immer erst eine Bestätigung.
+- **Anrufe**: gespeicherte Gespräche mit Transkript, Zusammenfassung, Ergebnis und Kosten.
+- **Kontakte**: Namen, Nummern, Vorgaben und Notizen.
+- **Einstellungen**: siehe oben.
+
+Solange ein Gespräch läuft, zeigt die Kopfzeile Phase, Gegenüber und Dauer sowie „Mithören“ und „Auflegen“.
+
+Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen:
+
+```bash
+npm run sim
+```
+
+Für KI-Agenten gibt es einen MCP-Server über stdio (die Web-UI muss laufen):
+
+```bash
+npm run mcp
+```
+
+Einrichtung der Clients und alle Tools: [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle).
+
+## Kosten
+
+OpenAI rechnet nach Token ab; ein Abo bei ChatGPT deckt die API nicht ab. Die Web-UI zeigt je Gespräch den Verbrauch und eine Schätzung in US-Dollar (Preistabelle in `src/ai/pricing.ts`, muss bei Preisänderungen angepasst werden). Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Setze bei OpenAI ein Budget-Limit. Dazu kommen die Telefonkosten deines Anschlusses.
+
+Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes OpenAI-API-Guthaben, zum Beispiel solches, das man im Zusammenhang mit Codex erhalten hat. Ob und in welcher Höhe es solches Guthaben gibt, hängt von OpenAI und vom eigenen Konto ab.
+
+## Grenzen
+
+- Nur OpenAI Realtime als Sprachmodell (siehe oben).
+- Ein Gespräch gleichzeitig; während eines Gesprächs ist die Nebenstelle besetzt.
+- Deutsch: Web-UI, Anweisungen an die KI und Rufnummernregeln sind auf Deutschland ausgelegt. Notruf, Sonder-, Mehrwert- und Auslandsnummern sind gesperrt.
+- Keine Tastentöne (DTMF), also keine Sprachmenüs; keine Übernahme des Gesprächs per Mikrofon.
+- SIP über UDP ohne Verschlüsselung, gedacht für das eigene LAN.
+- Die Web-UI ist nur an `127.0.0.1` gebunden und hat keine Anmeldung. Nicht ins Netz freigeben.
+- Sprachmodelle machen Fehler: Die KI kann sich verhören, etwas Falsches zusagen oder einen Anruf falsch einschätzen. Protokolle prüfen.
+
+## Bestimmungsgemäße Nutzung und Haftung
+
+SIPFunk ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an OpenAI; gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr weicht davon ab, ist standardmäßig aus und nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
+
+## Dokumentation
+
+- [Benutzerhandbuch](doc/user-guide.de.md): Einrichtung, alle Funktionen und Einstellungen, Fehlersuche.
+- [Richtlinien für den Einsatz](doc/guidelines.de.md): wofür SIPFunk gedacht ist und wofür nicht.
+- [Rechtliche Aspekte](doc/legal.de.md): KI-Verordnung, Datenschutz, Telefonwerbung, Risiken der Spam-Abwehr.
+- [Architektur](doc/architecture.de.md): Aufbau, Gesprächsablauf, Entwurfsentscheidungen.
+- [Manuelle Testliste](doc/test-checklist.de.md): was sich nur am echten Anschluss prüfen lässt.
+- [Mitarbeit](CONTRIBUTING.de.md), [Sicherheit](SECURITY.de.md) und [Änderungen](CHANGELOG.de.md).
+
+Alle Dokumente gibt es auch auf Englisch, siehe [README.md](README.md). Die Software selbst (Web-UI, Anweisungen an die KI) ist deutsch.
+
+## Entwicklung
+
+```bash
+npm run typecheck
+```
+
+```bash
+npm test
+```
+
+Die Tests laufen offline gegen eine simulierte Telefonanlage auf localhost; sie rufen niemanden an und brauchen keinen API-Schlüssel.
+
+## Lizenz
+
+Copyright (C) 2026 alorbach
+
+SIPFunk ist freie Software: Du darfst sie unter den Bedingungen der GNU Affero General Public License, Version 3 oder (nach deiner Wahl) jeder späteren Version, weitergeben und verändern. Wer eine veränderte Fassung weitergibt oder anderen als Dienst über ein Netz anbietet, muss auch deren Quelltext unter derselben Lizenz offenlegen.
+
+Die Software wird in der Hoffnung bereitgestellt, dass sie nützlich ist, aber **ohne jede Gewährleistung**, auch ohne die stillschweigende Gewährleistung der Marktgängigkeit oder der Eignung für einen bestimmten Zweck. Maßgeblich ist der englische Lizenztext in [LICENSE](LICENSE).
