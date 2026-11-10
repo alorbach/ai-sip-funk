@@ -62,9 +62,26 @@ Die Box liefert bei eingehenden Anrufen die gewählte Rufnummer im SIP-Header `P
 
 ```bash
 npm install
+npm start
 ```
 
-`.env.example.de` (deutsch kommentiert; inhaltlich gleich mit `.env.example`) nach `.env` kopieren und mindestens ausfüllen:
+Danach <http://127.0.0.1:8080> öffnen. Für den ersten Start ist keine Konfigurationsdatei nötig.
+
+### 4.2 Der Einrichtungsassistent
+
+Solange das Nötigste fehlt (Zugangsdaten zur Telefonanlage, OpenAI-Schlüssel, der Name, in dessen Auftrag die KI spricht), öffnet die Web-UI von selbst den Einrichtungsassistenten. Er hat sieben Schritte, jeder lässt sich überspringen; „Später einrichten“ oder Esc schließt ihn, und „Einrichtungsassistent …“ auf der Seite „Einstellungen“ öffnet ihn jederzeit wieder.
+
+1. **Willkommen**: was noch fehlt.
+2. **Telefonanlage verbinden**: Adresse (bei einer FRITZ!Box `fritz.box`), Benutzername und Kennwort des IP-Telefons aus Kapitel 3. „Verbindung prüfen und speichern“ meldet sich einmal zur Probe an; nur wenn das gelingt, werden die Werte gespeichert, und die App meldet sich damit an – ohne Neustart. Scheitert die Probe, steht in einem Satz, woran es lag (abgelehnt, nicht gefunden, keine Antwort), und es ändert sich nichts.
+3. **OpenAI-Schlüssel**: Der Schlüssel wird einmal bei OpenAI geprüft und dann gespeichert. Ohne Schlüssel funktionieren nur „Echo“ und „Testton“.
+4. **Dein Assistent**: Name der KI und „Im Auftrag von“.
+5. **Anrufbeantworter**: an/aus und, wenn gewünscht, eine erste eigene Rufnummer mit dem Namen, für den die KI dort abnimmt.
+6. **E-Mail-Benachrichtigung** (optional): Postfach und Passwort; der Server wird gesucht und die Anmeldung geprüft. Anbieter, die OAuth verlangen, richtest du unter „Einstellungen › E-Mail-Versand“ in der Stufe „Erweitert“ ein.
+7. **Fertig**: Stand der drei nötigen Angaben und ein Testanruf ohne KI: interne Nebenstelle eintragen (z. B. `**610`), bestätigen, und du hörst dich selbst mit einer Sekunde Verzögerung.
+
+So geht der Assistent mit den Zugangsdaten um: SIP-Kennwort und OpenAI-Schlüssel nimmt nur die lokale Web-UI (`127.0.0.1`) entgegen; sie werden in die `.env` im Datenordner geschrieben und in die laufende App übernommen. Angezeigt oder von der API zurückgeliefert werden sie nie wieder; der Assistent zeigt nur, ob etwas hinterlegt ist. Ein hinterlegtes Kennwort wird nur weiterverwendet, solange Adresse und Benutzername gleich bleiben. Alles andere, was der Assistent einstellt (Namen, Anrufbeantworter, E-Mail), sind gewöhnliche Einstellungen in `settings.json`.
+
+Lieber von Hand? `.env.example.de` nach `.env` kopieren und mindestens ausfüllen:
 
 | Variable | Bedeutung |
 | --- | --- |
@@ -74,25 +91,19 @@ npm install
 | `OPENAI_API_KEY` | für KI-Gespräche, Gesprächsplan, Zusammenfassung, Einschätzung, Stimmproben. Ohne Schlüssel funktionieren nur „Testton“ und „Echo“ |
 | `OWNER_NUMBERS` | deine eigene(n) Nummer(n), mit Komma getrennt (Ziel des Rückrufs, Rückrufnummer für Angerufene); alternativ ein Kontakt mit Kennzeichen „Inhaber“ |
 
-Dann starten:
+Alle weiteren Variablen stehen kommentiert in der `.env.example.de`; Kapitel 14 zeigt, was nur dort und was in der Web-UI eingestellt wird. Von Hand eingetragene Werte wirken nach einem Neustart.
 
-```bash
-npm start
-```
-
-und <http://127.0.0.1:8080> öffnen. Alle weiteren Variablen stehen kommentiert in der `.env.example.de`; Kapitel 14 zeigt, was nur dort und was in der Web-UI eingestellt wird.
-
-### 4.2 Tray-App (Windows, ohne Konsole)
+### 4.3 Tray-App (Windows, ohne Konsole)
 
 ```bash
 npm run tray
 ```
 
-Ein Symbol im Infobereich zeigt den Zustand (registriert, bereit, verbunden). Doppelklick öffnet die Web-UI, ein Klick das Menü: „Web-UI öffnen“, „Anrufbeantworter“ (an/aus), „Einstellungen (.env) bearbeiten“, „Datenordner öffnen“, „Beim Anmelden starten“, „Server neu starten“, „Beenden“. Fehler (z. B. fehlender `SIP_USER`) stehen als Zeile im Menü; ein Klick kopiert sie. Nach einem angenommenen Anruf erscheint eine Windows-Benachrichtigung; ein Klick darauf öffnet die Web-UI.
+Ein Symbol im Infobereich zeigt den Zustand (registriert, bereit, verbunden). Doppelklick öffnet die Web-UI, ein Klick das Menü: „Web-UI öffnen“, „Anrufbeantworter“ (an/aus), „Einstellungen (.env) bearbeiten“, „Datenordner öffnen“, „Beim Anmelden starten“, „Server neu starten“, „Beenden“. Fehler (z. B. eine gescheiterte Anmeldung) stehen als Zeile im Menü; ein Klick kopiert sie. Nach einem angenommenen Anruf erscheint eine Windows-Benachrichtigung; ein Klick darauf öffnet die Web-UI.
 
-Installer und portable ZIP: `npm run dist:win` (Ergebnis in `release/`). Installiert liegen `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und `sipfunk.log` im Benutzerprofil unter `%APPDATA%\SIPFunk`. Beim ersten Start wird `.env.example` (englisch kommentiert) dorthin kopiert und geöffnet; nach dem Ausfüllen „Server neu starten“. Die Umgebungsvariable `SIPFUNK_DATA_DIR` legt den Datenordner auch beim Start aus dem Repository fest.
+Installer und portable ZIP: `npm run dist:win` (Ergebnis in `release/`). Installiert liegen `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und `sipfunk.log` im Benutzerprofil unter `%APPDATA%\SIPFunk`. Beim ersten Start wird `.env.example` (englisch kommentiert) dorthin kopiert, und die Web-UI öffnet sich mit dem Einrichtungsassistenten (Kapitel 4.2). Die Umgebungsvariable `SIPFUNK_DATA_DIR` legt den Datenordner auch beim Start aus dem Repository fest.
 
-### 4.3 Erster Funktionstest ohne KI
+### 4.4 Erster Funktionstest ohne KI
 
 Am eigenen Telefon prüfen, ob SIP und Audio funktionieren. Interne Nebenstellen der Box beginnen mit `**` (`**610` ist meist das erste Schnurlostelefon):
 
@@ -100,7 +111,7 @@ Am eigenen Telefon prüfen, ob SIP und Audio funktionieren. Interne Nebenstellen
 npm run test-call -- **610
 ```
 
-Spielt einen Piepton. Mit `--echo` kommt alles Gesprochene nach einer Sekunde zurück (prüft beide Richtungen), `--seconds 60` verlängert das Limit (Standard 30 s). Ohne Rufnummer prüft der Befehl nur die Registrierung. In der Web-UI entsprechen dem die Audio-Modi „Testton“ und „Echo (1 s)“.
+Spielt einen Piepton. Mit `--echo` kommt alles Gesprochene nach einer Sekunde zurück (prüft beide Richtungen), `--seconds 60` verlängert das Limit (Standard 30 s). Ohne Rufnummer prüft der Befehl nur die Registrierung. In der Web-UI leisten die Anrufarten „Testton“ und „Echo (1 s)“ dasselbe („Art des Anrufs“, sichtbar in der Stufe „Erweitert“); der letzte Schritt des Einrichtungsassistenten bietet den Echo-Test direkt an.
 
 Erfolgreich ist der Test, wenn die Registrierung klappt, das Telefon klingelt, der Ton zu hören ist und Auflegen von beiden Seiten funktioniert.
 
@@ -108,14 +119,31 @@ Erfolgreich ist der Test, wenn die Registrierung klappt, das Telefon klingelt, d
 
 ## 5. Die Web-UI im Überblick
 
-Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungsstatus; die zuletzt geöffnete Seite wird gemerkt. Sobald ein Anruf läuft, erscheint darunter die Gesprächsleiste mit Phase (wählt, klingelt, eingehender Anruf, verbunden), Name oder Nummer des Gegenübers, Dauer, Codec, „Mithören“ und „Auflegen“; außerdem pulsiert ein Punkt am Reiter „Dashboard“. Bei einem klingelnden eingehenden Anruf stehen dort zusätzlich die Knöpfe aus Kapitel 8.
+Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungsstatus und der Schalter „Einfach / Erweitert“ (Kapitel 5.1); die zuletzt geöffnete Seite wird gemerkt. Sobald ein Anruf läuft, erscheint darunter die Gesprächsleiste mit Phase (wählt, klingelt, eingehender Anruf, verbunden), Name oder Nummer des Gegenübers, Dauer, Codec, „Mithören“ und „Auflegen“; außerdem pulsiert ein Punkt am Reiter „Dashboard“. Bei einem klingelnden eingehenden Anruf stehen dort zusätzlich die Knöpfe aus Kapitel 8.
 
-- **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Audio-Modus, Auftrag, Stil, Stimme, Anrede, Modell, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Protokoll des Servers.
+- **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, Modell, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll.
 - **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“ und „Spam-Abwehr“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
-- **Einstellungen**: die Abschnitte KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik. Links die Abschnittsliste zum Springen, darunter „Speichern“ (oder Strg+S); gespeichert werden immer alle Abschnitte, sie gelten ab dem nächsten Anruf. Am Ende stehen zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
+- **Einstellungen**: die Abschnitte KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik. Links die Abschnittsliste zum Springen, darunter „Speichern“ (oder Strg+S); gespeichert werden alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Am Ende stehen zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
 
-Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie.
+Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie (und nur sie: Die beiden Speichern-Knöpfe fassen die Werte des jeweils anderen nicht an).
+### 5.1 „Einfach“ und „Erweitert“
+
+Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. Er wirkt sofort und wird gemerkt (`uiMode` in `settings.json`); „Einfach“ ist der Standard. Umschalten blendet nur aus und ein: Ausgeblendete Einstellungen behalten ihre Werte, und beim Speichern wird nie etwas angefasst, das du nicht geändert hast.
+
+| Bereich | „Einfach“ zeigt | „Erweitert“ zusätzlich |
+| --- | --- | --- |
+| Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Modell, Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
+| Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
+| KI-Assistent | Name der KI, „Im Auftrag von“, Hinweise zum Verhalten | – |
+| Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person oder Firma) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
+| Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
+| E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
+| Spam-Abwehr | an/aus (mit Bestätigung), Verhalten | Minuten, Name, Stimme, Geschlecht, Tempo und Anweisungen der Rolle, Nummernliste, tellows-Abfrage |
+| Technik | – | der ganze Abschnitt samt den `.env`-Angaben |
+
+Zwei Ausnahmen halten sichtbar, was gerade zählt: Steht die Art des Anrufs nicht auf „KI-Gespräch“, ist sie auch in „Einfach“ zu sehen, und wer per OAuth sendet, sieht den Versandweg.
+
 
 **Mithören** in der Gesprächsleiste spielt beide Gesprächsseiten im Browser ab (nur live, keine Aufzeichnung). Mit `LIVE_LISTEN_ENABLED=false` ist die Funktion aus.
 
@@ -415,9 +443,11 @@ Läuft die Web-UI auf einem anderen Port, `SIPFUNK_URL=http://127.0.0.1:PORT` al
 
 ## 14. Einstellungen im Überblick
 
-Zwei Orte: die `.env` (wird beim Start gelesen, Änderungen brauchen einen Neustart) und die Seite „Einstellungen“ der Web-UI (gespeichert in `settings.json`, gilt ab dem nächsten Anruf). Für alles, was es an beiden Orten gibt, liefert die `.env` nur den Startwert; ein in der Web-UI gespeicherter Wert hat Vorrang. Die vollständige, kommentierte Liste der Variablen ist die [.env.example.de](../.env.example.de).
+Zwei Orte: die `.env` (wird beim Start gelesen; Änderungen von Hand brauchen einen Neustart, der Einrichtungsassistent übernimmt seine Werte sofort) und die Seite „Einstellungen“ der Web-UI (gespeichert in `settings.json`, gilt ab dem nächsten Anruf). Für alles, was es an beiden Orten gibt, liefert die `.env` nur den Startwert; ein in der Web-UI gespeicherter Wert hat Vorrang. Die vollständige, kommentierte Liste der Variablen ist die [.env.example.de](../.env.example.de).
 
 ### 14.1 Nur in der `.env`
+
+Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten setzen (Kapitel 4.2); er schreibt sie in die `.env`.
 
 | Variable | Standard | Wirkung |
 | --- | --- | --- |
@@ -467,7 +497,7 @@ Das Log (im Terminal, auf dem Dashboard unter „Protokoll“, bei der Tray-App 
 
 | Symptom | Prüfen |
 | --- | --- |
-| „Konfiguration fehlt“ beim Start | genannte Variable in der `.env` ergänzen |
+| „Telefonanlage noch nicht eingerichtet“ im Kopf | Einrichtungsassistent öffnen („Einstellungen“ › „Einrichtungsassistent …“) oder `SIP_USER` und `SIP_PASSWORD` in der `.env` eintragen und neu starten |
 | Keine Registrierung an der Box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; Firewall für die UDP-Ports; Box-Oberfläche: ist das IP-Telefon angemeldet? |
 | Nebenstelle klingelt nicht | Rufnummer in der Box der Nebenstelle zugeordnet? |
 | KI nimmt nicht ab | Anrufbeantworter an? Profil der Nummer auf „aus“? Läuft gerade ein anderes Gespräch? |

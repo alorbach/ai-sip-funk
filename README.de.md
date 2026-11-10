@@ -39,14 +39,13 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
    npm install
    ```
 
-3. `.env.example.de` (deutsch kommentiert; inhaltlich gleich mit `.env.example`) nach `.env` kopieren und mindestens `SIP_USER`, `SIP_PASSWORD` und `OPENAI_API_KEY` eintragen.
-4. Starten:
+3. Starten – für den ersten Start ist keine Konfigurationsdatei nötig:
 
    ```bash
    npm start
    ```
 
-5. <http://127.0.0.1:8080> öffnen. Für den ersten Test eine interne Nebenstelle anrufen (z. B. `**610`, meist das erste Schnurlostelefon) und als Audio „Testton“ oder „Echo“ wählen; das kostet nichts und belegt, dass SIP und Audio funktionieren.
+4. <http://127.0.0.1:8080> öffnen. Solange das Nötigste fehlt, öffnet sich der **Einrichtungsassistent**: Er fragt nach den Zugangsdaten des IP-Telefons und dem OpenAI-Schlüssel, prüft beide und legt sie in der `.env` ab. Am Ende bietet er einen Testanruf im Echo-Modus an eine interne Nebenstelle an (z. B. `**610`, meist das erste Schnurlostelefon); das kostet nichts und beweist, dass SIP und Audio funktionieren. Wer mag, kopiert stattdessen `.env.example.de` nach `.env` und füllt sie von Hand aus.
 
 Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP: für „Private Netzwerke“ zulassen.
 
@@ -60,8 +59,8 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 
 ## Konfiguration
 
-- **`.env`**: Zugangsdaten (SIP, OpenAI), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Änderungen brauchen einen Neustart.
-- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf.
+- **`.env`**: Zugangsdaten (SIP, OpenAI), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den OpenAI-Schlüssel dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
+- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore` und gehören in kein Repository, kein Ticket und keinen Screenshot.
 

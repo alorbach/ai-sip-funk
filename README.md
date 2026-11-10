@@ -41,14 +41,13 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
    npm install
    ```
 
-3. Copy `.env.example` to `.env` and fill in at least `SIP_USER`, `SIP_PASSWORD` and `OPENAI_API_KEY`. A copy with German comments is `.env.example.de`.
-4. Start:
+3. Start – no configuration file is needed for the first start:
 
    ```bash
    npm start
    ```
 
-5. Open <http://127.0.0.1:8080>. For a first test, call an internal extension (e.g. `**610`, usually the first cordless phone) and choose "Testton" (test tone) or "Echo" as audio; this costs nothing and proves that SIP and audio work.
+4. Open <http://127.0.0.1:8080>. As long as the essentials are missing, the **setup assistant** opens: it asks for the credentials of the IP phone and the OpenAI key, checks both and stores them in `.env`. At the end it offers a test call in echo mode to an internal extension (e.g. `**610`, usually the first cordless phone); this costs nothing and proves that SIP and audio work. If you prefer, copy `.env.example` to `.env` and fill it in by hand instead (German comments: `.env.example.de`).
 
 On first start the Windows firewall asks about the UDP ports for SIP and RTP: allow them for private networks.
 
@@ -62,8 +61,8 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 
 ## Configuration
 
-- **`.env`**: credentials (SIP, OpenAI), ports and initial values. All variables are listed with comments in [.env.example](.env.example). Changes require a restart.
-- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call.
+- **`.env`**: credentials (SIP, OpenAI), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the OpenAI key there and applies them immediately; changes made by hand require a restart.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore` and do not belong in any repository, ticket or screenshot.
 

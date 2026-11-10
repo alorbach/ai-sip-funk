@@ -64,9 +64,26 @@ For incoming calls the box delivers the dialled number in the SIP header `P-Call
 
 ```bash
 npm install
+npm start
 ```
 
-Copy `.env.example` to `.env` and fill in at least:
+Then open <http://127.0.0.1:8080>. No configuration file is needed for the first start.
+
+### 4.2 The setup assistant
+
+As long as the essentials are missing (credentials for the phone system, OpenAI key, the name the AI acts for), the web UI opens the setup assistant on its own. It has seven steps, each of which can be skipped; "Später einrichten" (set up later) or Esc closes it, and "Einrichtungsassistent …" on the "Einstellungen" page opens it again at any time.
+
+1. **Willkommen**: what is still missing.
+2. **Telefonanlage verbinden**: address (for a FRITZ!Box `fritz.box`), user name and password of the IP phone from chapter 3. "Verbindung prüfen und speichern" registers once as a test; only if that works are the values saved and the app registers with them – without a restart. If the test fails, a sentence says why (rejected, not found, no answer) and nothing is changed.
+3. **OpenAI-Schlüssel**: the key is checked once against OpenAI and then saved. Without a key only "Echo" and "Testton" work.
+4. **Dein Assistent**: name of the AI and "Im Auftrag von" (on behalf of).
+5. **Anrufbeantworter**: on/off and, optionally, a first own number with the name the AI answers for there.
+6. **E-Mail-Benachrichtigung** (optional): mailbox and password; the server is looked up and the login checked. Providers that require OAuth are set up under "Einstellungen › E-Mail-Versand" in the "Erweitert" level.
+7. **Fertig**: status of the three essentials and a test call without AI: enter an internal extension (e.g. `**610`), confirm, and you hear yourself with one second of delay.
+
+How the credentials are handled: the SIP password and the OpenAI key are accepted only by the local web UI (`127.0.0.1`), written to `.env` in the data folder and applied to the running app. They are never displayed again and never returned by the API; the assistant only shows whether something is stored. A stored password is reused only while address and user name stay the same. Everything else the assistant sets (names, answering machine, e-mail) are ordinary settings in `settings.json`.
+
+Prefer to work by hand? Copy `.env.example` to `.env` and fill in at least:
 
 | Variable | Meaning |
 | --- | --- |
@@ -76,25 +93,19 @@ Copy `.env.example` to `.env` and fill in at least:
 | `OPENAI_API_KEY` | for AI calls, call plan, summary, assessment, voice samples. Without a key only "Testton" and "Echo" work |
 | `OWNER_NUMBERS` | your own number(s), comma-separated (target of the call back, call-back number given to people the AI calls); alternatively a contact flagged "Inhaber" (owner) |
 
-Then start:
+All other variables are listed with comments in `.env.example`; chapter 14 shows what is set only there and what is set in the web UI. Values entered by hand take effect after a restart.
 
-```bash
-npm start
-```
-
-and open <http://127.0.0.1:8080>. All other variables are listed with comments in `.env.example`; chapter 14 shows what is set only there and what is set in the web UI.
-
-### 4.2 Tray app (Windows, no console)
+### 4.3 Tray app (Windows, no console)
 
 ```bash
 npm run tray
 ```
 
-An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a missing `SIP_USER`) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
+An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
 
-Installer and portable ZIP: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and opened; after filling it in choose "Server neu starten". The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
+Installer and portable ZIP: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and the web UI opens with the setup assistant (chapter 4.2). The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
 
-### 4.3 First functional test without AI
+### 4.4 First functional test without AI
 
 Check on your own phone whether SIP and audio work. Internal extensions of the box start with `**` (`**610` is usually the first cordless phone):
 
@@ -102,7 +113,7 @@ Check on your own phone whether SIP and audio work. Internal extensions of the b
 npm run test-call -- **610
 ```
 
-This plays a beep. With `--echo` everything you say comes back after one second (tests both directions); `--seconds 60` extends the limit (default 30 s). Without a number the command only checks the registration. In the web UI the audio modes "Testton" and "Echo (1 s)" do the same.
+This plays a beep. With `--echo` everything you say comes back after one second (tests both directions); `--seconds 60` extends the limit (default 30 s). Without a number the command only checks the registration. In the web UI the call types "Testton" and "Echo (1 s)" do the same ("Art des Anrufs", visible in the "Erweitert" level); the last step of the setup assistant offers the echo test directly.
 
 The test has passed when registration works, the phone rings, the tone is audible and hanging up works from both sides.
 
@@ -110,14 +121,31 @@ The test has passed when registration works, the phone rings, the tone is audibl
 
 ## 5. The web UI at a glance
 
-The header is always visible: the four pages on the left, the connection status on the right; the page you opened last is remembered. As soon as a call is running, the call bar appears below with the phase (dialling, ringing, incoming call, connected), name or number of the other party, duration, codec, "Mithören" (listen in) and "Auflegen" (hang up); a dot pulses on the "Dashboard" tab. While an incoming call is ringing, the buttons from chapter 8 are shown there too.
+The header is always visible: the four pages on the left, the connection status and the switch "Einfach / Erweitert" (chapter 5.1) on the right; the page you opened last is remembered. As soon as a call is running, the call bar appears below with the phase (dialling, ringing, incoming call, connected), name or number of the other party, duration, codec, "Mithören" (listen in) and "Auflegen" (hang up); a dot pulses on the "Dashboard" tab. While an incoming call is ringing, the buttons from chapter 8 are shown there too.
 
-- **Dashboard**: on the left the "Anruf" (call) card (number or contact, audio mode, task, style, voice, form of address, model, "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the server log.
+- **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, model, "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll").
 - **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you) and "Spam-Abwehr" (spam defence). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
-- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical). The section list on the left jumps to a section; "Speichern" (save, or Ctrl+S) below it always saves all sections, and they apply from the next call. At the bottom, for information, are the values that exist only in `.env` (box, ports, data folder).
+- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical). The section list on the left jumps to a section; "Speichern" (save, or Ctrl+S) below it saves all sections of this page – only the values you changed – and they apply from the next call. "Einrichtungsassistent …" at the top opens the setup assistant. At the bottom, for information, are the values that exist only in `.env` (box, ports, data folder).
 
-Style, voice, form of address, model and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them.
+Style, voice, form of address, model and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them (and only them: the two save buttons do not touch each other's values).
+### 5.1 "Einfach" and "Erweitert" (simple and advanced)
+
+The switch at the top right of every page sets how much the web UI shows. It applies immediately and is remembered (`uiMode` in `settings.json`); "Einfach" is the default. Switching only hides and shows: hidden settings keep their values, and saving never touches a setting you did not change.
+
+| Area | "Einfach" shows | "Erweitert" adds |
+| --- | --- | --- |
+| Dashboard | number, task, style, voice with sample, form of address, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), model, system log, codec and RTP counters, token usage |
+| Anrufe, Kontakte | everything | token usage and cost of a call |
+| KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour notes | – |
+| Anrufbeantworter | on/off, number of rings, own numbers (number, name, person or company) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
+| Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
+| E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
+| Spam-Abwehr | on/off (with confirmation), behaviour | minutes, name, voice, gender, speed and instructions of the role, number list, tellows lookup |
+| Technik | – | the whole section including the `.env` information |
+
+Two exceptions keep things visible when they matter: if the type of call is not "KI-Gespräch", it is shown in "Einfach" too, and whoever sends mail via OAuth sees the delivery method.
+
 
 **Mithören** in the call bar plays both sides of the call in the browser (live only, no recording). `LIVE_LISTEN_ENABLED=false` switches the feature off.
 
@@ -417,9 +445,11 @@ If the web UI runs on a different port, set `SIPFUNK_URL=http://127.0.0.1:PORT` 
 
 ## 14. Settings overview
 
-There are two places: `.env` (read at start, changes need a restart) and the "Einstellungen" page of the web UI (saved in `settings.json`, applies from the next call). For everything that exists in both places, `.env` only provides the initial value; a value saved in the web UI takes precedence. The complete list of variables is [.env.example](../.env.example).
+There are two places: `.env` (read at start; changes made by hand need a restart, the setup assistant applies its values immediately) and the "Einstellungen" page of the web UI (saved in `settings.json`, applies from the next call). For everything that exists in both places, `.env` only provides the initial value; a value saved in the web UI takes precedence. The complete list of variables is [.env.example](../.env.example).
 
 ### 14.1 Only in `.env`
+
+The first and fourth row can also be set with the setup assistant (chapter 4.2), which writes them to `.env`.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
@@ -469,7 +499,7 @@ The log (in the terminal, on the dashboard under "Protokoll", and for the tray a
 
 | Symptom | Check |
 | --- | --- |
-| "Konfiguration fehlt" at start | add the named variable to `.env` |
+| "Telefonanlage noch nicht eingerichtet" in the header | open the setup assistant ("Einstellungen" › "Einrichtungsassistent …") or fill in `SIP_USER` and `SIP_PASSWORD` in `.env` and restart |
 | No registration with the box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; firewall for the UDP ports; box UI: is the IP phone registered? |
 | Extension does not ring | is the number assigned to the extension in the box? |
 | AI does not pick up | answering machine on? Profile of the number set to off? Is another call running? |

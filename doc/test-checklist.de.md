@@ -15,6 +15,12 @@ Getestet wird nur mit eigenen Nummern und Nebenstellen oder mit eingeweihten Per
 
 ## 1. Grundfunktion ohne KI
 
+- [ ] Erster Start mit leerem Datenordner: Die Web-UI öffnet den Einrichtungsassistenten; ein falsches Kennwort wird mit einem klaren Satz abgelehnt und nichts gespeichert; mit dem richtigen wechselt der Kopf ohne Neustart auf „Telefonanlage verbunden“.
+- [ ] OpenAI-Schlüssel: Ein ungültiger wird abgelehnt, ein gültiger gespeichert; danach ist „KI-Gespräch“ wählbar. Keiner der beiden Werte wird je wieder angezeigt.
+- [ ] Letzter Schritt: Der Echo-Testanruf an die eigene Nebenstelle klingelt, und du hörst dich selbst.
+- [ ] Installierte Tray-App, erster Start: Der Browser öffnet sich mit dem Assistenten; „Server neu starten“ und „Beenden“ während eines Gesprächs legen das Gespräch auf.
+- [ ] Schalter „Einfach / Erweitert“: wirkt sofort; ein in „Erweitert“ geänderter Technik-Wert ist nach dem Zurückschalten und dem Speichern von etwas anderem in „Einfach“ noch da.
+
 - [ ] `npm run test-call -- **610` (eigene interne Nebenstelle): Telefon klingelt, Piepton hörbar.
 - [ ] Mit `--echo`: Gesprochenes kommt nach einer Sekunde zurück.
 - [ ] Auflegen funktioniert von beiden Seiten.

@@ -15,6 +15,12 @@ Test only with your own numbers and extensions or with people who are in on it.
 
 ## 1. Basic function without AI
 
+- [ ] First start with an empty data folder: the web UI opens the setup assistant; a wrong password is rejected with a clear sentence and nothing is saved; with the right one the header switches to "Telefonanlage verbunden" without a restart.
+- [ ] OpenAI key: an invalid key is rejected, a valid one is saved; afterwards "KI-Gespräch" can be selected. Neither value is ever shown again.
+- [ ] Last step: the echo test call to your own extension rings and you hear yourself.
+- [ ] Installed tray app, first start: the browser opens with the assistant; "Server neu starten" and "Beenden" during a call hang up the call.
+- [ ] Switch "Einfach / Erweitert": applies at once; a technical value changed in "Erweitert" is still there after switching back and saving something else in "Einfach".
+
 - [ ] `npm run test-call -- **610` (your own internal extension): the phone rings, the beep is audible.
 - [ ] With `--echo`: what you say comes back after one second.
 - [ ] Hanging up works from both sides.
