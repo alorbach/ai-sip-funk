@@ -30,19 +30,27 @@ export async function summarize(apiKey: string, model: string, task: string | un
  * Mit `format` antwortet das Modell als JSON nach dem angegebenen Schema (der Aufrufer parst den Text).
  */
 export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    // Reasoning-Modelle denken vor der Antwort; das Budget muss Reasoning + Text decken
-    body: JSON.stringify({
-      model,
-      input: prompt,
-      max_output_tokens: maxOutputTokens,
-      reasoning: { effort: 'low' },
-      ...(format ? { text: { format: { type: 'json_schema', name: format.name, strict: true, schema: format.schema } } } : {}),
-    }),
-  });
-  if (!res.ok) throw new Error(`Textmodell fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const ask = (reasoning: boolean) =>
+    fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      // Reasoning-Modelle denken vor der Antwort; das Budget muss Reasoning + Text decken
+      body: JSON.stringify({
+        model,
+        input: prompt,
+        max_output_tokens: maxOutputTokens,
+        ...(reasoning ? { reasoning: { effort: 'low' } } : {}),
+        ...(format ? { text: { format: { type: 'json_schema', name: format.name, strict: true, schema: format.schema } } } : {}),
+      }),
+    });
+  let res = await ask(true);
+  let failure = res.ok ? '' : (await res.text()).slice(0, 200);
+  // Das Textmodell ist frei wählbar: Modelle ohne Reasoning lehnen die Angabe ab, dann ohne sie fragen
+  if (res.status === 400 && /reasoning/i.test(failure)) {
+    res = await ask(false);
+    failure = res.ok ? '' : (await res.text()).slice(0, 200);
+  }
+  if (!res.ok) throw new Error(`Textmodell fehlgeschlagen: ${res.status} ${failure}`);
   const data = (await res.json()) as {
     output_text?: string;
     status?: string;

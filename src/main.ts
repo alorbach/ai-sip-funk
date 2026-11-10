@@ -22,7 +22,8 @@ import { Mailer, oauthFrom } from './notify/email.js';
 import { buildCallMail, buildTestMail } from './notify/mailFormat.js';
 import { suggestMail } from './notify/autoconfig.js';
 import { OAuthLogin, TokenStore } from './notify/oauth.js';
-import { estimateCostUsd } from './ai/pricing.js';
+import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
+import { ModelCatalog } from './ai/models.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
 import { ContactStore, numberKey } from './contacts.js';
@@ -649,9 +650,13 @@ async function saveOpenAi(input: unknown): Promise<{ ok: boolean; error?: string
     return { ok: false, error: `Der Schlüssel stimmt, ließ sich aber nicht speichern: ${(err as Error).message}` };
   }
   config.openaiApiKey = key;
+  modelCatalog.clear();
   log.info('Einrichtung: OpenAI-Schlüssel geprüft und gespeichert (.env)');
   return { ok: true };
 }
+
+// Modelle zur Auswahl: von OpenAI geladen und zwischengespeichert; der Schlüssel kann zur Laufzeit dazukommen
+const modelCatalog = new ModelCatalog(() => config.openaiApiKey);
 
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
 const mailConfig = () => mailConfigFrom(loadSettings());
@@ -693,12 +698,19 @@ const stopWeb = startWebServer({
     const s = loadSettings();
     return voiceSample(key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples'));
   },
+  models: async (refresh) => {
+    const state = await modelCatalog.get(refresh);
+    if (refresh) log[state.error ? 'warn' : 'info'](state.error ? `Modell-Liste nicht aktualisiert: ${state.error}` : `Modell-Liste von OpenAI geladen (${state.realtime.length} Sprach-, ${state.text.length} Textmodelle)`);
+    return state as unknown as Record<string, unknown>;
+  },
   setup: { status: setupStatus, saveSip, saveOpenAi },
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
     voices: VOICES,
     model: realtimeModel(loadSettings().model, config.openaiModel),
+    // Rückfall, solange die Liste von OpenAI nicht geladen ist, und Kennzeichnung in der Auswahl
     models: REALTIME_MODELS,
+    modelNotes: { defaultRealtime: config.openaiModel, defaultText: config.openaiSummaryModel, budget: BUDGET_MODELS },
     aiAvailable: Boolean(config.openaiApiKey),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
     env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },

@@ -135,7 +135,7 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 | --- | --- | --- |
 | Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Modell, Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
 | Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
-| KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text), Sprachmodell | eigene Modell-ID, Textmodell |
+| KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text), Sprachmodell | eigene Modell-IDs, Textmodell |
 | Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person, Firma oder Familie) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
 | Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
 | E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
@@ -162,7 +162,7 @@ Drei Dinge bleiben unabhängig davon deutsch: Die KI spricht am Telefon Deutsch 
 
    > „Ruf die Zahnarztpraxis an. Ich brauche einen Kontrolltermin in den nächsten drei Wochen, vormittags, Name Max Mustermann, die Versichertennummer habe ich nicht zur Hand. Nimm einen angebotenen Termin an, wenn er vormittags liegt.“
 
-3. **Stil** (Presets aus `personas/*.md`: professionell, locker, formell, herzlich; eine eigene Datei ist ein eigenes Preset), **Stimme** („Probe hören“ spielt alle Stimmen mit dem eingestellten KI-Namen vor), **Anrede** Du/Sie, **Modell** (`gpt-realtime-2.1` oder die günstigere Mini-Variante).
+3. **Stil** (Presets aus `personas/*.md`: professionell, locker, formell, herzlich; eine eigene Datei ist ein eigenes Preset), **Stimme** („Probe hören“ spielt alle Stimmen mit dem eingestellten KI-Namen vor), **Anrede** Du/Sie, **Modell** (die Realtime-Modelle, die dein OpenAI-Konto anbietet; Abschnitt 6.1).
 4. Auf der Seite „Einstellungen“ unter „KI-Assistent“: **Name der KI** (wie sie sich vorstellt), **Im Auftrag von** (dein Name), das **Verhalten im Gespräch** und das **KI-Modell** (Abschnitt 6.1).
 5. **„Anrufen …“** zeigt eine Bestätigung mit der Nummer. **„Jetzt wählen“** startet.
 
@@ -195,9 +195,13 @@ Den Tonfall selbst bestimmt weiterhin der **Stil** auf dem Dashboard. **Zusätzl
 
 **KI-Modell.**
 
-- **Sprachmodell für Anrufe**: das Realtime-Modell, das spricht und zuhört. „Besser“ versteht und spricht natürlicher, „günstig“ kostet etwa ein Drittel (Kapitel 15). Dieselbe Auswahl steht in der Stufe „Erweitert“ auch auf dem Dashboard; beide Stellen zeigen denselben Wert.
-- **Eigene Modell-ID** (Stufe „Erweitert“): für ein anderes Realtime-Modell von OpenAI, das nicht in der Liste steht. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Für unbekannte Modelle rechnet die Kostenschätzung mit den Preisen des großen Modells. SIPFunk unterstützt weiterhin nur die Realtime-API von OpenAI.
-- **Textmodell** (Stufe „Erweitert“): schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf.
+Die Auswahl kommt von OpenAI: SIPFunk fragt mit deinem Schlüssel ab, welche Modelle dein Konto anbietet, und teilt sie nach dem Namen in Sprachmodelle (Realtime) und Textmodelle. Embedding-, Bild-, Video-, Such-, Moderations- und reine Audio-Modelle erscheinen nicht. Oben stehen die laufend gepflegten Namen, das neueste zuerst; darunter unter „Fest datierte Versionen“ die Modelle mit Datum im Namen. Geladen wird beim Start und beim Öffnen der Einstellungen, höchstens alle sechs Stunden; **Modelle aktualisieren** fragt sofort neu. Der Schlüssel bleibt dabei im Hintergrundprogramm und erscheint weder in der Oberfläche noch im Protokoll.
+
+- **Sprachmodell für Anrufe**: das Realtime-Modell, das spricht und zuhört. „(Standard)“ kennzeichnet die Vorgabe, „(günstig)“ die Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 15); alle anderen stehen ohne Zusatz da, ihre Preise nennt OpenAI. Dieselbe Auswahl steht in der Stufe „Erweitert“ auch auf dem Dashboard; beide Stellen zeigen denselben Wert.
+- **Textmodell** (Stufe „Erweitert“): schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna`.
+- **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen Modells. SIPFunk unterstützt weiterhin nur die Realtime-API von OpenAI.
+
+Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgelehnt), steht der Grund neben dem Knopf. Die gespeicherte Auswahl bleibt in jedem Fall erhalten und sichtbar; steht sie nicht in der geladenen Liste, trägt sie den Zusatz „(nicht in der Liste)“. Das Laden der Liste ändert keine Einstellung.
 
 ## 7. Anrufbeantworter
 

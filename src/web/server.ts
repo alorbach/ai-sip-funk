@@ -32,6 +32,8 @@ export interface WebServerOptions {
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme als MP3 (nur mit OpenAI-Key) */
   voiceSample: (voice: string) => Promise<Buffer>;
+  /** Modelle zur Auswahl, von OpenAI geladen; scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
+  models: (refresh: boolean) => Promise<Record<string, unknown>>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
   ring?: { info: () => Record<string, unknown>; divert: (mode: 'scam' | 'answer' | 'skip') => { ok: boolean; reason: string } };
   /** Beschwerde-Entwurf (Bundesnetzagentur) aus einem Spam-Protokoll (nur mit OpenAI-Key) */
@@ -153,6 +155,10 @@ export function startWebServer(opts: WebServerOptions): () => void {
         log.info('Einstellungen gespeichert (settings.json)');
         opts.onSettingsChanged?.(saved);
         return sendJson(res, 200, publicSettings(saved));
+      }
+      // Modell-Liste von OpenAI (zwischengespeichert); POST verlangt einen neuen Abruf („Aktualisieren“)
+      if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/models') {
+        return sendJson(res, 200, await opts.models(req.method === 'POST'));
       }
       const vx = /^\/api\/voices\/([a-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {

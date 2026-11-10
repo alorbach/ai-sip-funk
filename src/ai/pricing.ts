@@ -17,6 +17,9 @@ const PRICES: Record<string, Price> = {
 };
 const FALLBACK: Price = { audioIn: 32, audioOut: 64, textIn: 4, textOut: 16 };
 
+/** Modelle, die laut dieser Tabelle weniger kosten als das Standardmodell (Kennzeichnung „günstig“ in der Auswahl) */
+export const BUDGET_MODELS = Object.keys(PRICES).filter((id) => PRICES[id].audioOut < FALLBACK.audioOut);
+
 /** Schätzung ohne Transkription und ohne gecachte Rabatte – eher etwas zu hoch als zu niedrig. */
 export function estimateCostUsd(model: string, u: Usage): number {
   const p = PRICES[model] ?? FALLBACK;

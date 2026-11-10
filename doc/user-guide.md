@@ -137,7 +137,7 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | --- | --- | --- |
 | Dashboard | number, task, style, voice with sample, form of address, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), model, system log, codec and RTP counters, token usage |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
-| KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text), voice model | custom model ID, text model |
+| KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text), voice model | custom model IDs, text model |
 | Anrufbeantworter | on/off, number of rings, own numbers (number, name, person, company or family) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
@@ -164,7 +164,7 @@ Three things stay German whatever you choose: the AI speaks German on the phone 
 
    > "Call the dentist's office. I need a check-up appointment within the next three weeks, mornings, name Max Mustermann, I don't have my insurance number to hand. Accept an appointment they offer if it is in the morning."
 
-3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; "Probe hören" plays all voices with the configured AI name), **Anrede** (form of address) Du/Sie, **Modell** (`gpt-realtime-2.1` or the cheaper mini variant).
+3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; "Probe hören" plays all voices with the configured AI name), **Anrede** (form of address) Du/Sie, **Modell** (model; the Realtime models your OpenAI account offers, section 6.1).
 4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name), the **behaviour in the call** and the **AI model** (section 6.1).
 5. **"Anrufen …"** shows a confirmation with the number. **"Jetzt wählen"** (dial now) starts the call.
 
@@ -197,9 +197,13 @@ The tone itself is still set by the **Stil** (style) on the dashboard. **Zusätz
 
 **KI-Modell** (AI model).
 
-- **Sprachmodell für Anrufe** (voice model for calls): the Realtime model that speaks and listens. "Better" understands and speaks more naturally, "cheaper" costs about a third (chapter 15). The same choice is also on the dashboard at level "Erweitert"; both places show the same value.
-- **Eigene Modell-ID** (custom model ID, level "Erweitert"): for another OpenAI Realtime model that is not in the list. Letters, digits, dot, hyphen, underscore and colon are allowed. With an ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. For unknown models the cost estimate uses the prices of the large model. SIPFunk still supports only the OpenAI Realtime API.
-- **Textmodell** (text model, level "Erweitert"): writes call plan, summary, assessment and complaint draft.
+The choice comes from OpenAI: SIPFunk uses your key to ask which models your account offers and splits them by name into voice models (Realtime) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded at start and when you open the settings, at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once. The key stays in the background program and appears neither in the interface nor in the log.
+
+- **Sprachmodell für Anrufe** (voice model for calls): the Realtime model that speaks and listens. "(Standard)" marks the default, "(günstig)" (cheaper) the models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and OpenAI publishes their prices. The same choice is also on the dashboard at level "Erweitert"; both places show the same value.
+- **Textmodell** (text model, level "Erweitert"): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna`.
+- **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large model. SIPFunk still supports only the OpenAI Realtime API.
+
+If the list cannot be loaded (no key, no network, key rejected), the reason is shown next to the button. Your saved choice is always kept and visible; if it is not in the loaded list, it carries the note "(nicht in der Liste)" (not in the list). Loading the list never changes a setting.
 
 ## 7. Answering machine
 

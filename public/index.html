@@ -156,6 +156,7 @@
   .card > .body { padding: 16px; }
   .card > .body > p.hint:first-child { margin-bottom: 12px; }
   .hint { color: var(--text-2); font-size: 13px; margin: 0; }
+  .hint.warn { color: var(--warn-ink); }
   .empty { color: var(--text-2); font-size: 13px; padding: 22px 16px; text-align: center; }
   .empty b { display: block; color: var(--text); font-weight: 600; font-size: 14px; margin-bottom: 2px; }
 
@@ -490,9 +491,14 @@
             </div>
             <div class="subhead" style="margin-top:18px">KI-Modell</div>
             <div class="grid c2" style="margin-top:10px">
-              <label class="field"><span>Sprachmodell für Anrufe</span><select id="s-model"></select><small>„Besser“ versteht und spricht natürlicher, „günstig“ kostet etwa ein Drittel. Gilt für ausgehende Anrufe und den Anrufbeantworter.</small></label>
-              <label class="field adv"><span>Eigene Modell-ID</span><input id="s-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein anderes Realtime-Modell von OpenAI. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
-              <label class="field span adv"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><input id="t-summary-model" placeholder="gpt-6-luna" autocomplete="off" spellcheck="false"></label>
+              <label class="field"><span>Sprachmodell für Anrufe</span><select id="s-model"></select><small>Führt das Gespräch bei ausgehenden Anrufen und am Anrufbeantworter. Die neuesten Modelle stehen oben. „Günstig“ steht nur an Modellen, deren Preis SIPFunk kennt; alle Preise nennt OpenAI.</small></label>
+              <label class="field adv"><span>Eigene Modell-ID (Sprachmodell)</span><input id="s-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Realtime-Modell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
+              <label class="field adv"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><select id="t-summary-model"></select></label>
+              <label class="field adv"><span>Eigene Modell-ID (Textmodell)</span><input id="t-summary-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Textmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, entstehen weder Plan noch Zusammenfassung.</small></label>
+              <div class="actions span">
+                <button type="button" id="models-refresh" class="btn small quiet">Modelle aktualisieren</button>
+                <span id="models-state" class="hint" role="status" data-no-i18n></span>
+              </div>
             </div>
             <p class="hint" style="margin-top:12px">Stil, Stimme, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard.</p>
           </div>
@@ -852,7 +858,7 @@ function showPage(id) {
   }
   if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
   try { localStorage.setItem('sipfunk.page', id); } catch {}
-  if (id === 'settings') refreshMail();
+  if (id === 'settings') { refreshMail(); loadModels(false); }
   window.scrollTo({ top: 0 });
 }
 document.querySelector('nav.tabs').onclick = (ev) => { const b = ev.target.closest('[data-page]'); if (b) showPage(b.dataset.page); };
@@ -1322,6 +1328,7 @@ function applySettings(s, keys) {
   loaded = s;
   for (const k of keys) if (s[k] !== undefined) setField(FORM_FIELDS[k], s[k]);
   if (keys.includes('model')) setModel(s.model);
+  if (keys.includes('summaryModel')) setTextModel(s.summaryModel);
   if (keys.includes('incomingProfiles')) { loadProfiles(s.incomingProfiles, s.incomingIdentities); renderScamState(); }
   if (s.retentionDays) $('retention').textContent = s.retentionDays;
 }
@@ -1339,22 +1346,71 @@ function callParams() {
   for (const k of [...DASH_KEYS, 'aiName', 'principal', 'personaExtra', ...BEHAVE_KEYS]) out[k] = fieldValue(FORM_FIELDS[k]);
   return out;
 }
-// ---- Sprachmodell: eine Einstellung, zwei Stellen (Dashboard, Einstellungen), dazu eine eigene Modell-ID ----
-let realtimeModels = [];
+// ---- KI-Modelle: Die Listen kommen zur Laufzeit von OpenAI (über den Server, der sie zwischenspeichert). ----
+// Das Sprachmodell steht an zwei Stellen (Dashboard, Einstellungen). Der gewählte Wert bleibt immer als Eintrag
+// erhalten, auch wenn die Liste nicht geladen werden konnte oder ihn nicht (mehr) enthält.
+const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+let realtimeModels = [], modelNotes = {}, modelCatalog = { realtime: [], text: [], fetchedAt: null }, modelsLoading = false;
+/** Einträge einer Auswahl; liefert auch, ob der aktuelle Wert in der Liste steht. */
+function modelOptions(kind, current) {
+  const fetched = modelCatalog[kind] || [];
+  // Ohne geladene Liste: die Modelle, die SIPFunk von Haus aus kennt
+  const list = fetched.length ? fetched : (kind === 'realtime' ? realtimeModels : [modelNotes.defaultText]).filter(Boolean).map((id) => ({ id, snapshot: false }));
+  const std = kind === 'realtime' ? modelNotes.defaultRealtime : modelNotes.defaultText;
+  const label = (id) => id === std ? I18N.t('{0} (Standard)', id) : (modelNotes.budget || []).includes(id) ? I18N.t('{0} (günstig)', id) : id;
+  const opt = (id, text) => `<option value="${esc(id)}" data-no-i18n>${esc(text)}</option>`;
+  const known = list.some((m) => m.id === current);
+  const own = current && !known ? opt(current, fetched.length ? I18N.t('{0} (nicht in der Liste)', current) : label(current)) : '';
+  const dated = list.filter((m) => m.snapshot);
+  const html = own + list.filter((m) => !m.snapshot).map((m) => opt(m.id, label(m.id))).join('')
+    + (dated.length ? `<optgroup label="${esc(I18N.t('Fest datierte Versionen'))}">${dated.map((m) => opt(m.id, m.id)).join('')}</optgroup>` : '');
+  return { html, known };
+}
 function setModel(m) {
-  m = String(m || '').trim() || realtimeModels[0] || '';
-  const known = realtimeModels.includes(m);
-  const opts = realtimeModels.map((x) => `<option value="${esc(x)}">${esc(x)}${x.endsWith('-mini') ? ' (günstig)' : ' (besser)'}</option>`).join('') + (known ? '' : `<option value="${esc(m)}" data-no-i18n>${esc(m)}</option>`);
-  for (const id of ['p-model', 's-model']) { $(id).innerHTML = opts; $(id).value = m; }
+  m = String(m || '').trim() || modelNotes.defaultRealtime || realtimeModels[0] || '';
+  const { html, known } = modelOptions('realtime', m);
+  for (const id of ['p-model', 's-model']) { $(id).innerHTML = html; $(id).value = m; }
   $('s-model-custom').value = known ? '' : m;
+}
+function setTextModel(m) {
+  m = String(m || '').trim() || modelNotes.defaultText || '';
+  const { html, known } = modelOptions('text', m);
+  $('t-summary-model').innerHTML = html; $('t-summary-model').value = m;
+  $('t-summary-custom').value = known ? '' : m;
 }
 $('p-model').onchange = () => setModel($('p-model').value);
 $('s-model').onchange = () => setModel($('s-model').value);
-$('s-model-custom').onchange = () => {
-  const v = $('s-model-custom').value.trim();
-  if (v && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/.test(v)) { setModel($('p-model').value); return toast('Die Modell-ID darf nur Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt enthalten.'); }
-  setModel(v);
-};
+$('t-summary-model').onchange = () => setTextModel($('t-summary-model').value);
+/** Eigene Modell-ID übernehmen; eine unzulässige verwirft das Feld und lässt die Auswahl, wie sie war. */
+function ownModel(inputId, selectId, set) {
+  $(inputId).onchange = () => {
+    const v = $(inputId).value.trim();
+    if (v && !MODEL_ID.test(v)) { set($(selectId).value); return toast('Die Modell-ID darf nur Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt enthalten.'); }
+    set(v);
+  };
+}
+ownModel('s-model-custom', 's-model', setModel);
+ownModel('t-summary-custom', 't-summary-model', setTextModel);
+/** Listen neu zeichnen, ohne die (vielleicht noch ungespeicherte) Auswahl zu ändern, und den Stand dazuschreiben. */
+function renderModels() {
+  setModel($('s-model').value); setTextModel($('t-summary-model').value);
+  const c = modelCatalog, at = c.fetchedAt ? when(c.fetchedAt) : '';
+  $('models-state').textContent = c.error
+    ? I18N.t('Die Modell-Liste ließ sich nicht laden: {0}', I18N.t(c.error)) + ' ' + (at ? I18N.t('Die Auswahl zeigt den Stand vom {0}.', at) : I18N.t('Die gespeicherte Auswahl bleibt erhalten.'))
+    : at ? I18N.t('{0} Sprach- und {1} Textmodelle von OpenAI geladen, Stand {2}.', c.realtime.length, c.text.length, at) : '';
+  $('models-state').classList.toggle('warn', Boolean(c.error));
+}
+/** Modell-Liste holen: der Server antwortet aus seinem Zwischenspeicher, mit force fragt er OpenAI neu. */
+async function loadModels(force) {
+  if (modelsLoading) return;
+  modelsLoading = true; $('models-refresh').disabled = true;
+  $('models-state').classList.remove('warn'); $('models-state').textContent = I18N.t('Lade die Modelle von OpenAI …');
+  try { modelCatalog = await api('/api/models', force ? {} : undefined); }
+  catch (err) { modelCatalog = { ...modelCatalog, error: err.message }; }
+  modelsLoading = false; $('models-refresh').disabled = false;
+  renderModels();
+}
+$('models-refresh').onclick = () => loadModels(true);
 $('mode').onchange = render;
 function renderModes() {
   const cur = $('mode').value;
@@ -1598,7 +1654,7 @@ $('su-ai-save').onclick = () => setupCheck($('su-ai-save'), 'su-ai-state', 'Prü
   const r = await api('/api/setup/openai', { key: $('su-ai-key').value });
   setupInfo = r.setup; $('su-ai-key').value = '';
   // KI-Gespräche sind ab jetzt möglich: Auswahl auf dem Dashboard nachziehen
-  aiAvailable = true; renderModes(); if ($('mode').value !== 'ai') { $('mode').value = 'ai'; render(); }
+  aiAvailable = true; renderModes(); loadModels(true); if ($('mode').value !== 'ai') { $('mode').value = 'ai'; render(); }
   renderSetupState();
   return 'Schlüssel geprüft und gespeichert.';
 });
@@ -1631,7 +1687,7 @@ $('su-test').onclick = async () => {
     $('p-persona').innerHTML = personaOpts; $('p-voice').innerHTML = voiceOpts;
     $('c-persona').innerHTML += personaOpts; $('c-voice').innerHTML += voiceOpts;
     $('p-scam-voice').innerHTML = '<option value="">– wie der Assistent –</option>' + voiceOpts;
-    realtimeModels = data.models || [data.model];
+    realtimeModels = data.models || [data.model]; modelNotes = data.modelNotes || {};
     if (data.env) {
       const e = data.env;
       const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und OPENAI_API_KEY nur in der .env; Mail-Kennwörter in settings.json']];
@@ -1639,6 +1695,7 @@ $('su-test').onclick = async () => {
     }
     applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
     setUiMode(settings.uiMode);
+    loadModels(false); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
     $('ui-lang').value = settings.uiLang || 'auto';
     // Die Sprache steht für den schnellen Start auch im Browser; weicht sie von den Einstellungen ab, einmal neu laden
     if (I18N.sync(settings.uiLang)) return;
