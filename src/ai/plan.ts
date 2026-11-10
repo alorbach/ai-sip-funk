@@ -2,6 +2,7 @@
 // Gegenüber, Einstieg und einzelne Schritte. Das Realtime-Modell spricht gut, plant aber
 // schlecht – ohne diese Vorarbeit lässt es Teile des Auftrags aus oder erfindet einen Grund.
 // Läuft parallel zum Wählen; kommt der Plan nicht rechtzeitig, telefoniert die KI ohne ihn.
+import { responsesText } from './summary.js';
 
 export interface CallPlan {
   /** Wer vermutlich abnimmt und wie die Person angesprochen wird */
@@ -54,28 +55,7 @@ export async function planCall(apiKey: string, model: string, p: PlanInput): Pro
     ...(p.context?.trim() ? ['', `Hintergrundwissen (nur für Rückfragen, nicht als Schritte): ${p.context.trim()}`] : []),
   ].join('\n');
 
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-      max_output_tokens: 1500,
-      reasoning: { effort: 'low' },
-      text: { format: { type: 'json_schema', name: 'gespraechsplan', strict: true, schema: SCHEMA } },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gesprächsplan fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
-  const data = (await res.json()) as { output_text?: string; output?: { type: string; content?: { type: string; text?: string }[] }[] };
-  const text =
-    data.output_text ||
-    data.output
-      ?.filter((o) => o.type === 'message')
-      .flatMap((o) => o.content ?? [])
-      .filter((c) => c.type === 'output_text')
-      .map((c) => c.text ?? '')
-      .join('');
-  if (!text?.trim()) throw new Error('Gesprächsplan leer');
+  const text = await responsesText(apiKey, model, prompt, 1500, { name: 'gespraechsplan', schema: SCHEMA });
   const plan = JSON.parse(text) as CallPlan;
   plan.schritte = plan.schritte.map((s) => s.trim()).filter(Boolean);
   return plan;

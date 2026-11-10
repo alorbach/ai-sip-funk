@@ -1,6 +1,6 @@
 // Spam-Abwehr („Scam-Modus"): Die KI tritt gegenüber Werbe- und Betrugsanrufern als Mensch auf,
 // wimmelt ab oder hält hin. Nur aktiv, wenn der Inhaber das Risiko in der Web-UI ausdrücklich bestätigt hat
-// (siehe doc/Rechtliches.md). Diese Datei enthält bewusst keine Anrufbeantworter-Logik.
+// (siehe doc/legal.de.md). Diese Datei enthält bewusst keine Anrufbeantworter-Logik.
 
 export type ScamStyle = 'abwimmeln' | 'beschaeftigen';
 
@@ -10,8 +10,6 @@ export interface ScamInput {
   maxMinutes: number;
   /** true = Anrufernummer übermittelt */
   callerKnown: boolean;
-  /** Früher der Persona-Stiltext; wird nicht mehr verwendet, weil der Assistenten-Stil die Rolle verrät */
-  styleText?: string;
   /** Erfundener Name der Rolle (z. B. „Schmidt"); leer = die Rolle nennt keinen Namen */
   name?: string;
   /** Eigene Anweisungen des Inhabers für die Rolle (Figur, Eigenheiten); die Grundregeln gehen vor */

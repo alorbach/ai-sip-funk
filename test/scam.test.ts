@@ -28,7 +28,7 @@ test('Scam-Modus: nur mit Schalter UND Bestätigung aktiv; Zeitlimit gedeckelt',
 });
 
 test('Scam-Anweisung: keine KI-Nennung, keine Daten, keine Zustimmung, Rückweg zum Assistenten', () => {
-  const quick = buildScamInstructions({ style: 'abwimmeln', maxMinutes: 5, callerKnown: true, styleText: 'Sprich ruhig.' });
+  const quick = buildScamInstructions({ style: 'abwimmeln', maxMinutes: 5, callerKnown: true });
   assert.match(quick, /gibst dich nicht als KI zu erkennen/);
   assert.match(quick, /NIE echte oder erfundene persönliche Daten/);
   assert.match(quick, /stimmst NICHTS zu/);

@@ -25,13 +25,22 @@ export async function summarize(apiKey: string, model: string, task: string | un
   return responsesText(apiKey, model, prompt, 2000);
 }
 
-/** Textantwort des Textmodells (Responses API) auf einen Prompt; wirft bei Fehler oder leerer Antwort. */
-export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number): Promise<string> {
+/**
+ * Textantwort des Textmodells (Responses API) auf einen Prompt; wirft bei Fehler oder leerer Antwort.
+ * Mit `format` antwortet das Modell als JSON nach dem angegebenen Schema (der Aufrufer parst den Text).
+ */
+export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     // Reasoning-Modelle denken vor der Antwort; das Budget muss Reasoning + Text decken
-    body: JSON.stringify({ model, input: prompt, max_output_tokens: maxOutputTokens, reasoning: { effort: 'low' } }),
+    body: JSON.stringify({
+      model,
+      input: prompt,
+      max_output_tokens: maxOutputTokens,
+      reasoning: { effort: 'low' },
+      ...(format ? { text: { format: { type: 'json_schema', name: format.name, strict: true, schema: format.schema } } } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`Textmodell fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as {

@@ -126,11 +126,11 @@ function armSpamLimit(s: ReturnType<typeof loadSettings>): void {
 }
 
 /** Spam-Abwehr: Anweisungen bauen und das Gespräch markieren (das Zeitlimit startet armSpamLimit). */
-function startScam(s: ReturnType<typeof loadSettings>, caller: string, styleText: string, voice: string): string {
+function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: string): string {
   const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
   const limit = scamLimit(s);
   if (current) current.spam = true;
-  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), styleText, name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice) });
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice) });
 }
 
 /** Zur Auswahl stehende Realtime-Modelle (Preise siehe ai/pricing.ts) */
@@ -234,7 +234,7 @@ ${input.context}` : input.task,
   bus.emit('message', { type: 'summary', text: '' });
 
   // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
-  const scamInstructions = scam ? startScam(loadSettings(), str('target'), persona.text, voice) : undefined;
+  const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice) : undefined;
   const bridge = new RealtimeBridge({
     apiKey: config.openaiApiKey,
     model,
@@ -286,7 +286,7 @@ ${input.context}` : input.task,
             bus.emit('message', { type: 'transcript', entries: transcript });
             const s = loadSettings();
             armSpamLimit(s);
-            return startScam(s, str('target'), persona.text, voice);
+            return startScam(s, str('target'), voice);
           }
         : undefined,
     onConnected: scam ? () => armSpamLimit(loadSettings()) : undefined,

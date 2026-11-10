@@ -15,6 +15,7 @@ import WebSocket from 'ws';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../config.js';
+import { responsesText } from '../ai/summary.js';
 import { buildInstructions, defaultIncomingTask, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallCheckInstruction, farewellInstruction, greetingInstruction, loadPersonas, type PromptInput } from '../ai/personas.js';
 import { formatPlan, planCall, type CallPlan } from '../ai/plan.js';
 import { buildScamInstructions, FLAG_SPAM_ACK, FLAG_SPAM_TOOL, SCAM_FAREWELL, scamGender, scamGreeting, type ScamStyle } from '../ai/scam.js';
@@ -197,30 +198,14 @@ const personas = loadPersonas(fileURLToPath(new URL('../../personas/', import.me
 const outDir = fileURLToPath(new URL('../../sim-results/', import.meta.url));
 mkdirSync(outDir, { recursive: true });
 
-/** Responses API, reiner Text */
+/** Textmodell fragen (optional als JSON nach Schema); eine leere Antwort ergibt wie bisher '' statt eines Fehlers. */
 async function ask(prompt: string, schema?: object): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: textModel,
-      input: prompt,
-      max_output_tokens: 1500,
-      reasoning: { effort: 'low' },
-      ...(schema ? { text: { format: { type: 'json_schema', name: 'antwort', strict: true, schema } } } : {}),
-    }),
-  });
-  if (!res.ok) throw new Error(`Responses ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = (await res.json()) as { output_text?: string; output?: { type: string; content?: { type: string; text?: string }[] }[] };
-  return (
-    data.output_text ||
-    data.output
-      ?.filter((o) => o.type === 'message')
-      .flatMap((o) => o.content ?? [])
-      .map((c) => c.text ?? '')
-      .join('') ||
-    ''
-  ).trim();
+  try {
+    return await responsesText(apiKey, textModel, prompt, 1500, schema ? { name: 'antwort', schema } : undefined);
+  } catch (err) {
+    if ((err as Error).message.startsWith('Antwort leer')) return '';
+    throw err;
+  }
 }
 
 type Line = { who: 'KI' | 'Gegenüber' | 'System'; text: string };
@@ -352,7 +337,7 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
   const callerKnown = /\d{3,}/.test(s.caller ?? '');
   const task = incoming ? defaultIncomingTask(principal, s.caller) : s.task;
   const input: PromptInput = { persona, incoming, formal: s.formal, aiName: 'Salve', principalName: principal, task, owner: s.owner, maxCallSeconds: config.maxCallSeconds, callbackNumber: '0171 0000000' };
-  const scamInput = { style: s.scamStyle ?? 'abwimmeln', maxMinutes: s.scamMinutes ?? 1, callerKnown, styleText: persona.text, name: process.env.SIM_SCAM_NAME ?? loadSettings().scamName, extra: process.env.SIM_SCAM_EXTRA ?? loadSettings().scamExtra, gender: scamGender(process.env.SIM_SCAM_GENDER ?? loadSettings().scamGender, loadSettings().scamVoice || loadSettings().voice) } as const;
+  const scamInput = { style: s.scamStyle ?? 'abwimmeln', maxMinutes: s.scamMinutes ?? 1, callerKnown, name: process.env.SIM_SCAM_NAME ?? loadSettings().scamName, extra: process.env.SIM_SCAM_EXTRA ?? loadSettings().scamExtra, gender: scamGender(process.env.SIM_SCAM_GENDER ?? loadSettings().scamGender, loadSettings().scamVoice || loadSettings().voice) } as const;
   const t0 = Date.now();
   // Gesprächsplan nur bei ausgehenden Aufträgen (wie in der App)
   const rawPlan: CallPlan = incoming ? { gegenueber: '', einstieg: '', schritte: [], hinweise: '' } : await planCall(apiKey, textModel, { task: s.task, principalName: principal, aiName: 'Salve', formal: s.formal, owner: Boolean(s.owner), contactName: s.contactName });
