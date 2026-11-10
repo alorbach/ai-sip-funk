@@ -151,6 +151,29 @@ test('Katalog: neuer Schlüssel leert den Speicher', async () => {
   assert.equal(calls.count, 2);
 });
 
+test('Katalog: Schlüsselwechsel während eines Abrufs – die nächste Anfrage lädt mit dem neuen Schlüssel', async () => {
+  let key = KEY;
+  const release: (() => void)[] = [];
+  const auths: string[] = [];
+  const ok = fakeOpenAi(SAMPLE).impl;
+  const impl = (async (...args: Parameters<typeof fetch>) => {
+    auths.push(String((args[1]?.headers as Record<string, string>).Authorization));
+    if (auths.length === 1) await new Promise<void>((r) => release.push(r));
+    return ok(...args);
+  }) as typeof fetch;
+  const catalog = new ModelCatalog(() => key, impl);
+  const old = catalog.get();
+  await new Promise((r) => setImmediate(r));
+  key = 'sk-test-neu-000000000000000';
+  catalog.clear();
+  const fresh = await catalog.get(true);
+  assert.equal(fresh.realtime.length, 5);
+  release[0]();
+  // Das Ergebnis des alten Schlüssels wird nicht mehr als neuer Stand übernommen
+  assert.equal((await old).fetchedAt, fresh.fetchedAt);
+  assert.deepEqual(auths, [`Bearer ${KEY}`, `Bearer ${key}`]);
+});
+
 test('Gespeichertes Modell bleibt gültig, auch wenn es in keiner geladenen Liste steht', () => {
   const lists = classifyModels(SAMPLE);
   const saved = 'gpt-realtime-eigenes-2027';

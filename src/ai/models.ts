@@ -105,12 +105,17 @@ export class ModelCatalog {
   clear(): void {
     this.lists = { realtime: [], text: [] };
     this.fetchedAt = 0;
+    // Ein noch laufender Abruf gehört zum alten Schlüssel: Die nächste Anfrage soll nicht auf ihn warten
+    this.running = undefined;
   }
 
   get(force = false): Promise<ModelCatalogState> {
     if (!force && this.fetchedAt && this.now() - this.fetchedAt < this.ttlMs) return Promise.resolve(this.state());
     // Gleichzeitige Anfragen (zwei Fenster, Doppelklick) teilen sich einen Abruf
-    this.running ??= this.load().finally(() => { this.running = undefined; });
+    if (!this.running) {
+      const run: Promise<ModelCatalogState> = this.load().finally(() => { if (this.running === run) this.running = undefined; });
+      this.running = run;
+    }
     return this.running;
   }
 
