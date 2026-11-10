@@ -244,7 +244,7 @@ No commitments in your name, no information other than from the background knowl
 While a call is ringing, the tray app shows a small window at the bottom right (can be switched off under "Einstellungen › Benachrichtigungen"): the caller, which of your numbers they are calling, an **assessment of the number** and three buttons. The same buttons appear in the call bar of the web UI.
 
 - **Assessment**: "Kontakt" (contact), "Auf deiner Spam-Liste" (on your spam list), "Schon als Spam abgewehrt" (already fended off as spam; earlier calls), "Auffällige Nummer" (conspicuous number: abroad, 0900, 0137/0138, 0180, 0800, 032), otherwise "Unbekannte Nummer" (unknown number). With the switch **"Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen"** (look up unknown numbers at tellows.de; Einstellungen › Spam-Abwehr, off by default) the tellows score is added: 7 and above "Spam-Verdacht" (suspected spam), 6 "Auffällig" (conspicuous), up to 4 with an entry "Eher seriös" (probably legitimate). The lookup sends the caller's number to tellows; contacts and numbers on your list are never looked up.
-- **In die Spam-Falle** (into the spam trap): answers immediately, and the AI acts as a private person (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires AI disclosure to be switched on or the one-time risk confirmation from section 10.3; the spam defence switch itself does not need to be on. With AI disclosure the AI openly acts as an AI in the spam trap, too.
+- **In die Spam-Falle** (into the spam trap): answers immediately, and the spam defence takes over (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires AI disclosure to be switched on or the one-time risk confirmation from section 10.3; the spam defence switch itself does not need to be on. With AI disclosure the AI openly acts as an AI in the spam trap, too.
 - **KI jetzt annehmen** (AI answer now): answers immediately as the normal assistant without waiting for the number of rings.
 - **Klingeln lassen** (let it ring): the AI does not answer this one call; you can pick up yourself.
 
@@ -346,7 +346,7 @@ Fixed rules in both cases: no real or invented personal data, no confirming an i
 The spam defence has two switches:
 
 - **"Werbe- und Betrugsanrufer abwimmeln oder hinhalten"** (fend off or stall sales and scam callers) switches the defence on.
-- **"KI-Kennung: Die KI sagt auch Spam-Anrufern, dass sie eine KI ist"** (AI disclosure: the AI tells spam callers, too, that it is an AI) decides whether it openly acts as an AI while doing so. The default is **off**: the AI plays a private person as before.
+- **"KI-Kennung: Die KI sagt auch Spam-Anrufern, dass sie eine KI ist"** (AI disclosure: the AI tells spam callers, too, that it is an AI) decides whether it openly acts as an AI while doing so. The default is **on**: the AI identifies itself to spam callers, too.
 
 **With AI disclosure** the AI introduces itself as an AI assistant to spam callers as well, confirms it when asked, gives no invented name and still fends off or stalls. All protective rules from 10.1 apply unchanged. No risk confirmation is needed for this. "Name der Rolle" and "Die Rolle ist" do not apply then; voice, speaking rate and own instructions do.
 

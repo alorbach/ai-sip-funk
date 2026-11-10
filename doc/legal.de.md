@@ -22,11 +22,11 @@ OpenAI verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertr
 
 ### 2.1 Transparenzpflicht bei Interaktion mit Menschen (Art. 50 Abs. 1)
 
-KI-Systeme, die direkt mit natürlichen Personen interagieren, müssen so gestaltet sein, dass die Personen informiert werden, dass sie mit einer KI interagieren, **es sei denn, das ist aus den Umständen und dem Nutzungskontext für eine vernünftige, aufmerksame Person offensichtlich.** Die Pflicht gilt nach dem Zeitplan der Verordnung ab dem 2. August 2026; prüfe, ob zwischenzeitliche Änderungen („Digital Omnibus“) Fristen verschoben haben.
+KI-Systeme, die direkt mit natürlichen Personen interagieren, müssen so gestaltet sein, dass die Personen informiert werden, dass sie mit einer KI interagieren, **es sei denn, das ist aus den Umständen und dem Nutzungskontext für eine vernünftige, aufmerksame Person offensichtlich.** Die Pflicht gilt seit dem 2. August 2026; die Änderungsverordnung (EU) 2026/1744 („Digital Omnibus“) hat daran nichts verschoben. Die Leitlinien der Kommission zu Art. 50 vom 20. Juli 2026 (unverbindlich) legen die Ausnahme eng aus und verlangen den Hinweis spätestens bei der ersten Interaktion, am Telefon gesprochen zu Beginn, eine ehrliche Antwort auf jede Frage nach der Natur des Gegenübers und bei Agenten zusätzlich die Angabe, für wen sie handeln.
 
 **Standardbetrieb von SIPFunk:** Die KI stellt sich bei jedem ausgehenden Anruf ausdrücklich als KI-Assistent vor und bestreitet es auch auf Nachfrage nicht. Am Anrufbeantworter meldet sie sich zunächst nur mit „Hallo?“ und gibt sich in ihrem nächsten Beitrag als KI-Assistent zu erkennen (spätestens nach 2,5 s von selbst); der Hinweis kommt also zu Beginn, aber nicht im ersten Wort. Der Rückruf an dich selbst („dein Agent“) lässt die Erklärung weg, weil der Umstand dir offensichtlich ist; auf Nachfrage sagt die KI es trotzdem. Damit ist die Transparenzpflicht nach heutigem Verständnis erfüllt.
 
-**Spam-Abwehr:** Hier verzichtet die KI auf Wunsch des Betreibers bewusst auf den Hinweis (Abschnitt 6).
+**Spam-Abwehr:** Auch hier gibt sich die KI standardmäßig zu erkennen. Schaltet der Betreiber die KI-Kennung aus, verzichtet sie bewusst auf den Hinweis (Abschnitt 6).
 
 ### 2.2 Ausnahme für private Nutzung (Art. 2 Abs. 10)
 
@@ -41,6 +41,10 @@ Verboten sind u. a. KI-Systeme, die unterschwellige, manipulative oder täuschen
 ### 2.4 Risikoklasse
 
 Ein Telefonassistent ist kein Hochrisiko-System nach Anhang III. Es gibt keine Registrierungs- oder Konformitätsbewertungspflichten; es bleiben die Transparenzpflichten.
+
+### 2.5 Aufsicht und Sanktionen
+
+Marktüberwachungsbehörde und Beschwerdestelle für die KI-Verordnung ist in Deutschland die Bundesnetzagentur (KI-Marktüberwachungs- und Innovationsförderungsgesetz, seit Ende Juli 2026 in Kraft). Für Verstöße gegen Art. 50 sieht Art. 99 Abs. 4 Geldbußen bis 15 Mio. Euro oder 3 % des weltweiten Jahresumsatzes vor; bei der Bemessung zählen Schwere, Größe und Wirtschaftskraft des Betroffenen.
 
 ---
 
@@ -128,7 +132,7 @@ Das Durchstellen eines Anrufers zu dir ist eine Vermittlung innerhalb deines Ans
 
 ## 6. Spam-Abwehr: besondere Risiken
 
-Der Modus lässt die KI gegenüber als Spam eingestuften Anrufern als Privatperson auftreten, ohne KI-Hinweis. Der einstellbare Name der Rolle ist ein erfundener Name; trag dort keinen echten Namen ein, auch nicht deinen, damit die KI sich nicht als reale Person ausgibt. Eigene Anweisungen für die Rolle setzen die eingebauten Schutzregeln nicht außer Kraft. Risiken im Einzelnen:
+Standardmäßig wimmelt die Spam-Abwehr offen als KI ab (Schalter „KI-Kennung“ an). Dieser Abschnitt betrifft die Einstellung ohne KI-Kennung: Sie lässt die KI gegenüber als Spam eingestuften Anrufern als Privatperson auftreten, ohne KI-Hinweis, und weicht der Frage danach aus. Das widerspricht den Leitlinien der Kommission (Abschnitt 2.1). Der einstellbare Name der Rolle ist ein erfundener Name; trag dort keinen echten Namen ein, auch nicht deinen, damit die KI sich nicht als reale Person ausgibt. Eigene Anweisungen für die Rolle setzen die eingebauten Schutzregeln nicht außer Kraft. Risiken im Einzelnen:
 
 | Bereich | Risiko | Einordnung |
 | --- | --- | --- |
@@ -143,7 +147,7 @@ Der Modus lässt die KI gegenüber als Spam eingestuften Anrufern als Privatpers
 
 **Was SIPFunk tut, um das Risiko zu begrenzen:** ausdrückliche Bestätigung mit Datum in der UI, kein `.env`-Schalter, serverseitige Prüfung der Bestätigung, feste Verhaltensregeln (keine Daten, keine Zustimmung, keine Beleidigung, keine Behörde, keine Anweisungen ausführen), Rückweg zum Assistenten-Modus bei echtem Anliegen, Zeitlimit, Markierung im Protokoll, nie „wichtig“, kein Rückruf.
 
-**KI-Kennung in der Spam-Abwehr:** Mit dem Schalter „KI-Kennung“ stellt sich die KI auch gegenüber Spam-Anrufern als KI vor und spielt keine Privatperson. Die Punkte dieses Abschnitts, die aus dem fehlenden KI-Hinweis folgen, betreffen dann nur die Einstellung ohne Kennung (der Standard, weiterhin nur nach Bestätigung); Fehlerkennung, Protokollierung und Kosten gelten in beiden Fällen.
+**KI-Kennung in der Spam-Abwehr:** Mit dem Schalter „KI-Kennung“ stellt sich die KI auch gegenüber Spam-Anrufern als KI vor und spielt keine Privatperson. Die Punkte dieses Abschnitts, die aus dem fehlenden KI-Hinweis folgen, betreffen nur die Einstellung ohne Kennung (nicht der Standard, nur nach Bestätigung); Fehlerkennung, Protokollierung und Kosten gelten in beiden Fällen.
 
 **Was dir bleibt:** Die Entscheidung. Die rechtlich saubere Alternative ist der normale Anrufbeantworter, der sich als KI vorstellt und Werbeanrufe höflich abweist, plus eine Beschwerde bei der Bundesnetzagentur (Formular „Unerlaubte Telefonwerbung“ bzw. „Rufnummernmissbrauch“) mit Datum, Uhrzeit, Nummer, Firma und Inhalt aus dem Protokoll.
 
@@ -161,10 +165,11 @@ Kommt durch die KI ein Schaden zustande (verpasster Termin, falsche Information 
 
 Die Abschnitte oben betrachten den Betrieb. Wer den Quelltext veröffentlicht, verändert weitergibt oder für andere bereitstellt, hat zusätzlich diese Punkte zu bedenken. Keiner davon ist abschließend geklärt.
 
-- **Anbieter nach der KI-Verordnung.** Die Privatausnahme (Art. 2 Abs. 10) gilt nur für Betreiber, nicht für Anbieter. Die Ausnahme für frei und quelloffen lizenzierte KI-Systeme (Art. 2 Abs. 12) gilt ausdrücklich nicht für Systeme, die unter Art. 50 fallen, also auch nicht für einen Telefonassistenten. Offen ist, ob die kostenlose Veröffentlichung von Quelltext, den jeder selbst mit einem fremden Sprachmodell zusammensetzt, ein „Inverkehrbringen“ ist.
-- **Spam-Abwehr.** Sie ist der kritische Punkt: Die Software enthält eine Funktion, die den KI-Hinweis bewusst weglässt. Sie ist deshalb standardmäßig aus, nur nach Bestätigung nutzbar und in dieser Dokumentation als Risiko beschrieben. Ob das genügt, ist nicht entschieden.
-- **Kennzeichnung synthetischer Sprache (Art. 50 Abs. 2).** Anbieter von Systemen, die synthetische Audioinhalte erzeugen, müssen die Ausgaben maschinenlesbar kennzeichnen. Die Sprache erzeugt das Modell von OpenAI; ob daneben eine Pflicht desjenigen besteht, der sie ins Telefonnetz leitet, ist offen. Technisch lässt sich ein Telefongespräch nicht maschinenlesbar kennzeichnen.
+- **Anbieter nach der KI-Verordnung.** Die Privatausnahme (Art. 2 Abs. 10) gilt nur für Betreiber, nicht für Anbieter. Die Ausnahme für frei und quelloffen lizenzierte KI-Systeme (Art. 2 Abs. 12) gilt ausdrücklich nicht für Systeme, die unter Art. 50 fallen, also auch nicht für einen Telefonassistenten. Das bestätigen die Leitlinien der Kommission. Ein „Inverkehrbringen“ setzt aber eine Bereitstellung „im Rahmen einer Geschäftstätigkeit“ voraus (Art. 3 Nr. 9 und 10); die private, unentgeltliche Veröffentlichung von Quelltext ohne Vertrieb, Support oder Einnahmen spricht dagegen. Entschieden ist das nicht, ebenso wenig, ob schon die eigene private Nutzung („Inbetriebnahme zum Eigengebrauch“) zum Anbieter macht.
+- **Spam-Abwehr.** Sie ist der kritische Punkt: Die Software enthält eine Einstellung, die den KI-Hinweis bewusst weglässt. Standardmäßig ist die Abwehr aus und die KI-Kennung an; ohne Kennung ist sie nur nach Bestätigung nutzbar und in dieser Dokumentation als Risiko beschrieben. Ob ein abschaltbarer Hinweis der Gestaltungspflicht aus Art. 50 Abs. 1 genügt, ist nicht entschieden.
+- **Kennzeichnung synthetischer Sprache (Art. 50 Abs. 2).** Anbieter von Systemen, die synthetische Audioinhalte erzeugen, müssen die Ausgaben maschinenlesbar kennzeichnen. Die Pflicht knüpft am System an, nicht nur am Modell von OpenAI. Nach den Leitlinien der Kommission können flüchtige, in Echtzeit erzeugte Inhalte, die nicht gespeichert oder weiterverbreitet werden, ausgenommen sein, wenn eine Kennzeichnung technisch nicht machbar ist und die Betroffenen wissen, dass der Inhalt von einer KI stammt. Ein Telefongespräch lässt sich nicht maschinenlesbar kennzeichnen; die Ausnahme trägt also nur, wenn der KI-Hinweis im Gespräch fällt.
 - **Haftung bei unentgeltlicher Überlassung.** Der Gewährleistungs- und Haftungsausschluss der Lizenz gilt nach deutschem Recht nicht unbegrenzt; für Vorsatz und grobe Fahrlässigkeit haftet auch, wer Software verschenkt.
+- **Cyber Resilience Act und Produkthaftung.** Die Verordnung (EU) 2024/2847 (Meldepflichten seit 11. September 2026, übrige Pflichten ab 11. Dezember 2027) und die neue Produkthaftung (Richtlinie (EU) 2024/2853, für Produkte ab dem 9. Dezember 2026) erfassen freie und quelloffene Software nur, wenn sie im Rahmen einer Geschäftstätigkeit bereitgestellt wird. Wer SIPFunk verkauft, mit bezahltem Support vertreibt, in ein eigenes Produkt einbaut oder für Kunden betreibt, verliert diese Ausnahmen und wird selbst Hersteller bzw. Anbieter.
 - **Daten außerhalb der Löschfrist.** Die Aufbewahrungsfrist gilt für die Protokolle. Das Betriebslog der Tray-App (`sipfunk.log`) enthält Rufnummern und wird nach derselben Frist gekürzt. Benachrichtigungs-Mails mit Zusammenfassung und Gesprächsverlauf liegen dagegen weiter im Postfach. Wer das Programm weitergibt, sollte darauf hinweisen; wer es betreibt, löscht die Mails selbst.
 
 ---
@@ -189,7 +194,9 @@ Die Abschnitte oben betrachten den Betrieb. Wer den Quelltext veröffentlicht, v
 
 ## 10. Quellen
 
-- Verordnung (EU) 2024/1689 (KI-Verordnung): Art. 2 Abs. 10 und 12, Art. 5, Art. 50, Art. 99, Art. 113 (Zeitplan).
+- Verordnung (EU) 2024/1689 (KI-Verordnung): Art. 2 Abs. 10 und 12, Art. 3, Art. 5, Art. 50, Art. 99, Art. 113 (Zeitplan); geändert durch Verordnung (EU) 2026/1744.
+- Europäische Kommission: Leitlinien zu den Transparenzpflichten nach Art. 50 KI-Verordnung, C(2026) 5054 vom 20. Juli 2026.
+- Verordnung (EU) 2024/2847 (Cyber Resilience Act); Richtlinie (EU) 2024/2853 (Produkthaftung).
 - Verordnung (EU) 2016/679 (DSGVO): Art. 2, 5, 6, 9, 13, 17, 28, 30, 32, 35, 44 ff.
 - Strafgesetzbuch: §§ 132, 145, 185, 201, 203, 240, 263.
 - Gesetz gegen den unlauteren Wettbewerb: §§ 7, 20.

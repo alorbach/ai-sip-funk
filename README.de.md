@@ -6,7 +6,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 
 > **Nutzung auf eigene Verantwortung.** Die Software wird ohne Gewährleistung bereitgestellt. Wer SIPFunk betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt.
 >
-> **Rechtliches vorher lesen.** Gespräche werden an OpenAI übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr verzichtet bewusst auf diesen Hinweis und ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
+> **Rechtliches vorher lesen.** Gespräche werden an OpenAI übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr kann auf diesen Hinweis verzichten, wenn du dort die KI-Kennung ausschaltest; das ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
 >
 > **Nur OpenAI Realtime.** SIPFunk funktioniert derzeit ausschließlich mit der OpenAI Realtime API. Andere Live-Sprachmodelle kommen eventuell später hinzu.
 
@@ -16,7 +16,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **Anrufbeantworter.** Die KI nimmt nach einer einstellbaren Klingelzahl ab, stellt sich als KI-Assistent vor und nimmt Anliegen und Rückrufwunsch auf. Je eigener Rufnummer lässt sich ein Profil anlegen (Meldung, Person oder Firma, Stil, Stimme, Auftrag, Benachrichtigungen).
 - **Benachrichtigung nach dem Anruf.** Hinweis im Tray, E-Mail mit Zusammenfassung (SMTP oder OAuth für Gmail und Microsoft 365, Vorlagen anpassbar) und bei wichtigen Anrufen ein Rückruf an dich mit Bericht und Durchstellen zum Anrufer.
 - **Pop-up beim Klingeln** mit einer Einschätzung der Nummer (Kontakt, eigene Spam-Liste, frühere Spam-Gespräche, auffällige Rufnummerngasse, optional Abfrage bei tellows) und Knöpfen zum sofortigen Annehmen oder Klingelnlassen.
-- **Spam-Abwehr.** Gegenüber Werbe- und Betrugsanrufern tritt die KI als Privatperson auf, wimmelt ab oder hält hin. Die Rolle hat eigenen Namen, Stimme, Tempo und Anweisungen. Nur nach ausdrücklicher Bestätigung des Risikos in der Web-UI. Mit dem Schalter „KI-Kennung“ wimmelt die KI stattdessen offen als KI ab; dafür ist keine Bestätigung nötig.
+- **Spam-Abwehr.** Werbe- und Betrugsanrufer wimmelt die KI ab oder hält sie hin, standardmäßig offen als KI. Wer die KI-Kennung ausschaltet, lässt sie als Privatperson mit eigenem Namen auftreten; das geht nur nach ausdrücklicher Bestätigung des Risikos in der Web-UI. Stimme, Tempo und Anweisungen der Rolle sind einstellbar.
 - **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
 - **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen; je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
 - **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen.
@@ -107,7 +107,7 @@ Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes Open
 
 ## Bestimmungsgemäße Nutzung und Haftung
 
-SIPFunk ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an OpenAI; gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr weicht davon ab, ist standardmäßig aus und nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
+SIPFunk ist ein privates, nichtkommerzielles Projekt einer Einzelperson: kein Produkt, kein Support, keine Verbindung zu einem Arbeitgeber. Es ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an OpenAI; gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr ist standardmäßig aus und gibt sich ebenfalls als KI zu erkennen; ohne KI-Kennung ist sie nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
 
 ## Dokumentation
 

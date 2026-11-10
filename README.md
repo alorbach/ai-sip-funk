@@ -8,7 +8,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 >
 > **Use at your own risk.** The software comes with no warranty. Whoever runs SIPFunk is responsible for every call the AI places or answers.
 >
-> **Read the legal notes first.** Calls are sent to OpenAI and logged as text; the AI has to identify itself as an AI; the optional spam defence deliberately omits that notice and is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
+> **Read the legal notes first.** Calls are sent to OpenAI and logged as text; the AI has to identify itself as an AI; the optional spam defence can omit that notice if you switch AI disclosure off there; that is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
 >
 > **OpenAI Realtime only.** SIPFunk currently works exclusively with the OpenAI Realtime API. Other live speech models may be added later.
 
@@ -18,7 +18,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Answering machine.** The AI picks up after a configurable number of rings, introduces itself as an AI assistant and takes down the caller's request and whether they want a call back. You can set up a profile per own phone number (greeting, person or company, style, voice, task, notifications).
 - **Notification after the call.** Tray notification, e-mail with a summary (SMTP, or OAuth for Gmail and Microsoft 365, with editable templates) and, for important calls, a call back to you with a report and the option to be put through to the caller.
 - **Pop-up while ringing** with an assessment of the number (contact, your own spam list, earlier spam calls, conspicuous number range, optional lookup at tellows) and buttons to answer immediately or let it ring.
-- **Spam defence.** Towards advertising and scam callers the AI acts as a private person, brushes them off or keeps them busy. The role has its own name, voice, pace and instructions. Only after you have explicitly confirmed the risk in the web UI. With the switch "AI disclosure" the AI fends callers off openly as an AI instead; that needs no confirmation.
+- **Spam defence.** The AI brushes off advertising and scam callers or keeps them busy, openly as an AI by default. If you switch AI disclosure off, it acts as a private person with a name of its own; that is only possible after you have explicitly confirmed the risk in the web UI. Voice, pace and instructions of the role are configurable.
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
 - **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
 - **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone.
@@ -109,7 +109,7 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 
 ## Intended use and liability
 
-SIPFunk is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to OpenAI for processing; only text logs are stored (7 days by default), no audio. The spam defence deviates from this, is off by default and can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
+SIPFunk is a private, non-commercial project by an individual: not a product, no support, no connection to an employer. It is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to OpenAI for processing; only text logs are stored (7 days by default), no audio. The spam defence is off by default and identifies itself as an AI as well; without AI disclosure it can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
 
 ## Documentation
 

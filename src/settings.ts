@@ -65,7 +65,7 @@ export interface FormSettings {
   scamGender: string;
   /** Eigene Anweisungen für die Spam-Rolle */
   scamExtra: string;
-  /** KI-Kennung der Spam-Rolle: 'on' = sie sagt offen, dass sie eine KI ist; 'off' (Standard) = sie spielt eine Privatperson, nur mit scamAccepted */
+  /** KI-Kennung der Spam-Rolle: 'on' (Standard) = sie sagt offen, dass sie eine KI ist; 'off' = sie spielt eine Privatperson, nur mit scamAccepted */
   scamDisclose: string;
   /** Pop-up der Tray-App, solange ein Anruf klingelt ('on'|'off') */
   ringPopup: string;
@@ -239,8 +239,8 @@ function envDefaults(): FormSettings {
     scamSpeed: '',
     scamGender: '',
     scamExtra: '',
-    // Bewusst aus: so verhält sich die Spam-Abwehr wie bisher (Privatperson, nur nach bestätigtem Risiko)
-    scamDisclose: 'off',
+    // Bewusst an: Die KI gibt sich auch Spam-Anrufern zu erkennen (Art. 50 KI-VO); die Privatperson gibt es nur nach bestätigtem Risiko
+    scamDisclose: 'on',
     ringPopup: onOff(e('RING_POPUP', 'on')),
     // Bewusst aus: die Abfrage überträgt die Anrufernummer an einen Dritten
     spamLookup: onOff(e('SPAM_LOOKUP', 'off')),
@@ -445,7 +445,10 @@ export function loadSettings(): FormSettings {
     text = readFileSync(SETTINGS_FILE, 'utf8');
     const saved = JSON.parse(text) as unknown;
     if (!saved || typeof saved !== 'object') throw new Error('kein JSON-Objekt');
-    return normalize({ ...base, ...pick(saved as Record<string, unknown>) });
+    const picked = pick(saved as Record<string, unknown>);
+    // Einstellungen aus der Zeit vor dem Schalter: Wer das Risiko bestätigt hatte, behält die Privatperson
+    if (picked.scamDisclose === undefined && String(picked.scamAccepted ?? '').trim()) picked.scamDisclose = 'off';
+    return normalize({ ...base, ...picked });
   } catch (err) {
     if (warnedBroken !== text) {
       warnedBroken = text;
@@ -486,7 +489,7 @@ function normalize(s: FormSettings): FormSettings {
   if (s.uiMode !== 'advanced') s.uiMode = 'easy';
   if (s.setupDone !== 'on') s.setupDone = 'off';
   if (s.uiLang !== 'de' && s.uiLang !== 'en') s.uiLang = 'auto';
-  if (s.scamDisclose !== 'on') s.scamDisclose = 'off';
+  if (s.scamDisclose !== 'off') s.scamDisclose = 'on';
   for (const [k, allowed] of BEHAVE_VALUES) if (!allowed.includes(s[k])) s[k] = '';
   return s;
 }

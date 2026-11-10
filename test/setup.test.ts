@@ -151,3 +151,12 @@ test('Einstellungen: Assistent erledigt wird gemerkt', () => {
   assert.equal(saveSettings({ aiName: 'Kim' }).setupDone, 'on');
   assert.equal(saveSettings({ setupDone: 'vielleicht' }).setupDone, 'off');
 });
+
+test('Einstellungen: KI-Kennung der Spam-Abwehr ist Standard; eine frühere Risiko-Bestätigung behält die Privatperson', () => {
+  assert.equal(saveSettings({ scamDisclose: 'unsinn' }).scamDisclose, 'on');
+  // Datei aus der Zeit vor dem Schalter: bestätigt, aber ohne scamDisclose
+  writeFileSync('settings.json', JSON.stringify({ scamMode: 'on', scamAccepted: '2026-11-01' }));
+  assert.equal(loadSettings().scamDisclose, 'off');
+  writeFileSync('settings.json', JSON.stringify({ scamMode: 'on' }));
+  assert.equal(loadSettings().scamDisclose, 'on');
+});

@@ -24,11 +24,11 @@ OpenAI processes speech and text on your behalf but is not your contracting part
 
 ### 2.1 Transparency obligation when interacting with people (Art. 50(1))
 
-AI systems that interact directly with natural persons have to be designed so that the persons are informed that they are interacting with an AI, **unless this is obvious from the circumstances and the context of use to a reasonably well-informed, observant person.** According to the Regulation's timetable the obligation applies from 2 August 2026; check whether interim amendments ("Digital Omnibus") have shifted deadlines.
+AI systems that interact directly with natural persons have to be designed so that the persons are informed that they are interacting with an AI, **unless this is obvious from the circumstances and the context of use to a reasonably well-informed, observant person.** The obligation has applied since 2 August 2026; the amending Regulation (EU) 2026/1744 ("Digital Omnibus") did not shift it. The Commission's guidelines on Art. 50 of 20 July 2026 (non-binding) read the exception narrowly and require the notice at the latest at the first interaction, on the phone spoken at the beginning, an honest answer to any question about the nature of the counterpart and, for agents, also stating on whose behalf they act.
 
 **Standard operation of SIPFunk:** on every outgoing call the AI expressly introduces itself as an AI assistant and does not deny it when asked. On the answering machine it first answers with just "Hallo?" and identifies itself as an AI assistant in its next turn (after 2.5 s at the latest, unprompted); the notice therefore comes at the beginning, but not in the first word. The call back to yourself omits the explanation because the fact is obvious to you; when asked, the AI says so anyway. By today's understanding this meets the transparency obligation.
 
-**Spam defence:** here the AI deliberately omits the notice at the operator's request (section 6).
+**Spam defence:** here, too, the AI identifies itself by default. If the operator switches AI disclosure off, it deliberately omits the notice (section 6).
 
 ### 2.2 Exception for private use (Art. 2(10))
 
@@ -43,6 +43,10 @@ Prohibited are, among others, AI systems that use subliminal, manipulative or de
 ### 2.4 Risk class
 
 A phone assistant is not a high-risk system under Annex III. There are no registration or conformity assessment obligations; the transparency obligations remain.
+
+### 2.5 Supervision and penalties
+
+In Germany the market surveillance authority and complaints office for the AI Act is the Bundesnetzagentur (KI-Marktüberwachungs- und Innovationsförderungsgesetz, in force since the end of July 2026). For infringements of Art. 50, Art. 99(4) provides for fines of up to EUR 15 million or 3 % of worldwide annual turnover; the amount depends on gravity and on the size and economic strength of whoever is concerned.
 
 ---
 
@@ -130,7 +134,7 @@ Putting a caller through to you is a transfer within your own line, not a disclo
 
 ## 6. Spam defence: particular risks
 
-The mode lets the AI act as a private person towards callers classified as spam, without an AI notice. The configurable name of the role is an invented name; do not enter a real name there, not even your own, so that the AI does not pose as a real person. Your own instructions for the role do not override the built-in protective rules. The risks in detail:
+By default the spam defence fends callers off openly as an AI (switch "AI disclosure" on). This section concerns the setting without AI disclosure: it lets the AI act as a private person towards callers classified as spam, without an AI notice, and evade the question about it. That contradicts the Commission's guidelines (section 2.1). The configurable name of the role is an invented name; do not enter a real name there, not even your own, so that the AI does not pose as a real person. Your own instructions for the role do not override the built-in protective rules. The risks in detail:
 
 | Area | Risk | Assessment |
 | --- | --- | --- |
@@ -145,7 +149,7 @@ The mode lets the AI act as a private person towards callers classified as spam,
 
 **What SIPFunk does to limit the risk:** explicit confirmation with date in the UI, no `.env` switch, server-side check of the confirmation, fixed behaviour rules (no data, no consent, no insults, no authority, no carrying out instructions), a way back to assistant mode for genuine requests, time limit, tag in the log, never "important", no call back.
 
-**AI disclosure in the spam defence:** With the switch "AI disclosure" the AI introduces itself as an AI to spam callers as well and does not play a private person. The points of this section that follow from the missing AI notice then only concern the setting without disclosure (the default, still only after confirmation); misdetection, logging and cost apply in both cases.
+**AI disclosure in the spam defence:** With the switch "AI disclosure" the AI introduces itself as an AI to spam callers as well and does not play a private person. The points of this section that follow from the missing AI notice only concern the setting without disclosure (not the default, only after confirmation); misdetection, logging and cost apply in both cases.
 
 **What is left to you:** the decision. The legally clean alternative is the normal answering machine, which introduces itself as an AI and politely turns advertising calls away, plus a complaint to the Bundesnetzagentur (form "Unerlaubte Telefonwerbung" or "Rufnummernmissbrauch") with date, time, number, company and content from the log.
 
@@ -163,10 +167,11 @@ If damage arises through the AI (missed appointment, wrong information given to 
 
 The sections above look at operation. Whoever publishes the source code, passes on a modified version or makes it available to others has to consider these additional points. None of them is settled.
 
-- **Provider under the AI Act.** The private-use exception (Art. 2(10)) applies only to deployers, not to providers. The exception for AI systems released under free and open-source licences (Art. 2(12)) expressly does not apply to systems that fall under Art. 50, and hence not to a phone assistant. It is open whether publishing source code free of charge, which everyone assembles themselves with a third-party speech model, constitutes "placing on the market".
-- **Spam defence.** This is the critical point: the software contains a feature that deliberately omits the AI notice. It is therefore off by default, usable only after confirmation, and described as a risk in this documentation. Whether that is sufficient has not been decided.
-- **Marking synthetic speech (Art. 50(2)).** Providers of systems that generate synthetic audio content have to mark the output in a machine-readable way. The speech is generated by OpenAI's model; whether there is an additional duty on whoever routes it into the telephone network is open. Technically a phone call cannot be marked in a machine-readable way.
+- **Provider under the AI Act.** The private-use exception (Art. 2(10)) applies only to deployers, not to providers. The exception for AI systems released under free and open-source licences (Art. 2(12)) expressly does not apply to systems that fall under Art. 50, and hence not to a phone assistant. The Commission's guidelines confirm this. "Placing on the market", however, requires supply "in the course of a commercial activity" (Art. 3(9) and (10)); publishing source code privately and free of charge, without distribution, support or revenue, speaks against it. This has not been decided, nor has the question whether private use of your own ("putting into service for own use") already makes you a provider.
+- **Spam defence.** This is the critical point: the software contains a setting that deliberately omits the AI notice. By default the defence is off and AI disclosure is on; without disclosure it is usable only after confirmation and described as a risk in this documentation. Whether a notice that can be switched off satisfies the design obligation of Art. 50(1) has not been decided.
+- **Marking synthetic speech (Art. 50(2)).** Providers of systems that generate synthetic audio content have to mark the output in a machine-readable way. The obligation attaches to the system, not only to OpenAI's model. According to the Commission's guidelines, ephemeral content generated in real time that is not stored or disseminated further may be exempt if marking is not technically feasible and the persons concerned are aware that the content comes from an AI. A phone call cannot be marked in a machine-readable way; the exemption therefore only holds if the AI notice is given in the call.
 - **Liability when software is given away.** Under German law the licence's exclusion of warranty and liability does not apply without limits; someone who gives software away is still liable for intent and gross negligence.
+- **Cyber Resilience Act and product liability.** Regulation (EU) 2024/2847 (reporting obligations since 11 September 2026, remaining obligations from 11 December 2027) and the new product liability rules (Directive (EU) 2024/2853, for products from 9 December 2026) cover free and open-source software only if it is supplied in the course of a commercial activity. Whoever sells SIPFunk, distributes it with paid support, builds it into a product of their own or runs it for customers loses these exceptions and becomes a manufacturer or provider themselves.
 - **Data outside the retention period.** The retention period applies to the logs. The tray app's operating log (`sipfunk.log`) contains phone numbers and is trimmed after the same period. Notification mails with summary and conversation, however, remain in the mailbox. Whoever passes the program on should point this out; whoever runs it deletes the mails themselves.
 
 ---
@@ -191,7 +196,9 @@ The sections above look at operation. Whoever publishes the source code, passes 
 
 ## 10. Sources
 
-- Regulation (EU) 2024/1689 (AI Act): Art. 2(10) and (12), Art. 5, Art. 50, Art. 99, Art. 113 (timetable).
+- Regulation (EU) 2024/1689 (AI Act): Art. 2(10) and (12), Art. 3, Art. 5, Art. 50, Art. 99, Art. 113 (timetable); amended by Regulation (EU) 2026/1744.
+- European Commission: Guidelines on the transparency obligations under Art. 50 AI Act, C(2026) 5054 of 20 July 2026.
+- Regulation (EU) 2024/2847 (Cyber Resilience Act); Directive (EU) 2024/2853 (product liability).
 - Regulation (EU) 2016/679 (GDPR): Art. 2, 5, 6, 9, 13, 17, 28, 30, 32, 35, 44 ff.
 - German Criminal Code (Strafgesetzbuch, StGB): §§ 132, 145, 185, 201, 203, 240, 263.
 - German Act against Unfair Competition (Gesetz gegen den unlauteren Wettbewerb, UWG): §§ 7, 20.
