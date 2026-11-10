@@ -102,7 +102,8 @@ export function startWebServer(opts: WebServerOptions): () => void {
     try {
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         const html = await readFile(PUBLIC_DIR + 'index.html');
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        // Nicht zwischenspeichern: Nach einem Update soll der Browser nicht die alte Oberfläche zeigen
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(html);
       }
       if (req.method === 'GET' && url.pathname === '/ring.html') {

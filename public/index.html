@@ -5,14 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SIPFunk</title>
 <style>
-  /* Tokens: semantische Farben mit Light/Dark-Variante. Gemessene Kontraste (WCAG) gegen die Flächen:
-     Hell: --text-2 5.7:1 auf --surface, 5.0:1 auf --surface-2; --text-3 5.3:1 / 4.7:1; Weiß auf --accent 5.6:1, auf --danger 5.4:1.
-     Dunkel: --text-2 6.8:1 / 5.9:1; --text-3 5.9:1 / 5.1:1; --accent-text auf --accent 6.4:1; --danger-text auf --danger 6.0:1; Weiß auf --ki 5.9:1. */
+  /* Tokens: semantische Farben mit Light/Dark-Variante. Berechnete Kontraste (WCAG 2) gegen die Flächen:
+     Hell:   --text-2 5.7:1 auf --surface, 5.0:1 auf --surface-2, 4.8:1 auf der markierten Zeile; --text-3 ist derselbe Ton.
+             Weiß auf --accent 5.6:1, auf --danger 5.4:1, auf --ok 5.4:1.
+             --control (Ränder von Feldern, Schalter „aus“) 3.6:1 auf --surface, 3.2:1 auf --surface-2 – Mindestwert für Bedienelemente 3:1.
+             Kennzeichnungen (Pills) nutzen die dunkleren -ink-Töne: 6.0–6.4:1 auf ihrer getönten Fläche.
+     Dunkel: --text-2 6.8:1 / 5.9:1; --text-3 5.9:1 / 5.1:1; --accent-text auf --accent 6.4:1; --danger-text auf --danger 6.0:1;
+             Weiß auf --ki 5.9:1; --control 4.0:1 auf --surface, 3.5:1 auf --surface-2; Weiß auf --switch-on 4.1:1. */
   :root {
-    --bg: #f5f5f7; --surface: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de;
-    --text: #1d1d1f; --text-2: #66666b; --text-3: #6b6b70;
-    --accent: #0066cc; --accent-text: #ffffff;
-    --danger: #d70015; --danger-text: #ffffff; --ok: #1f7a3a; --warn: #9a5b00;
+    --bg: #f5f5f7; --surface: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b;
+    --text: #1d1d1f; --text-2: #66666b; --text-3: #66666b;
+    --accent: #0066cc; --accent-text: #ffffff; --accent-ink: #004a99;
+    --danger: #d70015; --danger-text: #ffffff; --ok: #1f7a3a; --ok-ink: #17602d; --warn: #9a5b00; --warn-ink: #734400;
+    --switch-on: #1f7a3a;
     --ki: #0066cc; --partner: #e8e8ed;
     --radius: 12px; --radius-s: 8px;
     --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
@@ -20,16 +25,17 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161618; --surface: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f;
+      --bg: #161618; --surface: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85;
       --text: #f2f2f4; --text-2: #a6a6ad; --text-3: #9a9aa1;
-      --accent: #4c9eff; --accent-text: #0b1a2b;
-      --danger: #ff5c5c; --danger-text: #2b0a0a; --ok: #4cd472; --warn: #ffc24d;
+      --accent: #4c9eff; --accent-text: #0b1a2b; --accent-ink: #8cc2ff;
+      --danger: #ff5c5c; --danger-text: #2b0a0a; --ok: #4cd472; --ok-ink: #4cd472; --warn: #ffc24d; --warn-ink: #ffc24d;
+      --switch-on: #2a8f4c;
       --ki: #2a62bd; --partner: #2e2e33;
       --shadow: none;
     }
   }
-  @media (prefers-contrast: more) { :root { --line: #8a8a8f; --text-2: #3a3a3f; --text-3: #4a4a4f; } }
-  @media (prefers-contrast: more) and (prefers-color-scheme: dark) { :root { --line: #8a8a8f; --text-2: #d6d6db; --text-3: #c4c4c9; } }
+  @media (prefers-contrast: more) { :root { --line: #8a8a8f; --control: #55555a; --text-2: #3a3a3f; --text-3: #4a4a4f; } }
+  @media (prefers-contrast: more) and (prefers-color-scheme: dark) { :root { --line: #8a8a8f; --control: #b4b4bb; --text-2: #d6d6db; --text-3: #c4c4c9; } }
   * { box-sizing: border-box; }
   html { color-scheme: light dark; }
   body {
@@ -40,16 +46,22 @@
   a { color: var(--accent); }
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
   /* Kopfleiste: eine Zeile mit Marke, Bereichen und Leitungszustand. Ruhig, solange nichts läuft. */
   header { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
   .line { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 24px; min-height: 52px; }
-  .brand { font-weight: 700; letter-spacing: -.01em; font-size: 16px; }
-  .conn { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; white-space: nowrap; }
+  .brand { font-weight: 700; letter-spacing: -.01em; font-size: 16px; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  /* Marke: Funkwellen über einem Punkt – „Funk“ im Namen. Schweigt, solange die Leitung nicht steht. */
+  .brand svg { width: 18px; height: 18px; flex: none; color: var(--text-3); }
+  .brand.on svg { color: var(--accent); }
+  .conn { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; min-width: 0; }
+  .conn #regtext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .conn .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-3); flex: none; }
   .conn .dot.on { background: var(--ok); }
-  .conn .dot.off { background: var(--danger); }
+  /* Zustand nicht nur über die Farbe: „aus“ ist ein Ring, „an“ ein gefüllter Punkt (der Text daneben sagt es ohnehin) */
+  .conn .dot.off { background: transparent; box-shadow: inset 0 0 0 2px var(--danger); }
   /* Navigation: Tab-Leiste, Hauptbereiche, immer sichtbar */
   nav.tabs { display: flex; gap: 2px; align-self: stretch; }
   nav.tabs button { border: 0; background: transparent; color: var(--text-2); font-weight: 500; padding: 0 14px; min-height: 52px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 7px; }
@@ -73,8 +85,8 @@
   .controls { display: flex; align-items: center; gap: 10px; flex: none; }
   @media (max-width: 900px) {
     .line { flex-wrap: wrap; gap: 0 16px; padding-top: 8px; }
-    nav.tabs { order: 3; flex: 1 1 100%; }
-    nav.tabs button { min-height: 40px; padding: 0 10px; }
+    nav.tabs { order: 3; flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; }
+    nav.tabs button { min-height: 40px; padding: 0 10px; white-space: nowrap; }
     .callbar .inner { flex-wrap: wrap; gap: 8px 16px; }
     .callbar .meta { flex: 1 1 100%; white-space: normal; }
   }
@@ -85,9 +97,10 @@
   .btn:disabled { opacity: .4; cursor: default; }
   .btn.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
   .btn.primary:hover { background: var(--accent); filter: brightness(1.08); }
+  .btn.primary:disabled { filter: none; }
   .btn.danger { background: var(--danger); color: var(--danger-text); font-weight: 700; font-size: 15px; padding: 9px 22px; min-height: 38px; }
   .btn.danger:hover { background: var(--danger); filter: brightness(1.1); }
-  .btn.quiet { background: transparent; border-color: var(--line); }
+  .btn.quiet { background: transparent; border-color: var(--control); }
   .btn.quiet:hover { background: var(--surface-2); }
   .btn.small { padding: 4px 10px; min-height: 28px; font-size: 13px; }
   .btn.destructive { background: var(--danger); color: var(--danger-text); font-weight: 600; }
@@ -108,44 +121,51 @@
   .subnav button { border: 0; background: transparent; color: var(--text-2); text-align: left; padding: 6px 10px; min-height: 32px; border-radius: var(--radius-s); cursor: pointer; font-weight: 500; }
   .subnav button:hover { background: var(--surface-2); color: var(--text); }
   .subnav button[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--text); font-weight: 600; }
+  .subnav button[hidden] { display: none; }
   .subnav .save { margin-top: 12px; display: grid; gap: 6px; }
   .subnav .save .hint { font-size: 12px; }
   .settings .card { scroll-margin-top: calc(var(--header-h) + 20px); }
   @media (max-width: 900px) {
     .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-    .subnav { position: sticky; top: var(--header-h); z-index: 4; background: var(--bg); display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0; align-items: center; }
-    .subnav .save { margin: 0 0 0 auto; grid-template-columns: auto; }
+    .subnav { position: sticky; top: var(--header-h); z-index: 4; background: var(--bg); display: flex; gap: 4px; padding: 8px 0; align-items: center; overflow-x: auto; scrollbar-width: none; }
+    .subnav button { white-space: nowrap; flex: none; }
+    .subnav .save { margin: 0 0 0 auto; grid-template-columns: auto; position: sticky; right: 0; background: var(--bg); padding-left: 8px; flex: none; }
     .subnav .save .hint { display: none; }
   }
   .col { display: grid; gap: 20px; align-content: start; }
   .card.narrow { max-width: 840px; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
-  .card > .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  .card > .head h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
+  .card > .head { display: flex; align-items: center; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); min-height: 52px; }
+  .card > .head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.005em; }
   .card > .body { padding: 16px; }
   .card > .body > p.hint:first-child { margin-bottom: 12px; }
   .hint { color: var(--text-2); font-size: 13px; margin: 0; }
-  .empty { color: var(--text-3); font-size: 13px; padding: 18px 16px; text-align: center; }
+  .empty { color: var(--text-2); font-size: 13px; padding: 22px 16px; text-align: center; }
+  .empty b { display: block; color: var(--text); font-weight: 600; font-size: 14px; margin-bottom: 2px; }
 
   /* Formular */
   .field { display: grid; gap: 5px; }
   .field > span { font-size: 12px; font-weight: 500; color: var(--text-2); }
-  .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
+  .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--control); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
+  .field input:disabled, .field select:disabled { opacity: .5; }
   .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
   .field textarea { min-height: 72px; resize: vertical; }
   .field small { color: var(--text-3); font-size: 12px; }
-  .grid { display: grid; gap: 12px; }
+  .grid { display: grid; gap: 12px; align-items: start; }
   .grid.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .grid.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   @media (max-width: 1100px) { .grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .span { grid-column: 1 / -1; }
-  .dial { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 150px) auto; gap: 12px; align-items: end; }
+  .dial { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
   .dial > * { min-width: 0; }
-  .dial input { font-size: 18px; font-weight: 600; letter-spacing: .02em; }
-  .dial .btn { white-space: nowrap; }
+  .dial input { font-size: 18px; font-weight: 600; letter-spacing: .02em; min-height: 40px; }
+  .dial .btn { white-space: nowrap; min-height: 40px; padding-inline: 20px; font-size: 15px; }
+  .dial-note { margin-top: 8px; color: var(--warn-ink); font-size: 13px; }
+  .dial-note[hidden] { display: none; }
   .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
-  .subhead { grid-column: 1 / -1; margin: 10px 0 -4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .subhead { grid-column: 1 / -1; margin: 10px 0 -4px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .profile { border: 1px solid var(--line); border-radius: var(--radius-s); padding: 12px; display: grid; gap: 10px; background: var(--surface-2); }
   .profile .grid { gap: 10px; }
   .profile .field input, .profile .field select, .profile .field textarea { background: var(--surface); }
@@ -166,22 +186,22 @@
   .contact.active, .call.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .contact .n, .call .t { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .contact .num { color: var(--text-2); font-size: 13px; }
-  .contact .tools, .call .tools { display: flex; gap: 4px; opacity: .55; transition: opacity .12s; flex-wrap: wrap; justify-content: flex-end; }
-  .contact:hover .tools, .contact:focus-within .tools, .contact.active .tools, .call:hover .tools, .call:focus-within .tools, .call.active .tools { opacity: 1; }
+  .contact .tools, .call .tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .contact:focus-visible, .call.row:focus-visible { outline-offset: -2px; }
   .call.row { cursor: pointer; }
   .call .s { color: var(--text-2); font-size: 13px; grid-column: 1 / -1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .call .m { color: var(--text-3); font-size: 12px; }
+  .call .m { color: var(--text-3); font-size: 12px; white-space: nowrap; }
   .badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
-  .badge.owner { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); border-color: transparent; }
-  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); vertical-align: middle; }
-  .pill.in { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .badge.owner { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok-ink); border-color: transparent; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn-ink); vertical-align: middle; white-space: nowrap; }
+  .pill.in { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); }
   .pill.out { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
   .ringbox { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
   .ringbox .v { font-weight: 600; }
   .ringbox .v[data-l="spam"] { color: var(--danger); }
-  .ringbox .v[data-l="suspicious"] { color: var(--warn); }
-  .ringbox .v[data-l="contact"], .ringbox .v[data-l="ok"] { color: var(--ok); }
-  .search { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
+  .ringbox .v[data-l="suspicious"] { color: var(--warn-ink); }
+  .ringbox .v[data-l="contact"], .ringbox .v[data-l="ok"] { color: var(--ok-ink); }
+  .search { width: 100%; border: 1px solid var(--control); border-radius: var(--radius-s); background: var(--surface); padding: 7px 10px; min-height: 32px; }
   .search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
   .list-scroll { max-height: calc(100vh - 260px); overflow: auto; }
 
@@ -208,9 +228,12 @@
   /* Schalter (An/Aus) */
   .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; cursor: pointer; }
   .switch > span { font-size: 13px; }
-  .switch input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; margin: 0; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .switch input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; margin: 0; border-radius: 999px; background: var(--control); position: relative; cursor: pointer; transition: background .15s; flex: none; }
   .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
-  .switch input:checked { background: var(--ok); }
+  .switch input:checked { background: var(--switch-on); }
+  /* Zustand zusätzlich als Zeichen im Knopf, nicht nur als Farbe und Lage */
+  .switch input:checked::after { background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5.5 10.5l3 3 6-7' fill='none' stroke='%231f7a3a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat; }
+  .switch > span small { display: block; color: var(--text-2); font-size: 12px; margin-top: 1px; }
   .switch input:checked::after { transform: translateX(16px); }
   .switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -219,22 +242,25 @@
   .toast { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 10px 14px; border-radius: var(--radius-s); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-left: 3px solid var(--warn); box-shadow: 0 8px 30px rgba(0,0,0,.18); font-size: 13px; }
   .toast.error { border-left-color: var(--danger); }
   .toast.ok { border-left-color: var(--ok); }
-  .toast span { flex: 1; }
-  .toast button { border: 0; background: transparent; color: var(--text-2); cursor: pointer; padding: 0 4px; font-size: 15px; line-height: 1; min-width: 28px; min-height: 20px; }
+  .toast span { flex: 1; overflow-wrap: anywhere; }
+  .toast button { border: 0; background: transparent; color: var(--text-2); cursor: pointer; padding: 0 4px; font-size: 15px; line-height: 1; min-width: 28px; min-height: 28px; margin: -4px -4px -4px 0; border-radius: 6px; }
   .toast button:hover { color: var(--text); }
 
   /* Dialoge */
-  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); padding: 0; width: min(560px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--text); padding: 0; width: min(560px, 92vw); max-height: 92vh; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog[open] { display: flex; flex-direction: column; }
+  dialog > form { display: flex; flex-direction: column; min-height: 0; }
+  dialog .body { overflow: auto; }
   dialog::backdrop { background: rgba(0,0,0,.45); }
   dialog .head { padding: 16px 20px 0; }
   dialog h3 { margin: 0 0 4px; font-size: 17px; }
   dialog .body { padding: 14px 20px; display: grid; gap: 12px; }
-  dialog .foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; }
-  .confirm-num { font-size: 30px; font-weight: 700; letter-spacing: .03em; margin: 6px 0 2px; }
-  .field-head { display: flex; justify-content: space-between; align-items: baseline; }
+  dialog .foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .confirm-num { font-size: 30px; font-weight: 700; letter-spacing: .03em; margin: 6px 0 2px; overflow-wrap: anywhere; }
+  .field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 500; color: var(--text-2); }
   .linkish { border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; padding: 0 2px; min-height: 20px; }
   .linkish:hover { text-decoration: underline; }
-  .voice { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .voice { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .voice:last-child { border-bottom: 0; }
   .voice .name { flex: 1; font-weight: 500; }
   .voice .name small { color: var(--text-2); font-weight: 400; margin-left: 6px; }
@@ -253,14 +279,14 @@
 <body>
 <header id="header">
   <div class="line">
-    <div class="brand">SIPFunk</div>
+    <div class="brand" id="brand"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="14" r="2" fill="currentColor"/><path d="M4.8 10.2a6 6 0 0 1 8.4 0M2 7.2a10 10 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>SIPFunk</div>
     <nav class="tabs" role="tablist" aria-label="Bereiche">
-      <button role="tab" data-page="dashboard" aria-selected="true" aria-controls="page-dashboard">Dashboard <span class="live" id="tab-live" aria-label="Gespräch läuft"></span></button>
-      <button role="tab" data-page="calls" aria-selected="false" aria-controls="page-calls">Anrufe</button>
-      <button role="tab" data-page="contacts" aria-selected="false" aria-controls="page-contacts">Kontakte</button>
-      <button role="tab" data-page="settings" aria-selected="false" aria-controls="page-settings">Einstellungen</button>
+      <button role="tab" id="tab-dashboard" data-page="dashboard" aria-selected="true" aria-controls="page-dashboard">Dashboard <span class="live" id="tab-live" role="img" aria-label="Gespräch läuft"></span></button>
+      <button role="tab" id="tab-calls" data-page="calls" aria-selected="false" aria-controls="page-calls" tabindex="-1">Anrufe</button>
+      <button role="tab" id="tab-contacts" data-page="contacts" aria-selected="false" aria-controls="page-contacts" tabindex="-1">Kontakte</button>
+      <button role="tab" id="tab-settings" data-page="settings" aria-selected="false" aria-controls="page-settings" tabindex="-1">Einstellungen</button>
     </nav>
-    <div class="conn" id="conn" aria-live="polite"><span id="regdot" class="dot"></span><span id="regtext">verbinde …</span></div>
+    <div class="conn" id="conn" role="status"><span id="regdot" class="dot" aria-hidden="true"></span><span id="regtext">verbinde …</span></div>
   </div>
   <div class="callbar" id="callbar" data-k="" hidden>
     <div class="inner">
@@ -285,22 +311,26 @@
 
 <main>
   <!-- ================= Dashboard ================= -->
-  <section class="page" id="page-dashboard" role="tabpanel">
+  <section class="page" id="page-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
+    <h1 class="sr-only">Dashboard</h1>
     <div class="two">
       <div class="col">
         <section class="card">
           <div class="head"><h2>Anruf</h2><span id="contact-hint" class="hint"></span></div>
           <div class="body">
             <div class="dial">
-              <label class="field"><span>Rufnummer</span><input id="target" placeholder="**610 oder 0171 …" autocomplete="off" inputmode="tel"></label>
-              <label class="field"><span>Audio</span><select id="mode"></select></label>
+              <label class="field"><span>Rufnummer</span><input id="target" placeholder="**610 oder 0171 …" autocomplete="off" inputmode="tel" aria-describedby="dial-note"></label>
               <button id="prepare" class="btn primary">Anrufen …</button>
             </div>
+            <p class="dial-note" id="dial-note" hidden></p>
             <label class="field" style="margin-top:12px"><span>Auftrag an die KI</span><textarea id="task" placeholder="z. B. Frag nach den Öffnungszeiten am Samstag."></textarea></label>
+            <div class="grid c2" style="margin-top:12px" id="mode-row">
+              <label class="field"><span>Art des Anrufs</span><select id="mode"></select><small>Echo und Testton prüfen Leitung und Ton ohne KI und ohne Kosten.</small></label>
+            </div>
             <div id="persona">
               <div class="grid c2" style="margin-top:12px">
                 <label class="field"><span>Stil</span><select id="p-persona"></select></label>
-                <label class="field"><span class="field-head">Stimme <button type="button" id="voices-open" class="linkish">Probe hören</button></span><select id="p-voice"></select></label>
+                <div class="field"><span class="field-head"><label for="p-voice">Stimme</label> <button type="button" id="voices-open" class="linkish">Probe hören</button></span><select id="p-voice"></select></div>
                 <label class="field"><span>Anrede</span><select id="p-address"><option value="sie">Sie</option><option value="du">Du</option></select></label>
                 <label class="field"><span>Modell</span><select id="p-model"></select></label>
               </div>
@@ -315,53 +345,53 @@
         <section class="card">
           <div class="head"><h2>Letzte Anrufe</h2><button class="btn small quiet" data-goto="calls">Alle anzeigen</button></div>
           <div id="recent"></div>
-          <div id="recent-empty" class="empty">Noch keine Anrufe.</div>
+          <div id="recent-empty" class="empty"><b>Noch keine Anrufe</b>Nummer und Auftrag oben eintragen, dann „Anrufen …“.</div>
         </section>
       </div>
 
       <div class="col">
         <section class="card">
           <div class="head"><h2>Transkript</h2><span id="usage"></span></div>
-          <div id="transcript" class="transcript"><div class="empty">Kein Gespräch aktiv. Hier erscheint das laufende Gespräch live.</div></div>
+          <div id="transcript" class="transcript" tabindex="0" aria-label="Transkript des laufenden Gesprächs"><div class="empty"><b>Kein Gespräch aktiv</b>Hier liest du live mit, was die KI und dein Gegenüber sagen.</div></div>
           <div id="summary" class="summary"></div>
           <div id="result"></div>
         </section>
 
         <section class="card">
-          <div class="head"><h2>Protokoll</h2><button id="log-clear" class="btn small quiet">Leeren</button></div>
-          <pre id="log"></pre>
+          <div class="head"><h2>Systemprotokoll</h2><button id="log-clear" class="btn small quiet">Leeren</button></div>
+          <pre id="log" tabindex="0" aria-label="Systemprotokoll"></pre>
         </section>
       </div>
     </div>
   </section>
 
   <!-- ================= Anrufe ================= -->
-  <section class="page" id="page-calls" role="tabpanel" hidden>
+  <section class="page" id="page-calls" role="tabpanel" aria-labelledby="tab-calls" hidden>
     <div class="page-head">
       <h1 id="calls-title">Anrufe</h1>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="actions" style="flex:1 1 260px;justify-content:flex-end">
         <button id="calls-all" class="btn small quiet" style="display:none">Filter aufheben</button>
-        <input id="calls-filter" class="search" type="search" placeholder="Name oder Nummer suchen" aria-label="Anrufe durchsuchen" style="width:260px">
+        <input id="calls-filter" class="search" type="search" placeholder="Name oder Nummer suchen" aria-label="Anrufe durchsuchen" style="flex:0 1 260px;width:auto;min-width:0">
       </div>
       <p class="hint">Gespeicherte Protokolle, automatisch gelöscht nach <span id="retention">7</span> Tagen. Jeder Anruf ist als „Eingehend“, „Ausgehend“ oder „Rückruf an dich“ gekennzeichnet, Spam-Gespräche zusätzlich als „Spam-Abwehr“.</p>
     </div>
     <div class="two">
       <section class="card">
         <div id="calls" class="list-scroll"></div>
-        <div id="calls-empty" class="empty">Keine gespeicherten Anrufe.</div>
+        <div id="calls-empty" class="empty"><b>Keine Anrufe gefunden</b>Gespräche der KI erscheinen hier mit Transkript und Zusammenfassung.</div>
       </section>
       <section class="card" id="call-detail-card">
         <div class="detail-head" id="call-detail-head"><div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div></div>
         <div id="call-transcript" class="transcript" style="display:none"></div>
         <div id="call-summary" class="summary"></div>
-        <div class="head" style="border-top:1px solid var(--line);border-bottom:0"><span id="call-usage"></span></div>
+        <div style="padding:10px 16px;border-top:1px solid var(--line)" id="call-usage-row" hidden><span id="call-usage"></span></div>
         <div id="call-actions" class="detail-actions" style="display:none"></div>
       </section>
     </div>
   </section>
 
   <!-- ================= Kontakte ================= -->
-  <section class="page" id="page-contacts" role="tabpanel" hidden>
+  <section class="page" id="page-contacts" role="tabpanel" aria-labelledby="tab-contacts" hidden>
     <div class="page-head">
       <h1>Kontakte</h1>
       <button id="contact-new" class="btn primary">Neuer Kontakt</button>
@@ -369,15 +399,15 @@
     </div>
     <section class="card narrow">
       <div id="contacts"></div>
-      <div id="contacts-empty" class="empty">Noch keine Kontakte. „Neuer Kontakt“ legt den ersten an.</div>
+      <div id="contacts-empty" class="empty"><b>Noch keine Kontakte</b>„Neuer Kontakt“ legt den ersten an.</div>
     </section>
   </section>
 
   <!-- ================= Einstellungen ================= -->
-  <section class="page" id="page-settings" role="tabpanel" hidden>
+  <section class="page" id="page-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
     <div class="page-head">
       <h1>Einstellungen</h1>
-      <p class="hint">Alles hier wird in <code>settings.json</code> gespeichert und gilt ab dem nächsten Anruf. Zugangsdaten (FRITZ!Box, OpenAI, E-Mail) stehen nur in der <code>.env</code>.</p>
+      <p class="hint">Änderungen gelten ab dem nächsten Anruf, sobald du sie gespeichert hast.</p>
     </div>
     <div class="settings">
       <nav class="subnav" aria-label="Abschnitte der Einstellungen">
@@ -445,7 +475,7 @@
             <div id="mail-smtp" class="grid c2" style="margin-top:12px">
               <label class="field"><span>Postfach / Benutzername</span><input id="p-smtp-user" type="email" placeholder="name@anbieter.de" autocomplete="off"></label>
               <label class="field"><span>Passwort</span><input id="p-smtp-pass" type="password" placeholder="leer = kein Passwort" autocomplete="new-password"><small>Bei Google, Apple, Yahoo und Telekom ein App-Passwort, nicht das Konto-Passwort.</small></label>
-              <div class="span" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="mail-auto" class="btn small">Automatisch einrichten</button><span class="hint" id="mail-auto-hint">Sucht Server, Port und Verschlüsselung für die Adresse (Thunderbird-Datenbank, bekannte Anbieter, DNS).</span></div>
+              <div class="span actions"><button type="button" id="mail-auto" class="btn small">Automatisch einrichten</button><span class="hint" id="mail-auto-hint">Sucht Server, Port und Verschlüsselung für die Adresse (Thunderbird-Datenbank, bekannte Anbieter, DNS).</span></div>
               <label class="field"><span>SMTP-Server</span><input id="p-smtp-host" placeholder="smtp.anbieter.de" autocomplete="off"></label>
               <label class="field"><span>Port</span><input id="p-smtp-port" type="number" min="1" max="65535" placeholder="587"></label>
               <label class="field"><span>Verschlüsselung</span><select id="p-smtp-secure"><option value="off">STARTTLS (meist Port 587)</option><option value="on">SSL/TLS (meist Port 465)</option></select></label>
@@ -457,7 +487,7 @@
               <label class="field"><span>Client-ID</span><input id="p-mail-client-id" autocomplete="off"></label>
               <label class="field"><span>Client-Secret</span><input id="p-mail-client-secret" type="password" autocomplete="new-password" placeholder="leer, wenn der Client keins hat"></label>
               <p class="hint span" style="margin:0" id="mail-oauth-hint"></p>
-              <div class="span" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="mail-login" class="btn small">Mail-Konto verbinden</button><span class="hint">Öffnet die Anmeldung des Anbieters im Browser; der Zugang landet in <code>mail-token.json</code>.</span></div>
+              <div class="span actions"><button type="button" id="mail-login" class="btn small">Mail-Konto verbinden</button><span class="hint">Öffnet die Anmeldung des Anbieters im Browser; der Zugang landet in <code>mail-token.json</code>.</span></div>
             </div>
             <div class="subhead" style="margin-top:16px">Aufbau der Benachrichtigungs-Mail</div>
             <div class="grid" style="margin-top:8px">
@@ -465,7 +495,7 @@
               <label class="field"><span>Text</span><textarea id="p-mail-body" style="min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:13px" spellcheck="false"></textarea></label>
               <p class="hint" style="margin:0">Variablen in geschweiften Klammern werden je Anruf ersetzt: <code>{status}</code> (Wichtig, Anruf, Spam abgewehrt), <code>{anrufer}</code> (Name, sonst Nummer), <code>{name}</code>, <code>{nummer}</code>, <code>{kontakt}</code> (Name und Nummer), <code>{anliegen}</code>, <code>{zeit}</code>, <code>{dauer}</code>, <code>{gewaehlt}</code> (eigene Nummer), <code>{fuer}</code>, <code>{leitung}</code>, <code>{todo}</code>, <code>{worum}</code>, <code>{zusammenfassung}</code>, <code>{einschaetzung}</code>, <code>{verlauf}</code>, <code>{link}</code>, <code>{id}</code>, <code>{kosten}</code>. Zeilen und Absätze, deren Variablen leer sind, entfallen (bei Spam etwa der Verlauf). Zeilen in GROSSBUCHSTABEN werden in der HTML-Ansicht zu Überschriften. Feld leeren und speichern stellt den Standard wieder her; „Probe-Mail senden“ zeigt das Ergebnis mit Beispieldaten.</p>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px">
+            <div class="actions" style="margin-top:14px">
               <button type="button" id="mail-verify" class="btn small">Verbindung prüfen</button>
               <button type="button" id="mail-test" class="btn small">Probe-Mail senden</button>
               <span class="hint">Beide speichern vorher die Einstellungen. Kennwörter liegen in <code>settings.json</code> im Datenordner.</span>
@@ -473,7 +503,7 @@
           </div>
         </section>
         <section class="card" id="settings-scam">
-          <div class="head"><h2>Spam-Abwehr (Scam-Modus)</h2></div>
+          <div class="head"><h2>Spam-Abwehr</h2></div>
           <div class="body">
             <div class="grid c2">
               <label class="switch span"><span>Werbe- und Betrugsanrufer ohne KI-Hinweis abwimmeln oder hinhalten <span class="hint" id="scam-state"></span></span><input type="checkbox" id="p-scam" role="switch"></label>
@@ -518,8 +548,8 @@
   </section>
 </main>
 
-<dialog id="confirm">
-  <div class="head"><h3>Diese Nummer jetzt wählen?</h3></div>
+<dialog id="confirm" aria-labelledby="confirm-title">
+  <div class="head"><h3 id="confirm-title">Diese Nummer jetzt wählen?</h3></div>
   <div class="body">
     <div class="confirm-num" id="confirm-num"></div>
     <div class="hint" id="confirm-mode"></div>
@@ -530,7 +560,7 @@
   </div>
 </dialog>
 
-<dialog id="ask">
+<dialog id="ask" aria-labelledby="ask-title">
   <div class="head"><h3 id="ask-title"></h3></div>
   <div class="body"><p class="hint" id="ask-text" style="font-size:14px;color:var(--text)"></p></div>
   <div class="foot">
@@ -539,10 +569,10 @@
   </div>
 </dialog>
 
-<div id="toasts" aria-live="polite"></div>
+<div id="toasts" role="region" aria-label="Hinweise"></div>
 
-<dialog id="scam-dialog">
-  <div class="head"><h3>Spam-Abwehr einschalten – auf eigenes Risiko</h3></div>
+<dialog id="scam-dialog" aria-labelledby="scam-title">
+  <div class="head"><h3 id="scam-title">Spam-Abwehr einschalten – auf eigenes Risiko</h3></div>
   <div class="body" style="font-size:14px">
     <p style="margin:0">In diesem Modus gibt sich die KI gegenüber Anrufern, die sie als Werbe- oder Betrugsanrufer einstuft, <strong>nicht</strong> als KI zu erkennen und spielt eine Privatperson. Das weicht vom Grundsatz dieser Software ab, sich immer als KI vorzustellen.</p>
     <p style="margin:0">Bitte beachte:</p>
@@ -561,19 +591,19 @@
   </div>
 </dialog>
 
-<dialog id="complaint-dialog">
-  <div class="head"><h3>Beschwerde-Entwurf (Bundesnetzagentur)</h3><p class="hint">Vorschlag aus dem Protokoll. Bitte prüfen, ergänzen (Name, Anschrift) und selbst im Online-Formular der Bundesnetzagentur zu unerlaubter Telefonwerbung einreichen. Keine Rechtsberatung.</p></div>
-  <div class="body"><textarea id="complaint-text" style="min-height:280px;width:100%;font:inherit;font-size:13px" spellcheck="false"></textarea></div>
+<dialog id="complaint-dialog" aria-labelledby="complaint-title">
+  <div class="head"><h3 id="complaint-title">Beschwerde-Entwurf (Bundesnetzagentur)</h3><p class="hint">Vorschlag aus dem Protokoll. Bitte prüfen, ergänzen (Name, Anschrift) und selbst im Online-Formular der Bundesnetzagentur zu unerlaubter Telefonwerbung einreichen. Keine Rechtsberatung.</p></div>
+  <div class="body"><label class="field"><span class="sr-only">Text des Beschwerde-Entwurfs</span><textarea id="complaint-text" style="min-height:280px;font-size:13px" spellcheck="false"></textarea></label></div>
   <div class="foot"><button type="button" id="complaint-close" class="btn quiet">Schließen</button><button type="button" id="complaint-copy" class="btn primary">Kopieren</button></div>
 </dialog>
 
-<dialog id="voices">
-  <div class="head"><h3>Stimmen anhören</h3><p class="hint">Hörprobe über die Sprachausgabe von OpenAI mit dem eingestellten KI-Namen. Am Telefon klingt jede Stimme etwas dumpfer.</p></div>
+<dialog id="voices" aria-labelledby="voices-title">
+  <div class="head"><h3 id="voices-title">Stimmen anhören</h3><p class="hint">Hörprobe über die Sprachausgabe von OpenAI mit dem eingestellten KI-Namen. Am Telefon klingt jede Stimme etwas dumpfer.</p></div>
   <div class="body" id="voices-list" style="gap:0"></div>
   <div class="foot"><button type="button" id="voices-close" class="btn quiet">Schließen</button></div>
 </dialog>
 
-<dialog id="contact-dialog">
+<dialog id="contact-dialog" aria-labelledby="contact-title">
   <form id="contact-form">
     <div class="head"><h3 id="contact-title">Neuer Kontakt</h3><p class="hint">Nur Name und Nummer sind Pflicht. Die übrigen Felder werden beim Anruf vorbelegt.</p></div>
     <div class="body">
@@ -628,7 +658,8 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const when = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }); };
 function toast(msg, level = 'warn') {
   addLog({ time: '', level, text: msg });
-  const t = document.createElement('div'); t.className = 'toast ' + level;
+  const t = document.createElement('div'); t.className = 'toast ' + level; t.setAttribute('role', level === 'ok' ? 'status' : 'alert');
+  if (level === 'ok') setTimeout(() => t.remove(), 5000);
   const span = document.createElement('span'); span.textContent = msg;
   const x = document.createElement('button'); x.textContent = '✕'; x.setAttribute('aria-label', 'Hinweis schließen'); x.onclick = () => t.remove();
   t.append(span, x); $('toasts').appendChild(t);
@@ -653,7 +684,8 @@ function showPage(id) {
   if (!PAGES.includes(id)) id = 'dashboard';
   for (const p of PAGES) {
     $('page-' + p).hidden = p !== id;
-    document.querySelector(`nav.tabs [data-page="${p}"]`).setAttribute('aria-selected', String(p === id));
+    const tab = document.querySelector(`nav.tabs [data-page="${p}"]`);
+    tab.setAttribute('aria-selected', String(p === id)); tab.tabIndex = p === id ? 0 : -1;
   }
   if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
   try { localStorage.setItem('sipfunk.page', id); } catch {}
@@ -662,9 +694,10 @@ function showPage(id) {
 }
 document.querySelector('nav.tabs').onclick = (ev) => { const b = ev.target.closest('[data-page]'); if (b) showPage(b.dataset.page); };
 document.querySelector('nav.tabs').onkeydown = (ev) => {
-  if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
+  if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(ev.key)) return;
+  ev.preventDefault();
   const cur = PAGES.indexOf(document.querySelector('nav.tabs [aria-selected="true"]').dataset.page);
-  const next = PAGES[(cur + (ev.key === 'ArrowRight' ? 1 : PAGES.length - 1)) % PAGES.length];
+  const next = ev.key === 'Home' ? PAGES[0] : ev.key === 'End' ? PAGES[PAGES.length - 1] : PAGES[(cur + (ev.key === 'ArrowRight' ? 1 : PAGES.length - 1)) % PAGES.length];
   showPage(next); document.querySelector(`nav.tabs [data-page="${next}"]`).focus();
 };
 document.body.addEventListener('click', (ev) => { const b = ev.target.closest('[data-goto]'); if (b) showPage(b.dataset.goto); });
@@ -678,7 +711,7 @@ function render() {
   // Leitung: ein Satz rechts im Kopf. Solange noch registriert wird, nicht „offline“ melden.
   const reg = status.registered ? 'on' : status.phase === 'starting' ? '' : 'off';
   $('regdot').className = 'dot ' + reg;
-  $('regtext').textContent = (status.registered ? 'FRITZ!Box verbunden' : status.phase === 'starting' ? 'Verbinde mit FRITZ!Box …' : 'FRITZ!Box nicht erreichbar')
+  $('regtext').textContent = (status.registered ? 'Telefonanlage verbunden' : status.phase === 'starting' ? 'Verbinde mit Telefonanlage …' : 'Telefonanlage nicht verbunden')
     + (status.incomingSettings && status.incomingSettings.enabled ? ' · Anrufbeantworter an' : '');
   // Gesprächsleiste: nur während eines Anrufs und kurz danach
   const ringing = !!(ringState && ringState.ringing);
@@ -701,7 +734,10 @@ function render() {
     : '';
   $('hangup').disabled = !busy;
   $('prepare').disabled = busy || !status.registered;
-  $('prepare').title = busy ? 'Es läuft bereits ein Gespräch' : !status.registered ? 'Anrufen erst möglich, wenn die FRITZ!Box verbunden ist' : '';
+  // Warum der Knopf gesperrt ist, steht sichtbar darunter – nicht nur im Tooltip
+  const why = busy ? '' : status.phase === 'starting' ? 'Die Verbindung zur Telefonanlage wird gerade aufgebaut.' : !status.registered ? 'Anrufen geht erst, wenn die Telefonanlage verbunden ist.' : '';
+  $('dial-note').textContent = why; $('dial-note').hidden = !why;
+  $('brand').classList.toggle('on', !!status.registered);
   $('tab-live').classList.toggle('on', busy);
   $('result').style.display = status.result && !busy ? 'block' : 'none';
   $('result').textContent = status.result ? 'Ergebnis: ' + status.result : '';
@@ -730,7 +766,7 @@ function renderTranscriptInto(el, entries, emptyText) {
   }
   el.scrollTop = el.scrollHeight;
 }
-const renderTranscript = (entries) => renderTranscriptInto($('transcript'), entries, 'Gespräch läuft, noch kein Text.');
+const renderTranscript = (entries) => renderTranscriptInto($('transcript'), entries, 'Noch kein Text – sobald jemand spricht, steht es hier.');
 function renderSummaryInto(el, text) {
   el.style.display = text ? 'block' : 'none';
   el.innerHTML = text ? esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') : '';
@@ -742,7 +778,8 @@ function renderUsage(u, model, costUsd) { $('usage').textContent = usageText(u, 
 // ---- Anrufe ----
 function callRow(c, compact) {
   const contact = contactFor(c.target);
-  const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0;
+  const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0; d.setAttribute('role', 'button');
+  if (c.id === selectedCallId && !compact) d.setAttribute('aria-current', 'true');
   const sum = ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
   const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
   d.innerHTML = `<div class="t">${esc(contact ? contact.name : (c.target || 'anonym'))}${pills}</div>
@@ -778,7 +815,7 @@ async function refreshCalls() {
 function clearCallDetail() {
   selectedCallId = null;
   $('call-detail-head').innerHTML = '<div class="t">Kein Anruf ausgewählt</div><div class="m">Wähle links einen Anruf, um Transkript und Zusammenfassung zu sehen.</div>';
-  $('call-transcript').style.display = 'none'; $('call-summary').style.display = 'none'; $('call-usage').textContent = ''; $('call-actions').style.display = 'none';
+  $('call-transcript').style.display = 'none'; $('call-summary').style.display = 'none'; $('call-usage').textContent = ''; $('call-usage-row').hidden = true; $('call-actions').style.display = 'none';
   renderCalls();
 }
 async function showCall(id) {
@@ -792,7 +829,7 @@ async function showCall(id) {
   $('call-transcript').style.display = '';
   renderTranscriptInto($('call-transcript'), r.entries || [], 'Kein Transkript gespeichert.');
   renderSummaryInto($('call-summary'), r.summary || '');
-  $('call-usage').textContent = r.usage ? usageText(r.usage, r.model, r.costUsd) : '';
+  $('call-usage').textContent = r.usage ? usageText(r.usage, r.model, r.costUsd) : ''; $('call-usage-row').hidden = !r.usage;
   const digits = (r.target || '').replace(/\D/g, '');
   const a = $('call-actions'); a.style.display = ''; a.innerHTML = '';
   if (r.called && digits.length >= 3 && !contact && !onSpamList(r.target)) a.innerHTML += `<button class="btn small quiet" data-spam="${esc(r.target)}">Nummer auf die Spam-Liste</button>`;
@@ -854,9 +891,9 @@ function renderContacts() {
   const el = $('contacts'); el.innerHTML = '';
   $('contacts-empty').style.display = contacts.length ? 'none' : 'block';
   for (const c of contacts) {
-    const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id;
+    const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id; d.setAttribute('role', 'group'); d.setAttribute('aria-label', c.name);
     d.innerHTML = `<div><div class="n">${esc(c.name)}${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num">${esc(c.number)}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
-      <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}" aria-label="Kontakt löschen" title="Kontakt löschen">✕</button></div>`;
+      <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}">Löschen</button></div>`;
     el.appendChild(d);
   }
   render();
@@ -1066,7 +1103,7 @@ function connect() {
     else if (msg.type === 'ring') { ringState = msg.ring; render(); }
     else if (msg.type === 'aiError') addLog({ time: '', level: 'error', text: 'KI: ' + msg.message });
   };
-  ws.onclose = () => { wsWasDown = true; $('regtext').textContent = 'Server getrennt'; $('regdot').className = 'dot off'; setTimeout(connect, 2000); };
+  ws.onclose = () => { wsWasDown = true; $('regtext').textContent = 'SIPFunk läuft nicht – neuer Versuch …'; $('regdot').className = 'dot off'; $('brand').classList.remove('on'); setTimeout(connect, 2000); };
 }
 
 // ---- Anruf ----

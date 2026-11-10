@@ -6,8 +6,9 @@
 <title>SIPFunk – eingehender Anruf</title>
 <style>
   /* Pop-up der Tray-App beim Klingeln. Dieselben Farben wie die Web-UI, hell und dunkel. */
-  :root { --bg: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-text: #fff; --danger: #d70015; --ok: #1f7a3a; --warn: #9a5b00; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-text: #0b1a2b; --danger: #ff5c5c; --ok: #4cd472; --warn: #ffc24d; } }
+  /* Kontraste wie in index.html berechnet; neu: Text auf dem roten Knopf im Dunkeln 6.0:1 (vorher Weiß auf #ff5c5c 3.0:1) */
+  :root { --bg: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-text: #fff; --danger: #d70015; --danger-text: #fff; --ok: #17602d; --warn: #734400; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-text: #0b1a2b; --danger: #ff5c5c; --danger-text: #2b0a0a; --ok: #4cd472; --warn: #ffc24d; } }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; border: 1px solid var(--line); overflow: hidden; -webkit-app-region: drag; user-select: none; }
@@ -16,7 +17,9 @@
   .top .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
   @media (prefers-reduced-motion: reduce) { .top .dot { animation: none; } }
-  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); font-size: 16px; cursor: pointer; min-width: 28px; min-height: 28px; -webkit-app-region: no-drag; }
+  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); font-size: 16px; cursor: pointer; min-width: 28px; min-height: 28px; border-radius: 6px; -webkit-app-region: no-drag; }
+  .top .x:hover { background: var(--surface-2); color: var(--text); }
+  .top .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .who { font-size: 19px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sub { color: var(--text-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .verdict { border-radius: 8px; padding: 8px 10px; background: var(--surface-2); border-left: 3px solid var(--text-2); font-size: 13px; align-self: start; }
@@ -29,11 +32,11 @@
   .verdict[data-l="contact"], .verdict[data-l="ok"] { border-left-color: var(--ok); }
   .verdict[data-l="contact"] b, .verdict[data-l="ok"] b { color: var(--ok); }
   .btns { display: flex; gap: 8px; flex-wrap: nowrap; -webkit-app-region: no-drag; }
-  button.b { flex: 1 1 auto; white-space: nowrap; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-height: 32px; background: transparent; color: var(--text); font: inherit; font-weight: 500; cursor: pointer; }
+  button.b { flex: 1 1 auto; white-space: nowrap; font-size: 13px; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 32px; background: transparent; color: var(--text); font: inherit; font-weight: 500; cursor: pointer; }
   button.b:hover { background: var(--surface-2); }
   button.b:disabled { opacity: .45; cursor: default; }
   button.b.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
-  button.b.trap { background: var(--danger); color: #fff; border-color: transparent; font-weight: 600; }
+  button.b.trap { background: var(--danger); color: var(--danger-text); border-color: transparent; font-weight: 600; }
   button.b:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .note { color: var(--text-2); font-size: 12px; min-height: 16px; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 </style>
@@ -45,14 +48,14 @@
     <div class="who" id="who">…</div>
     <div class="sub" id="sub"></div>
   </div>
-  <div class="verdict" id="verdict" data-l="unknown"><b id="v-label">Prüfe Nummer …</b><span id="v-detail"></span></div>
+  <div class="verdict" id="verdict" data-l="unknown" role="status"><b id="v-label">Prüfe Nummer …</b><span id="v-detail"></span></div>
   <div>
     <div class="btns">
       <button class="b trap" id="trap">In die Spam-Falle</button>
       <button class="b" id="answer">KI jetzt annehmen</button>
       <button class="b" id="skip">Klingeln lassen</button>
     </div>
-    <div class="note" id="note"></div>
+    <div class="note" id="note" role="status"></div>
   </div>
 </div>
 <script>
