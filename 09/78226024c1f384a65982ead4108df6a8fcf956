@@ -1,0 +1,22 @@
+test/gemini.test.ts
+  s_f7f6a7f3849df4::t_c8091d7ae5519f 429-442
+  s_f7f6a7f3849df4::t_4cb18680af8450 10,423-428,443-457
+src/ai/providers/geminiLive.ts
+  s_f7f6a7f3849df4::t_2c3bf25b537f62 28-37,204-205,214-216,262-263,269,324
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0978226024c1f384a65982ead4108df6a8fcf956",
+  "prompts": {},
+  "sessions": {
+    "s_f7f6a7f3849df4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2604e003-8ae6-4286-890c-b47b40f839d0",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
