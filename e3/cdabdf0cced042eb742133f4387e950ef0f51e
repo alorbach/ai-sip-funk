@@ -1,0 +1,32 @@
+src/main.ts
+  s_319bc174b0c320::t_96b241086f9612 28,392-396,720-766,818
+public/index.html
+  s_319bc174b0c320::t_e31b07473b715c 1524-1529
+  s_319bc174b0c320::t_96b241086f9612 532-547,1374,1439,1497-1523,1530-1532,1875
+src/web/server.ts
+  s_319bc174b0c320::t_96b241086f9612 34-35,160-169
+test/usageCounter.test.ts
+  s_319bc174b0c320::t_0f5655c4a52f59 1-64
+src/usageCounter.ts
+  s_319bc174b0c320::t_3e875541c3f198 1-103
+.gitignore
+  s_319bc174b0c320::t_96b241086f9612 12
+public/i18n-en.js
+  s_319bc174b0c320::t_96b241086f9612 560-575
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3cdabdf0cced042eb742133f4387e950ef0f51e",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
