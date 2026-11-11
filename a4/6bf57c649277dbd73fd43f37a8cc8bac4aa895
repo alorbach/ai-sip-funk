@@ -1,0 +1,48 @@
+src/mcp/gateway.ts
+  s_095fa5b0e499bb::t_16b1ec541530f6 1-490
+test/mcp.test.ts
+  s_095fa5b0e499bb::t_7f197d126ae537 1-617
+src/mcp/http.ts
+  s_095fa5b0e499bb::t_3b41cbb9ca3308 1-22
+public/index.html
+  s_095fa5b0e499bb::t_548b9f229d090c 1449
+  s_095fa5b0e499bb::t_9d91b528b8a486 283-286,497,671-695,820-832,913,1086,1127,1408,1421,2054-2116,2139
+src/main.ts
+  s_095fa5b0e499bb::t_357158011fa52e 15-18,123,191,205-211,245-247,272,313,336-337,389,413,416,441-488,963-968
+src/mcp/server.ts
+  s_095fa5b0e499bb::t_37a42f8e7c4e64 1-3,5-6,8,12,15-16,18,21,23-26
+src/ai/personas.ts
+  s_095fa5b0e499bb::t_9dd9297d8360eb 4,89-90,178
+src/ai/agentCall.ts
+  s_095fa5b0e499bb::t_44ebc570e107f1 1-50
+public/i18n-en.js
+  s_095fa5b0e499bb::t_681767d5ff5118 612-652
+src/ai/realtimeBridge.ts
+  s_095fa5b0e499bb::t_9dd9297d8360eb 12,79-80,201-204,212,350-408,497-498,614-617,654,658,783-813,865-870
+src/web/server.ts
+  s_095fa5b0e499bb::t_357158011fa52e 62-68,126,154-174,326-327,343
+scripts/capture-screenshots.cjs
+  s_095fa5b0e499bb::t_9c9f9d604aa30a 161,172,342-344
+src/settings.ts
+  s_095fa5b0e499bb::t_a23bf8d39c9df7 129-174,216,330-338,595-599
+src/mcp/tools.ts
+  s_095fa5b0e499bb::t_eafd90a96892cf 1-110
+src/transcripts.ts
+  s_095fa5b0e499bb::t_a23bf8d39c9df7 37-38,54,82-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a46bf57c649277dbd73fd43f37a8cc8bac4aa895",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
