@@ -1,0 +1,31 @@
+src/ai/realtimeBridge.ts
+  s_319bc174b0c320::t_1f621c31cbc11c 187,192-193,455-458,461,498,843
+public/index.html
+  s_319bc174b0c320::t_1f621c31cbc11c 1949
+src/ai/providers/geminiLive.ts
+  s_319bc174b0c320::t_1f621c31cbc11c 187,204
+src/main.ts
+  s_319bc174b0c320::t_1f621c31cbc11c 14,786-793,903-904
+src/settings.ts
+  s_319bc174b0c320::t_1f621c31cbc11c 499-509,516
+public/i18n-en.js
+  s_319bc174b0c320::t_1f621c31cbc11c 576
+test/gemini.test.ts
+  s_319bc174b0c320::t_1f621c31cbc11c 406-420
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "774731e15ef7012d029c6afb8d1e7e86ce21c707",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
