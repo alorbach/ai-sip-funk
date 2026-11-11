@@ -471,7 +471,10 @@ export class RealtimeBridge implements AudioHandler {
       return;
     }
     // Antwort auf ein bloßes Geräusch ist verworfen: Ihr Tool-Aufruf gilt nicht
-    if (this.muteNoiseResponse) return;
+    if (this.muteNoiseResponse) {
+      if (this.live.toolCallsBlock) this.live.toolOutput(callId, name, 'ok');
+      return;
+    }
     // Das Modell handelt auf das Gesagte hin: Dann war es Inhalt, die Prüfung der Unterbrechung ist entschieden
     if (this.hold) this.resolveHold(undefined);
     this.onFunctionCall(name, callId, args);
@@ -701,7 +704,11 @@ export class RealtimeBridge implements AudioHandler {
     } catch {
       // Argumente optional
     }
-    if (this.endRequested !== undefined) return; // doppelter Aufruf
+    if (this.endRequested !== undefined) {
+      // doppelter Aufruf
+      if (this.live.toolCallsBlock) this.live.toolOutput(callId, name, 'ok');
+      return;
+    }
     if (this.stats.deltas > 0) {
       // Gesprochen und im selben Atemzug beendet („ich richte das jetzt aus" + end_call):
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
@@ -711,12 +718,21 @@ export class RealtimeBridge implements AudioHandler {
       // wenn der Satz ausgespielt ist – er liegt hier noch fast vollständig im Puffer.
       const rejectWait = this.outQueue.length * 20 + REJECT_SILENCE_MS;
       clearTimeout(this.rejectTimer);
-      this.rejectTimer = setTimeout(() => {
+      let retries = 0;
+      const onSilence = (): void => {
         this.rejectTimer = undefined;
         if (this.endRequested !== undefined || this.closed) return;
+        // Die KI spricht gerade selbst (ein Anbieter lässt sie nach dem Tool-Ergebnis von sich aus weiterreden):
+        // nicht hineinreden, sondern nach ihrem Satz noch einmal nachsehen
+        if (this.activeResponse && retries++ < 10) {
+          this.rejectTimer = setTimeout(onSilence, 1000);
+          this.rejectTimer.unref();
+          return;
+        }
         log.info('Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll beenden');
         this.live.respond(END_CALL_AFTER_SILENCE);
-      }, rejectWait);
+      };
+      this.rejectTimer = setTimeout(onSilence, rejectWait);
       this.rejectTimer.unref();
       return;
     }

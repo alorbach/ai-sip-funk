@@ -340,3 +340,28 @@ test('Verbindungstest: drei Schritte, mit beiden Anbietern, ohne echte Verbindun
   const silent = await testConnection(openai, 'sk-test-0123456789abcdefghij', 'gpt-realtime-2.1', { fetchImpl: fake(() => json({ data: [{ id: 'gpt-realtime-2.1', created: 1 }] })).impl, createSocket: socket(() => undefined), timeoutMs: 20 });
   assert.match(silent.steps[2].text, /keine Antwort/);
 });
+
+test('Gemini: Eine Anweisung zwischen Verbindungsaufbau und Bestätigung der Sitzung wartet auf die Bestätigung', async (t) => {
+  const h = setup(t);
+  h.ws.emit('open');
+  h.bridge.updateInstructions('SPAETER PLAN', ['Schritt']);
+  await Promise.resolve();
+  assert.equal(h.ws.sent.length, 1, 'nur der Aufbau ist hinausgegangen');
+  h.server({ setupComplete: {} });
+  const note = h.regie().find((r) => r.text.includes('SPAETER PLAN'));
+  assert.ok(note && note.go === false);
+  h.bridge.close();
+});
+
+test('Gemini: Ein zweiter end_call bekommt eine Antwort, damit das Modell nicht auf ein Ergebnis wartet', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'x' } }] } });
+  h.ws.sent.length = 0;
+  h.server({ toolCall: { functionCalls: [{ id: 'f2', name: 'end_call', args: { ergebnis: 'x' } }] } });
+  const r = h.ws.sent.filter((m) => m.toolResponse).flatMap((m) => m.toolResponse.functionResponses);
+  assert.deepEqual(r.map((x: any) => [x.id, x.response.result]), [['f2', 'ok']]);
+  h.bridge.close();
+});

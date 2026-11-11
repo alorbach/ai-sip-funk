@@ -111,6 +111,8 @@ export interface LiveSession {
   /** Abtastrate, in der die Sitzung Audio erwartet bzw. liefert (PCM16) */
   readonly inputRate: number;
   readonly outputRate: number;
+  /** true = das Modell wartet nach einem Tool-Aufruf, bis ein Ergebnis kommt: Dann braucht jeder Aufruf eine Antwort, auch ein verworfener */
+  readonly toolCallsBlock?: boolean;
   sendAudio(pcm: Int16Array): void;
   /** Anweisungen (und optional die Tool-Liste) im laufenden Gespräch ersetzen */
   update(instructions: string, tools?: readonly LiveTool[]): void;

@@ -82,6 +82,7 @@ const manager = new CallManager({
     const prof = profileFor(called, parseProfiles(base.incomingProfiles, base.incomingIdentities));
     const principal = prof?.name || base.principal || 'der Inhaber';
     const principalKind = prof?.kind ?? 'person';
+    // „model“ der Einstellungen stammt aus der Zeit vor den KI-Verbindungen: Das Modell gehört jetzt zur Verbindung (model: '' unten)
     const s = prof
       ? { ...base, familyMembers: prof.members, address: prof.address || base.address, persona: prof.persona || base.persona, voice: prof.voice || base.voice, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
       : base;
@@ -91,16 +92,16 @@ const manager = new CallManager({
     // Von Hand in die Spam-Falle umgeleitet (Pop-up beim Klingeln): gilt wie ein Listentreffer
     if (opts?.forceScam) {
       log.info(`Spam-Abwehr: Anruf von ${caller || 'anonym'} von Hand in die Spam-Falle umgeleitet (${s.scamStyle})`);
-      return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
+      return createAiHandler({ ...s, model: '', principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
     }
     if (scam && isScamNumber(caller, s.scamNumbers)) {
       log.info(`Spam-Abwehr: Nummer ${caller || 'anonym'} steht auf der Liste – KI tritt als Privatperson auf (${s.scamStyle})`);
-      return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
+      return createAiHandler({ ...s, model: '', principal, principalKind, target: caller, called, task: '', incoming: true, scam: true });
     }
     // Bekannte Kontakte darf die KI nie im Gespräch als Spam einstufen; nur die Liste (ausdrücklicher Wille) gilt für sie
     const known = Boolean(contacts.findByNumber(caller));
     if (scam && known) log.info('Spam-Abwehr: Anrufer ist ein Kontakt – Erkennung im Gespräch ausgeschaltet');
-    return createAiHandler({ ...s, principal, principalKind, target: caller, called, task: s.incomingTask || defaultIncomingTask(principal, caller, principalKind), incoming: true, scamAllowed: scam && !known });
+    return createAiHandler({ ...s, model: '', principal, principalKind, target: caller, called, task: s.incomingTask || defaultIncomingTask(principal, caller, principalKind), incoming: true, scamAllowed: scam && !known });
   },
 });
 
@@ -531,7 +532,7 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
     .filter(Boolean)
     .join(' ');
   // Der Bericht am Stück ist gewollt lang: Token-Notbremse höher als im normalen Gespräch
-  await dialAi(owner, { ...s, task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
+  await dialAi(owner, { ...s, model: '', task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
 }
 
 /** Wählt, sobald die Leitung frei ist, und wartet das Gesprächsende ab (die Benachrichtigungen laufen nacheinander). */

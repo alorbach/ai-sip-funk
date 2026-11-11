@@ -104,9 +104,12 @@ export class GeminiLive implements LiveSession {
   readonly label = 'Google Gemini';
   readonly inputRate = INPUT_RATE;
   readonly outputRate = OUTPUT_RATE;
+  readonly toolCallsBlock = true;
   private ws: WebSocket;
   private closed = false;
   private configured = false;
+  /** Der Server hat die Sitzung bestätigt: Erst dann nimmt er weitere Nachrichten an */
+  private setupDone = false;
   // ---- Antwort der KI: ein „Zug" des Modells bekommt eine eigene Kennung ----
   private turn = 0;
   private turnOpen = false;
@@ -164,7 +167,10 @@ export class GeminiLive implements LiveSession {
 
   private dispatch(msg: Record<string, unknown>): void {
     const e = this.events;
-    if (msg.setupComplete) e.ready();
+    if (msg.setupComplete) {
+      this.setupDone = true;
+      e.ready();
+    }
     const va = msg.voiceActivity as { type?: string } | undefined;
     if (va?.type === 'ACTIVITY_START') this.startUtterance();
     if (va?.type === 'ACTIVITY_END' && this.partnerActive) this.stopSpeech();
@@ -383,6 +389,8 @@ export class GeminiLive implements LiveSession {
   }
 
   private flushUpdate(): void {
+    // Vor der Bestätigung der Sitzung bleibt die Anweisung liegen; die Bestätigung selbst löst das Nachreichen aus
+    if (!this.setupDone) return;
     const u = this.takeUpdate();
     if (u) this.note(u);
   }
