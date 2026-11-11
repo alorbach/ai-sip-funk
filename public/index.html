@@ -1946,6 +1946,7 @@ $('su-test').onclick = async () => {
     let lastTarget = ''; try { lastTarget = localStorage.getItem('sipfunk.target') || ''; } catch {}
     const [data, settings, calls, cs] = await Promise.all([api('/api/status'), api('/api/settings'), api('/api/transcripts'), api('/api/contacts')]);
     modes = data.modes;
+    if (data.settingsBroken) toast('Die Datei settings.json ist nicht lesbar: Es gelten die Vorgaben, auch für die KI-Verbindung. Beim nächsten Speichern bleibt der alte Inhalt als settings.json.defekt erhalten.', 'error');
     const personaOpts = (data.personas || []).map((p) => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
     $('p-persona').innerHTML = personaOpts;
     $('c-persona').innerHTML += personaOpts;

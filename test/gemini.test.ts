@@ -403,3 +403,18 @@ test('Gemini: Auch bei wenig Rest bleibt die Antwort auf einen Zuhör-Laut stumm
   assert.deepEqual(h.errors, []);
   h.bridge.close();
 });
+
+test('Gemini: Nach einer fertigen, fast ausgespielten Antwort ist ein „Okay“ die Antwort des Gegenübers und wird beantwortet', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  h.say(1500, 'Passt Ihnen Donnerstag?');
+  assert.equal(h.drain(1000), 1000);
+  h.server({ serverContent: { inputTranscription: { text: 'Okay.' } } });
+  h.tick(700);
+  h.say(800, 'Gut, dann Donnerstag.');
+  assert.equal(h.drain(), 800, 'die Antwort ist zu hören');
+  assert.ok(h.texts.includes('ki: Gut, dann Donnerstag.'));
+  h.bridge.close();
+});

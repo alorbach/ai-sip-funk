@@ -496,19 +496,24 @@ export function saveSettings(input: Record<string, unknown>, internal: Partial<F
   return merged;
 }
 
+/** true, wenn es eine settings.json gibt, sie sich aber nicht lesen lässt (dann gelten die Vorgaben aus der .env). */
+export function settingsBroken(): boolean {
+  if (!existsSync(SETTINGS_FILE)) return false;
+  try {
+    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8').replace(/^\uFEFF/, '')) as unknown;
+    return !saved || typeof saved !== 'object';
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Ist die vorhandene settings.json nicht lesbar (Tippfehler nach einer Änderung von Hand), gelten beim Laden die
  * Vorgaben. Das nächste Speichern würde die Datei damit überschreiben und alles Eingestellte wäre weg: Vorher bleibt
  * sie als settings.json.defekt erhalten (wie bei den Kontakten).
  */
 function keepBrokenFile(): void {
-  if (!existsSync(SETTINGS_FILE)) return;
-  try {
-    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8').replace(/^\uFEFF/, '')) as unknown;
-    if (saved && typeof saved === 'object') return;
-  } catch {
-    // nicht lesbar: sichern
-  }
+  if (!settingsBroken()) return;
   try {
     copyFileSync(SETTINGS_FILE, `${SETTINGS_FILE}.defekt`);
     log.warn('settings.json war nicht lesbar und wird neu geschrieben; der alte Inhalt liegt in settings.json.defekt');

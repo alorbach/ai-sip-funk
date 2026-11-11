@@ -184,11 +184,13 @@ export class RealtimeBridge implements AudioHandler {
    * Transkription zeigt, ob es Inhalt war (Rest verwerfen) oder nur ein Geräusch/Zuhör-Laut (Satz zu Ende sprechen).
    * held = Audio der Antwort, die der Server inzwischen auf den Laut hin erzeugt.
    */
-  private hold?: { timer: NodeJS.Timeout; itemId?: string; held: { itemId: string; buf: Buffer }[]; texts: { itemId: string; text: string }[] };
+  private hold?: { timer: NodeJS.Timeout; itemId?: string; /** die KI sprach noch einen längeren Rest oder wurde mitten in der Antwort unterbrochen */ midSentence?: boolean; held: { itemId: string; buf: Buffer }[]; texts: { itemId: string; text: string }[] };
   /** true = die Antwort auf ein bloßes Geräusch bleibt stumm (bis sie fertig ist oder das Gegenüber wieder spricht) */
   private muteNoiseResponse = false;
   /** Bis zu diesem Zeitpunkt gilt eine neu beginnende Antwort als Antwort auf einen bloßen Zuhör-Laut und bleibt stumm (0 = aus) */
   private muteReplyUntil = 0;
+  /** Wie die letzte Antwort endete ('cancelled' = das Gegenüber hat sie unterbrochen) */
+  private lastResponseStatus?: string;
   /** Äußerung (Item), deren Transkription über das Auflegen nach der Verabschiedung entscheidet */
   private farewellItemId?: string;
   /** true ab transfer_call, bis die Vermittlung gescheitert ist: Der Stillstandswächter schweigt so lange */
@@ -450,11 +452,13 @@ export class RealtimeBridge implements AudioHandler {
       const ms = this.outQueue.length * 20;
       if (!this.opts.allowInterrupt) {
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, Unterbrechen aus`);
-      } else if (!this.activeResponse && !this.greetingResponse && (ms >= HOLD_MIN_MS || this.live.answersAfterInterrupt)) {
-        // (Ein Anbieter, der erst nach der Unterbrechung antwortet, braucht die Prüfung auch bei wenig Rest: Nur sie hält seine Antwort auf einen Zuhör-Laut stumm)
+      } else if (!this.activeResponse && !this.greetingResponse && (ms >= HOLD_MIN_MS || (this.live.answersAfterInterrupt && this.lastResponseStatus === 'cancelled'))) {
+        // (Ein Anbieter, der eine Antwort bei einer Unterbrechung selbst abbricht, braucht die Prüfung dann auch bei wenig Rest:
+        // Nur sie hält seine Antwort auf einen Zuhör-Laut stumm. War die Antwort dagegen fertig und fast ausgespielt, ist ein
+        // „Okay“ die Antwort des Gegenübers, kein Zuhör-Laut.)
         // Antwort liegt vollständig vor: nur pausieren und erst nach der Transkription entscheiden
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, pausiere und prüfe, ob das Gegenüber etwas sagt`);
-        this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId, held: [], texts: [] };
+        this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId, midSentence: ms >= HOLD_MIN_MS || this.lastResponseStatus === 'cancelled', held: [], texts: [] };
         this.hold.timer.unref();
       } else {
         log.info(`Realtime: speech_started – ${this.outQueue.length} Frames (${ms} ms) in der Warteschlange, verwerfe`);
@@ -491,6 +495,7 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onResponseDone(r: LiveResponseDone): void {
+    this.lastResponseStatus = r.status;
     this.muteNoiseResponse = false;
     this.activeResponse = false;
     if (r.usage) this.addUsage(r.usage);
@@ -835,7 +840,7 @@ export class RealtimeBridge implements AudioHandler {
       if (this.activeResponse) {
         this.muteNoiseResponse = true;
         this.live.cancelResponse();
-      } else if (this.live.answersAfterInterrupt) {
+      } else if (this.live.answersAfterInterrupt && h.midSentence) {
         // Die Antwort auf den Laut entsteht bei diesem Anbieter erst noch: die nächste, die gleich beginnt, bleibt stumm
         this.muteReplyUntil = Date.now() + NOISE_REPLY_MS;
       }

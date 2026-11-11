@@ -11,7 +11,7 @@ import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, saveSettings, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { incomingFrom, incomingOverride, loadSettings, saveSettings, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -783,9 +783,14 @@ const usageCounter = new UsageCounter(join(dataDir, 'usage.json'));
 if (usageCounter.empty) {
   // Erster Start mit Zähler: den laufenden Monat aus den noch vorhandenen Protokollen nachtragen (ohne Angabe im Protokoll: OpenAI)
   const month = monthKey(new Date());
-  for (const r of store.list()) {
-    const at = new Date(r.startedAt);
-    if (typeof r.costUsd === 'number' && monthKey(at) === month) usageCounter.add(store.read(r.id)?.provider ?? 'openai', r.durationSec, r.costUsd, at);
+  try {
+    for (const r of store.list()) {
+      const at = new Date(r.startedAt);
+      if (typeof r.costUsd === 'number' && monthKey(at) === month) usageCounter.add(store.read(r.id)?.provider ?? 'openai', r.durationSec, r.costUsd, at);
+    }
+  } catch (err) {
+    // Der Zähler ist eine Zusatzanzeige: Lässt er sich nicht schreiben, startet die App trotzdem
+    log.warn(`Monatsverbrauch nicht nachgetragen: ${(err as Error).message}`);
   }
 }
 const adminKey = () => process.env.OPENAI_ADMIN_KEY?.trim() || undefined;
@@ -895,6 +900,8 @@ const stopWeb = startWebServer({
   usage: { get: usageInfo, saveAdminKey },
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
+    // Eine nicht lesbare settings.json fällt sonst nur im Log auf: Es gelten dann die Vorgaben, auch für die KI-Verbindung
+    settingsBroken: settingsBroken(),
     ...aiUiData(),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
     env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },

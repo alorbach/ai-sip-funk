@@ -184,7 +184,7 @@ export class GeminiLive implements LiveSession {
       if (heard) this.onHeard(heard);
       const parts = (sc.modelTurn as { parts?: { inlineData?: { data?: string }; text?: string }[] } | undefined)?.parts ?? [];
       for (const p of parts) {
-        if (!p.inlineData?.data) continue;
+        if (!p?.inlineData?.data) continue;
         this.beginTurn();
         e.audio(this.itemId(), Buffer.from(p.inlineData.data, 'base64'));
       }
@@ -201,7 +201,7 @@ export class GeminiLive implements LiveSession {
     const calls = (msg.toolCall as { functionCalls?: { id?: string; name?: string; args?: unknown }[] } | undefined)?.functionCalls;
     if (calls?.length) {
       this.beginTurn();
-      for (const c of calls) e.toolCall(String(c.name), String(c.id), JSON.stringify(c.args ?? {}));
+      for (const c of calls) if (c && typeof c === 'object') e.toolCall(String(c.name), String(c.id), JSON.stringify(c.args ?? {}));
       // Das Modell wartet jetzt auf das Ergebnis: Für die Brücke ist diese Antwort damit zu Ende
       this.endTurn('completed', ['function_call']);
     }
