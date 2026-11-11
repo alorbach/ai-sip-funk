@@ -293,7 +293,9 @@ async function restart() {
 app.whenReady().then(() => {
   // Zweite Instanz: app.quit() oben wirkt erst später – hier kein zweites Tray und keinen zweiten Server starten
   if (!gotLock || quitOnly) return;
-  // Windows zeigt Benachrichtigungen nur mit AppUserModelId (im Installer gesetzt, hier für „electron ." nötig)
+  // Windows zeigt Benachrichtigungen nur mit AppUserModelId; unter diesem Namen steht auch der Autostart-Eintrag.
+  // Im gepackten Programm fehlt der Abschnitt „build“ der package.json, dort gilt der feste Wert – er muss zur
+  // appId in der package.json passen (build/installer.nsh entfernt den Eintrag unter diesem Namen).
   app.setAppUserModelId(pkg.build?.appId || 'org.sipfunk.app');
   firstRunAutostart();
   tray = new Tray(icon());

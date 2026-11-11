@@ -57,7 +57,7 @@ On first start the Windows firewall asks about the UDP ports for SIP and RTP: al
 
 ### Windows app (installer, tray, autostart)
 
-Without Node.js: download `SIPFunk-<version>-win-x64.exe` from [Releases](https://github.com/alorbach/ai-sip-funk/releases) and run it. The file is not code-signed, so Windows SmartScreen warns ("More info" → "Run anyway"). The installer works for the current user without administrator rights and adds a Start menu entry. SIPFunk then runs in the notification area, without a window or console; double-clicking the icon opens the web UI, on first start with the setup assistant.
+Without Node.js: download `SIPFunk-<version>-win-x64.exe` from [Releases](https://github.com/alorbach/ai-sip-funk/releases) and run it. The file is not code-signed, so Windows SmartScreen warns ("More info" → "Run anyway"). By default the installer installs for the current user, without administrator rights, and adds a Start menu entry. SIPFunk then runs in the notification area, without a window or console; double-clicking the icon opens the web UI, on first start with the setup assistant.
 
 After installation SIPFunk starts by itself after you sign in to Windows. Switch this off or on in the tray menu ("Beim Anmelden starten", start at login). Configuration and data live under `%APPDATA%\SIPFunk`; they survive updates (run the newer installer over the old one) and are kept when you uninstall. The portable ZIP (`SIPFunk-<version>-win-x64.zip`) runs without installation and does not set up autostart by itself.
 
