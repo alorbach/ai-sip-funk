@@ -31,6 +31,8 @@ export interface WebServerOptions {
   };
   /** KI-Anbieter: Verbindung in drei Schritten testen (Schlüssel, Modell, Live-Verbindung); ohne Angabe der gewählte Anbieter */
   ai?: { test: (provider?: string) => Promise<Record<string, unknown>> };
+  /** Monatsverbrauch (eigene Schätzung je Anbieter, optional die Kosten laut OpenAI) und der Admin-Schlüssel dafür; leerer Schlüssel = entfernen */
+  usage?: { get: (refresh: boolean) => Promise<Record<string, unknown>>; saveAdminKey: (key: unknown) => Promise<{ ok: boolean; error?: string }> };
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
@@ -154,6 +156,16 @@ export function startWebServer(opts: WebServerOptions): () => void {
         if (!opts.ai) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
         return sendJson(res, 200, await opts.ai.test(typeof body.provider === 'string' ? body.provider : undefined));
+      }
+      if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/usage') {
+        if (!opts.usage) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        return sendJson(res, 200, await opts.usage.get(req.method === 'POST'));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/ai/admin-key') {
+        if (!opts.usage) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        // Die Antwort enthält nur „ok“ oder eine Meldung – nie den Schlüssel
+        const r = await opts.usage.saveAdminKey((await readJson(req)).key);
+        return r.ok ? sendJson(res, 200, { ok: true, usage: await opts.usage.get(false) }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {
         return sendJson(res, 200, publicSettings(loadSettings()));

@@ -25,6 +25,7 @@ import { OAuthLogin, TokenStore } from './notify/oauth.js';
 import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
+import { cleanAdminKey, fetchOpenAiMonthCosts, monthKey, UsageCounter } from './usageCounter.js';
 import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
@@ -388,6 +389,11 @@ manager.on('callEnded', (reason: string) => {
     notify: c.notify,
   };
   store.save(record);
+  try {
+    usageCounter.add(c.provider, record.durationSec, record.costUsd ?? 0, c.startedAt);
+  } catch (err) {
+    log.warn(`Monatsverbrauch nicht fortgeschrieben: ${(err as Error).message}`);
+  }
   bus.emit('message', { type: 'transcripts', items: store.list() });
   bus.emit('message', { type: 'summary', text: 'Zusammenfassung wird erstellt …' });
   summarize(c.ask, record.task, record.entries, record.outcome)
@@ -711,6 +717,53 @@ async function saveAiKey(providerId: unknown, input: unknown): Promise<{ ok: boo
 const catalogFor = (p: AiProvider) => new ModelCatalog(() => providerKey(p), fetch, undefined, undefined, (key, fetchImpl) => p.fetchModels(key, fetchImpl), `Der ${p.label}-Schlüssel fehlt noch (Einstellungen › KI-Anbieter).`);
 const modelCatalogs = Object.fromEntries(PROVIDER_IDS.map((id) => [id, catalogFor(PROVIDERS[id])])) as Record<ProviderId, ModelCatalog>;
 
+// ---- Monatsverbrauch: eigener Zähler je Anbieter; die Kosten laut OpenAI nur mit hinterlegtem Admin-Schlüssel ----
+const usageCounter = new UsageCounter(join(dataDir, 'usage.json'));
+if (usageCounter.empty) {
+  // Erster Start mit Zähler: den laufenden Monat aus den noch vorhandenen Protokollen nachtragen (bisher nur OpenAI)
+  const month = monthKey(new Date());
+  for (const r of store.list()) {
+    const at = new Date(r.startedAt);
+    if (typeof r.costUsd === 'number' && monthKey(at) === month) usageCounter.add('openai', r.durationSec, r.costUsd, at);
+  }
+}
+const adminKey = () => process.env.OPENAI_ADMIN_KEY?.trim() || undefined;
+let billed: { usd?: number; error?: string; fetchedAt: number; key: string } | undefined;
+async function usageInfo(refresh: boolean): Promise<Record<string, unknown>> {
+  const key = adminKey();
+  // Die Kosten ändern sich bei OpenAI nur tageweise: höchstens alle 30 Minuten neu fragen, außer auf Knopfdruck
+  if (key && (refresh || !billed || billed.key !== key || Date.now() - billed.fetchedAt > 30 * 60_000)) {
+    try {
+      billed = { usd: await fetchOpenAiMonthCosts(key), fetchedAt: Date.now(), key };
+    } catch (err) {
+      billed = { error: (err as Error).message, fetchedAt: Date.now(), key };
+    }
+  }
+  return {
+    month: monthKey(new Date()),
+    providers: usageCounter.month(),
+    openaiBilled: key ? { hasAdminKey: true, usd: billed?.usd, error: billed?.error, fetchedAt: billed ? new Date(billed.fetchedAt).toISOString() : null } : { hasAdminKey: false },
+  };
+}
+async function saveAdminKey(input: unknown): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (String(input ?? '').trim() === '') {
+      writeEnvValues(envFile, { OPENAI_ADMIN_KEY: '' });
+      billed = undefined;
+      log.info('OpenAI-Admin-Schlüssel entfernt (.env)');
+      return { ok: true };
+    }
+    const key = cleanAdminKey(input);
+    const usd = await fetchOpenAiMonthCosts(key);
+    writeEnvValues(envFile, { OPENAI_ADMIN_KEY: key });
+    billed = { usd, fetchedAt: Date.now(), key };
+    log.info('OpenAI-Admin-Schlüssel geprüft und gespeichert (.env)');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
 const mailConfig = () => mailConfigFrom(loadSettings());
 const mailer = new Mailer(mailConfig, mailTokens);
@@ -762,6 +815,7 @@ const stopWeb = startWebServer({
     return state as unknown as Record<string, unknown>;
   },
   setup: { status: setupStatus, saveSip, saveAiKey },
+  usage: { get: usageInfo, saveAdminKey },
   ai: {
     test: async (id) => {
       const provider = id ? PROVIDERS[id as ProviderId] : ai().provider;

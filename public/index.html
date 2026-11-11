@@ -529,6 +529,22 @@
               <ul class="todo span" id="ai-test-result" aria-live="polite" aria-label="Ergebnis des Verbindungstests"></ul>
             </div>
             <p class="hint" style="margin-top:12px">Zum Prüfen geht der Schlüssel einmal an den Anbieter, sonst nirgendwohin. Er liegt nur auf diesem Rechner (Datei <code>.env</code> im Datenordner) und wird nie wieder angezeigt. Der Verbindungstest baut die Live-Verbindung kurz auf und schickt kein Audio.</p>
+            <div class="subhead" style="margin-top:18px">Verbrauch in diesem Monat</div>
+            <ul class="todo" id="usage-month" style="margin-top:8px" data-no-i18n></ul>
+            <p class="hint" style="margin-top:8px">Von SIPFunk aus den Gesprächen geschätzt, nicht die Rechnung des Anbieters: nur die Gespräche selbst, ohne Plan, Zusammenfassung und Hörproben.</p>
+            <div class="adv" data-provider="openai">
+              <div class="subhead" style="margin-top:18px">Tatsächliche Kosten laut OpenAI (optional)</div>
+              <p class="hint" style="margin:6px 0 10px">OpenAI nennt die Monatskosten nur einem Admin-Schlüssel der Organisation, nicht dem normalen API-Schlüssel. Ein Admin-Schlüssel kann auch Nutzer, Projekte und Schlüssel der Organisation verwalten: Hinterlege ihn nur, wenn dir das recht ist, und gib ihm bei OpenAI ein Ablaufdatum. Die Zahl umfasst alles, was die Organisation nutzt, nicht nur SIPFunk. Google bietet keinen solchen Abruf.</p>
+              <div class="grid c2">
+                <label class="field span"><span>Admin-Schlüssel</span><input id="ai-admin-key" type="password" autocomplete="new-password" spellcheck="false"></label>
+                <div class="actions span">
+                  <button type="button" id="ai-admin-save" class="btn">Schlüssel prüfen und speichern</button>
+                  <button type="button" id="ai-admin-remove" class="btn quiet" hidden>Admin-Schlüssel entfernen</button>
+                  <button type="button" id="ai-admin-refresh" class="btn quiet" hidden>Kosten neu abrufen</button>
+                </div>
+                <p class="state span" id="ai-admin-state" role="status"></p>
+              </div>
+            </div>
             <div data-provider="gemini" hidden>
               <div class="subhead" style="margin-top:18px">Was mit Gemini anders ist</div>
               <ul class="plain">
@@ -1355,7 +1371,7 @@ function connect() {
     else if (msg.type === 'transcript') renderTranscript(msg.entries);
     else if (msg.type === 'usage') renderUsage(msg.usage, msg.model, msg.costUsd);
     else if (msg.type === 'summary') renderSummary(msg.text);
-    else if (msg.type === 'transcripts') refreshCalls().catch(() => {});
+    else if (msg.type === 'transcripts') { refreshCalls().catch(() => {}); loadMonthUsage(false); }
     else if (msg.type === 'ring') { ringState = msg.ring; render(); }
     else if (msg.type === 'aiError') addLog({ time: '', level: 'error', text: 'KI: ' + msg.message });
   };
@@ -1420,6 +1436,7 @@ function applyAiData(data, switched) {
   realtimeModels = data.models || [data.model]; modelNotes = data.modelNotes || {};
   fillVoices('p-voice', ''); fillVoices('c-voice', '<option value="">– Standard –</option>'); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
   renderModes(); renderAi();
+  if (switched) loadMonthUsage(false);
   if (switched) {
     // Modelle des alten Anbieters gelten nicht mehr: Die Auswahl zeigt, was der Server jetzt verwendet
     modelCatalog = { realtime: [], text: [], fetchedAt: null };
@@ -1476,6 +1493,42 @@ $('ai-test').onclick = async () => {
   } catch (err) { setState('ai-key-result', 'bad', err.message); }
   btn.disabled = false;
 };
+
+// ---- Monatsverbrauch: eigene Schätzung je Anbieter, dazu (mit Admin-Schlüssel) die Kosten laut OpenAI ----
+const usd = (n) => new Intl.NumberFormat(I18N.locale, { style: 'currency', currency: 'USD' }).format(n || 0);
+function renderMonthUsage(u) {
+  const list = $('usage-month'); list.innerHTML = '';
+  const rows = ai.providers.map((p) => [p, (u.providers || {})[p.id]]).filter(([p, v]) => v || p.id === ai.provider);
+  for (const [p, v] of rows) {
+    const li = document.createElement('li'); li.className = 'state';
+    const b = document.createElement('b'); b.textContent = p.label + ': ';
+    li.append(b, document.createTextNode(v ? I18N.t('{0} Gespräche, {1} Minuten, ca. {2}', v.calls, Math.round(v.seconds / 60), usd(v.costUsd)) : I18N.t('noch keine Gespräche')));
+    list.appendChild(li);
+  }
+  const ob = u.openaiBilled || {};
+  $('ai-admin-remove').hidden = $('ai-admin-refresh').hidden = !ob.hasAdminKey;
+  $('ai-admin-key').placeholder = ob.hasAdminKey ? '•••••••• ' + I18N.t('gespeichert – ein neuer Schlüssel ersetzt ihn') : 'sk-admin-…';
+  if (!$('ai-admin-state').dataset.touched) setState('ai-admin-state', ob.error ? 'bad' : ob.usd !== undefined ? 'ok' : '', ob.error ? I18N.t(ob.error) : ob.usd !== undefined ? I18N.t('Laut OpenAI in diesem Monat: {0} (ganze Organisation, Stand {1})', usd(ob.usd), when(ob.fetchedAt)) : '');
+}
+async function loadMonthUsage(force) { try { renderMonthUsage(await api('/api/usage', force ? {} : undefined)); } catch {} }
+async function adminKeyAction(btn, busyText, key, doneText) {
+  btn.disabled = true; $('ai-admin-state').dataset.touched = '1'; setState('ai-admin-state', 'busy', busyText);
+  try {
+    const r = await api('/api/ai/admin-key', { key });
+    $('ai-admin-key').value = ''; delete $('ai-admin-state').dataset.touched;
+    renderMonthUsage(r.usage);
+    if (doneText) setState('ai-admin-state', 'ok', doneText);
+  } catch (err) { setState('ai-admin-state', 'bad', err.message); }
+  btn.disabled = false;
+}
+$('ai-admin-save').onclick = () => {
+  const key = $('ai-admin-key').value.trim();
+  // Ein leeres Feld hieße beim Server „entfernen“: Das macht nur der eigene Knopf
+  if (!key) { $('ai-admin-state').dataset.touched = '1'; return setState('ai-admin-state', 'bad', I18N.t('Schlüssel fehlt')); }
+  adminKeyAction($('ai-admin-save'), I18N.t('Prüfe den Schlüssel bei {0} …', 'OpenAI'), key);
+};
+$('ai-admin-remove').onclick = () => adminKeyAction($('ai-admin-remove'), I18N.t('Entferne den Admin-Schlüssel …'), '', I18N.t('Admin-Schlüssel entfernt.'));
+$('ai-admin-refresh').onclick = async () => { $('ai-admin-refresh').disabled = true; delete $('ai-admin-state').dataset.touched; await loadMonthUsage(true); $('ai-admin-refresh').disabled = false; };
 
 // ---- KI-Modelle: Die Listen kommen zur Laufzeit vom gewählten Anbieter (über den Server, der sie zwischenspeichert). ----
 // Das Sprachmodell steht an zwei Stellen (Dashboard, Einstellungen). Der gewählte Wert bleibt immer als Eintrag
@@ -1819,6 +1872,7 @@ $('su-test').onclick = async () => {
     // Eine gespeicherte Stimme des anderen Anbieters gibt es hier nicht: Die Auswahl zeigt dann die erste
     fillVoices('p-voice', ''); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
     setUiMode(settings.uiMode);
+    loadMonthUsage(false);
     loadModels(false); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
     $('ui-lang').value = settings.uiLang || 'auto';
     // Die Sprache steht für den schnellen Start auch im Browser; weicht sie von den Einstellungen ab, einmal neu laden
