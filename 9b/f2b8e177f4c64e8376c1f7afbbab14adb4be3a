@@ -1,0 +1,19 @@
+scripts/install-local.mjs
+  s_f828863347c33d::t_25af6bc7f2b10c 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9bf2b8e177f4c64e8376c1f7afbbab14adb4be3a",
+  "prompts": {},
+  "sessions": {
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
