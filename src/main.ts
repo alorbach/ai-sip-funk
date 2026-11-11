@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { loadConfig } from './config.js';
+import { VERSION } from './version.js';
 import { CallManager, type AudioHandler } from './callManager.js';
 import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
@@ -911,7 +912,7 @@ const stopWeb = startWebServer({
     settingsBroken: settingsBroken(),
     ...aiUiData(),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
-    env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
+    env: { version: VERSION, sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
   }),
 });
 await manager.start();

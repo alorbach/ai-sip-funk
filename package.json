@@ -1,6 +1,6 @@
 {
   "name": "sipfunk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Local AI phone assistant: SIP client for a FRITZ!Box using the OpenAI Realtime API or the Google Gemini Live API (outgoing calls, answering machine, spam defence)",
   "keywords": [
     "ai",
@@ -77,6 +77,7 @@
       "electron/**/*",
       "assets/icon.*",
       ".env.example",
+      "LICENSE",
       "package.json"
     ],
     "win": {
@@ -90,6 +91,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh",
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico"
     }

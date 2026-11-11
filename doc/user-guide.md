@@ -99,13 +99,19 @@ All other variables are listed with comments in `.env.example`; chapter 14 shows
 
 ### 4.3 Tray app (Windows, no console)
 
+Installed with the installer from [Releases](https://github.com/alorbach/ai-sip-funk/releases) (see below), or from the repository:
+
 ```bash
 npm run tray
 ```
 
-An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
+An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login; not when started from the repository), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
 
-Installer and portable ZIP: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `usage.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and the web UI opens with the setup assistant (chapter 4.2). The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
+**Installer.** `SIPFunk-<version>-win-x64.exe` from the releases page installs SIPFunk for the current user without administrator rights (Start menu entry, uninstallation via Windows "Installed apps"). The file is not code-signed, so Windows SmartScreen warns: "More info" → "Run anyway". The version is shown in the tray menu and on the settings page. To update, run the newer installer over the old version; the data folder is left alone, and it is also kept when you uninstall.
+
+**Autostart.** After installation SIPFunk starts by itself after you sign in to Windows, in the notification area, without a window; the first start says so in a notification. "Beim Anmelden starten" in the tray menu switches this off and on, and so does Windows under "Startup apps". The choice survives updates; uninstalling removes the entry. The portable ZIP (`SIPFunk-<version>-win-x64.zip`, unpack and start `SIPFunk.exe`) does not switch autostart on by itself; the menu item works there too, as long as the folder stays where it is.
+
+Building installer and portable ZIP yourself: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `usage.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and the web UI opens with the setup assistant (chapter 4.2). The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
 
 ### 4.4 First functional test without AI
 
@@ -497,6 +503,7 @@ The data folder is the project folder when starting from the repository, and `%A
 | `mail-token.json` | OAuth token for sending mail | yes |
 | `sipfunk.log`, `sipfunk-YYYY-MM-DD.log` | operating log with phone numbers (tray app only; otherwise the log is in the terminal). One file per day; files older than the log retention period are deleted | yes |
 | `usage.json` | monthly usage per AI provider: number of calls, seconds, estimated cost; the last 13 months (section 6.2) | no |
+| `autostart.flag` | installed tray app only: notes that autostart was set up on first start, so that an update does not switch it on again (section 4.3) | no |
 | `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 

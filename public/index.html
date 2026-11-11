@@ -480,6 +480,7 @@
         <button type="button" id="setup-open" class="btn quiet">Einrichtungsassistent …</button>
       </div>
       <p class="hint">Änderungen gelten ab dem nächsten Anruf, sobald du sie gespeichert hast. Die Telefonanlage richtest du im Einrichtungsassistenten ein.</p>
+      <p class="hint" id="app-version" data-no-i18n hidden></p>
     </div>
     <div class="settings">
       <nav class="subnav" aria-label="Abschnitte der Einstellungen">
@@ -2017,6 +2018,7 @@ $('su-test').onclick = async () => {
     applyAiData(data, false);
     if (data.env) {
       const e = data.env;
+      if (e.version) { $('app-version').textContent = `SIPFunk ${e.version}`; $('app-version').hidden = false; }
       const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und KI-Schlüssel nur in der .env; Mail-Kennwörter in settings.json']];
       $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     }

@@ -102,7 +102,10 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 
 ## 8. Distribution and MCP
 
-- [ ] `npm run dist:win`: installer on a fresh Windows user (installation, first start with `.env`, autostart, uninstallation).
+- [ ] Installer from the release (`SIPFunk-<version>-win-x64.exe`) on a fresh Windows user: SmartScreen warning, installation without administrator rights, Start menu entry, first start with the setup assistant, notification about autostart.
+- [ ] Autostart: sign out and in again, SIPFunk appears in the notification area without a window or console; "Beim Anmelden starten" is ticked. Untick it, sign in again: SIPFunk does not start.
+- [ ] Update: run a newer installer over the old version; settings and data are still there, a switched-off autostart stays off.
+- [ ] Uninstallation: the entry under Windows "Startup apps" is gone, `%APPDATA%\SIPFunk` is still there.
 - [ ] MCP: from a client `get_status`, then `start_call` to one of your own extensions and `wait_for_call`.
 
 ## 9. Google Gemini: real phone calls (only a few so far)

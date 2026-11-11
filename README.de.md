@@ -53,13 +53,19 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 
 Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP: für „Private Netzwerke“ zulassen.
 
-### Tray-App (Windows)
+### Windows-App (Installer, Tray, Autostart)
+
+Ohne Node.js: `SIPFunk-<Version>-win-x64.exe` unter [Releases](https://github.com/alorbach/ai-sip-funk/releases) herunterladen und ausführen. Die Datei ist nicht signiert, Windows SmartScreen warnt deshalb („Weitere Informationen“ → „Trotzdem ausführen“). Der Installer arbeitet für den angemeldeten Benutzer ohne Administratorrechte und legt einen Eintrag im Startmenü an. SIPFunk läuft danach im Infobereich, ohne Fenster und ohne Konsole; Doppelklick auf das Symbol öffnet die Web-UI, beim ersten Start mit dem Einrichtungsassistenten.
+
+Nach der Installation startet SIPFunk nach der Windows-Anmeldung von selbst. Aus- und einschalten: Tray-Menü, „Beim Anmelden starten“. Konfiguration und Daten liegen unter `%APPDATA%\SIPFunk`; sie bleiben bei Updates (den neueren Installer über die alte Fassung laufen lassen) und auch bei der Deinstallation erhalten. Die portable ZIP-Datei (`SIPFunk-<Version>-win-x64.zip`) läuft ohne Installation und richtet den Autostart nicht von selbst ein.
+
+Aus dem Repository startet dieselbe Tray-App mit:
 
 ```bash
 npm run tray
 ```
 
-SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öffnet die Web-UI. Fertige Installer und portable ZIP-Dateien stehen unter [Releases](https://github.com/alorbach/ai-sip-funk/releases); sie sind nicht signiert, Windows SmartScreen warnt deshalb beim ersten Start. Selbst bauen: Einen Installer und eine portable ZIP-Datei baut `npm run dist:win` (Ergebnis in `release/`). Installiert liegen Konfiguration und Daten unter `%APPDATA%\SIPFunk`.
+`npm run dist:win` baut Installer und portable ZIP-Datei selbst (Ergebnis in `release/`).
 
 ## Konfiguration
 

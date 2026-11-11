@@ -58,6 +58,7 @@ const EN = {
   'dist/main.js fehlt – erst „npm run build“': 'dist/main.js is missing – run "npm run build" first',
   'Anrufbeantworter konnte nicht umgeschaltet werden': 'The answering machine could not be switched',
   'SIPFunk – eingehender Anruf': 'SIPFunk – incoming call',
+  'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.': 'SIPFunk now starts after you sign in to Windows. To turn this off: tray menu › "Start at login".',
 };
 function uiLang() {
   let pref = 'auto';
@@ -119,6 +120,35 @@ async function setIncoming(enabled) {
   refresh();
 }
 
+// Autostart nach der Windows-Anmeldung (Eintrag unter HKCU\…\Run mit der AppUserModelId als Name; der
+// Deinstaller entfernt ihn, siehe build/installer.nsh). Nur für das gepackte Programm: Aus dem Repository
+// gestartet würde der Eintrag auf ein nacktes electron.exe zeigen.
+function autostartOn() {
+  const s = app.getLoginItemSettings();
+  // executableWillLaunchAtLogin beachtet auch, ob der Eintrag in den Windows-Einstellungen abgeschaltet wurde
+  return process.platform === 'win32' ? !!s.executableWillLaunchAtLogin : !!s.openAtLogin;
+}
+function setAutostart(on) {
+  app.setLoginItemSettings({ openAtLogin: on, enabled: true });
+  refresh();
+}
+/**
+ * Erster Start nach der Installation: Autostart einschalten und einmal darauf hinweisen. Die Merkdatei im
+ * Datenordner sorgt dafür, dass ein später abgeschalteter Autostart auch nach einem Update aus bleibt.
+ * Die portable ZIP-Fassung (kein Deinstaller neben der .exe) schaltet nichts von selbst ein.
+ */
+function firstRunAutostart() {
+  const installed = app.isPackaged && fs.existsSync(path.join(path.dirname(process.execPath), `Uninstall ${pkg.build?.productName || 'SIPFunk'}.exe`));
+  const mark = path.join(dataDir, 'autostart.flag');
+  if (!installed || fs.existsSync(mark)) return;
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(mark, 'Autostart wurde beim ersten Start eingerichtet. Ein-/Ausschalten: Tray-Menü.\n');
+    app.setLoginItemSettings({ openAtLogin: true, enabled: true });
+    if (Notification.isSupported()) new Notification({ title: 'SIPFunk', body: T('SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.'), icon: ICON_PNG }).show();
+  } catch { /* ohne Autostart läuft SIPFunk trotzdem */ }
+}
+
 function buildMenu() {
   const running = state.server === 'läuft';
   return Menu.buildFromTemplate([
@@ -131,7 +161,7 @@ function buildMenu() {
     { type: 'separator' },
     { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
     { label: T('Datenordner öffnen'), click: () => shell.openPath(dataDir) },
-    { label: T('Beim Anmelden starten'), type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }) },
+    ...(app.isPackaged ? [{ label: T('Beim Anmelden starten'), type: 'checkbox', checked: autostartOn(), click: (item) => setAutostart(item.checked) }] : []),
     { type: 'separator' },
     { label: T('Server neu starten'), click: () => restart() },
     { label: T('Beenden'), click: () => app.quit() },
@@ -263,6 +293,7 @@ app.whenReady().then(() => {
   if (!gotLock) return;
   // Windows zeigt Benachrichtigungen nur mit AppUserModelId (im Installer gesetzt, hier für „electron ." nötig)
   app.setAppUserModelId(pkg.build?.appId || 'org.sipfunk.app');
+  firstRunAutostart();
   tray = new Tray(icon());
   tray.on('double-click', openUi);
   tray.on('click', () => tray.popUpContextMenu());

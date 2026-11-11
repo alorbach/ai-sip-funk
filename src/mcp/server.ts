@@ -6,6 +6,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { VERSION } from '../version.js';
 
 const BASE = process.env.SIPFUNK_URL ?? `http://127.0.0.1:${process.env.WEB_PORT ?? '8080'}`;
 
@@ -119,7 +120,7 @@ async function waitForCall(sinceIso: string, timeoutSec: number, progress?: (msg
   return formatRecord(full, true);
 }
 
-const server = new McpServer({ name: 'sipfunk', version: '0.1.0' });
+const server = new McpServer({ name: 'sipfunk', version: VERSION || '0.0.0' });
 
 server.registerTool(
   'get_status',

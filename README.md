@@ -55,13 +55,19 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 
 On first start the Windows firewall asks about the UDP ports for SIP and RTP: allow them for private networks.
 
-### Tray app (Windows)
+### Windows app (installer, tray, autostart)
+
+Without Node.js: download `SIPFunk-<version>-win-x64.exe` from [Releases](https://github.com/alorbach/ai-sip-funk/releases) and run it. The file is not code-signed, so Windows SmartScreen warns ("More info" → "Run anyway"). The installer works for the current user without administrator rights and adds a Start menu entry. SIPFunk then runs in the notification area, without a window or console; double-clicking the icon opens the web UI, on first start with the setup assistant.
+
+After installation SIPFunk starts by itself after you sign in to Windows. Switch this off or on in the tray menu ("Beim Anmelden starten", start at login). Configuration and data live under `%APPDATA%\SIPFunk`; they survive updates (run the newer installer over the old one) and are kept when you uninstall. The portable ZIP (`SIPFunk-<version>-win-x64.zip`) runs without installation and does not set up autostart by itself.
+
+From the repository the same tray app starts with:
 
 ```bash
 npm run tray
 ```
 
-SIPFunk then runs without a console in the notification area; double-clicking the icon opens the web UI. Ready-made installers and portable ZIP files are under [Releases](https://github.com/alorbach/ai-sip-funk/releases); they are not code-signed, so Windows SmartScreen warns on first start. To build them yourself: `npm run dist:win` builds an installer and a portable ZIP file (output in `release/`). When installed, configuration and data live under `%APPDATA%\SIPFunk`.
+`npm run dist:win` builds the installer and the portable ZIP yourself (output in `release/`).
 
 ## Configuration
 

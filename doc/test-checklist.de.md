@@ -102,7 +102,10 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 ## 8. Verteilung und MCP
 
-- [ ] `npm run dist:win`: Installer auf einem frischen Windows-Benutzer (Installation, erster Start mit `.env`, Autostart, Deinstallation).
+- [ ] Installer aus dem Release (`SIPFunk-<Version>-win-x64.exe`) auf einem frischen Windows-Benutzer: SmartScreen-Warnung, Installation ohne Administratorrechte, Eintrag im Startmenü, erster Start mit dem Einrichtungsassistenten, Benachrichtigung zum Autostart.
+- [ ] Autostart: ab- und wieder anmelden, SIPFunk erscheint im Infobereich ohne Fenster und Konsole; „Beim Anmelden starten“ hat einen Haken. Haken entfernen, neu anmelden: SIPFunk startet nicht.
+- [ ] Update: einen neueren Installer über die alte Fassung laufen lassen; Einstellungen und Daten sind noch da, ein abgeschalteter Autostart bleibt aus.
+- [ ] Deinstallation: Der Eintrag unter „Autostart-Apps“ in Windows ist weg, `%APPDATA%\SIPFunk` liegt noch da.
 - [ ] MCP: aus einem Client `get_status`, dann `start_call` an eine eigene Nebenstelle und `wait_for_call`.
 
 ## 9. Google Gemini: echte Telefonate (erst wenige)
