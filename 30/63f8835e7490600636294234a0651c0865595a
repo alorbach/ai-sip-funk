@@ -1,0 +1,52 @@
+public/index.html
+  s_095fa5b0e499bb::t_45ab9a184f356e 674
+  s_095fa5b0e499bb::t_623b8c4a2917b3 1408,2103-2108
+  s_095fa5b0e499bb::t_5ce18a870ee41c 2109
+src/ai/realtimeBridge.ts
+  s_095fa5b0e499bb::t_623b8c4a2917b3 432-433,677,731
+CHANGELOG.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 12
+doc/architecture.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 82,105
+src/main.ts
+  s_095fa5b0e499bb::t_623b8c4a2917b3 270-272,275
+doc/user-guide.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 576,584,658,705
+public/i18n-en.js
+  s_095fa5b0e499bb::t_45ab9a184f356e 614,661
+test/mcp.test.ts
+  s_095fa5b0e499bb::t_623b8c4a2917b3 356-358,361-362,367-373,375-376,464-466,623-624,626
+doc/architecture.de.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 82,105
+doc/user-guide.de.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 574,582,656,703
+SECURITY.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 11
+CHANGELOG.de.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 12
+src/mcp/tools.ts
+  s_095fa5b0e499bb::t_623b8c4a2917b3 84
+  s_095fa5b0e499bb::t_45ab9a184f356e 28
+src/mcp/gateway.ts
+  s_095fa5b0e499bb::t_623b8c4a2917b3 102-106,366-368,385,423
+SECURITY.de.md
+  s_095fa5b0e499bb::t_45ab9a184f356e 11
+scripts/capture-screenshots.cjs
+  s_095fa5b0e499bb::t_eee4abb501f1cc 344
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3063f8835e7490600636294234a0651c0865595a",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
