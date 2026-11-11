@@ -1,6 +1,6 @@
 {
   "name": "sipfunk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local AI phone assistant: SIP client for a FRITZ!Box using the OpenAI Realtime API or the Google Gemini Live API (outgoing calls, answering machine, spam defence)",
   "keywords": [
     "ai",
