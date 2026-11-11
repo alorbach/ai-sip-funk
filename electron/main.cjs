@@ -69,7 +69,9 @@ function uiLang() {
 const T = (text) => (uiLang() === 'en' && EN[text]) || text;
 
 const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) app.quit();
+// "SIPFunk.exe --quit" beendet die laufende Instanz sauber (scripts/install-local.mjs vor einem Update)
+const quitOnly = process.argv.includes('--quit');
+if (!gotLock || quitOnly) app.quit();
 
 function ensureEnv() {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -290,7 +292,7 @@ async function restart() {
 
 app.whenReady().then(() => {
   // Zweite Instanz: app.quit() oben wirkt erst später – hier kein zweites Tray und keinen zweiten Server starten
-  if (!gotLock) return;
+  if (!gotLock || quitOnly) return;
   // Windows zeigt Benachrichtigungen nur mit AppUserModelId (im Installer gesetzt, hier für „electron ." nötig)
   app.setAppUserModelId(pkg.build?.appId || 'org.sipfunk.app');
   firstRunAutostart();
@@ -302,7 +304,7 @@ app.whenReady().then(() => {
   setInterval(refresh, 10000).unref();
 });
 
-app.on('second-instance', openUi);
+app.on('second-instance', (_e, argv) => (argv.includes('--quit') ? app.quit() : openUi()));
 app.on('window-all-closed', (e) => e.preventDefault());
 app.on('before-quit', (e) => {
   quitting = true;

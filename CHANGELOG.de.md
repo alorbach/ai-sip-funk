@@ -6,6 +6,8 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **Installation während der Entwicklung aktuell halten**: `npm run install:local` baut den Installer aus dem Arbeitsordner und lässt ihn still über eine vorhandene Installation laufen; Einstellungen und Daten bleiben. `npm run install:auto` richtet Git-Hooks ein, die das nach jedem Commit oder Merge auf `main` von selbst tun (im Hintergrund, Protokoll in `release/install-local.log`; `npm run install:auto -- --off` entfernt sie). Ohne vorhandene Installation wird nichts installiert, und ein Update wartet, bis ein laufendes Gespräch beendet ist. `SIPFunk.exe --quit` beendet die laufende Tray-App sauber.
+
 ## 1.0.0 – 11.11.2026
 
 - **Windows-Installer mit Autostart**: 1.0.0 ist die erste Version mit fertigem Installer und portabler ZIP-Datei unter [Releases](https://github.com/alorbach/ai-sip-funk/releases). Der Installer arbeitet je Benutzer und ohne Administratorrechte. Nach der Installation startet SIPFunk nach der Windows-Anmeldung von selbst, im Infobereich, ohne Fenster und ohne Konsole; der erste Start weist mit einer Benachrichtigung darauf hin. Aus- und einschalten lässt sich das im Tray-Menü („Beim Anmelden starten“) oder in Windows unter „Autostart-Apps“. Die Wahl bleibt bei Updates erhalten, die Deinstallation entfernt den Eintrag; Konfiguration und Daten unter `%APPDATA%\SIPFunk` bleiben liegen. Die portable ZIP-Fassung schaltet den Autostart nicht von selbst ein, und beim Start aus dem Repository (`npm run tray`) fehlt der Menüpunkt.
