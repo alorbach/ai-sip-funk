@@ -27,7 +27,7 @@ import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
 import { cleanAdminKey, fetchOpenAiMonthCosts, monthKey, UsageCounter } from './usageCounter.js';
 import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
-import { cleanConnections, connectionKey, connectionKeyEnv, connectionsFrom, MAX_CONNECTIONS, type AiConnection } from './ai/connections.js';
+import { connectionKey, connectionKeyEnv, connectionsFrom, MAX_CONNECTIONS, mergeConnections, type AiConnection } from './ai/connections.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
@@ -199,7 +199,7 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const scam = incoming && params.scam === true;
   // Modell und Verhalten: Nennt der Aufrufer nichts (z. B. ein Anruf über MCP), gelten die gespeicherten Einstellungen
   const saved = loadSettings();
-  const orSaved = (k: 'model' | 'behaveLength' | 'behavePace' | 'behaveConfirm' | 'behaveSmalltalk') => (typeof params[k] === 'string' ? (params[k] as string) : saved[k]);
+  const orSaved = (k: 'behaveLength' | 'behavePace' | 'behaveConfirm' | 'behaveSmalltalk') => (typeof params[k] === 'string' ? (params[k] as string) : saved[k]);
   const t = tuning();
   // Spam-Rolle ab Annahme: eigene Stimme und eigenes Tempo, sofern eingestellt
   const sc = scam ? loadSettings() : undefined;
@@ -233,7 +233,8 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
-  const model = active.realtimeModel(orSaved('model'));
+  // Das Modell gehört zur Verbindung; nur ein Anruf, der ausdrücklich eines nennt (API, MCP), weicht davon ab
+  const model = active.realtimeModel(typeof params.model === 'string' ? params.model : undefined);
   log.info(`KI: ${provider.label}, Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 
   transcript = [];
@@ -695,11 +696,14 @@ function aiUiData(): Record<string, unknown> {
   };
 }
 
-/** Verbindung zur Kennung; für ältere Aufrufer gilt auch die Kennung eines Anbieters (dessen mitgelieferte Verbindung). */
+/**
+ * Verbindung zur Kennung (ohne Angabe: die aktive). Für ältere Aufrufer gilt auch die Kennung eines Anbieters:
+ * dann die aktive Verbindung, wenn sie zu ihm gehört, sonst seine erste.
+ */
 function connectionById(id: unknown): AiConnection | undefined {
   const { list, active } = connectionsFrom(loadSettings());
   if (id === undefined || id === null || id === '') return active;
-  return list.find((c) => c.id === id);
+  return list.find((c) => c.id === id) ?? (active.provider === id ? active : list.find((c) => c.provider === id));
 }
 
 /** Schlüssel einer Verbindung prüfen und in die .env schreiben; er wird nie zurückgegeben und steht in keinem Log. */
@@ -715,6 +719,8 @@ async function saveAiKey(connectionId: unknown, input: unknown): Promise<{ ok: b
   }
   const check = await provider.checkKey(key);
   if (!check.ok) return check;
+  // Während der Prüfung entfernt: Der Schlüssel bliebe sonst ohne Verbindung in der .env liegen
+  if (!connectionsFrom(loadSettings()).list.some((c) => c.id === connection.id && c.provider === connection.provider)) return { ok: false, error: 'Unbekannte KI-Verbindung' };
   const keyEnv = connectionKeyEnv(connection);
   try {
     writeEnvValues(envFile, { [keyEnv]: key });
@@ -728,25 +734,25 @@ async function saveAiKey(connectionId: unknown, input: unknown): Promise<{ ok: b
 }
 
 /**
- * Liste der Verbindungen und die aktive davon speichern. Entfernte Verbindungen verlieren ihren Schlüssel in der .env.
- * Während eines Gesprächs bleibt alles, wie es ist: Das laufende Gespräch gehört zu seiner Verbindung.
+ * Verbindungen ändern: genannte ersetzen, neue anlegen, ausdrücklich genannte entfernen, die aktive umschalten.
+ * Entfernte Verbindungen verlieren ihren Schlüssel in der .env. Ein laufendes Gespräch behält, womit es begonnen hat.
  */
 function saveConnections(input: Record<string, unknown>): { ok: boolean; error?: string } {
   const s = loadSettings();
-  const current = connectionsFrom(s).list;
+  const before = connectionsFrom(s);
   let next: AiConnection[];
+  let removed: AiConnection[];
   try {
-    next = cleanConnections(input.connections, current);
+    ({ next, removed } = mergeConnections(before.list, input.connections, input.remove));
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
-  const wanted = typeof input.active === 'string' ? input.active : s.aiConnection;
-  // Eine neue Verbindung hat ihre Kennung erst jetzt bekommen: Die Oberfläche nennt dann ihre Stelle in der Liste
-  const active = next.find((c) => c.id === wanted) ?? (typeof input.activeIndex === 'number' ? next[input.activeIndex] : undefined) ?? next.find((c) => c.id === connectionsFrom(s).active.id) ?? next[0];
-  const removed = current.filter((c) => !next.some((n) => n.id === c.id));
+  const wanted = typeof input.active === 'string' ? input.active : before.active.id;
+  const active = next.find((c) => c.id === wanted) ?? next.find((c) => c.id === before.active.id) ?? next[0];
   try {
+    // Erst die Liste, dann die Schlüssel: Scheitert das Speichern, bleibt die Verbindung samt Schlüssel, wie sie war
+    const saved = saveSettings({}, { aiConnections: JSON.stringify(next), aiConnection: active.id });
     if (removed.length) writeEnvValues(envFile, Object.fromEntries(removed.map((c) => [connectionKeyEnv(c), ''])));
-    const saved = saveSettings({ aiConnections: JSON.stringify(next), aiConnection: active.id });
     if (removed.some((c) => connectionKeyEnv(c) === 'OPENAI_API_KEY')) config.openaiApiKey = undefined;
     onSettingsChanged(saved);
   } catch (err) {

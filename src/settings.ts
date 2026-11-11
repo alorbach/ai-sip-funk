@@ -469,13 +469,21 @@ export function loadSettings(): FormSettings {
   }
 }
 
-export function saveSettings(input: Record<string, unknown>): FormSettings {
+/**
+ * Einstellungen aus der Oberfläche speichern. `internal` sind Werte, die der Server selbst geprüft hat (die Liste der
+ * KI-Verbindungen): Über die Oberfläche lässt sie sich nicht direkt setzen, sonst ließe sich einer Verbindung ein
+ * anderer Anbieter unterschieben und ihr Schlüssel ginge dorthin.
+ */
+export function saveSettings(input: Record<string, unknown>, internal: Partial<FormSettings> = {}): FormSettings {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Einstellungen müssen ein JSON-Objekt sein');
   const current = loadSettings();
   const incoming = pick(input);
   // Maskierte Kennwörter aus der UI bedeuten „unverändert"
   for (const k of SECRET_KEYS) if (incoming[k] === SECRET_MASK) delete incoming[k];
-  const merged = normalize({ ...current, ...incoming });
+  delete incoming.aiConnections;
+  // Umschalten geht nur auf eine Verbindung, die es gibt
+  if (incoming.aiConnection !== undefined && !connectionsFrom(current).list.some((c) => c.id === incoming.aiConnection)) delete incoming.aiConnection;
+  const merged = normalize({ ...current, ...incoming, ...internal });
   // Neuer Mailserver ohne neu eingegebenes Passwort: das gespeicherte verwerfen. Sonst ließe sich ein hinterlegtes
   // Passwort an einen fremden Server schicken, indem jemand nur die Serveradresse ändert (wie beim SIP-Kennwort).
   if (incoming.smtpPass === undefined && current.smtpPass && merged.smtpHost.trim().toLowerCase() !== current.smtpHost.trim().toLowerCase()) merged.smtpPass = '';

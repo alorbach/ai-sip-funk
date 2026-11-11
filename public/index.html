@@ -955,7 +955,7 @@ function setUiMode(mode) {
   document.querySelector(`#ui-mode input[value="${mode}"]`).checked = true;
   // Die Abschnittsmarke könnte auf einem jetzt ausgeblendeten Abschnitt stehen
   const cur = subnav.querySelector('[aria-current="true"]');
-  if (cur) showSection(cur.dataset.section);
+  if (cur) showSection(cur.dataset.section, false);
 }
 $('ui-mode').onchange = async (ev) => {
   setUiMode(ev.target.value);
@@ -1479,10 +1479,11 @@ function applyAiData(data, switched) {
   if (switched) { loadMonthUsage(false); syncProfiles(); renderProfiles(); render(); }
 }
 async function refreshAi(switched) { applyAiData(await api('/api/status'), switched); if ($('setup').open) { setupInfo = await api('/api/setup'); renderSetupState(); } }
-/** Liste und aktive Verbindung speichern (gilt sofort). list = Verbindungen wie in ai.connections, neue ohne Kennung. */
-async function saveConnections(list, active, activeIndex) {
+/** Verbindungen ändern (gilt sofort): changes = geänderte oder neue Verbindungen (neue ohne Kennung), remove = Kennungen zum Entfernen.
+ *  Geschickt wird nur die Änderung, nie die ganze Liste: Ein veraltetes Fenster überschreibt so nichts. */
+async function saveConnections(changes, active, remove) {
   const before = ai.active;
-  const body = { connections: list.map(({ id, name, provider, model, textModel }) => ({ id, name, provider, model, textModel })), active, activeIndex };
+  const body = { connections: changes.map(({ id, name, provider, model, textModel }) => ({ id, name, provider, model, textModel })), active, remove };
   const data = await api('/api/ai/connections', body);
   applyAiData(data, data.ai.active !== before);
   if ($('setup').open) { setupInfo = await api('/api/setup'); renderSetupState(); }
@@ -1491,7 +1492,7 @@ async function saveConnections(list, active, activeIndex) {
 /** Umschalten: Die gewählte Verbindung führt ab jetzt die Gespräche. */
 async function useConnection(id) {
   try {
-    await saveConnections(ai.connections, id);
+    await saveConnections([], id);
     editId = id; renderAi(); loadModels(false);
     const c = activeConn();
     toast(c.hasKey ? I18N.t('Aktive KI-Verbindung ist jetzt „{0}“. Stimme bitte prüfen.', c.name) : I18N.t('Aktive KI-Verbindung ist jetzt „{0}“. Es fehlt noch der Schlüssel.', c.name), c.hasKey ? 'ok' : 'warn');
@@ -1501,10 +1502,17 @@ $('p-connection').onchange = (ev) => useConnection(ev.target.value);
 $('su-ai-provider').onchange = (ev) => { delete $('su-ai-state').dataset.touched; useConnection(ev.target.value); };
 $('conn-use').onclick = () => useConnection(editConn().id);
 /** Feld der bearbeiteten Verbindung ändern und speichern. */
-async function patchConn(patch) {
+let patchQueue = Promise.resolve();
+function patchConn(patch) {
   const id = editConn().id;
-  try { await saveConnections(ai.connections.map((c) => (c.id === id ? { ...c, ...patch } : c)), ai.active); }
-  catch (err) { toast(err.message, 'error'); renderAi(); }
+  // Nacheinander, jeweils auf dem Stand nach der vorigen Änderung: Zwei schnelle Änderungen heben sich sonst gegenseitig auf
+  patchQueue = patchQueue.then(async () => {
+    const c = conn(id);
+    if (!c) return;
+    try { await saveConnections([{ ...c, ...patch }]); }
+    catch (err) { toast(err.message, 'error'); renderAi(); }
+  });
+  return patchQueue;
 }
 $('conn-name').onchange = () => { const v = $('conn-name').value.trim(); if (v) patchConn({ name: v }); else renderAi(); };
 $('conn-add').onclick = async () => {
@@ -1512,8 +1520,9 @@ $('conn-add').onclick = async () => {
   let name = p.label;
   for (let n = 2; ai.connections.some((c) => c.name === name); n++) name = `${p.label} ${n}`;
   try {
-    const data = await saveConnections([...ai.connections, { name, provider: p.id, model: '', textModel: '' }], ai.active);
-    editId = data.ai.connections.at(-1).id;
+    const known = ai.connections.map((c) => c.id);
+    const data = await saveConnections([{ name, provider: p.id, model: '', textModel: '' }]);
+    editId = (data.ai.connections.find((c) => !known.includes(c.id)) || {}).id || editId;
     setState('ai-key-result', '', ''); $('ai-test-result').innerHTML = '';
     renderAi(); loadModels(false); $('conn-name').focus(); $('conn-name').select();
   } catch (err) { toast(err.message, 'error'); }
@@ -1522,9 +1531,8 @@ $('conn-remove').onclick = async () => {
   const c = editConn();
   if (!confirm(I18N.t('Verbindung „{0}“ entfernen? Ihr Schlüssel wird aus der .env gelöscht.', c.name))) return;
   try {
-    editId = '';
-    await saveConnections(ai.connections.filter((x) => x.id !== c.id), c.id === ai.active ? undefined : ai.active);
-    loadModels(false);
+    await saveConnections([], undefined, [c.id]);
+    delete catalogs[c.id]; loadModels(false);
     toast(I18N.t('Verbindung „{0}“ entfernt.', c.name), 'ok');
   } catch (err) { toast(err.message, 'error'); renderAi(); }
 };
@@ -1533,7 +1541,7 @@ async function saveAiKey(inputId, c) {
   await api('/api/ai/key', { connection: c.id, key: $(inputId).value });
   $(inputId).value = '';
   await refreshAi(false);
-  delete catalogs[c.id]; loadModels(true);
+  delete catalogs[c.id]; if (editConn().id === c.id) loadModels(true);
   // KI-Gespräche sind ab jetzt möglich: Auswahl auf dem Dashboard nachziehen
   if (c.id === ai.active && $('mode').value !== 'ai') { $('mode').value = 'ai'; render(); }
   return I18N.t('{0}-Schlüssel geprüft und gespeichert.', aiProvider(c.provider).label);
@@ -1599,8 +1607,9 @@ function renderModels() {
     : at ? I18N.t('{0} Sprach- und {1} Textmodelle von {2} geladen, Stand {3}.', cat.realtime.length, cat.text.length, aiProvider(c.provider).label, at) : '';
   $('models-state').classList.toggle('warn', Boolean(cat.error));
 }
-$('s-model').onchange = () => patchConn({ model: $('s-model').value });
-$('t-summary-model').onchange = () => patchConn({ textModel: $('t-summary-model').value });
+// Wer den Eintrag „(Standard)“ wählt, folgt weiter der Vorgabe (gespeichert wird dann nichts Festes)
+$('s-model').onchange = () => patchConn({ model: $('s-model').value === editConn().defaultRealtime ? '' : $('s-model').value });
+$('t-summary-model').onchange = () => patchConn({ textModel: $('t-summary-model').value === editConn().defaultText ? '' : $('t-summary-model').value });
 /** Eigene Modell-ID übernehmen; eine unzulässige oder eine des anderen Anbieters verwirft das Feld. */
 function ownModel(inputId, field) {
   $(inputId).onchange = () => {
@@ -1802,17 +1811,19 @@ $('save-settings').onclick = () => saveAll($('save-settings'), 'Speichern', SETT
 $('save-defaults').onclick = () => saveAll($('save-defaults'), 'Als Standard speichern', DASH_KEYS);
 // Abschnittsliste der Einstellungen: springt zur Karte, markiert beim Scrollen den sichtbaren Abschnitt
 /** Zeigt nur die gewählte Karte; die Auswahl bleibt über einen Neustart der Seite erhalten. */
-function showSection(id) {
+function showSection(id, remember = true) {
   const cards = [...document.querySelectorAll('.settings .card')];
   // Ein Abschnitt, den es in der Stufe „Einfach“ nicht gibt, fällt auf den ersten zurück
   const target = cards.find((c) => c.id === id && !(c.classList.contains('adv') && document.documentElement.dataset.ui === 'easy')) || cards[0];
   for (const c of cards) c.hidden = c !== target;
   for (const b of subnav.querySelectorAll('[data-section]')) b.setAttribute('aria-current', String(b.dataset.section === target.id));
-  try { localStorage.setItem('sipfunk.section', target.id); } catch {}
+  if (remember) try { localStorage.setItem('sipfunk.section', target.id); } catch {}
   if (target.id === 'settings-provider') loadModels(false);
 }
 subnav.onclick = (ev) => { const b = ev.target.closest('[data-section]'); if (b) { showSection(b.dataset.section); window.scrollTo({ top: 0 }); } };
-{ let sec = ''; try { sec = localStorage.getItem('sipfunk.section') || ''; } catch {} showSection(sec); }
+// Vorläufig, bis die Stufe der Oberfläche bekannt ist (ein Abschnitt nur für „Erweitert“ fiele sonst weg): siehe Start
+const storedSection = () => { try { return localStorage.getItem('sipfunk.section') || ''; } catch { return ''; } };
+showSection(storedSection(), false);
 document.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 's' && !$('page-settings').hidden) { ev.preventDefault(); $('save-settings').click(); } });
 
 // ---- Einrichtungsassistent: führt beim ersten Start durch das Nötigste, später aus den Einstellungen aufrufbar ----
@@ -1948,6 +1959,7 @@ $('su-test').onclick = async () => {
     // Eine gespeicherte Stimme des anderen Anbieters gibt es hier nicht: Die Auswahl zeigt dann die erste
     fillVoices('p-voice', ''); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
     setUiMode(settings.uiMode);
+    showSection(storedSection(), false);
     loadMonthUsage(false);
     loadModels(false); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
     $('ui-lang').value = settings.uiLang || 'auto';

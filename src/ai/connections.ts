@@ -82,15 +82,20 @@ export interface ConnectionSettings {
  * Verbindungen und die aktive davon. Ist noch keine Liste gespeichert, gibt es je Anbieter eine Verbindung mit
  * dessen Namen; die bisherigen Einstellungen (gewählter Anbieter, Modelle) gehen darin auf.
  */
-export function connectionsFrom(s: ConnectionSettings): { list: AiConnection[]; active: AiConnection } {
+export function connectionsFrom(s: ConnectionSettings, env: NodeJS.ProcessEnv = process.env): { list: AiConnection[]; active: AiConnection } {
   let list = parseConnections(s.aiConnections);
   if (!list.length) {
     const chosen = providerById(s.aiProvider);
     list = (['openai', 'gemini'] as const).map((id) => {
       const p = providerById(id);
-      // Die alten Modell-Einstellungen gehörten zum damals gewählten Anbieter
-      const own = (m: string | undefined) => (p.id === chosen.id && m && MODEL_ID.test(m.trim()) && p.ownsModel(m.trim()) ? m.trim() : '');
-      return { id, name: p.label, provider: p.id, model: own(s.model), textModel: own(s.summaryModel) };
+      // Die alten Modell-Einstellungen gehörten zum damals gewählten Anbieter. Was nur die Vorgabe wiederholt, bleibt leer:
+      // So folgt die Verbindung weiter der Vorgabe (.env bzw. Anbieter), statt sie beim ersten Speichern festzuschreiben.
+      const own = (m: string | undefined, ...defaults: (string | undefined)[]) => {
+        const v = (m ?? '').trim();
+        return p.id === chosen.id && MODEL_ID.test(v) && p.ownsModel(v) && !defaults.some((d) => d?.trim() === v) ? v : '';
+      };
+      const prefix = id === 'openai' ? 'OPENAI' : 'GEMINI';
+      return { id, name: p.label, provider: p.id, model: own(s.model, p.defaults.realtime, env[`${prefix}_MODEL`]), textModel: own(s.summaryModel, p.defaults.text, env[`${prefix}_SUMMARY_MODEL`]) };
     });
   }
   const wanted = (s.aiConnection ?? '').trim();
@@ -99,8 +104,8 @@ export function connectionsFrom(s: ConnectionSettings): { list: AiConnection[]; 
 }
 
 /**
- * Liste aus der Oberfläche prüfen und für das Speichern aufbereiten: vorhandene Kennungen bleiben, neue Einträge
- * (ohne oder mit unbekannter Kennung) bekommen eine. Wirft mit Meldung, wenn nichts Brauchbares übrig bleibt.
+ * Einträge aus der Oberfläche prüfen und aufbereiten: vorhandene Kennungen bleiben, neue Einträge (ohne oder mit
+ * unbekannter Kennung) bekommen eine. Wirft mit Meldung bei ungültigen Angaben.
  */
 export function cleanConnections(input: unknown, current: readonly AiConnection[], newId: () => string = () => Math.random().toString(36).slice(2, 8)): AiConnection[] {
   if (!Array.isArray(input)) throw new Error('Liste der Verbindungen erwartet');
@@ -112,8 +117,8 @@ export function cleanConnections(input: unknown, current: readonly AiConnection[
     let id = known ? known.id : '';
     for (let i = 0; !id && i < 50; i++) {
       const candidate = `c${newId()}`.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
-      // Nie eine Kennung vergeben, die schon benutzt wird oder die einem Anbieter gehört (deren Schlüssel-Variable ist vergeben)
-      if (ID.test(candidate) && !knownProvider(candidate) && ![...current, ...out].some((c) => c.id === candidate)) id = candidate;
+      // Nie eine Kennung vergeben, die schon benutzt wird; das „c“ davor hält sie von den Kennungen der Anbieter fern
+      if (ID.test(candidate) && ![...current, ...out].some((c) => c.id === candidate)) id = candidate;
     }
     if (!knownProvider(r.provider)) throw new Error('Unbekannter KI-Anbieter');
     // Der Anbieter einer Verbindung steht fest: Sonst ginge ihr gespeicherter Schlüssel an einen anderen Anbieter
@@ -124,6 +129,23 @@ export function cleanConnections(input: unknown, current: readonly AiConnection[
     if (out.some((x) => x.id === c.id)) throw new Error('Verbindung doppelt in der Liste');
     out.push(c);
   }
-  if (!out.length) throw new Error('Mindestens eine Verbindung muss bleiben');
   return out;
+}
+
+/**
+ * Änderungen in die gespeicherte Liste einarbeiten: genannte Verbindungen werden ersetzt, neue angehängt, entfernt
+ * wird nur, was ausdrücklich in `remove` steht. Ein veraltetes Fenster, das eine Verbindung noch nicht kennt, kann
+ * sie so nicht versehentlich löschen. Wirft mit Meldung, wenn keine Verbindung übrig bliebe oder es zu viele würden.
+ */
+export function mergeConnections(current: readonly AiConnection[], changes: unknown, remove: unknown, newId?: () => string): { next: AiConnection[]; removed: AiConnection[] } {
+  const cleaned = cleanConnections(changes ?? [], current, newId);
+  const gone = Array.isArray(remove) ? remove.map(String) : [];
+  const removed = current.filter((c) => gone.includes(c.id));
+  const next = [
+    ...current.filter((c) => !gone.includes(c.id)).map((c) => cleaned.find((x) => x.id === c.id) ?? c),
+    ...cleaned.filter((x) => !current.some((c) => c.id === x.id)),
+  ];
+  if (!next.length) throw new Error('Mindestens eine Verbindung muss bleiben');
+  if (next.length > MAX_CONNECTIONS) throw new Error(`Höchstens ${MAX_CONNECTIONS} Verbindungen`);
+  return { next, removed };
 }
