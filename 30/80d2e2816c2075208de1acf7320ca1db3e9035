@@ -1,0 +1,56 @@
+doc/guidelines.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 111
+public/index.html
+  s_095fa5b0e499bb::t_34ae6af81df8bd 824,1408,2059
+doc/guidelines.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 111
+doc/test-checklist.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 113
+doc/user-guide.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 575-576,705
+public/i18n-en.js
+  s_095fa5b0e499bb::t_34ae6af81df8bd 655-656,660
+src/mcp/gateway.ts
+  s_095fa5b0e499bb::t_c3f6c05ea717f5 103,420
+  s_095fa5b0e499bb::t_34ae6af81df8bd 213-214,229,251-252,370,403-407,409-411,414-416
+doc/architecture.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 106
+doc/user-guide.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 573-574,703
+doc/legal.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 19
+doc/architecture.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 106
+doc/legal.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 21
+src/mcp/tools.ts
+  s_095fa5b0e499bb::t_34ae6af81df8bd 28
+README.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 98
+doc/test-checklist.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 113
+src/ai/realtimeBridge.ts
+  s_095fa5b0e499bb::t_c3f6c05ea717f5 384-385,411-412,623-625,627
+README.de.md
+  s_095fa5b0e499bb::t_34ae6af81df8bd 96
+test/mcp.test.ts
+  s_095fa5b0e499bb::t_c3f6c05ea717f5 360-362,618-619,700-712
+  s_095fa5b0e499bb::t_34ae6af81df8bd 132-137,357-359,363
+  s_095fa5b0e499bb::t_dccb57c96de336 713-715
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3080d2e2816c2075208de1acf7320ca1db3e9035",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
