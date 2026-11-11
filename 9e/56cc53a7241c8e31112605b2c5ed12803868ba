@@ -1,0 +1,39 @@
+electron/main.cjs
+  s_f828863347c33d::t_b53783b59c8b1c 72-74,295,307
+package.json
+  s_f828863347c33d::t_b53783b59c8b1c 48-50
+scripts/install-local.mjs
+  s_f828863347c33d::t_a5a66a9a6c1e0b 1-146
+CHANGELOG.de.md
+  s_2f2985f4f32792::t_6fa51bf1e6c7f8 9-10
+CHANGELOG.md
+  s_2f2985f4f32792::t_cf70f2332af7f3 9-10
+CONTRIBUTING.de.md
+  s_2f2985f4f32792::t_e00f055f7f549c 37
+CONTRIBUTING.md
+  s_2f2985f4f32792::t_724ca526ebcc84 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e56cc53a7241c8e31112605b2c5ed12803868ba",
+  "prompts": {},
+  "sessions": {
+    "s_2f2985f4f32792": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ca6b-7a79-70c2-bb7f-20be425e3fd1",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    },
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
