@@ -29,6 +29,12 @@ SIPFunk is a small project by a single developer. Bug reports and improvements a
 - Examples in code, tests and documentation use made-up names and reserved example values (`example.com`, `192.0.2.x`, phone numbers from the ranges the Bundesnetzagentur reserves for film and television), never real ones.
 - What can only be checked on the phone is listed in [doc/test-checklist.md](doc/test-checklist.md). Say what you checked on a real line and what you did not.
 
+## Tests and releases on GitHub
+
+- Every push to `main` and every pull request runs the type check and the tests (`.github/workflows/ci.yml`).
+- Pushing a tag `v1.2.3` builds the Windows installer and the portable ZIP and publishes them as a GitHub release (`.github/workflows/release.yml`). The version comes from the tag. The release text lists the changes since the previous tag: written by GitHub Copilot from the commit subjects if the repository secret `COPILOT_GITHUB_TOKEN` is set, otherwise GitHub's generated notes; the plain commit list is always attached.
+- Before tagging, move the entries under "Unreleased" in both changelogs to the new version.
+
 ## What will not be accepted
 
 Changes that weaken the dial target protection, enable several simultaneous calls or serial calling, bypass the confirmation required for the spam defence, or open the web UI to a network without a login. The reasons are in the [guidelines](doc/guidelines.md).

@@ -29,6 +29,12 @@ SIPFunk ist ein kleines Projekt eines einzelnen Entwicklers. Fehlerberichte und 
 - Beispiele in Code, Tests und Dokumentation verwenden erfundene Namen und reservierte Beispielwerte (`example.com`, `192.0.2.x`, Rufnummern aus den für Film und Fernsehen reservierten Bereichen der Bundesnetzagentur), nie echte.
 - Was sich nur am Telefon prüfen lässt, steht in [doc/test-checklist.de.md](doc/test-checklist.de.md). Schreib dazu, was du am echten Anschluss geprüft hast und was nicht.
 
+## Tests und Releases auf GitHub
+
+- Jeder Push nach `main` und jeder Pull Request lässt Typprüfung und Tests laufen (`.github/workflows/ci.yml`).
+- Ein neuer Tag `v1.2.3` baut den Windows-Installer und die portable ZIP-Datei und veröffentlicht beide als GitHub-Release (`.github/workflows/release.yml`). Die Version kommt aus dem Tag. Der Release-Text nennt die Änderungen seit dem vorigen Tag: von GitHub Copilot aus den Commit-Meldungen geschrieben, wenn im Repository das Secret `COPILOT_GITHUB_TOKEN` hinterlegt ist, sonst die von GitHub erzeugten Hinweise; die reine Commit-Liste hängt immer an.
+- Vor dem Tag die Einträge unter „Unveröffentlicht“ in beiden Changelogs zur neuen Version verschieben.
+
 ## Was nicht angenommen wird
 
 Änderungen, die den Rufzielschutz aufweichen, mehrere Gespräche gleichzeitig oder Serienanrufe ermöglichen, die Bestätigung vor der Spam-Abwehr umgehen oder die Web-UI ohne Anmeldung ins Netz öffnen. Die Gründe stehen in den [Richtlinien](doc/guidelines.de.md).
