@@ -38,7 +38,7 @@ function installDir() {
     } catch { continue; } // kein Treffer
     for (const block of out.split(/\r?\n\r?\n/)) {
       if (!new RegExp(`^\\s+DisplayName\\s+REG_SZ\\s+${product}( |$)`, 'm').test(block)) continue;
-      const m = /^\s+InstallLocation\s+REG_SZ\s+(.+)$/m.exec(block) || /^\s+DisplayIcon\s+REG_SZ\s+(.+?)\\[^\\]+\.exe/m.exec(block);
+      const m = /^\s+InstallLocation\s+REG_SZ\s+(.+)$/m.exec(block) || /^\s+UninstallString\s+REG_SZ\s+"?(.+?)\\[^\\]+\.exe/m.exec(block);
       const dir = m ? m[1].trim().replace(/^"|"$/g, '') : '';
       if (dir && existsSync(join(dir, `${product}.exe`))) return dir;
     }
