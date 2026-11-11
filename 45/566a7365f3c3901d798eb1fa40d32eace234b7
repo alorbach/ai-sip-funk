@@ -1,0 +1,25 @@
+public/i18n-en.js
+  s_319bc174b0c320::t_d1cb35193377f6 576-577
+src/ai/providers/gemini.ts
+  s_319bc174b0c320::t_d1cb35193377f6 25-26
+test/gemini.test.ts
+  s_319bc174b0c320::t_d1cb35193377f6 244-245
+src/ai/providers/openai.ts
+  s_319bc174b0c320::t_d1cb35193377f6 15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45566a7365f3c3901d798eb1fa40d32eace234b7",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
