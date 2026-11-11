@@ -25,6 +25,16 @@ const UTTERANCE_GAP_MS = 700;
 /** Der Server meldete Sprache, aber es kommt keine Transkription: dann war es ein Geräusch */
 const UTTERANCE_EMPTY_MS = 2000;
 
+/**
+ * Mitschrift der KI bereinigen: Für eine Antwort ohne Sprache liefert die Live API Platzhalter wie „<no speech>“,
+ * „{pause}“ oder nur „...“. Solche Marken sind nichts Gesagtes und gehören nicht ins Transkript; bleibt danach
+ * kein Buchstabe und keine Ziffer übrig, ist der Text leer.
+ */
+export function spokenText(text: string): string {
+  const t = text.replace(/<[^<>]{1,40}>|\{[^{}]{1,40}\}/g, ' ').replace(/\s+/g, ' ').trim();
+  return /[\p{L}\p{N}]/u.test(t) ? t : '';
+}
+
 /** Kennzeichen für Texte der App an das Modell; die Systemanweisung erklärt es (siehe REGIE_RULES). */
 export const REGIE = '[Regie]';
 
@@ -191,7 +201,8 @@ export class GeminiLive implements LiveSession {
       const said = (sc.outputTranscription as { text?: string } | undefined)?.text;
       if (said && this.turnOpen) {
         this.outText += said;
-        e.aiText(this.itemId(), said, false);
+        // Solange nur Platzhalter kamen („<no speech>“, „...“), zeigt das Transkript nichts
+        if (spokenText(this.outText)) e.aiText(this.itemId(), said, false);
       } else if (said) {
         // Nachzügler der vorigen Antwort (die Reihenfolge ist nicht garantiert): kommt als Nachtrag ins Transkript
         this.lateOut += said;
@@ -200,6 +211,9 @@ export class GeminiLive implements LiveSession {
     if (msg.usageMetadata) this.onUsage(usageFrom(msg.usageMetadata as Record<string, unknown>));
     const calls = (msg.toolCall as { functionCalls?: { id?: string; name?: string; args?: unknown }[] } | undefined)?.functionCalls;
     if (calls?.length) {
+      // Das Modell hat reagiert, die Äußerung des Gegenübers ist also zu Ende: erst sie ins Transkript, dann der
+      // Aufruf. Sonst stünde z. B. „Ergebnis laut KI“ vor dem Satz, auf den es sich bezieht.
+      if (this.partnerActive && this.inText.trim()) this.finishUtterance();
       this.beginTurn();
       for (const c of calls) if (c && typeof c === 'object') e.toolCall(String(c.name), String(c.id), JSON.stringify(c.args ?? {}));
       // Das Modell wartet jetzt auf das Ergebnis: Für die Brücke ist diese Antwort damit zu Ende
@@ -245,13 +259,14 @@ export class GeminiLive implements LiveSession {
     if (!this.turnOpen) return;
     this.turnOpen = false;
     const id = this.itemId();
-    if (this.outText.trim()) this.events.aiText(id, this.outText.trim(), true);
+    const text = spokenText(this.outText);
+    if (text) this.events.aiText(id, text, true);
     this.outText = '';
     this.events.responseDone({ id, status, outputTypes });
   }
 
   private flushLateOut(): void {
-    const text = this.lateOut.trim();
+    const text = spokenText(this.lateOut);
     this.lateOut = '';
     if (text && this.turn > 0) this.events.aiText(this.itemId(), text, true);
   }
@@ -306,6 +321,7 @@ export class GeminiLive implements LiveSession {
   }
 
   private finishUtterance(): void {
+    clearTimeout(this.utteranceTimer);
     this.utteranceTimer = undefined;
     if (this.closed) return;
     if (this.partnerActive) {

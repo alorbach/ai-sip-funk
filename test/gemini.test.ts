@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events';
 import type WebSocket from 'ws';
 import { RealtimeBridge, type RealtimeBridgeOptions, type Usage } from '../src/ai/realtimeBridge.js';
 import { checkGeminiKey, classifyGeminiModels, cleanGeminiKey, fetchGeminiModels, gemini, geminiText } from '../src/ai/providers/gemini.js';
-import { REGIE } from '../src/ai/providers/geminiLive.js';
+import { REGIE, spokenText } from '../src/ai/providers/geminiLive.js';
 import { openai } from '../src/ai/providers/openai.js';
 import { resolveAi } from '../src/ai/providers/index.js';
 import { testConnection } from '../src/ai/connectionTest.js';
@@ -418,5 +418,40 @@ test('Gemini: Nach einer fertigen, fast ausgespielten Antwort ist ein „Okay“
   h.say(800, 'Gut, dann Donnerstag.');
   assert.equal(h.drain(), 800, 'die Antwort ist zu hören');
   assert.ok(h.texts.includes('ki: Gut, dann Donnerstag.'));
+  h.bridge.close();
+});
+
+test('Gemini: Platzhalter der Mitschrift („<no speech>“, „{pause}“, „...“) kommen nicht ins Transkript', (t) => {
+  assert.equal(spokenText('<no speech>{pause}'), '');
+  assert.equal(spokenText(' ... '), '');
+  assert.equal(spokenText('Alles klar, <noise> bis dann!'), 'Alles klar, bis dann!');
+  assert.equal(spokenText('0 17 – 3 9 6'), '0 17 – 3 9 6');
+  const all: string[] = [];
+  const h = setup(t, { onTranscript: (e) => all.push(`${e.final ? 'fertig' : 'läuft'}: ${e.text}`) });
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  // Antwort ohne Sprache: Die Live API schreibt dafür einen Platzhalter mit
+  h.audio(20);
+  h.server({ serverContent: { outputTranscription: { text: '<no speech>' } } });
+  h.server({ serverContent: { outputTranscription: { text: '{pause}' } } });
+  h.server({ serverContent: { turnComplete: true } });
+  h.say(20, '...');
+  h.say(400, 'Alles klar, <noise> bis dann!');
+  assert.deepEqual(all.filter((l) => l.startsWith('fertig')), ['fertig: Hallo?', 'fertig: Alles klar, bis dann!']);
+  assert.ok(!all.some((l) => /no speech|pause|: \.\.\.$/.test(l)), 'auch kein Zwischenstand mit Platzhalter');
+  h.bridge.close();
+});
+
+test('Gemini: end_call gleich nach dem Satz des Gegenübers – der Satz steht im Transkript vor dem Ergebnis', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Unter welcher Nummer?');
+  h.drain();
+  h.server({ serverContent: { inputTranscription: { text: 'Unter dieser Nummer.' } } });
+  // Das Modell beendet sofort, noch bevor die Pause nach der Transkription abgelaufen ist
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'Rückruf gewünscht' } }] } });
+  h.tick(700);
+  assert.deepEqual(h.texts, ['ki: Unter welcher Nummer?', 'partner: Unter dieser Nummer.', 'system: Ergebnis laut KI: Rückruf gewünscht']);
   h.bridge.close();
 });
