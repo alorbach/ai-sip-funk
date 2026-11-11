@@ -1393,8 +1393,9 @@ function changedFields(keys) {
 function applySettings(s, keys) {
   loaded = s;
   for (const k of keys) if (s[k] !== undefined) setField(FORM_FIELDS[k], s[k]);
-  if (keys.includes('model')) setModel(s.model);
-  if (keys.includes('summaryModel')) setTextModel(s.summaryModel);
+  // Ein gespeichertes Modell des anderen Anbieters gilt nicht (der Server nimmt dann die Vorgabe): Die Auswahl zeigt dasselbe
+  if (keys.includes('model')) setModel(ownsModel(s.model) ? s.model : '');
+  if (keys.includes('summaryModel')) setTextModel(ownsModel(s.summaryModel) ? s.summaryModel : '');
   if (keys.includes('incomingProfiles')) { loadProfiles(s.incomingProfiles, s.incomingIdentities); renderScamState(); }
   if (s.retentionDays) $('retention').textContent = s.retentionDays;
 }
@@ -1414,6 +1415,8 @@ function callParams() {
 }
 // ---- KI-Anbieter: Auswahl, Schlüssel, Verbindungstest. Der Server meldet nur, ob ein Schlüssel hinterlegt ist. ----
 let ai = { provider: 'openai', hasKey: false, providers: [] };
+/** Gehört die Modell-ID zum gewählten Anbieter? (dieselbe Regel wie auf dem Server) */
+const ownsModel = (m) => /^gemini-/i.test(String(m || '')) === (ai.provider === 'gemini');
 const aiProvider = (id = ai.provider) => ai.providers.find((p) => p.id === id) || { id, label: id, hasKey: false };
 /** Auswahl mit Stimmen füllen; ein Wert, den der Anbieter nicht kennt, fällt auf den ersten Eintrag bzw. „Standard“ zurück. */
 function fillVoices(id, head) {

@@ -7,7 +7,7 @@ SIPFunk is a small project by a single developer. Bug reports and improvements a
 ## Reporting bugs
 
 - Describe what you did, what you expected and what happened.
-- State the operating system, Node version, model and FRITZ!OS version of the box, and the Realtime model used.
+- State the operating system, Node version, model and FRITZ!OS version of the box, and the AI provider and voice model used.
 - Attach the relevant log lines **after cleaning them**: no phone numbers, names, e-mail addresses, credentials or call content. The same goes for screenshots and call logs.
 - Do not report security vulnerabilities publicly, see [SECURITY.md](SECURITY.md).
 

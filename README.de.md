@@ -2,7 +2,7 @@
 
 [English](README.md) · **Deutsch**
 
-SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP-Telefon an einer FRITZ!Box an und verbindet das Telefonaudio mit einem Live-Sprachmodell von OpenAI. Die KI kann ausgehend anrufen und einen Auftrag erledigen, eingehende Anrufe als Anrufbeantworter annehmen und dich danach benachrichtigen. Alles läuft auf dem eigenen Rechner: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig.
+SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP-Telefon an einer FRITZ!Box an und verbindet das Telefonaudio mit einem Live-Sprachmodell von OpenAI oder Google. Die KI kann ausgehend anrufen und einen Auftrag erledigen, eingehende Anrufe als Anrufbeantworter annehmen und dich danach benachrichtigen. Alles läuft auf dem eigenen Rechner: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig.
 
 ![SIPFunk-Dashboard: Anruf mit Auftrag starten, darunter die letzten Anrufe](doc/images/dashboard.de.png)
 
@@ -10,9 +10,9 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 
 > **Nutzung auf eigene Verantwortung.** Die Software wird ohne Gewährleistung bereitgestellt. Wer SIPFunk betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt.
 >
-> **Rechtliches vorher lesen.** Gespräche werden an OpenAI übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr kann auf diesen Hinweis verzichten, wenn du dort die KI-Kennung ausschaltest; das ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
+> **Rechtliches vorher lesen.** Gespräche werden an den gewählten KI-Anbieter (OpenAI oder Google) übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr kann auf diesen Hinweis verzichten, wenn du dort die KI-Kennung ausschaltest; das ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
 >
-> **Nur OpenAI Realtime.** SIPFunk funktioniert derzeit ausschließlich mit der OpenAI Realtime API. Andere Live-Sprachmodelle kommen eventuell später hinzu.
+> **Zwei KI-Anbieter.** OpenAI Realtime ist der erprobte Standard. Google Gemini (Live API) steht als zweiter Anbieter zur Wahl; es lief bisher nur in den automatischen Tests gegen nachgestellte Verbindungen und ist noch nicht an einem echten Telefonat erprobt.
 
 ## Was es kann
 
@@ -23,7 +23,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **Spam-Abwehr.** Werbe- und Betrugsanrufer wimmelt die KI ab oder hält sie hin, standardmäßig offen als KI. Wer die KI-Kennung ausschaltet, lässt sie als Privatperson mit eigenem Namen auftreten; das geht nur nach ausdrücklicher Bestätigung des Risikos in der Web-UI. Stimme, Tempo und Anweisungen der Rolle sind einstellbar.
 - **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
 - **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen; je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
-- **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen.
+- **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen (nur mit OpenAI).
 - **MCP-Schnittstelle**, über die ein KI-Agent Anrufe starten und Ergebnisse lesen kann.
 
 ## Voraussetzungen
@@ -31,7 +31,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **FRITZ!Box** mit der Funktion „LAN/WLAN (IP-Telefon)“. Entwickelt und getestet wurde an einer FRITZ!Box; andere SIP-Anlagen mit Registrierung über UDP und G.711 können funktionieren, sind aber ungetestet (die Profile je eigener Rufnummer brauchen den Header `P-Called-Party-ID`).
 - **Node.js ab 20.12.**
 - **Windows 10 oder 11** für die Tray-App. Server und Web-UI sind reines Node.js; auf anderen Systemen ungetestet.
-- **OpenAI-API-Schlüssel** mit Zugriff auf die Realtime-Modelle.
+- **API-Schlüssel für einen der beiden KI-Anbieter**: OpenAI (mit Zugriff auf die Realtime-Modelle) oder Google Gemini (aus Google AI Studio).
 - Der Rechner muss laufen, solange der Anrufbeantworter Anrufe annehmen soll.
 
 ## Schnellstart
@@ -49,7 +49,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
    npm start
    ```
 
-4. <http://127.0.0.1:8080> öffnen. Solange das Nötigste fehlt, öffnet sich der **Einrichtungsassistent**: Er fragt nach den Zugangsdaten des IP-Telefons und dem OpenAI-Schlüssel, prüft beide und legt sie in der `.env` ab. Am Ende bietet er einen Testanruf im Echo-Modus an eine interne Nebenstelle an (z. B. `**610`, meist das erste Schnurlostelefon); das kostet nichts und beweist, dass SIP und Audio funktionieren. Wer mag, kopiert stattdessen `.env.example.de` nach `.env` und füllt sie von Hand aus.
+4. <http://127.0.0.1:8080> öffnen. Solange das Nötigste fehlt, öffnet sich der **Einrichtungsassistent**: Er fragt nach den Zugangsdaten des IP-Telefons und dem Schlüssel des KI-Anbieters (OpenAI oder Google Gemini), prüft beide und legt sie in der `.env` ab. Am Ende bietet er einen Testanruf im Echo-Modus an eine interne Nebenstelle an (z. B. `**610`, meist das erste Schnurlostelefon); das kostet nichts und beweist, dass SIP und Audio funktionieren. Wer mag, kopiert stattdessen `.env.example.de` nach `.env` und füllt sie von Hand aus.
 
 Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP: für „Private Netzwerke“ zulassen.
 
@@ -63,10 +63,10 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 
 ## Konfiguration
 
-- **`.env`**: Zugangsdaten (SIP, OpenAI), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den OpenAI-Schlüssel dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
-- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard. Die Oberfläche gibt es auf Deutsch und Englisch („Sprache“ auf der Seite „Einstellungen“; standardmäßig nach der Sprache des Browsers). Die KI selbst spricht am Telefon Deutsch.
+- **`.env`**: Zugangsdaten (SIP, KI-Anbieter), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den Schlüssel des KI-Anbieters dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
+- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, KI-Anbieter, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Den KI-Anbieter wählst du unter „KI-Anbieter“: OpenAI (Standard) oder Google Gemini; ein Anbieter übernimmt das Gespräch, den Gesprächsplan, die Zusammenfassung, die Einschätzung, den Beschwerde-Entwurf und die Hörproben. Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard. Die Oberfläche gibt es auf Deutsch und Englisch („Sprache“ auf der Seite „Einstellungen“; standardmäßig nach der Sprache des Browsers). Die KI selbst spricht am Telefon Deutsch.
 
-`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore` und gehören in kein Repository, kein Ticket und keinen Screenshot.
+`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore`, ebenso der Monatszähler `usage.json`, und gehören in kein Repository, kein Ticket und keinen Screenshot.
 
 ## Bedienung in Kürze
 
@@ -81,7 +81,7 @@ Die Web-UI hat vier Seiten:
 
 Solange ein Gespräch läuft, zeigt die Kopfzeile Phase, Gegenüber und Dauer sowie „Mithören“ und „Auflegen“.
 
-Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen:
+Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen (er läuft nur mit OpenAI):
 
 ```bash
 npm run sim
@@ -97,13 +97,16 @@ Einrichtung der Clients und alle Tools: [Handbuch, Kapitel 13](doc/user-guide.de
 
 ## Kosten
 
-OpenAI rechnet nach Token ab; ein Abo bei ChatGPT deckt die API nicht ab. Die Web-UI zeigt je Gespräch den Verbrauch und eine Schätzung in US-Dollar (Preistabelle in `src/ai/pricing.ts`, muss bei Preisänderungen angepasst werden). Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Setze bei OpenAI ein Budget-Limit. Dazu kommen die Telefonkosten deines Anschlusses.
+Beide Anbieter rechnen nach Token ab; ein Abo bei ChatGPT deckt die OpenAI-API nicht ab. Die Web-UI zeigt je Gespräch den Verbrauch und eine Schätzung in US-Dollar (Preistabelle in `src/ai/pricing.ts`, muss bei Preisänderungen angepasst werden) und unter „Einstellungen › KI-Anbieter“ Gespräche, Minuten und geschätzte Kosten des laufenden Monats je Anbieter. Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Setze bei deinem Anbieter ein Budget-Limit. Dazu kommen die Telefonkosten deines Anschlusses.
+
+Bei Gemini rechnet die Schätzung immer mit den Preisen der bezahlten Stufe. Google bietet für die Gemini API ein kostenloses Kontingent an, schränkt es in seinen Bedingungen aber für Nutzer im EWR, in der Schweiz und im Vereinigten Königreich ein; lies [doc/legal.de.md](doc/legal.de.md) (Abschnitt 3.5), bevor du dich darauf verlässt.
 
 Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes OpenAI-API-Guthaben, zum Beispiel solches, das man im Zusammenhang mit Codex erhalten hat. Ob und in welcher Höhe es solches Guthaben gibt, hängt von OpenAI und vom eigenen Konto ab.
 
 ## Grenzen
 
-- Nur OpenAI Realtime als Sprachmodell (siehe oben).
+- Google Gemini ist noch nicht an einem echten Telefonat erprobt; getestet ist es nur in den automatischen Tests gegen nachgestellte Verbindungen.
+- Mit Gemini dauert ein Gespräch höchstens neun Minuten, die Sprechgeschwindigkeit lässt sich nicht einstellen, ein spät fertiger Gesprächsplan und der Wechsel in die Spam-Abwehr erreichen die KI nur als nachgereichte Anweisung (schwächer als bei OpenAI), das Zu-Ende-Sprechen nach einem bloßen „Mhm“ klappt seltener, und der Simulator steht nicht zur Verfügung. Einzelheiten im [Handbuch, Abschnitt 6.2](doc/user-guide.de.md#62-ki-anbieter).
 - Ein Gespräch gleichzeitig; während eines Gesprächs ist die Nebenstelle besetzt.
 - Deutsch: Web-UI, Anweisungen an die KI und Rufnummernregeln sind auf Deutschland ausgelegt. Notruf, Sonder-, Mehrwert- und Auslandsnummern sind gesperrt.
 - Keine Tastentöne (DTMF), also keine Sprachmenüs; keine Übernahme des Gesprächs per Mikrofon.
@@ -113,9 +116,9 @@ Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes Open
 
 ## Bestimmungsgemäße Nutzung und Haftung
 
-SIPFunk ist ein privates, nichtkommerzielles Projekt einer Einzelperson: kein Produkt, kein Support, keine Verbindung zu einem Arbeitgeber. Es ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an OpenAI; gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr ist standardmäßig aus und gibt sich ebenfalls als KI zu erkennen; ohne KI-Kennung ist sie nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
+SIPFunk ist ein privates, nichtkommerzielles Projekt einer Einzelperson: kein Produkt, kein Support, keine Verbindung zu einem Arbeitgeber. Es ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an den gewählten KI-Anbieter (OpenAI oder Google); gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr ist standardmäßig aus und gibt sich ebenfalls als KI zu erkennen; ohne KI-Kennung ist sie nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
 
-FRITZ!Box ist eine Marke der AVM GmbH, OpenAI eine Marke von OpenAI. Alle genannten Marken gehören ihren jeweiligen Inhabern. SIPFunk ist ein unabhängiges Projekt und steht in keiner Verbindung zu diesen Unternehmen; es wird von ihnen weder unterstützt noch empfohlen.
+FRITZ!Box ist eine Marke der AVM GmbH, OpenAI eine Marke von OpenAI, Google und Gemini sind Marken der Google LLC. Alle genannten Marken gehören ihren jeweiligen Inhabern. SIPFunk ist ein unabhängiges Projekt und steht in keiner Verbindung zu diesen Unternehmen; es wird von ihnen weder unterstützt noch empfohlen.
 
 ## Dokumentation
 

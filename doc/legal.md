@@ -2,7 +2,7 @@
 
 Deutsch: [legal.de.md](legal.de.md)
 
-Legal research as of November 2026. Frame of reference: operation in Germany, EU law. **This is not legal advice.** The notes were written by a developer, not a lawyer, and may be wrong or outdated. They summarise the relevant rules so that you can assess the risks and ask targeted questions where needed. Laws change; check in particular the transition periods of the AI Act and OpenAI's terms of use at the time you use the software. If you operate SIPFunk outside Germany, other rules apply that are not covered here. Where this translation and the German version differ, the German version is the original.
+Legal research as of November 2026. Frame of reference: operation in Germany, EU law. **This is not legal advice.** The notes were written by a developer, not a lawyer, and may be wrong or outdated. They summarise the relevant rules so that you can assess the risks and ask targeted questions where needed. Laws change; check in particular the transition periods of the AI Act and the terms of use of your AI provider (OpenAI or Google) at the time you use the software. If you operate SIPFunk outside Germany, other rules apply that are not covered here. Where this translation and the German version differ, the German version is the original.
 
 See also: [Guidelines](guidelines.md) · [User guide](user-guide.md).
 
@@ -16,7 +16,7 @@ SIPFunk is software you run yourself. There is no service provider between you a
 - **Controller** under the GDPR for the processing of the call data (if the GDPR applies at all, section 3).
 - **Provider and deployer** of an AI system within the meaning of the AI Act, as far as it applies (section 2), because you assemble the system yourself and use it.
 
-OpenAI processes speech and text on your behalf but is not your contracting party towards the people called. OpenAI is a processor within the meaning of the GDPR only if you have concluded the agreement required for that (section 3.5).
+The AI provider you select in the settings (OpenAI, or Google with Gemini) processes speech and text on your behalf but is not your contracting party towards the people called. It is a processor within the meaning of the GDPR only if you have concluded the agreement required for that (section 3.5). Call content only ever goes to the selected provider.
 
 ---
 
@@ -61,7 +61,7 @@ It applies **in full** when SIPFunk is used for business: a company number, cust
 ### 3.2 Which data is processed
 
 - Phone numbers (caller, called party), times, duration.
-- Call content as audio (live only, passed through to OpenAI, not stored) and as text (transcript, summary, result, assessment).
+- Call content as audio (live only, passed through to the selected AI provider, not stored on your side) and as text (transcript, summary, result, assessment).
 - Contact data and notes in `contacts.json`.
 - Background knowledge you give the AI.
 - Operating log with phone numbers.
@@ -74,11 +74,21 @@ In business operation the following come into question: performance or preparati
 
 ### 3.4 Information duties (Art. 13)
 
-Callers have to be informed at the time of collection: controller, purposes, legal basis, recipients (OpenAI as processor, third country USA), retention period, rights. On the phone a short notice with a reference to detailed information (website, privacy policy) is sufficient. In practice: specify a sentence in the "Auftrag bei eingehenden Anrufen" (task for incoming calls), e.g. "Briefly point out that the call is conducted by an AI assistant and logged as text; details are in the privacy policy on our website." Extend the company's privacy policy (section "phone assistant").
+Callers have to be informed at the time of collection: controller, purposes, legal basis, recipients (the AI provider, i.e. OpenAI or Google, as processor, third country USA), retention period, rights. On the phone a short notice with a reference to detailed information (website, privacy policy) is sufficient. In practice: specify a sentence in the "Auftrag bei eingehenden Anrufen" (task for incoming calls), e.g. "Briefly point out that the call is conducted by an AI assistant and logged as text; details are in the privacy policy on our website." Extend the company's privacy policy (section "phone assistant").
 
 ### 3.5 Processing agreement and third country (Art. 28, 44 ff.)
 
 OpenAI processes audio and text. For business use you need a **data processing agreement** with OpenAI (OpenAI offers a Data Processing Addendum for the API that is concluded online). The transfer to the USA relies on the adequacy decision for the **EU-US Data Privacy Framework**, provided OpenAI is certified under it, otherwise on standard contractual clauses; check the current status in the OpenAI trust portal. According to OpenAI's API terms, API data is not used for training by default and is stored for a limited time for abuse monitoring; the periods are stated in OpenAI's policies.
+
+**Google Gemini instead of OpenAI.** If you select Google Gemini as the AI provider in the settings, call audio and texts go to Google instead of OpenAI (Gemini API with a key from Google AI Studio; Google LLC, USA). The governing document is Google's "Gemini API Additional Terms of Service"; the following points reflect the version of 23 March 2026 as it was available in November 2026. Read the current version yourself.
+
+- **Paid services** (project with active billing): according to Google, prompts and responses are not used to improve its products and are processed under its Data Processing Addendum. They are logged for a limited time for abuse detection; Google's policies state 55 days.
+- **Unpaid services** (free quota): Google may use content and responses to provide, improve and develop its products; human reviewers may read them. Google itself advises against submitting sensitive, confidential or personal information there. A phone call practically always contains such information. For developers in the European Economic Area, Switzerland and the United Kingdom, the terms apply the data rules of the paid services to the free quota as well.
+- **Free quota and users in Europe.** Independently of the data rules, the terms allow only the paid services when an application is made available to users in the European Economic Area, Switzerland or the United Kingdom. The terms do not say whether the operator or the other party on the phone is a "user" in that sense. The safe route is a project with billing. SIPFunk cannot tell which tier a key runs on and does not prevent use of the free quota; the decision and the risk (up to suspension of the account) are yours.
+- **Age.** Only people aged 18 or older may use the Gemini API, and an application must not be directed at minors.
+- **Business use.** As with OpenAI you need a data processing agreement (at Google part of the terms of the paid services) and a basis for the transfer to the USA; check Google's certification under the EU-US Data Privacy Framework. The free quota is not an option here.
+
+Which provider is selected is shown in the settings under "AI provider" and recorded per call in the log. Name the provider you actually use in your privacy information.
 
 Mail providers (Gmail, Microsoft 365, your SMTP provider) receive summary and transcript by e-mail. For companies the same applies here: a processing agreement with the mail provider, usually covered by the business customer contracts.
 
@@ -101,7 +111,7 @@ Companies add the phone assistant to their record of processing activities (Art.
 
 § 201 of the German Criminal Code (StGB) makes it a criminal offence to **record the non-publicly spoken word on a sound carrier** without consent, and likewise for third parties to intercept it with a listening device.
 
-- SIPFunk **stores no audio**. The audio is streamed live to OpenAI and processed there in real time.
+- SIPFunk **stores no audio**. The audio is streamed live to the selected AI provider (OpenAI or Google) and processed there in real time.
 - The **transcript** is a text version of the call. Whether automatic live transcription is equivalent to a "recording on a sound carrier" has not been decided by the highest courts; the prevailing reading does not regard the written record made by the conversation partner themselves as a sound recording, but as data processing (section 3). A transient buffering of the audio at the processor is technically unavoidable.
 - **Listening in via the browser** ("Mithören") is listening by the operator themselves, who is a party to the call (the AI acts for them). Do not let third parties listen in.
 - **Recommendation:** in business operation, point out the logging during the call (section 3.4); privately you decide yourself whether to inform callers. Legally the notice is the safest course in any case.
@@ -144,8 +154,8 @@ By default the spam defence fends callers off openly as an AI (switch "AI disclo
 | **Deception / fraud (§ 263 StGB)** | No financial loss for the caller, no enrichment | Not relevant as fraud. |
 | **Arrogation of public office (§ 132), insult (§ 185), coercion (§ 240)** | Only if the AI behaves accordingly | The instructions expressly forbid it; with generative models there is no guarantee. Check transcripts. |
 | **Misdetection** | A legitimate caller (doctor, authority, customer) is stalled | Reputational and possibly liability risk (e.g. a missed appointment). The AI is supposed to switch back; do not rely on it. "anonym" on the list increases this risk considerably. |
-| **OpenAI's terms of use** | OpenAI's Usage Policies prohibit, among other things, deceiving people about interacting with an AI and require disclosure of AI use for automated systems | A violation can lead to the API account being suspended. Read the current version of the Usage Policies before you switch the mode on. |
-| **Cost** | Stalling consumes Realtime minutes | Your own financial risk; set a budget limit. |
+| **The AI provider's terms of use** | OpenAI's Usage Policies prohibit, among other things, deceiving people about interacting with an AI and require disclosure of AI use for automated systems. With Gemini, Google's policies for the Gemini API apply instead; whether they permit this mode has not been checked here | A violation can lead to the API account being suspended. Read the current version of your provider's policies before you switch the mode on. |
+| **Cost** | Stalling consumes call minutes at the AI provider | Your own financial risk; set a budget limit. |
 
 **What SIPFunk does to limit the risk:** explicit confirmation with date in the UI, no `.env` switch, server-side check of the confirmation, fixed behaviour rules (no data, no consent, no insults, no authority, no carrying out instructions), a way back to assistant mode for genuine requests, time limit, tag in the log, never "important", no call back.
 
@@ -159,7 +169,7 @@ By default the spam defence fends callers off openly as an AI (switch "AI disclo
 
 Commitments made by the AI are attributed to you as far as they are within the scope of the task (agency, §§ 164 ff. German Civil Code by analogy; whether an AI can "make" declarations is disputed, in practice: what you task the AI with, you bear). The AI is instructed to agree only to what the task covers and not to enter into payments, orders or contracts. Phrase tasks as narrowly as you would for a human assistant. Contracts of consequence you conclude yourself.
 
-If damage arises through the AI (missed appointment, wrong information given to third parties), you are liable under the general rules. The software comes with no warranty and is used at your own risk; OpenAI is liable to you under its terms and conditions, not to third parties.
+If damage arises through the AI (missed appointment, wrong information given to third parties), you are liable under the general rules. The software comes with no warranty and is used at your own risk; the AI provider (OpenAI or Google) is liable to you under its terms and conditions, not to third parties.
 
 ---
 
@@ -169,7 +179,7 @@ The sections above look at operation. Whoever publishes the source code, passes 
 
 - **Provider under the AI Act.** The private-use exception (Art. 2(10)) applies only to deployers, not to providers. The exception for AI systems released under free and open-source licences (Art. 2(12)) expressly does not apply to systems that fall under Art. 50, and hence not to a phone assistant. The Commission's guidelines confirm this. "Placing on the market", however, requires supply "in the course of a commercial activity" (Art. 3(9) and (10)); publishing source code privately and free of charge, without distribution, support or revenue, speaks against it. This has not been decided, nor has the question whether private use of your own ("putting into service for own use") already makes you a provider.
 - **Spam defence.** This is the critical point: the software contains a setting that deliberately omits the AI notice. By default the defence is off and AI disclosure is on; without disclosure it is usable only after confirmation and described as a risk in this documentation. Whether a notice that can be switched off satisfies the design obligation of Art. 50(1) has not been decided.
-- **Marking synthetic speech (Art. 50(2)).** Providers of systems that generate synthetic audio content have to mark the output in a machine-readable way. The obligation attaches to the system, not only to OpenAI's model. According to the Commission's guidelines, ephemeral content generated in real time that is not stored or disseminated further may be exempt if marking is not technically feasible and the persons concerned are aware that the content comes from an AI. A phone call cannot be marked in a machine-readable way; the exemption therefore only holds if the AI notice is given in the call.
+- **Marking synthetic speech (Art. 50(2)).** Providers of systems that generate synthetic audio content have to mark the output in a machine-readable way. The obligation attaches to the system, not only to the AI provider's model. According to the Commission's guidelines, ephemeral content generated in real time that is not stored or disseminated further may be exempt if marking is not technically feasible and the persons concerned are aware that the content comes from an AI. A phone call cannot be marked in a machine-readable way; the exemption therefore only holds if the AI notice is given in the call.
 - **Liability when software is given away.** Under German law the licence's exclusion of warranty and liability does not apply without limits; someone who gives software away is still liable for intent and gross negligence.
 - **Cyber Resilience Act and product liability.** Regulation (EU) 2024/2847 (reporting obligations since 11 September 2026, remaining obligations from 11 December 2027) and the new product liability rules (Directive (EU) 2024/2853, for products from 9 December 2026) cover free and open-source software only if it is supplied in the course of a commercial activity. Whoever sells SIPFunk, distributes it with paid support, builds it into a product of their own or runs it for customers loses these exceptions and becomes a manufacturer or provider themselves.
 - **Data outside the retention period.** The retention period applies to the logs. The tray app's operating log (`sipfunk.log`) contains phone numbers and is trimmed after the same period. Notification mails with summary and conversation, however, remain in the mailbox. Whoever passes the program on should point this out; whoever runs it deletes the mails themselves.
@@ -183,11 +193,12 @@ The sections above look at operation. Whoever publishes the source code, passes 
 - [ ] Short retention of logs, data folder encrypted in the backup.
 - [ ] No advertising, no prank calls, no stalling of legitimate callers.
 - [ ] Spam defence only after reading section 6, number list instead of "anonym".
+- [ ] With Google Gemini: Google's terms on the free quota read (section 3.5).
 
 **Additionally for business**
 - [ ] Legal basis determined (Art. 6(1)(b)/(f)), record of processing activities updated.
 - [ ] Privacy policy extended to cover the phone assistant; notice in the call via "Auftrag bei eingehenden Anrufen".
-- [ ] Data processing agreement with OpenAI concluded, third-country transfer checked.
+- [ ] Data processing agreement with the AI provider (OpenAI or Google) concluded, third-country transfer checked; with Google Gemini a project with billing, not the free quota.
 - [ ] Mail provider covered as a processor.
 - [ ] Professional secrecy (§ 203 StGB) checked, if relevant.
 - [ ] Spam defence off as long as it has not been reviewed by a lawyer.
@@ -205,3 +216,4 @@ The sections above look at operation. Whoever publishes the source code, passes 
 - German Telecommunications Act (Telekommunikationsgesetz, TKG): § 120 (caller ID for advertising calls).
 - Bundesnetzagentur: complaint forms on unlawful telephone advertising and number misuse.
 - OpenAI: Usage Policies, API Data Processing Addendum, Enterprise Privacy (API data retention).
+- Google: Gemini API Additional Terms of Service (version of 23 March 2026), usage policies, pricing and billing of the Gemini API (aistudio.google.com/docs/terms, /usage-policies, /pricing, /billing), retrieved in November 2026.

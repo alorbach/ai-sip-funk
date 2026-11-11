@@ -12,21 +12,21 @@ Inhalt: [1 Überblick](#1-was-sipfunk-ist) · [2 Voraussetzungen](#2-voraussetzu
 
 ## 1. Was SIPFunk ist
 
-SIPFunk ist ein lokaler KI-Telefonassistent für die FRITZ!Box. Das Programm meldet sich an der Box wie ein IP-Telefon an (SIP-Nebenstelle) und verbindet das Telefonaudio mit der OpenAI-Realtime-API. Damit kann die KI
+SIPFunk ist ein lokaler KI-Telefonassistent für die FRITZ!Box. Das Programm meldet sich an der Box wie ein IP-Telefon an (SIP-Nebenstelle) und verbindet das Telefonaudio mit dem Live-Sprachmodell des KI-Anbieters, den du wählst: OpenAI (Realtime-API, der erprobte Standard) oder Google Gemini (Live API, noch nicht an einem echten Telefonat erprobt; Abschnitt 6.2). Damit kann die KI
 
 - **ausgehend anrufen** und einen Auftrag erledigen („Frag in der Praxis nach einem Termin nächste Woche“),
 - **eingehende Anrufe annehmen** (Anrufbeantworter), Anliegen und Rückrufwunsch aufnehmen,
 - dich danach **benachrichtigen** (Tray-Hinweis, E-Mail, bei wichtigen Anrufen ein Rückruf mit Durchstellen zum Anrufer),
 - optional **Werbe- und Betrugsanrufe abwimmeln oder hinhalten** (Spam-Abwehr, nur nach ausdrücklicher Bestätigung, Kapitel 10).
 
-Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zu OpenAI (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, und zu tellows, wenn du das Nachschlagen einschaltest. Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
+Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zum gewählten KI-Anbieter, OpenAI oder Google (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, und zu tellows, wenn du das Nachschlagen einschaltest. Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
 
-Grenzen: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig. SIPFunk arbeitet derzeit nur mit der OpenAI-Realtime-API. Es wird kein Audio aufgezeichnet; gespeichert werden Transkripte (Text), Zusammenfassungen und Metadaten.
+Grenzen: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig. SIPFunk arbeitet mit der OpenAI-Realtime-API oder der Gemini Live API (Abschnitt 6.2). Es wird kein Audio aufgezeichnet; gespeichert werden Transkripte (Text), Zusammenfassungen und Metadaten.
 
 ### Wie ein Gespräch technisch läuft
 
 1. Die FRITZ!Box schickt das Telefonaudio als G.711 (HD mit 16 kHz, wenn die Box es anbietet, sonst 8 kHz) an SIPFunk.
-2. SIPFunk rechnet es auf 24 kHz PCM um und streamt es an die Realtime-API; die Antwort kommt als Audio zurück und geht in Echtzeit zur Box.
+2. SIPFunk rechnet es in das PCM-Format des Anbieters um (OpenAI: 24 kHz in beide Richtungen; Gemini: 16 kHz zu Google, 24 kHz zurück) und streamt es an das Live-Sprachmodell; die Antwort kommt als Audio zurück und geht in Echtzeit zur Box.
 3. Die KI bekommt eine Systemanweisung (Grundregeln, Stil, dein Auftrag, Hintergrundwissen) und bis zu drei Werkzeuge: `end_call` (Gespräch beenden und Ergebnis melden), beim Rückruf an dich `transfer_call` (durchstellen), bei aktiver Spam-Abwehr `flag_spam`.
 4. Nach dem Gespräch erstellt ein Textmodell eine Zusammenfassung und, beim Anrufbeantworter, eine Einschätzung „wichtig/unwichtig“.
 
@@ -39,7 +39,7 @@ Mehr dazu in der [Architektur](architecture.de.md).
 - FRITZ!Box mit einem FRITZ!OS, das „LAN/WLAN (IP-Telefon)“ unterstützt. Andere SIP-Anlagen sind ungetestet.
 - Node.js ab 20.12 für den Start aus dem Repository. Die gebaute Tray-App bringt ihre Laufzeit mit.
 - Windows 10/11 für die Tray-App (Infobereich, Benachrichtigungen, Pop-up beim Klingeln). Server und Web-UI brauchen nur Node.js, sind auf anderen Systemen aber ungetestet.
-- Ein OpenAI-API-Schlüssel mit Zugriff auf die Realtime-Modelle. Kosten fallen pro Gesprächsminute an (Kapitel 15).
+- Ein API-Schlüssel für einen der beiden KI-Anbieter: OpenAI (mit Zugriff auf die Realtime-Modelle) oder Google Gemini (aus Google AI Studio; Abschnitt 6.2). Kosten fallen pro Gesprächsminute an (Kapitel 15).
 - Der Rechner muss laufen, solange der Anrufbeantworter Anrufe annehmen soll.
 
 ---
@@ -71,17 +71,17 @@ Danach <http://127.0.0.1:8080> öffnen. Für den ersten Start ist keine Konfigur
 
 ![Einrichtungsassistent, erster Schritt](images/setup.de.png)
 
-Solange das Nötigste fehlt (Zugangsdaten zur Telefonanlage, OpenAI-Schlüssel, der Name, in dessen Auftrag die KI spricht), öffnet die Web-UI von selbst den Einrichtungsassistenten. Er hat sieben Schritte, jeder lässt sich überspringen; „Später einrichten“ oder Esc schließt ihn, und „Einrichtungsassistent …“ auf der Seite „Einstellungen“ öffnet ihn jederzeit wieder.
+Solange das Nötigste fehlt (Zugangsdaten zur Telefonanlage, Schlüssel des KI-Anbieters, der Name, in dessen Auftrag die KI spricht), öffnet die Web-UI von selbst den Einrichtungsassistenten. Er hat sieben Schritte, jeder lässt sich überspringen; „Später einrichten“ oder Esc schließt ihn, und „Einrichtungsassistent …“ auf der Seite „Einstellungen“ öffnet ihn jederzeit wieder.
 
 1. **Willkommen**: was noch fehlt.
 2. **Telefonanlage verbinden**: Adresse (bei einer FRITZ!Box `fritz.box`), Benutzername und Kennwort des IP-Telefons aus Kapitel 3. „Verbindung prüfen und speichern“ meldet sich einmal zur Probe an; nur wenn das gelingt, werden die Werte gespeichert, und die App meldet sich damit an – ohne Neustart. Scheitert die Probe, steht in einem Satz, woran es lag (abgelehnt, nicht gefunden, keine Antwort), und es ändert sich nichts.
-3. **OpenAI-Schlüssel**: Der Schlüssel wird einmal bei OpenAI geprüft und dann gespeichert. Ohne Schlüssel funktionieren nur „Echo“ und „Testton“.
+3. **KI-Anbieter**: OpenAI oder Google Gemini wählen und den API-Schlüssel eintragen. „Schlüssel prüfen und speichern“ prüft den Schlüssel einmal beim Anbieter und speichert ihn dann. Ohne Schlüssel funktionieren nur „Echo“ und „Testton“. Was die beiden Anbieter unterscheidet, steht in Abschnitt 6.2.
 4. **Dein Assistent**: Name der KI und „Im Auftrag von“.
 5. **Anrufbeantworter**: an/aus und, wenn gewünscht, eine erste eigene Rufnummer mit dem Namen, für den die KI dort abnimmt.
 6. **E-Mail-Benachrichtigung** (optional): Postfach und Passwort; der Server wird gesucht und die Anmeldung geprüft. Anbieter, die OAuth verlangen, richtest du unter „Einstellungen › E-Mail-Versand“ in der Stufe „Erweitert“ ein.
 7. **Fertig**: Stand der drei nötigen Angaben und ein Testanruf ohne KI: interne Nebenstelle eintragen (z. B. `**610`), bestätigen, und du hörst dich selbst mit einer Sekunde Verzögerung.
 
-So geht der Assistent mit den Zugangsdaten um: SIP-Kennwort und OpenAI-Schlüssel nimmt nur die lokale Web-UI (`127.0.0.1`) entgegen; sie werden in die `.env` im Datenordner geschrieben und in die laufende App übernommen. Angezeigt oder von der API zurückgeliefert werden sie nie wieder; der Assistent zeigt nur, ob etwas hinterlegt ist. Ein hinterlegtes Kennwort wird nur weiterverwendet, solange Adresse und Benutzername gleich bleiben. Alles andere, was der Assistent einstellt (Namen, Anrufbeantworter, E-Mail), sind gewöhnliche Einstellungen in `settings.json`.
+So geht der Assistent mit den Zugangsdaten um: SIP-Kennwort und Schlüssel des KI-Anbieters nimmt nur die lokale Web-UI (`127.0.0.1`) entgegen; sie werden in die `.env` im Datenordner geschrieben und in die laufende App übernommen. Angezeigt oder von der API zurückgeliefert werden sie nie wieder, und sie stehen in keinem Log; der Assistent zeigt nur, ob etwas hinterlegt ist. Ein hinterlegtes Kennwort wird nur weiterverwendet, solange Adresse und Benutzername gleich bleiben. Alles andere, was der Assistent einstellt (Namen, Anrufbeantworter, E-Mail), sind gewöhnliche Einstellungen in `settings.json`.
 
 Lieber von Hand? `.env.example.de` nach `.env` kopieren und mindestens ausfüllen:
 
@@ -90,7 +90,7 @@ Lieber von Hand? `.env.example.de` nach `.env` kopieren und mindestens ausfülle
 | `SIP_SERVER` | Adresse der Box, meist `fritz.box` |
 | `SIP_USER`, `SIP_PASSWORD` | Zugangsdaten der IP-Telefon-Nebenstelle (Pflicht) |
 | `SIP_LOCAL_PORT` (5062), `RTP_PORT` (40000) | lokale UDP-Ports; die Windows-Firewall fragt beim ersten Start, „Private Netzwerke“ zulassen |
-| `OPENAI_API_KEY` | für KI-Gespräche, Gesprächsplan, Zusammenfassung, Einschätzung, Stimmproben. Ohne Schlüssel funktionieren nur „Testton“ und „Echo“ |
+| `OPENAI_API_KEY` oder `GEMINI_API_KEY` | Schlüssel des KI-Anbieters, für KI-Gespräche, Gesprächsplan, Zusammenfassung, Einschätzung, Hörproben. OpenAI ist der Standard; für Google Gemini zusätzlich `AI_PROVIDER=gemini` setzen. Ohne Schlüssel funktionieren nur „Testton“ und „Echo“ |
 | `OWNER_NUMBERS` | deine eigene(n) Nummer(n), mit Komma getrennt (Ziel des Rückrufs, Rückrufnummer für Angerufene); alternativ ein Kontakt mit Kennzeichen „Inhaber“ |
 
 Alle weiteren Variablen stehen kommentiert in der `.env.example.de`; Kapitel 14 zeigt, was nur dort und was in der Web-UI eingestellt wird. Von Hand eingetragene Werte wirken nach einem Neustart.
@@ -103,7 +103,7 @@ npm run tray
 
 Ein Symbol im Infobereich zeigt den Zustand (registriert, bereit, verbunden). Doppelklick öffnet die Web-UI, ein Klick das Menü: „Web-UI öffnen“, „Anrufbeantworter“ (an/aus), „Einstellungen (.env) bearbeiten“, „Datenordner öffnen“, „Beim Anmelden starten“, „Server neu starten“, „Beenden“. Fehler (z. B. eine gescheiterte Anmeldung) stehen als Zeile im Menü; ein Klick kopiert sie. Nach einem angenommenen Anruf erscheint eine Windows-Benachrichtigung; ein Klick darauf öffnet die Web-UI.
 
-Installer und portable ZIP: `npm run dist:win` (Ergebnis in `release/`). Installiert liegen `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und `sipfunk.log` im Benutzerprofil unter `%APPDATA%\SIPFunk`. Beim ersten Start wird `.env.example` (englisch kommentiert) dorthin kopiert, und die Web-UI öffnet sich mit dem Einrichtungsassistenten (Kapitel 4.2). Die Umgebungsvariable `SIPFUNK_DATA_DIR` legt den Datenordner auch beim Start aus dem Repository fest.
+Installer und portable ZIP: `npm run dist:win` (Ergebnis in `release/`). Installiert liegen `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `usage.json` und `sipfunk.log` im Benutzerprofil unter `%APPDATA%\SIPFunk`. Beim ersten Start wird `.env.example` (englisch kommentiert) dorthin kopiert, und die Web-UI öffnet sich mit dem Einrichtungsassistenten (Kapitel 4.2). Die Umgebungsvariable `SIPFUNK_DATA_DIR` legt den Datenordner auch beim Start aus dem Repository fest.
 
 ### 4.4 Erster Funktionstest ohne KI
 
@@ -130,7 +130,7 @@ Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungss
 - **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, Modell, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll.
 - **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“ und „Spam-Abwehr“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
-- **Einstellungen**: die Abschnitte KI-Assistent, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik. Links die Abschnittsliste zum Springen, darunter „Speichern“ (oder Strg+S); gespeichert werden alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Am Ende stehen zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
+- **Einstellungen**: die Abschnitte KI-Assistent, KI-Anbieter, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik. Links die Abschnittsliste zum Springen, darunter „Speichern“ (oder Strg+S); gespeichert werden alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Am Ende stehen zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
 
 Stil, Stimme, Anrede, Modell und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie (und nur sie: Die beiden Speichern-Knöpfe fassen die Werte des jeweils anderen nicht an). Einzige Ausnahme ist das Sprachmodell: Es steht zusätzlich unter „Einstellungen › KI-Assistent“, beide Stellen zeigen denselben Wert, und beide Knöpfe speichern ihn.
 ### 5.1 „Einfach“ und „Erweitert“
@@ -142,6 +142,7 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 | Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Modell, Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
 | Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
 | KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text), Sprachmodell | eigene Modell-IDs, Textmodell |
+| KI-Anbieter | Anbieter, Schlüssel, „Verbindung testen“, Verbrauch in diesem Monat, Hinweise zu Gemini | tatsächliche Kosten laut OpenAI (Admin-Schlüssel) |
 | Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person, Firma oder Familie) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
 | Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
 | E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
@@ -168,11 +169,11 @@ Drei Dinge bleiben unabhängig davon deutsch: Die KI spricht am Telefon Deutsch 
 
    > „Ruf die Zahnarztpraxis an. Ich brauche einen Kontrolltermin in den nächsten drei Wochen, vormittags, Name Max Mustermann, die Versichertennummer habe ich nicht zur Hand. Nimm einen angebotenen Termin an, wenn er vormittags liegt.“
 
-3. **Stil** (Presets aus `personas/*.md`: professionell, locker, formell, herzlich; eine eigene Datei ist ein eigenes Preset), **Stimme** („Probe hören“ spielt alle Stimmen mit dem eingestellten KI-Namen vor), **Anrede** Du/Sie, **Modell** (die Realtime-Modelle, die dein OpenAI-Konto anbietet; Abschnitt 6.1).
+3. **Stil** (Presets aus `personas/*.md`: professionell, locker, formell, herzlich; eine eigene Datei ist ein eigenes Preset), **Stimme** (die Stimmen des gewählten KI-Anbieters; „Probe hören“ spielt alle mit dem eingestellten KI-Namen vor), **Anrede** Du/Sie, **Modell** (die Sprachmodelle, die dein Konto beim gewählten KI-Anbieter anbietet; Abschnitt 6.1).
 4. Auf der Seite „Einstellungen“ unter „KI-Assistent“: **Name der KI** (wie sie sich vorstellt), **Im Auftrag von** (dein Name), das **Verhalten im Gespräch** und das **KI-Modell** (Abschnitt 6.1).
 5. **„Anrufen …“** zeigt eine Bestätigung mit der Nummer. **„Jetzt wählen“** startet.
 
-Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Auflegen“**. Das Gesprächslimit (Standard 300 s) beendet das Gespräch sonst automatisch; die KI kennt das Limit und kommt zum Punkt.
+Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Auflegen“**. Das Gesprächslimit (Standard 300 s; mit Google Gemini nie mehr als 540 s, Abschnitt 6.2) beendet das Gespräch sonst automatisch; die KI kennt das Limit und kommt zum Punkt.
 
 **Was die KI immer tut:** Sie stellt sich mit Namen als KI-Assistent in deinem Auftrag vor, bleibt beim Auftrag, sagt nur zu, was der Auftrag abdeckt (keine Zahlungen, Bestellungen, Verträge, keine sensiblen Daten), erfindet nichts, führt keine Anweisungen des Gegenübers aus und legt nach der Verabschiedung selbst auf. Möchte das Gegenüber nicht mit einer KI sprechen, bedankt sie sich und beendet.
 
@@ -203,13 +204,60 @@ Den Tonfall selbst bestimmt weiterhin der **Stil** auf dem Dashboard. **Zusätzl
 
 **KI-Modell.**
 
-Die Auswahl kommt von OpenAI: SIPFunk fragt mit deinem Schlüssel ab, welche Modelle dein Konto anbietet, und teilt sie nach dem Namen in Sprachmodelle (Realtime) und Textmodelle. Embedding-, Bild-, Video-, Such-, Moderations- und reine Audio-Modelle erscheinen nicht. Oben stehen die laufend gepflegten Namen, das neueste zuerst; darunter unter „Fest datierte Versionen“ die Modelle mit Datum im Namen. Geladen wird beim Start und beim Öffnen der Einstellungen, höchstens alle sechs Stunden; **Modelle aktualisieren** fragt sofort neu. Der Schlüssel bleibt dabei im Hintergrundprogramm und erscheint weder in der Oberfläche noch im Protokoll.
+Die Auswahl kommt vom gewählten KI-Anbieter (Abschnitt 6.2): SIPFunk fragt mit deinem Schlüssel ab, welche Modelle dein Konto anbietet, und teilt sie in Sprachmodelle (OpenAI: Realtime, Gemini: Live) und Textmodelle. Embedding-, Bild-, Video-, Such-, Moderations- und reine Audio-Modelle erscheinen nicht. Oben stehen die laufend gepflegten Namen, das neueste zuerst; darunter unter „Fest datierte Versionen“ die Modelle mit Datum im Namen. Geladen wird beim Start und beim Öffnen der Einstellungen, höchstens alle sechs Stunden; **Modelle aktualisieren** fragt sofort neu. Der Schlüssel bleibt dabei im Hintergrundprogramm und erscheint weder in der Oberfläche noch im Protokoll.
 
-- **Sprachmodell für Anrufe**: das Realtime-Modell, das spricht und zuhört. „(Standard)“ kennzeichnet die Vorgabe, „(günstig)“ die Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 15); alle anderen stehen ohne Zusatz da, ihre Preise nennt OpenAI. Dieselbe Auswahl steht in der Stufe „Erweitert“ auch auf dem Dashboard; beide Stellen zeigen denselben Wert.
-- **Textmodell** (Stufe „Erweitert“): schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna`.
-- **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen Modells. SIPFunk unterstützt weiterhin nur die Realtime-API von OpenAI.
+- **Sprachmodell für Anrufe**: das Live-Modell, das spricht und zuhört. „(Standard)“ kennzeichnet die Vorgabe (`gpt-realtime-2.1` bei OpenAI, `gemini-3.8-live` bei Gemini), „(günstig)“ die OpenAI-Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 15); alle anderen stehen ohne Zusatz da, ihre Preise nennt der Anbieter. Dieselbe Auswahl steht in der Stufe „Erweitert“ auch auf dem Dashboard; beide Stellen zeigen denselben Wert.
+- **Textmodell** (Stufe „Erweitert“): schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna` bei OpenAI und `gemini-3.5-flash-lite` bei Gemini.
+- **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen OpenAI-Modells, für unbekannte Gemini-Modelle mit denen von `gemini-3.8-live`. Eine Modell-ID, die zum anderen Anbieter gehört, wird ignoriert; stattdessen gilt die Vorgabe des gewählten Anbieters.
 
 Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgelehnt), steht der Grund neben dem Knopf. Die gespeicherte Auswahl bleibt in jedem Fall erhalten und sichtbar; steht sie nicht in der geladenen Liste, trägt sie den Zusatz „(nicht in der Liste)“. Das Laden der Liste ändert keine Einstellung.
+
+### 6.2 KI-Anbieter
+
+Unter „Einstellungen › KI-Anbieter“ (in beiden Stufen sichtbar, „Einfach“ und „Erweitert“) oder in Schritt 3 des Einrichtungsassistenten wählst du, welcher Anbieter die Gespräche führt. Ein Anbieter übernimmt alles: das Gespräch selbst, Gesprächsplan, Zusammenfassung, Einschätzung, Beschwerde-Entwurf und Hörproben. Was am Telefon gesagt wird, geht an den gewählten Anbieter und an keinen anderen. Die Wahl steht als `aiProvider` in der `settings.json` (`openai`, der Standard, oder `gemini`); `AI_PROVIDER` in der `.env` ist der Startwert.
+
+| | OpenAI | Google Gemini |
+| --- | --- | --- |
+| Schnittstelle | Realtime-API | Gemini Live API |
+| Schlüssel | `OPENAI_API_KEY`, erstellt unter platform.openai.com/api-keys | `GEMINI_API_KEY`, erstellt in Google AI Studio, aistudio.google.com/apikey |
+| Sprachmodell (Vorgabe, Startwert) | `gpt-realtime-2.1`, `OPENAI_MODEL` | `gemini-3.8-live`, `GEMINI_MODEL` |
+| Textmodell (Vorgabe, Startwert) | `gpt-6-luna`, `OPENAI_SUMMARY_MODEL` | `gemini-3.5-flash-lite`, `GEMINI_SUMMARY_MODEL` |
+| Stimmen | marin, cedar und acht weitere | 30 eigene Stimmen (z. B. Kore, Puck, Zephyr) |
+| Stand | erprobter Standard | noch nicht an einem echten Telefonat erprobt |
+
+![Einstellungen › KI-Anbieter mit OpenAI: Schlüssel, Verbindungstest, Verbrauch](images/settings-provider.de.png)
+
+**Stand von Gemini.** Der Gemini-Weg ist bisher nur in den automatischen Tests gegen nachgestellte Verbindungen geprüft. Es gab damit noch kein echtes Telefonat und keine echte Verbindung zu Google. Die Einzelheiten des Protokolls folgen Googles Dokumentation mit Stand 11. November 2026.
+
+**Schlüssel.** Trag den Schlüssel unter „API-Schlüssel“ ein und klick auf „Schlüssel prüfen und speichern“. Den Schlüssel nimmt nur die lokale Web-UI auf `127.0.0.1` entgegen; er wird einmal beim Anbieter geprüft und in die `.env` im Datenordner geschrieben. Die API liefert ihn nie zurück, und er steht in keinem Log; die Oberfläche zeigt unter „Stand“ nur, ob ein Schlüssel hinterlegt ist. Schlüssel für beide Anbieter können nebeneinander hinterlegt sein; verwendet wird nur der des gewählten Anbieters.
+
+**Nach dem Wechsel.** Stimmen und Modelle gehören zu einem Anbieter. Ein gespeichertes Modell oder eine gespeicherte Stimme des anderen Anbieters wird ignoriert, und es gilt die Vorgabe des gewählten Anbieters; bei Stimmen ist das dessen erste Stimme, und das gilt auch für Stimmen, die bei Kontakten oder in Profilen je eigener Rufnummer gespeichert sind. Prüfe nach dem Wechsel Stimme und Modelle auf dem Dashboard und unter „KI-Assistent“.
+
+**„Verbindung testen“** prüft für den gewählten Anbieter drei Dinge und zeigt je eine Zeile:
+
+1. **Schlüssel**: Der Schlüssel ist gültig (SIPFunk ruft damit die Modell-Liste ab).
+2. **Sprachmodell**: Das eingestellte Sprachmodell steht in der Modell-Liste des Kontos, oder die Live-Verbindung kam trotzdem zustande.
+3. **Live-Verbindung**: Die Live-Verbindung baut auf. SIPFunk öffnet den WebSocket, wartet auf die Bestätigung der Sitzung und schließt ihn wieder. Es wird kein Audio geschickt und keine Antwort angefordert.
+
+Ein Telefonat ist damit nicht geprüft.
+
+**Was mit Gemini anders ist.** SIPFunk nutzt die Gemini Live API mit dem Modell `gemini-3.8-live`: Audio geht als PCM mit 16 kHz zu Google und kommt als PCM mit 24 kHz zurück; es wird auf die 8 oder 16 kHz des Telefons umgerechnet. Es gelten diese Einschränkungen:
+
+- Ein Gespräch dauert höchstens neun Minuten (540 s), gleich welches Gesprächslimit eingestellt ist. Die Live API trennt eine Verbindung nach etwa zehn Minuten, und eine Fortsetzung der Sitzung ist nicht eingebaut.
+- Die Sprechgeschwindigkeit lässt sich nicht einstellen; die KI bekommt sie nur als Hinweis. Die Obergrenze für Ausgabe-Token je Antwort wird nicht angewendet.
+- Anweisungen lassen sich im laufenden Gespräch nicht ändern. Ein spät fertiger Gesprächsplan und der Wechsel in die Spam-Abwehr gehen deshalb als gekennzeichnete, nachgereichte Anweisung („[Regie]“) hinaus; das wirkt schwächer als eine Systemanweisung. Anweisungen für eine einzelne Antwort (Begrüßung, Anstöße der Wächter, Verabschiedung) gehen denselben Weg.
+- Antworten lassen sich nicht kürzen, löschen oder abbrechen. Spricht das Gegenüber dazwischen, bricht Google die Antwort selbst ab; dass die KI nach einem bloßen „Mhm“ ihren Satz zu Ende spricht, klappt deshalb seltener.
+- Die Transkription des Gegenübers kommt in Stücken und wird nach einer kurzen Pause zusammengesetzt.
+- Der Gesprächssimulator (`npm run sim`, Kapitel 12) läuft nur mit OpenAI.
+- Die Kostenschätzung rechnet mit den Preisen der bezahlten Stufe, auch wenn du das kostenlose Kontingent nutzt (Kapitel 15).
+
+![Einstellungen › KI-Anbieter mit Google Gemini: Einschränkungen und Hinweis zum kostenlosen Kontingent](images/settings-provider-gemini.de.png)
+
+**Kostenloses Kontingent.** Google bietet für die Gemini API ein kostenloses Kontingent an. Googles zusätzliche Bedingungen für die Gemini API (Gemini API Additional Terms) sagen aber, dass nur die bezahlten Dienste genutzt werden dürfen, wenn eine Anwendung Nutzern im Europäischen Wirtschaftsraum, in der Schweiz oder im Vereinigten Königreich bereitgestellt wird. Ob ein Anrufer als solcher Nutzer gilt, sagt Google nicht, und SIPFunk kann nicht erkennen, über welche Stufe ein Schlüssel läuft. Lies [legal.de.md](legal.de.md), Abschnitt 3.5, bevor du das kostenlose Kontingent nutzt.
+
+**Verbrauch in diesem Monat.** Die Karte zeigt für den laufenden Monat je Anbieter Gespräche, Minuten und geschätzte US-Dollar. Die Zahlen sind die Summe der Schätzungen, die SIPFunk selbst je Gespräch errechnet; sie stehen in `usage.json` im Datenordner, bleiben 13 Monate erhalten und hängen nicht von der Aufbewahrungsfrist der Protokolle ab. Enthalten sind nur die Gespräche, nicht das Textmodell und nicht die Hörproben; es ist eine Schätzung, nicht die Rechnung des Anbieters.
+
+**Tatsächliche Kosten laut OpenAI (optional)** (Stufe „Erweitert“, nur OpenAI). Hinterlegst du unter „Admin-Schlüssel“ einen Admin-Schlüssel deiner OpenAI-Organisation (`sk-admin-…`), zeigt die Karte zusätzlich die tatsächlichen Kosten der Organisation seit Monatsanfang. Ein Admin-Schlüssel ist nötig, weil OpenAIs Kosten-Abruf (`GET /v1/organization/costs`) normale API-Schlüssel ablehnt. Ein solcher Schlüssel kann auch Nutzer, Projekte und Schlüssel der Organisation verwalten: Hinterlege ihn nur bewusst und gib ihm bei OpenAI ein Ablaufdatum. Die Zahl umfasst alles, was die Organisation nutzt, nicht nur SIPFunk. Der Schlüssel steht als `OPENAI_ADMIN_KEY` in der `.env`; „Admin-Schlüssel entfernen“ löscht ihn wieder. Google bietet keinen solchen Abruf, und OpenAI bietet keinen Abruf für das verbleibende Guthaben.
 
 ## 7. Anrufbeantworter
 
@@ -217,7 +265,7 @@ Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgele
 
 „Einstellungen › Anrufbeantworter“ → **„KI nimmt eingehende Anrufe an (allgemein)“**, **„Annahme beim … Klingeln“** (Standard: beim 5.; gerechnet wird mit etwa 5 s je Klingeln), dann **„Speichern“**. Alternativ im Tray-Menü oder per `INCOMING_ENABLED=on`. Ausgeschaltet klingelt die Nebenstelle nur mit, ohne abzunehmen; während eines laufenden Gesprächs ist sie besetzt.
 
-Die Verbindung zu OpenAI wird schon beim Klingeln aufgebaut, damit die KI ohne Verzögerung spricht.
+Die Verbindung zum KI-Anbieter wird schon beim Klingeln aufgebaut, damit die KI ohne Verzögerung spricht.
 
 ### 7.2 Ablauf eines angenommenen Anrufs
 
@@ -371,8 +419,8 @@ Die Spam-Abwehr hat zwei Schalter:
 Die Privatperson hat eigene Einstellungen, getrennt vom Assistenten (Name und Geschlecht gelten nur ohne KI-Kennung):
 
 - **Name der Rolle**: ein erfundener Name, mit dem sie sich meldet („Schmidt?“) und den sie auf Nachfrage nennt. Verlangt der Anrufer genau diesen Namen, sagt sie „Am Apparat“; verlangt er jemand anderen, ist der gerade nicht da. Leer = sie nennt keinen Namen. Nimm nicht deinen echten Namen.
-- **Stimme der Rolle** und **Sprechgeschwindigkeit der Rolle**: Stimme leer = wie der Assistent; Tempo leer = 0,95, etwas langsamer als der Assistent. Beides gilt, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer oder „In die Spam-Falle“). Wechselt die KI erst mitten im Gespräch die Rolle, bleiben Stimme und Tempo des Assistenten; Name und eigene Anweisungen gelten trotzdem.
-- **Die Rolle ist**: ein Mann, eine Frau oder automatisch nach der Stimme (cedar, ash, ballad, echo und verse gelten als männlich). Danach richtet sich, ob sie bei „Herrn Schmidt“ oder „Frau Schmidt“ sagt „Am Apparat“.
+- **Stimme der Rolle** und **Sprechgeschwindigkeit der Rolle**: Stimme leer = wie der Assistent; Tempo leer = 0,95, etwas langsamer als der Assistent. Beides gilt, wenn die Spam-Abwehr schon beim Abnehmen feststeht (Listentreffer oder „In die Spam-Falle“); mit Google Gemini ist das Tempo nur ein Hinweis an die KI (Abschnitt 6.2). Wechselt die KI erst mitten im Gespräch die Rolle, bleiben Stimme und Tempo des Assistenten; Name und eigene Anweisungen gelten trotzdem.
+- **Die Rolle ist**: ein Mann, eine Frau oder automatisch nach der Stimme (bei OpenAI gelten cedar, ash, ballad, echo und verse als männlich; Gemini hat eine eigene Liste, zum Beispiel Puck, Charon und Fenrir). Danach richtet sich, ob sie bei „Herrn Schmidt“ oder „Frau Schmidt“ sagt „Am Apparat“.
 - **Eigene Anweisungen für die Rolle**: freie Vorgaben zu Figur, Ton und Eigenheiten, zum Beispiel „Älterer Herr, erzählt gern Geschichten, freundlich, aber umständlich“. Die Schutzregeln (keine Daten, keine Zustimmung, keine reale Identität, höflich bleiben) gehen immer vor.
 
 ### 10.5 Nach dem Gespräch
@@ -395,7 +443,7 @@ Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil
 
 ![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
 
-Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
+Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, KI-Anbieter und Modell, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
 
 Automatische Löschung nach der eingestellten Frist (Standard 7 Tage, „Einstellungen › Technik“); von Hand auf der Seite „Anrufe“.
 
@@ -405,13 +453,14 @@ Der Datenordner ist beim Start aus dem Repository der Projektordner, bei der ins
 
 | Datei | Inhalt | Vertraulich |
 | --- | --- | --- |
-| `.env` | Zugangsdaten (SIP, OpenAI), Startwerte | ja, nie teilen |
+| `.env` | Zugangsdaten (SIP, Schlüssel der KI-Anbieter, optional der OpenAI-Admin-Schlüssel), Startwerte | ja, nie teilen |
 | `settings.json` | alle Einstellungen der Web-UI inkl. Mail-Kennwort, OAuth-Secret und Spam-Abwehr-Bestätigung | ja |
 | `contacts.json` | Kontakte | ja (personenbezogen) |
 | `transcripts/` | Gesprächsprotokolle | ja (personenbezogen) |
 | `mail-token.json` | OAuth-Token für den Mailversand | ja |
 | `sipfunk.log`, `sipfunk-JJJJ-MM-TT.log` | Betriebslog mit Rufnummern (nur Tray-App; sonst steht das Log im Terminal). Je Tag eine Datei; ältere als die Aufbewahrungsfrist der Protokolle werden gelöscht | ja |
-| `voice-samples/` | zwischengespeicherte Stimmproben (MP3) | nein |
+| `usage.json` | Monatsverbrauch je KI-Anbieter: Zahl der Gespräche, Sekunden, geschätzte Kosten; die letzten 13 Monate (Abschnitt 6.2) | nein |
+| `voice-samples/` | zwischengespeicherte Hörproben (MP3; bei Gemini WAV im Unterordner `gemini/`) | nein |
 | `sim-results/` | Berichte des Simulators (im Projektordner) | nein, sofern die Szenarien erfunden sind |
 
 Alle stehen in der `.gitignore`. Beim Sichern des Rechners den Datenordner mitsichern, aber verschlüsselt.
@@ -420,7 +469,7 @@ Alle stehen in der `.gitignore`. Beim Sichern des Rechners den Datenordner mitsi
 
 ## 12. Simulator
 
-Der Simulator spielt Gespräche im Textmodus durch, ohne jemanden anzurufen: Das Realtime-Modell bekommt dieselben Anweisungen und Werkzeuge wie am Telefon, ein Textmodell spielt das Gegenüber nach einer Rollenbeschreibung, ein weiteres bewertet am Ende (alle Punkte erledigt, Note, Probleme). Er braucht einen OpenAI-Schlüssel und kostet je Durchlauf wenige Cent.
+Der Simulator spielt Gespräche im Textmodus durch, ohne jemanden anzurufen: Das Realtime-Modell bekommt dieselben Anweisungen und Werkzeuge wie am Telefon, ein Textmodell spielt das Gegenüber nach einer Rollenbeschreibung, ein weiteres bewertet am Ende (alle Punkte erledigt, Note, Probleme). Der Simulator läuft nur mit OpenAI: Er braucht `OPENAI_API_KEY` und verwendet OpenAI auch dann, wenn Google Gemini als KI-Anbieter gewählt ist, weil er den Textmodus der Realtime-API nutzt und die Gemini Live API nur Audio ausgibt. Er kostet je Durchlauf wenige Cent.
 
 ```bash
 npm run sim
@@ -503,14 +552,15 @@ Zwei Orte: die `.env` (wird beim Start gelesen; Änderungen von Hand brauchen ei
 
 ### 14.1 Nur in der `.env`
 
-Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten setzen (Kapitel 4.2); er schreibt sie in die `.env`.
+Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten setzen (Kapitel 4.2); er schreibt sie in die `.env`. Die Schlüssel der vierten und fünften Zeile lassen sich außerdem unter „Einstellungen › KI-Anbieter“ eintragen (Abschnitt 6.2).
 
 | Variable | Standard | Wirkung |
 | --- | --- | --- |
 | `SIP_SERVER`, `SIP_USER`, `SIP_PASSWORD` | `fritz.box`, –, – | Anmeldung an der Box |
 | `SIP_LOCAL_PORT`, `RTP_PORT` | 5062, 40000 | lokale UDP-Ports |
 | `LOCAL_IP` | automatisch | lokale Adresse, falls der Rechner mehrere Netze hat |
-| `OPENAI_API_KEY` | – | Schlüssel für alle KI-Funktionen |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` | –, – | Schlüssel des KI-Anbieters für alle KI-Funktionen; verwendet wird nur der des gewählten Anbieters |
+| `OPENAI_ADMIN_KEY` | – | optional: Admin-Schlüssel der OpenAI-Organisation für die tatsächlichen Monatskosten |
 | `OWNER_NUMBERS` | – | eigene Nummern (Alternative zum Kontakt „Inhaber“) |
 | `AUDIO_HD` | true | HD-G.711 (16 kHz) mit der Box aushandeln; `false` erzwingt 8 kHz |
 | `LIVE_LISTEN_ENABLED` | true | Mithören im Browser |
@@ -523,27 +573,31 @@ Das Textmodell steht in der Oberfläche unter „KI-Assistent › KI-Modell“ (
 
 | Einstellung | Standard | Startwert aus | Wirkung |
 | --- | --- | --- | --- |
-| Gesprächslimit (Sekunden) | 300 | `MAX_CALL_SECONDS` | hartes Limit, gilt für alle Gespräche |
+| Gesprächslimit (Sekunden) | 300 | `MAX_CALL_SECONDS` | hartes Limit, gilt für alle Gespräche; mit Google Gemini nie mehr als 540 s |
 | Protokolle aufbewahren (Tage) | 7 | `TRANSCRIPT_RETENTION_DAYS` | ältere Protokolle werden gelöscht |
 | Stillstandswächter (ms) | 6000 | `AI_STALL_MS` | bleibt es nach der KI-Ausgabe so lange still, wird die KI angestoßen weiterzusprechen; 0 = aus |
 | Stille bis Satzende (ms) | 900 | `AI_VAD_SILENCE_MS` | zu kurz: die KI redet in Denkpausen hinein |
-| Schwelle der Spracherkennung | 0,6 | `AI_VAD_THRESHOLD` | 0,3–0,9; höher: Geräusche unterbrechen die KI seltener, leises Sprechen wird eher überhört |
+| Schwelle der Spracherkennung | 0,6 | `AI_VAD_THRESHOLD` | 0,3–0,9; höher: Geräusche unterbrechen die KI seltener, leises Sprechen wird eher überhört. Mit Google Gemini wählt der Wert nur eine von zwei Stufen: ab 0,5 niedrige, darunter hohe Empfindlichkeit |
 | Nachhören nach Verabschiedung (ms) | 2000 | `AI_HANGUP_GRACE_MS` | sagt das Gegenüber noch etwas, geht es weiter |
 | Warten nach Abnehmen (ms) | 2500 | `AI_GREETING_WAIT_MS` | ausgehend: so lange darf das Gegenüber zuerst sprechen |
-| Sprechgeschwindigkeit | 1,05 | `AI_SPEECH_SPEED` | 0,25–1,5 |
+| Sprechgeschwindigkeit | 1,05 | `AI_SPEECH_SPEED` | 0,25–1,5; mit Google Gemini nur ein Hinweis an die KI |
 | Lautstärke der KI | 1,5 | `AI_OUTPUT_GAIN` | Verstärkung Richtung Telefon, mit weichem Begrenzer |
 | Gegenüber darf die KI unterbrechen | an | `AI_ALLOW_INTERRUPT` | aus: die KI spricht immer zu Ende |
-| Textmodell | `gpt-6-luna` | `OPENAI_SUMMARY_MODEL` | Plan, Zusammenfassung, Einschätzung, Beschwerde |
+| Textmodell | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | Plan, Zusammenfassung, Einschätzung, Beschwerde |
 
-Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwerte kommen aus `AI_*` und `OPENAI_MODEL` (Dashboard, KI-Assistent), `INCOMING_*` (Anrufbeantworter), `NOTIFY_*` und `RING_POPUP` (Benachrichtigungen), `MAIL_*` und `SMTP_*` (E-Mail) sowie `SCAM_NUMBERS` und `SPAM_LOOKUP` (Spam-Abwehr).
+Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwerte kommen aus `AI_*` und `OPENAI_MODEL` bzw. `GEMINI_MODEL` (Dashboard, KI-Assistent), `AI_PROVIDER` (KI-Anbieter), `INCOMING_*` (Anrufbeantworter), `NOTIFY_*` und `RING_POPUP` (Benachrichtigungen), `MAIL_*` und `SMTP_*` (E-Mail) sowie `SCAM_NUMBERS` und `SPAM_LOOKUP` (Spam-Abwehr).
 
 ---
 
 ## 15. Kosten
 
-OpenAI rechnet nach Token ab. Die Web-UI zeigt pro Gespräch den Verbrauch und eine Schätzung in US-Dollar. Die Preise dafür stehen fest in `src/ai/pricing.ts` und müssen bei Preisänderungen von Hand angepasst werden; maßgeblich ist die Abrechnung von OpenAI. Die Schätzung lässt die Transkription und Rabatte für zwischengespeicherte Eingaben weg.
+Beide KI-Anbieter rechnen nach Token ab. Die Web-UI zeigt pro Gespräch den Verbrauch und eine Schätzung in US-Dollar. Die Preise dafür stehen fest in `src/ai/pricing.ts` und müssen bei Preisänderungen von Hand angepasst werden; maßgeblich ist die Abrechnung des Anbieters. Die Schätzung lässt die Transkription und Rabatte für zwischengespeicherte Eingaben weg.
 
-Der größte Posten ist die Sprachausgabe des Realtime-Modells; die Mini-Variante kostet nach der hinterlegten Preistabelle etwa ein Drittel. Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Hinhalten in der Spam-Abwehr kostet entsprechend der Dauer. Setze bei OpenAI ein monatliches Budget-Limit.
+Der größte Posten ist die Sprachausgabe des Sprachmodells; die Mini-Variante des Realtime-Modells von OpenAI kostet nach der hinterlegten Preistabelle etwa ein Drittel. Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Hinhalten in der Spam-Abwehr kostet entsprechend der Dauer. Setze bei deinem Anbieter ein monatliches Budget-Limit.
+
+Für Google Gemini stehen in der Tabelle die Preise der bezahlten Stufe für `gemini-3.8-live` (US-Dollar je 1 Million Token: Audio-Eingabe 3, Audio-Ausgabe 12, Text-Eingabe 0,75, Text-Ausgabe 4,5). Die Schätzung rechnet auch dann damit, wenn ein Gespräch über das kostenlose Kontingent lief; zum kostenlosen Kontingent siehe Abschnitt 6.2.
+
+„Einstellungen › KI-Anbieter“ summiert die Schätzungen je Monat und Anbieter („Verbrauch in diesem Monat“) und kann optional die tatsächlichen Kosten deiner OpenAI-Organisation zeigen (Abschnitt 6.2).
 
 Telefonkosten fallen nach deinem Tarif an (der Rückruf an dich ist ein normaler ausgehender Anruf).
 
@@ -559,10 +613,12 @@ Das Log (im Terminal, auf dem Dashboard unter „Protokoll“, bei der Tray-App 
 | Keine Registrierung an der Box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; Firewall für die UDP-Ports; Box-Oberfläche: ist das IP-Telefon angemeldet? |
 | Nebenstelle klingelt nicht | Rufnummer in der Box der Nebenstelle zugeordnet? |
 | KI nimmt nicht ab | Anrufbeantworter an? Profil der Nummer auf „aus“? Läuft gerade ein anderes Gespräch? |
-| KI spricht nicht / Stille nach Annahme | Log „Realtime: verbunden“, „erstes Audio nach … ms“; `OPENAI_API_KEY`, Modellzugriff, Internet |
+| KI spricht nicht / Stille nach Annahme | Log „Realtime: verbunden“, „erstes Audio nach … ms“; Schlüssel des KI-Anbieters, Modellzugriff, Internet; „Verbindung testen“ unter „Einstellungen › KI-Anbieter“ prüft Schlüssel, Sprachmodell und Live-Verbindung |
+| Falsche Stimme oder falsches Modell nach dem Wechsel des KI-Anbieters | Stimmen und Modelle des anderen Anbieters werden ignoriert und durch die Vorgabe ersetzt; Stimme und Modelle neu wählen (Abschnitt 6.2) |
+| Gespräch endet nach neun Minuten | mit Google Gemini dauert ein Gespräch höchstens 540 s, gleich was das Gesprächslimit sagt (Abschnitt 6.2) |
 | Stimme abgehackt | Log „RTP: Gegenstelle sendet …“, „Unterläufe“; `AUDIO_HD=false` testen; WLAN vermeiden |
 | KI redet in Pausen hinein | „Stille bis Satzende“ erhöhen (z. B. 1200) |
-| Geräusche (Rascheln, Husten) unterbrechen die KI | „Schwelle der Spracherkennung“ erhöhen (z. B. 0,7). Die KI pausiert bei einer Unterbrechung nur und wartet die Transkription ab: War es ein Geräusch oder ein Zuhör-Laut („mhm“), spricht sie ihren Satz zu Ende; bei Inhalt („Nein“, „Moment“, eine Frage) verwirft sie den Rest und antwortet |
+| Geräusche (Rascheln, Husten) unterbrechen die KI | „Schwelle der Spracherkennung“ erhöhen (z. B. 0,7). Die KI pausiert bei einer Unterbrechung nur und wartet die Transkription ab: War es ein Geräusch oder ein Zuhör-Laut („mhm“), spricht sie ihren Satz zu Ende; bei Inhalt („Nein“, „Moment“, eine Frage) verwirft sie den Rest und antwortet. Mit Google Gemini bricht Google die Antwort selbst ab, wenn das Gegenüber dazwischenspricht; das Zu-Ende-Sprechen klappt deshalb seltener |
 | Lange Stille mitten im Gespräch | Log „Stillstand“; der Stillstandswächter stößt die KI nach der eingestellten Zeit an |
 | Antwort abgeschnitten | Log „Realtime-Antwort abgeschnitten“ → Token-Limit; Auftrag kürzer fassen |
 | E-Mail bleibt aus | Statuszeile der Karte „E-Mail-Versand“; „Verbindung prüfen“; bei OAuth neu verbinden |
@@ -576,8 +632,10 @@ Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puf
 ## 17. Begriffe
 
 - **Nebenstelle / IP-Telefon**: das Gerät, als das sich SIPFunk an der Box anmeldet.
+- **KI-Anbieter**: das Unternehmen, dessen Modelle das Gespräch führen und die Texte schreiben: OpenAI oder Google (Abschnitt 6.2).
 - **Realtime-API**: OpenAI-Schnittstelle für Sprache in Echtzeit (Audio rein, Audio raus).
-- **Server-VAD**: Spracherkennung auf OpenAI-Seite, die Satzenden erkennt.
+- **Live API**: Googles Schnittstelle für Sprache in Echtzeit mit Gemini.
+- **Server-VAD**: Spracherkennung auf der Seite des KI-Anbieters, die Satzenden erkennt. Die Schwelle ist ein Parameter von OpenAI; bei Gemini wählt sie nur eine niedrige oder hohe Start-Empfindlichkeit.
 - **end_call / transfer_call / flag_spam**: Werkzeuge, die die KI aufruft, um aufzulegen, durchzustellen oder Spam zu melden.
 - **REFER**: SIP-Nachricht, mit der die Box angewiesen wird, ein Gespräch zu einer anderen Nummer durchzustellen.
 - **Inhaber**: du, erkennbar am Kontakt-Kennzeichen oder an `OWNER_NUMBERS`.

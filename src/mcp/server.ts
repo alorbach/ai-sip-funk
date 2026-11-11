@@ -164,7 +164,7 @@ server.registerTool(
         .describe('Hintergrundwissen für Rückfragen: Projekt, aktuelle Session, Stand der Arbeit, Fakten. Die KI trägt es nicht vor, nutzt es aber, wenn das Gegenüber nachfragt.'),
       principal: z.string().describe('In wessen Auftrag die KI anruft (Name des Nutzers)'),
       persona: z.string().optional().describe('Stil-Preset: professionell (Standard), locker, formell, herzlich'),
-      voice: z.string().optional().describe('OpenAI-Stimme, z. B. marin, cedar, shimmer'),
+      voice: z.string().optional().describe('Stimme des gewählten KI-Anbieters, z. B. marin, cedar (OpenAI) oder Kore, Puck (Gemini)'),
       address: z.enum(['sie', 'du']).optional().describe('Anrede des Gegenübers, Standard sie'),
       aiName: z.string().optional().describe('Name, mit dem sich die KI vorstellt (Standard Alex)'),
       personaExtra: z.string().optional().describe('Zusätzliche Verhaltenshinweise'),

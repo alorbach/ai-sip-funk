@@ -16,7 +16,12 @@ Test only with your own numbers and extensions or with people who are in on it.
 ## 1. Basic function without AI
 
 - [ ] First start with an empty data folder: the web UI opens the setup assistant; a wrong password is rejected with a clear sentence and nothing is saved; with the right one the header switches to "Telefonanlage verbunden" without a restart.
-- [ ] OpenAI key: an invalid key is rejected, a valid one is saved; afterwards "KI-Gespräch" can be selected. Neither value is ever shown again.
+- [ ] Step "KI-Anbieter" (AI provider) with OpenAI: an invalid key is rejected, a valid one is saved; afterwards "KI-Gespräch" can be selected. Neither value is ever shown again.
+- [ ] "Einstellungen › KI-Anbieter", "Verbindung testen" (test connection) with OpenAI: three lines (Schlüssel, Sprachmodell, Live-Verbindung), all passed. Without a stored key the first line fails and the other two say "Nicht geprüft."
+- [ ] Gemini key: select Google Gemini under "KI-Anbieter"; an invalid key is rejected, a valid one from Google AI Studio is saved ("Schlüssel prüfen und speichern"). "Stand" then shows that a key is stored, the key itself is never shown again, and `.env` contains `GEMINI_API_KEY`.
+- [ ] "Verbindung testen" with Google Gemini: all three lines passed. This is the first real connection to Google; it does not test a phone call.
+- [ ] Switching the provider: after selecting Google Gemini the message asks you to check voice and models; the voice lists show the Gemini voices (e.g. Kore), the voice model is `gemini-3.8-live`, and the notes "Was mit Gemini anders ist" and on the free quota appear. After switching back to OpenAI its voices and models are there again.
+- [ ] "Verbrauch in diesem Monat" (usage this month): after an AI call the line of the provider used counts one call more; `usage.json` exists in the data folder.
 - [ ] Last step: the echo test call to your own extension rings and you hear yourself.
 - [ ] Installed tray app, first start: the browser opens with the assistant; "Server neu starten" and "Beenden" during a call hang up the call.
 - [ ] Switch "Einfach / Erweitert": applies at once; a technical value changed in "Erweitert" is still there after switching back and saving something else in "Einfach".
@@ -90,3 +95,13 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 
 - [ ] `npm run dist:win`: installer on a fresh Windows user (installation, first start with `.env`, autostart, uninstallation).
 - [ ] MCP: from a client `get_status`, then `start_call` to one of your own extensions and `wait_for_call`.
+
+## 9. Google Gemini: first real phone call (open)
+
+**Open item.** The Gemini path has so far only run against simulated connections in the automated tests; no real phone call has been made with it yet. Select Google Gemini under "Einstellungen › KI-Anbieter", then:
+
+- [ ] **Outgoing** (as in section 2): the AI greets, works through a two-part task, the transcript shows both sides, and the log contains provider, model, call plan, result and cost estimate.
+- [ ] **Answering machine** (as in section 3): "Hallo?", one introduction as AI assistant, request and call-back wish taken down.
+- [ ] **Interruption**: cutting in stops the AI and it responds to what was said; note how often a mere "mhm" or a cough cuts the sentence off.
+- [ ] **`end_call`**: the AI says goodbye, hangs up itself, and result and open points are in the log; something of substance said during the listening phase continues the call.
+- [ ] **9-minute cap**: with "Gesprächslimit" set above 540 s, the call is ended after nine minutes at the latest.

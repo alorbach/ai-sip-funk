@@ -13,7 +13,7 @@ These guidelines describe what SIPFunk is meant for and what it is not. They com
 3. **Data minimisation.** No audio is stored. Transcripts are kept only as long as they are needed ("Protokolle aufbewahren" under Einstellungen › Technik). Background knowledge for the AI contains only what it needs for the task.
 4. **No decisions of consequence.** The AI concludes no contracts, pays nothing, orders nothing, passes on no sensitive data (health, payment, ID, passwords) and accepts none. What the task does not cover it takes back as a question.
 5. **No deception about identity.** The AI does not pose as a real person. "Im Auftrag von" (on behalf of) is your name or your company's name, not that of a third party.
-6. **Local and private.** The web UI is reachable only from your own computer. Credentials stay in the data folder. Neither phone numbers nor keys belong in chats, tickets or screenshots.
+6. **Local and private.** The web UI is reachable only from your own computer. Call content goes only to the AI provider you selected (OpenAI or Google Gemini). Credentials stay in the data folder. Neither phone numbers nor keys belong in chats, tickets or screenshots.
 
 ---
 
@@ -81,8 +81,10 @@ By default the AI identifies itself as an AI in the spam defence as well (switch
 
 ## 7. Handling data and credentials
 
-- `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `sipfunk.log` are confidential and not part of the repository.
-- Give the OpenAI key a budget limit; rotate it immediately if you suspect it has been disclosed.
+- `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `sipfunk.log` are confidential and not part of the repository; the same goes for the usage counter `usage.json`.
+- Give the key of your AI provider (OpenAI or Google) a budget limit; rotate it immediately if you suspect it has been disclosed.
+- The optional OpenAI admin key (`OPENAI_ADMIN_KEY`, for the actual monthly costs) can also manage users, projects and keys of the organisation. Store it only deliberately, give it an expiry date and remove it in the web UI when you no longer need it.
+- Google Gemini: before you use the free quota, read Google's terms; see [legal.md](legal.md), section 3.5. Google Gemini has not yet been tried on a real phone call, so check the logs of the first calls closely.
 - The mail OAuth token (`mail-token.json`) authorises sending mail in your name. If you pass the computer on, revoke it (Google account / Entra: remove app access) and delete the file.
 - The computer SIPFunk runs on is effectively your phone: screen lock, current updates, no remote access to the web UI port.
 - Logs contain phone numbers and call content of third parties. Treat them like letters: do not pass them on, do not sync them to cloud folders others can see.

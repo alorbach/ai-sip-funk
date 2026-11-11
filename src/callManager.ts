@@ -192,7 +192,7 @@ export class CallManager extends EventEmitter {
     this.setPhase('incoming');
     this.emit('incoming', inc.caller, true);
     this.emit('ring', { caller: inc.caller, called: inc.called, willAnswer: true, answerAt: Date.now() + delay });
-    // Den KI-Handler schon beim Klingeln erzeugen: So steht die Verbindung zu OpenAI beim Abnehmen
+    // Den KI-Handler schon beim Klingeln erzeugen: So steht die Verbindung zum KI-Anbieter beim Abnehmen
     // bereits, und der Anrufer hört die Ansage ohne Sekunden der Stille. Legt er vorher auf,
     // räumt onEnded den Handler wieder ab.
     try {
@@ -275,7 +275,7 @@ export class CallManager extends EventEmitter {
       this.untrack(inc);
       return { ok: true, reason: 'klingelt nur' };
     }
-    if (!this.opts.createIncomingHandler) return { ok: false, reason: 'Kein KI-Handler (OPENAI_API_KEY fehlt)' };
+    if (!this.opts.createIncomingHandler) return { ok: false, reason: 'Kein KI-Handler (Schlüssel des KI-Anbieters fehlt)' };
     if (!tracked) {
       if (this.call) return { ok: false, reason: 'Es läuft bereits ein Gespräch' };
       this.track(inc);

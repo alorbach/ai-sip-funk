@@ -16,7 +16,12 @@ Getestet wird nur mit eigenen Nummern und Nebenstellen oder mit eingeweihten Per
 ## 1. Grundfunktion ohne KI
 
 - [ ] Erster Start mit leerem Datenordner: Die Web-UI öffnet den Einrichtungsassistenten; ein falsches Kennwort wird mit einem klaren Satz abgelehnt und nichts gespeichert; mit dem richtigen wechselt der Kopf ohne Neustart auf „Telefonanlage verbunden“.
-- [ ] OpenAI-Schlüssel: Ein ungültiger wird abgelehnt, ein gültiger gespeichert; danach ist „KI-Gespräch“ wählbar. Keiner der beiden Werte wird je wieder angezeigt.
+- [ ] Schritt „KI-Anbieter“ mit OpenAI: Ein ungültiger Schlüssel wird abgelehnt, ein gültiger gespeichert; danach ist „KI-Gespräch“ wählbar. Keiner der beiden Werte wird je wieder angezeigt.
+- [ ] „Einstellungen › KI-Anbieter“, „Verbindung testen“ mit OpenAI: drei Zeilen (Schlüssel, Sprachmodell, Live-Verbindung), alle bestanden. Ohne hinterlegten Schlüssel scheitert die erste Zeile, und die beiden anderen melden „Nicht geprüft.“
+- [ ] Gemini-Schlüssel: unter „KI-Anbieter“ Google Gemini wählen; ein ungültiger Schlüssel wird abgelehnt, ein gültiger aus Google AI Studio gespeichert („Schlüssel prüfen und speichern“). „Stand“ zeigt danach, dass ein Schlüssel hinterlegt ist, der Schlüssel selbst wird nie wieder angezeigt, und in der `.env` steht `GEMINI_API_KEY`.
+- [ ] „Verbindung testen“ mit Google Gemini: alle drei Zeilen bestanden. Das ist die erste echte Verbindung zu Google; ein Telefonat ist damit nicht geprüft.
+- [ ] Anbieter wechseln: Nach der Wahl von Google Gemini bittet der Hinweis, Stimme und Modelle zu prüfen; die Stimmenlisten zeigen die Gemini-Stimmen (z. B. Kore), das Sprachmodell ist `gemini-3.8-live`, und die Hinweise „Was mit Gemini anders ist“ und zum kostenlosen Kontingent erscheinen. Nach dem Zurückwechseln zu OpenAI sind dessen Stimmen und Modelle wieder da.
+- [ ] „Verbrauch in diesem Monat“: Nach einem KI-Gespräch zählt die Zeile des verwendeten Anbieters ein Gespräch mehr; `usage.json` liegt im Datenordner.
 - [ ] Letzter Schritt: Der Echo-Testanruf an die eigene Nebenstelle klingelt, und du hörst dich selbst.
 - [ ] Installierte Tray-App, erster Start: Der Browser öffnet sich mit dem Assistenten; „Server neu starten“ und „Beenden“ während eines Gesprächs legen das Gespräch auf.
 - [ ] Schalter „Einfach / Erweitert“: wirkt sofort; ein in „Erweitert“ geänderter Technik-Wert ist nach dem Zurückschalten und dem Speichern von etwas anderem in „Einfach“ noch da.
@@ -90,3 +95,13 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 - [ ] `npm run dist:win`: Installer auf einem frischen Windows-Benutzer (Installation, erster Start mit `.env`, Autostart, Deinstallation).
 - [ ] MCP: aus einem Client `get_status`, dann `start_call` an eine eigene Nebenstelle und `wait_for_call`.
+
+## 9. Google Gemini: erstes echtes Telefonat (offen)
+
+**Offener Punkt.** Der Gemini-Weg lief bisher nur in den automatischen Tests gegen nachgestellte Verbindungen; ein echtes Telefonat gab es damit noch nicht. Unter „Einstellungen › KI-Anbieter“ Google Gemini wählen, dann:
+
+- [ ] **Ausgehend** (wie Abschnitt 2): Die KI begrüßt, arbeitet einen zweiteiligen Auftrag ab, das Transkript zeigt beide Seiten, und das Protokoll enthält Anbieter, Modell, Gesprächsplan, Ergebnis und Kostenschätzung.
+- [ ] **Anrufbeantworter** (wie Abschnitt 3): „Hallo?“, eine Vorstellung als KI-Assistent, Anliegen und Rückrufwunsch aufgenommen.
+- [ ] **Unterbrechung**: Dazwischensprechen stoppt die KI, und sie geht auf das Gesagte ein; notieren, wie oft ein bloßes „mhm“ oder ein Husten den Satz abschneidet.
+- [ ] **`end_call`**: Die KI verabschiedet sich, legt selbst auf, und Ergebnis und offene Punkte stehen im Protokoll; etwas Inhaltliches in der Nachhörphase setzt das Gespräch fort.
+- [ ] **9-Minuten-Grenze**: Mit einem „Gesprächslimit“ über 540 s wird das Gespräch spätestens nach neun Minuten beendet.

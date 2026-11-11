@@ -12,21 +12,21 @@ Contents: [1 Overview](#1-what-sipfunk-is) · [2 Requirements](#2-requirements) 
 
 ## 1. What SIPFunk is
 
-SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the box like an IP phone (SIP extension) and connects the call audio to the OpenAI Realtime API. This lets the AI
+SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the box like an IP phone (SIP extension) and connects the call audio to the live speech model of the AI provider you select: OpenAI (Realtime API, the tested default) or Google Gemini (Live API, not yet tried on a real phone call; section 6.2). This lets the AI
 
 - **place outgoing calls** and carry out a task ("Ask the practice for an appointment next week"),
 - **answer incoming calls** (answering machine) and take down the request and whether a call back is wanted,
 - **notify** you afterwards (tray notification, e-mail, for important calls a call back with the option to be put through to the caller),
 - optionally **brush off or stall advertising and scam callers** (spam defence, only after explicit confirmation, chapter 10).
 
-Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to OpenAI (speech, text), to your mail provider if configured, and to tellows if you switch on the lookup. The web UI is reachable only from the same computer (127.0.0.1).
+Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, and to tellows if you switch on the lookup. The web UI is reachable only from the same computer (127.0.0.1).
 
-Limits: one user, one extension, one call at a time. SIPFunk currently works only with the OpenAI Realtime API. The AI speaks German with callers. No audio is recorded; what is stored are transcripts (text), summaries and metadata.
+Limits: one user, one extension, one call at a time. SIPFunk works with the OpenAI Realtime API or the Gemini Live API (section 6.2). The AI speaks German with callers. No audio is recorded; what is stored are transcripts (text), summaries and metadata.
 
 ### How a call works technically
 
 1. The FRITZ!Box sends the call audio as G.711 (HD at 16 kHz if the box offers it, otherwise 8 kHz) to SIPFunk.
-2. SIPFunk converts it to 24 kHz PCM and streams it to the Realtime API; the answer comes back as audio and goes to the box in real time.
+2. SIPFunk converts it to the PCM format of the provider (OpenAI: 24 kHz in both directions; Gemini: 16 kHz to Google, 24 kHz back) and streams it to the live speech model; the answer comes back as audio and goes to the box in real time.
 3. The AI receives a system instruction (ground rules, style, your task, background knowledge) and up to three tools: `end_call` (end the call and report a result), `transfer_call` during the call back to you (put through), and `flag_spam` when the spam defence is active.
 4. After the call a text model writes a summary and, for answering machine calls, an assessment "important/unimportant".
 
@@ -39,7 +39,7 @@ More in the [architecture](architecture.md).
 - FRITZ!Box with a FRITZ!OS that supports "LAN/WLAN (IP-Telefon)". Other SIP systems are untested.
 - Node.js 20.12 or later when starting from the repository. The built tray app ships its own runtime.
 - Windows 10/11 for the tray app (notification area, notifications, pop-up while ringing). Server and web UI only need Node.js but are untested on other systems.
-- An OpenAI API key with access to the Realtime models. Cost accrues per minute of conversation (chapter 15).
+- An API key for one of the two AI providers: OpenAI (with access to the Realtime models) or Google Gemini (from Google AI Studio; section 6.2). Cost accrues per minute of conversation (chapter 15).
 - The computer has to be running for as long as the answering machine should take calls.
 
 ---
@@ -73,17 +73,17 @@ Then open <http://127.0.0.1:8080>. No configuration file is needed for the first
 
 ![Setup assistant, first step](images/setup.en.png)
 
-As long as the essentials are missing (credentials for the phone system, OpenAI key, the name the AI acts for), the web UI opens the setup assistant on its own. It has seven steps, each of which can be skipped; "Später einrichten" (set up later) or Esc closes it, and "Einrichtungsassistent …" on the "Einstellungen" page opens it again at any time.
+As long as the essentials are missing (credentials for the phone system, key of the AI provider, the name the AI acts for), the web UI opens the setup assistant on its own. It has seven steps, each of which can be skipped; "Später einrichten" (set up later) or Esc closes it, and "Einrichtungsassistent …" on the "Einstellungen" page opens it again at any time.
 
 1. **Willkommen**: what is still missing.
 2. **Telefonanlage verbinden**: address (for a FRITZ!Box `fritz.box`), user name and password of the IP phone from chapter 3. "Verbindung prüfen und speichern" registers once as a test; only if that works are the values saved and the app registers with them – without a restart. If the test fails, a sentence says why (rejected, not found, no answer) and nothing is changed.
-3. **OpenAI-Schlüssel**: the key is checked once against OpenAI and then saved. Without a key only "Echo" and "Testton" work.
+3. **KI-Anbieter** (AI provider): choose OpenAI or Google Gemini and enter the API key. "Schlüssel prüfen und speichern" (check key and save) checks the key once with the provider and then saves it. Without a key only "Echo" and "Testton" work. What distinguishes the two providers is described in section 6.2.
 4. **Dein Assistent**: name of the AI and "Im Auftrag von" (on behalf of).
 5. **Anrufbeantworter**: on/off and, optionally, a first own number with the name the AI answers for there.
 6. **E-Mail-Benachrichtigung** (optional): mailbox and password; the server is looked up and the login checked. Providers that require OAuth are set up under "Einstellungen › E-Mail-Versand" in the "Erweitert" level.
 7. **Fertig**: status of the three essentials and a test call without AI: enter an internal extension (e.g. `**610`), confirm, and you hear yourself with one second of delay.
 
-How the credentials are handled: the SIP password and the OpenAI key are accepted only by the local web UI (`127.0.0.1`), written to `.env` in the data folder and applied to the running app. They are never displayed again and never returned by the API; the assistant only shows whether something is stored. A stored password is reused only while address and user name stay the same. Everything else the assistant sets (names, answering machine, e-mail) are ordinary settings in `settings.json`.
+How the credentials are handled: the SIP password and the key of the AI provider are accepted only by the local web UI (`127.0.0.1`), written to `.env` in the data folder and applied to the running app. They are never displayed again, never returned by the API and never written to the log; the assistant only shows whether something is stored. A stored password is reused only while address and user name stay the same. Everything else the assistant sets (names, answering machine, e-mail) are ordinary settings in `settings.json`.
 
 Prefer to work by hand? Copy `.env.example` to `.env` and fill in at least:
 
@@ -92,7 +92,7 @@ Prefer to work by hand? Copy `.env.example` to `.env` and fill in at least:
 | `SIP_SERVER` | address of the box, usually `fritz.box` |
 | `SIP_USER`, `SIP_PASSWORD` | credentials of the IP phone extension (required) |
 | `SIP_LOCAL_PORT` (5062), `RTP_PORT` (40000) | local UDP ports; the Windows firewall asks on first start, allow for private networks |
-| `OPENAI_API_KEY` | for AI calls, call plan, summary, assessment, voice samples. Without a key only "Testton" and "Echo" work |
+| `OPENAI_API_KEY` or `GEMINI_API_KEY` | key of the AI provider, for AI calls, call plan, summary, assessment, voice samples. OpenAI is the default; for Google Gemini also set `AI_PROVIDER=gemini`. Without a key only "Testton" and "Echo" work |
 | `OWNER_NUMBERS` | your own number(s), comma-separated (target of the call back, call-back number given to people the AI calls); alternatively a contact flagged "Inhaber" (owner) |
 
 All other variables are listed with comments in `.env.example`; chapter 14 shows what is set only there and what is set in the web UI. Values entered by hand take effect after a restart.
@@ -105,7 +105,7 @@ npm run tray
 
 An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
 
-Installer and portable ZIP: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and the web UI opens with the setup assistant (chapter 4.2). The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
+Installer and portable ZIP: `npm run dist:win` (output in `release/`). When installed, `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `usage.json` and `sipfunk.log` live in the user profile under `%APPDATA%\SIPFunk`. On first start `.env.example` is copied there and the web UI opens with the setup assistant (chapter 4.2). The environment variable `SIPFUNK_DATA_DIR` sets the data folder when starting from the repository as well.
 
 ### 4.4 First functional test without AI
 
@@ -132,7 +132,7 @@ The header is always visible: the four pages on the left, the connection status 
 - **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, model, "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll").
 - **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you) and "Spam-Abwehr" (spam defence). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
-- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical). The section list on the left jumps to a section; "Speichern" (save, or Ctrl+S) below it saves all sections of this page – only the values you changed – and they apply from the next call. "Einrichtungsassistent …" at the top opens the setup assistant. At the bottom, for information, are the values that exist only in `.env` (box, ports, data folder).
+- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Anbieter (AI provider), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical). The section list on the left jumps to a section; "Speichern" (save, or Ctrl+S) below it saves all sections of this page – only the values you changed – and they apply from the next call. "Einrichtungsassistent …" at the top opens the setup assistant. At the bottom, for information, are the values that exist only in `.env` (box, ports, data folder).
 
 Style, voice, form of address, model and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them (and only them: the two save buttons do not touch each other's values).
 ### 5.1 "Einfach" and "Erweitert" (simple and advanced)
@@ -144,6 +144,7 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | Dashboard | number, task, style, voice with sample, form of address, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), model, system log, codec and RTP counters, token usage |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
 | KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text), voice model | custom model IDs, text model |
+| KI-Anbieter | provider, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | actual costs according to OpenAI (admin key) |
 | Anrufbeantworter | on/off, number of rings, own numbers (number, name, person, company or family) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
@@ -170,11 +171,11 @@ Three things stay German whatever you choose: the AI speaks German on the phone 
 
    > "Call the dentist's office. I need a check-up appointment within the next three weeks, mornings, name Max Mustermann, I don't have my insurance number to hand. Accept an appointment they offer if it is in the morning."
 
-3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; "Probe hören" plays all voices with the configured AI name), **Anrede** (form of address) Du/Sie, **Modell** (model; the Realtime models your OpenAI account offers, section 6.1).
+3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; the voices of the selected AI provider, "Probe hören" plays all of them with the configured AI name), **Anrede** (form of address) Du/Sie, **Modell** (model; the voice models your account with the selected AI provider offers, section 6.1).
 4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name), the **behaviour in the call** and the **AI model** (section 6.1).
 5. **"Anrufen …"** shows a confirmation with the number. **"Jetzt wählen"** (dial now) starts the call.
 
-During the call the transcript runs along. You can hang up at any time with **"Auflegen"**. Otherwise the call time limit (default 300 s) ends the call automatically; the AI knows the limit and gets to the point.
+During the call the transcript runs along. You can hang up at any time with **"Auflegen"**. Otherwise the call time limit (default 300 s; with Google Gemini never more than 540 s, section 6.2) ends the call automatically; the AI knows the limit and gets to the point.
 
 **What the AI always does:** it introduces itself by name as an AI assistant acting on your behalf, sticks to the task, only agrees to what the task covers (no payments, orders, contracts, no sensitive data), makes nothing up, carries out no instructions from the other party and hangs up itself after saying goodbye. If the other party does not want to talk to an AI, it thanks them and ends the call.
 
@@ -205,13 +206,60 @@ The tone itself is still set by the **Stil** (style) on the dashboard. **Zusätz
 
 **KI-Modell** (AI model).
 
-The choice comes from OpenAI: SIPFunk uses your key to ask which models your account offers and splits them by name into voice models (Realtime) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded at start and when you open the settings, at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once. The key stays in the background program and appears neither in the interface nor in the log.
+The choice comes from the selected AI provider (section 6.2): SIPFunk uses your key to ask which models your account offers and splits them into voice models (OpenAI: Realtime, Gemini: Live) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded at start and when you open the settings, at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once. The key stays in the background program and appears neither in the interface nor in the log.
 
-- **Sprachmodell für Anrufe** (voice model for calls): the Realtime model that speaks and listens. "(Standard)" marks the default, "(günstig)" (cheaper) the models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and OpenAI publishes their prices. The same choice is also on the dashboard at level "Erweitert"; both places show the same value.
-- **Textmodell** (text model, level "Erweitert"): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna`.
-- **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large model. SIPFunk still supports only the OpenAI Realtime API.
+- **Sprachmodell für Anrufe** (voice model for calls): the live model that speaks and listens. "(Standard)" marks the default (`gpt-realtime-2.1` with OpenAI, `gemini-3.8-live` with Gemini), "(günstig)" (cheaper) the OpenAI models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and the provider publishes their prices. The same choice is also on the dashboard at level "Erweitert"; both places show the same value.
+- **Textmodell** (text model, level "Erweitert"): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna` with OpenAI and `gemini-3.5-flash-lite` with Gemini.
+- **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large OpenAI model, for unknown Gemini models those of `gemini-3.8-live`. A model ID that belongs to the other provider is ignored; the default of the selected provider is used instead.
 
 If the list cannot be loaded (no key, no network, key rejected), the reason is shown next to the button. Your saved choice is always kept and visible; if it is not in the loaded list, it carries the note "(nicht in der Liste)" (not in the list). Loading the list never changes a setting.
+
+### 6.2 AI provider
+
+Under "Einstellungen › KI-Anbieter" (AI provider; visible in both levels, "Einfach" and "Erweitert") or in step 3 of the setup assistant you choose which provider conducts the calls. One provider does everything: the call itself, call plan, summary, assessment, complaint draft and voice samples. Call content goes to the selected provider and to no other. The choice is stored as `aiProvider` in `settings.json` (`openai`, the default, or `gemini`); `AI_PROVIDER` in `.env` is the initial value.
+
+| | OpenAI | Google Gemini |
+| --- | --- | --- |
+| Interface | Realtime API | Gemini Live API |
+| Key | `OPENAI_API_KEY`, created at platform.openai.com/api-keys | `GEMINI_API_KEY`, created in Google AI Studio, aistudio.google.com/apikey |
+| Voice model (default, initial value) | `gpt-realtime-2.1`, `OPENAI_MODEL` | `gemini-3.8-live`, `GEMINI_MODEL` |
+| Text model (default, initial value) | `gpt-6-luna`, `OPENAI_SUMMARY_MODEL` | `gemini-3.5-flash-lite`, `GEMINI_SUMMARY_MODEL` |
+| Voices | marin, cedar and eight more | 30 voices of its own (e.g. Kore, Puck, Zephyr) |
+| Status | tested default | not yet tried on a real phone call |
+
+![Settings › AI provider with OpenAI: key, connection test, usage](images/settings-provider.en.png)
+
+**Status of Gemini.** The Gemini path has so far only been tested against simulated connections in the automated tests. No real phone call and no real connection to Google has been made with it yet. The protocol details follow Google's documentation as of 11 November 2026.
+
+**Key.** Enter the key under "API-Schlüssel" (API key) and click "Schlüssel prüfen und speichern" (check key and save). The key is accepted only by the local web UI on `127.0.0.1`, checked once with the provider and written to `.env` in the data folder. It is never returned by the API and never logged; the interface only shows under "Stand" (status) whether a key is stored. Keys for both providers can be stored side by side; only the key of the selected provider is used.
+
+**After switching.** Voices and models belong to a provider. A stored model or voice that belongs to the other provider is ignored and the default of the selected provider is used; for voices that is the provider's first voice, and it also applies to voices saved for contacts or for own-number profiles. After switching, check voice and models on the dashboard and under "KI-Assistent".
+
+**"Verbindung testen"** (test connection) checks three things for the selected provider and shows a line for each:
+
+1. **Schlüssel** (key): the key is valid (SIPFunk fetches the model list with it).
+2. **Sprachmodell** (voice model): the configured voice model is in the model list of the account, or the live connection was established anyway.
+3. **Live-Verbindung** (live connection): the live connection can be established. SIPFunk opens the WebSocket, waits for the confirmation of the session and closes it again. It sends no audio and requests no answer.
+
+The test does not check an actual phone call.
+
+**What is different with Gemini.** SIPFunk uses the Gemini Live API with the model `gemini-3.8-live`: audio goes to Google as 16 kHz PCM and comes back as 24 kHz PCM, which is resampled to the 8 or 16 kHz of the phone. The following limitations apply:
+
+- A call lasts nine minutes (540 s) at most, whatever call time limit is configured. The Live API drops a connection after about ten minutes, and session resumption is not implemented.
+- The speaking rate cannot be set; it is only passed to the AI as a hint. The limit on output tokens per answer is not applied.
+- Instructions cannot be changed during a call. A call plan that arrives late and the switch into the spam defence are therefore sent as marked follow-up instructions ("[Regie]"), which is weaker than a system instruction. Instructions for a single answer (greeting, nudges from the watchdogs, goodbye) are sent the same way.
+- Answers cannot be truncated, deleted or cancelled. When the other party cuts in, Google cancels the answer itself; the AI finishing its sentence after a mere "mhm" therefore works less often.
+- The transcription of the other party arrives in fragments and is assembled after a short pause.
+- The call simulator (`npm run sim`, chapter 12) works with OpenAI only.
+- The cost estimate uses the prices of the paid tier, even if you use the free quota (chapter 15).
+
+![Settings › AI provider with Google Gemini: limitations and the notice about the free quota](images/settings-provider-gemini.en.png)
+
+**Free quota.** Google offers a free quota for the Gemini API. Google's Gemini API Additional Terms, however, say that only the paid services may be used when an application is made available to users in the European Economic Area, Switzerland or the United Kingdom. Google does not state whether a caller counts as such a user, and SIPFunk cannot tell which tier a key runs on. Read [legal.md](legal.md), section 3.5, before you use the free quota.
+
+**Verbrauch in diesem Monat** (usage this month). The card shows calls, minutes and estimated US dollars per provider for the current month. The figures are the sum of SIPFunk's own estimates per call, kept in `usage.json` in the data folder for 13 months and independent of the log retention period. They cover the calls only, not the text model and not the voice samples, and they are an estimate, not the provider's bill.
+
+**Tatsächliche Kosten laut OpenAI (optional)** (actual costs according to OpenAI; level "Erweitert", OpenAI only). If you store an admin key of your OpenAI organisation (`sk-admin-…`) under "Admin-Schlüssel", the card also shows the organisation's actual costs since the start of the month. An admin key is required because OpenAI's costs endpoint (`GET /v1/organization/costs`) rejects normal API keys. Such a key can also manage users, projects and keys of the organisation: store it only deliberately and give it an expiry date at OpenAI. The figure covers everything the organisation uses, not just SIPFunk. The key is written to `.env` as `OPENAI_ADMIN_KEY`; "Admin-Schlüssel entfernen" (remove admin key) deletes it again. Google offers no such API, and OpenAI offers no API for the remaining credit balance.
 
 ## 7. Answering machine
 
@@ -219,7 +267,7 @@ If the list cannot be loaded (no key, no network, key rejected), the reason is s
 
 "Einstellungen › Anrufbeantworter" → **"KI nimmt eingehende Anrufe an (allgemein)"** (AI answers incoming calls, general), **"Annahme beim … Klingeln"** (answer on the n-th ring; default: the 5th, calculated at about 5 s per ring), then **"Speichern"**. Alternatively via the tray menu or `INCOMING_ENABLED=on`. When switched off, the extension only rings along without picking up; during a running call it is busy.
 
-The connection to OpenAI is set up while the phone is still ringing so that the AI speaks without delay.
+The connection to the AI provider is set up while the phone is still ringing so that the AI speaks without delay.
 
 ### 7.2 What happens on an answered call
 
@@ -373,8 +421,8 @@ The spam defence has two switches:
 The private person has its own settings, separate from the assistant (name and gender only apply without AI disclosure):
 
 - **Name der Rolle** (name of the role): an invented name it answers with ("Schmidt?") and gives when asked. If the caller asks for exactly this name, it says "Am Apparat" (speaking); if they ask for someone else, that person is not in. Empty = it gives no name. Do not use your real name.
-- **Stimme der Rolle** (voice) and **Sprechgeschwindigkeit der Rolle** (speaking rate): voice empty = same as the assistant; rate empty = 0.95, slightly slower than the assistant. Both apply when the spam defence is certain at pick-up (list match or "In die Spam-Falle"). If the AI only switches roles in mid-call, the assistant's voice and rate remain; name and own instructions still apply.
-- **Die Rolle ist** (the role is): a man, a woman or automatic by voice (cedar, ash, ballad, echo and verse count as male). This decides whether it says "Am Apparat" when asked for "Herr Schmidt" or for "Frau Schmidt".
+- **Stimme der Rolle** (voice) and **Sprechgeschwindigkeit der Rolle** (speaking rate): voice empty = same as the assistant; rate empty = 0.95, slightly slower than the assistant. Both apply when the spam defence is certain at pick-up (list match or "In die Spam-Falle"); with Google Gemini the rate is only a hint to the AI (section 6.2). If the AI only switches roles in mid-call, the assistant's voice and rate remain; name and own instructions still apply.
+- **Die Rolle ist** (the role is): a man, a woman or automatic by voice (with OpenAI cedar, ash, ballad, echo and verse count as male; Gemini has its own list, for example Puck, Charon and Fenrir). This decides whether it says "Am Apparat" when asked for "Herr Schmidt" or for "Frau Schmidt".
 - **Eigene Anweisungen für die Rolle** (own instructions for the role): free text on character, tone and quirks, for example "Elderly gentleman, likes telling stories, friendly but long-winded". The protective rules (no data, no consent, no real identity, stay polite) always take precedence.
 
 ### 10.5 After the call
@@ -397,7 +445,7 @@ Contacts (stored locally in `contacts.json`) have a name and a number, optionall
 
 ![Calls with transcript, result and summary](images/calls.en.png)
 
-Every AI call that was actually connected is saved in `transcripts/` as JSON and Markdown: time, number, own number dialled, duration, codec, reason for ending, task, call plan, result according to the AI, transcript (text, no audio), usage, cost estimate, summary, spam defence tag. Calls that were never connected (not answered, busy) produce no log.
+Every AI call that was actually connected is saved in `transcripts/` as JSON and Markdown: time, number, own number dialled, duration, codec, reason for ending, AI provider and model, task, call plan, result according to the AI, transcript (text, no audio), usage, cost estimate, summary, spam defence tag. Calls that were never connected (not answered, busy) produce no log.
 
 Logs are deleted automatically after the configured period (default 7 days, "Einstellungen › Technik"); manually on the "Anrufe" page.
 
@@ -407,13 +455,14 @@ The data folder is the project folder when starting from the repository, and `%A
 
 | File | Content | Confidential |
 | --- | --- | --- |
-| `.env` | credentials (SIP, OpenAI), initial values | yes, never share |
+| `.env` | credentials (SIP, keys of the AI providers, optionally the OpenAI admin key), initial values | yes, never share |
 | `settings.json` | all web UI settings including mail password, OAuth secret and spam defence confirmation | yes |
 | `contacts.json` | contacts | yes (personal data) |
 | `transcripts/` | call logs | yes (personal data) |
 | `mail-token.json` | OAuth token for sending mail | yes |
 | `sipfunk.log`, `sipfunk-YYYY-MM-DD.log` | operating log with phone numbers (tray app only; otherwise the log is in the terminal). One file per day; files older than the log retention period are deleted | yes |
-| `voice-samples/` | cached voice samples (MP3) | no |
+| `usage.json` | monthly usage per AI provider: number of calls, seconds, estimated cost; the last 13 months (section 6.2) | no |
+| `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 
 All of them are listed in `.gitignore`. When backing up the computer, include the data folder, but encrypted.
@@ -422,7 +471,7 @@ All of them are listed in `.gitignore`. When backing up the computer, include th
 
 ## 12. Simulator
 
-The simulator plays through conversations in text mode without calling anyone: the Realtime model gets the same instructions and tools as on the phone, a text model plays the other party from a role description, and another one grades the result at the end (all points done, mark, problems). It needs an OpenAI key and costs a few cents per run. Scenarios and reports are in German.
+The simulator plays through conversations in text mode without calling anyone: the Realtime model gets the same instructions and tools as on the phone, a text model plays the other party from a role description, and another one grades the result at the end (all points done, mark, problems). The simulator works with OpenAI only: it needs `OPENAI_API_KEY` and uses OpenAI even if Google Gemini is selected as the AI provider, because it relies on the text mode of the Realtime API and the Gemini Live API only outputs audio. It costs a few cents per run. Scenarios and reports are in German.
 
 ```bash
 npm run sim
@@ -505,14 +554,15 @@ There are two places: `.env` (read at start; changes made by hand need a restart
 
 ### 14.1 Only in `.env`
 
-The first and fourth row can also be set with the setup assistant (chapter 4.2), which writes them to `.env`.
+The first and fourth row can also be set with the setup assistant (chapter 4.2), which writes them to `.env`; the keys of the fourth and fifth row can be entered under "Einstellungen › KI-Anbieter" as well (section 6.2).
 
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `SIP_SERVER`, `SIP_USER`, `SIP_PASSWORD` | `fritz.box`, –, – | registration with the box |
 | `SIP_LOCAL_PORT`, `RTP_PORT` | 5062, 40000 | local UDP ports |
 | `LOCAL_IP` | automatic | local address if the computer has several networks |
-| `OPENAI_API_KEY` | – | key for all AI features |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` | –, – | key of the AI provider for all AI features; only the key of the selected provider is used |
+| `OPENAI_ADMIN_KEY` | – | optional: admin key of the OpenAI organisation for the actual monthly costs |
 | `OWNER_NUMBERS` | – | own numbers (alternative to the "Inhaber" contact) |
 | `AUDIO_HD` | true | negotiate HD G.711 (16 kHz) with the box; `false` forces 8 kHz |
 | `LIVE_LISTEN_ENABLED` | true | listening in via the browser |
@@ -523,27 +573,31 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 
 | Setting | Default | Initial value from | Effect |
 | --- | --- | --- | --- |
-| Gesprächslimit (Sekunden) – call time limit | 300 | `MAX_CALL_SECONDS` | hard limit, applies to all calls |
+| Gesprächslimit (Sekunden) – call time limit | 300 | `MAX_CALL_SECONDS` | hard limit, applies to all calls; with Google Gemini never more than 540 s |
 | Protokolle aufbewahren (Tage) – log retention | 7 | `TRANSCRIPT_RETENTION_DAYS` | older logs are deleted |
 | Stillstandswächter (ms) – stall watchdog | 6000 | `AI_STALL_MS` | if it stays silent this long after the AI's output, the AI is nudged to continue; 0 = off |
 | Stille bis Satzende (ms) – silence until end of turn | 900 | `AI_VAD_SILENCE_MS` | too short: the AI talks into thinking pauses |
-| Schwelle der Spracherkennung – voice detection threshold | 0.6 | `AI_VAD_THRESHOLD` | 0.3–0.9; higher: noises interrupt the AI less often, quiet speech is more easily missed |
+| Schwelle der Spracherkennung – voice detection threshold | 0.6 | `AI_VAD_THRESHOLD` | 0.3–0.9; higher: noises interrupt the AI less often, quiet speech is more easily missed. With Google Gemini the value only selects one of two levels: 0.5 and above low, below that high sensitivity |
 | Nachhören nach Verabschiedung (ms) – listening after goodbye | 2000 | `AI_HANGUP_GRACE_MS` | if the other party says something more, the call continues |
 | Warten nach Abnehmen (ms) – wait after pick-up | 2500 | `AI_GREETING_WAIT_MS` | outgoing: how long the other party may speak first |
-| Sprechgeschwindigkeit – speaking rate | 1.05 | `AI_SPEECH_SPEED` | 0.25–1.5 |
+| Sprechgeschwindigkeit – speaking rate | 1.05 | `AI_SPEECH_SPEED` | 0.25–1.5; with Google Gemini only a hint to the AI |
 | Lautstärke der KI – AI volume | 1.5 | `AI_OUTPUT_GAIN` | gain towards the phone, with a soft limiter |
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
-| Textmodell – text model | `gpt-6-luna` | `OPENAI_SUMMARY_MODEL` | plan, summary, assessment, complaint |
+| Textmodell – text model | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | plan, summary, assessment, complaint |
 
-The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` and `OPENAI_MODEL` (dashboard, AI assistant), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
+The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` and `OPENAI_MODEL` or `GEMINI_MODEL` (dashboard, AI assistant), `AI_PROVIDER` (AI provider), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
 
 ---
 
 ## 15. Cost
 
-OpenAI bills by token. The web UI shows usage and an estimate in US dollars per call. The prices used are hard-coded in `src/ai/pricing.ts` and have to be adjusted by hand when prices change; OpenAI's billing is authoritative. The estimate leaves out transcription and discounts for cached input.
+Both AI providers bill by token. The web UI shows usage and an estimate in US dollars per call. The prices used are hard-coded in `src/ai/pricing.ts` and have to be adjusted by hand when prices change; the provider's billing is authoritative. The estimate leaves out transcription and discounts for cached input.
 
-The largest item is the speech output of the Realtime model; according to the stored price table the mini variant costs about a third. Summary, assessment and call plan are negligible. Stalling in the spam defence costs according to its duration. Set a monthly budget limit at OpenAI.
+The largest item is the speech output of the voice model; according to the stored price table the mini variant of the OpenAI Realtime model costs about a third. Summary, assessment and call plan are negligible. Stalling in the spam defence costs according to its duration. Set a monthly budget limit at your provider.
+
+For Google Gemini the table holds the prices of the paid tier for `gemini-3.8-live` (US dollars per 1 million tokens: audio in 3, audio out 12, text in 0.75, text out 4.5). The estimate uses them even if a call ran on the free quota; on the free quota see section 6.2.
+
+"Einstellungen › KI-Anbieter" adds the estimates up per month and provider ("Verbrauch in diesem Monat") and can optionally show the actual costs of your OpenAI organisation (section 6.2).
 
 Call charges apply according to your tariff (the call back to you is a normal outgoing call).
 
@@ -559,10 +613,12 @@ The log (in the terminal, on the dashboard under "Protokoll", and for the tray a
 | No registration with the box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; firewall for the UDP ports; box UI: is the IP phone registered? |
 | Extension does not ring | is the number assigned to the extension in the box? |
 | AI does not pick up | answering machine on? Profile of the number set to off? Is another call running? |
-| AI does not speak / silence after pick-up | log "Realtime: verbunden", "erstes Audio nach … ms"; `OPENAI_API_KEY`, model access, internet |
+| AI does not speak / silence after pick-up | log "Realtime: verbunden", "erstes Audio nach … ms"; key of the AI provider, model access, internet; "Verbindung testen" under "Einstellungen › KI-Anbieter" checks key, voice model and live connection |
+| Wrong voice or model after switching the AI provider | voices and models of the other provider are ignored and replaced by the default; choose voice and models again (section 6.2) |
+| Call ends after nine minutes | with Google Gemini a call lasts 540 s at most, whatever the call time limit says (section 6.2) |
 | Choppy voice | log "RTP: Gegenstelle sendet …", "Unterläufe"; try `AUDIO_HD=false`; avoid Wi-Fi |
 | AI talks into pauses | increase "Stille bis Satzende" (e.g. 1200) |
-| Noises (rustling, coughing) interrupt the AI | increase "Schwelle der Spracherkennung" (e.g. 0.7). On an interruption the AI only pauses and waits for the transcription: if it was a noise or a listening sound ("mhm"), it finishes its sentence; if there was content ("No", "Wait", a question), it drops the rest and answers |
+| Noises (rustling, coughing) interrupt the AI | increase "Schwelle der Spracherkennung" (e.g. 0.7). On an interruption the AI only pauses and waits for the transcription: if it was a noise or a listening sound ("mhm"), it finishes its sentence; if there was content ("No", "Wait", a question), it drops the rest and answers. With Google Gemini, Google cancels the answer itself when the other party cuts in, so finishing the sentence works less often |
 | Long silence in mid-call | log "Stillstand"; the stall watchdog nudges the AI after the configured time |
 | Answer cut off | log "Realtime-Antwort abgeschnitten" → token limit; make the task shorter |
 | No e-mail | status line of the "E-Mail-Versand" card; "Verbindung prüfen"; reconnect for OAuth |
@@ -576,8 +632,10 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 ## 17. Glossary
 
 - **Extension / IP phone**: the device SIPFunk registers as with the box.
+- **AI provider**: the company whose models conduct the call and write the texts: OpenAI or Google (section 6.2).
 - **Realtime API**: OpenAI interface for speech in real time (audio in, audio out).
-- **Server VAD**: voice activity detection on OpenAI's side that recognises the end of a turn.
+- **Live API**: Google's interface for speech in real time with Gemini.
+- **Server VAD**: voice activity detection on the AI provider's side that recognises the end of a turn. The threshold is an OpenAI parameter; with Gemini it only selects a low or high start sensitivity.
 - **end_call / transfer_call / flag_spam**: tools the AI calls to hang up, put through or flag spam.
 - **REFER**: SIP message instructing the box to transfer a call to another number.
 - **Inhaber (owner)**: you, recognised by the contact flag or by `OWNER_NUMBERS`.

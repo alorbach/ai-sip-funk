@@ -7,7 +7,7 @@ SIPFunk ist ein kleines Projekt eines einzelnen Entwicklers. Fehlerberichte und 
 ## Fehler melden
 
 - Beschreibe, was du getan hast, was du erwartet hast und was passiert ist.
-- Nenne Betriebssystem, Node-Version, Modell und FRITZ!OS-Version der Box sowie das verwendete Realtime-Modell.
+- Nenne Betriebssystem, Node-Version, Modell und FRITZ!OS-Version der Box sowie den verwendeten KI-Anbieter und das Sprachmodell.
 - Füge die passenden Zeilen aus dem Log bei, **nachdem du sie bereinigt hast**: keine Rufnummern, Namen, E-Mail-Adressen, Zugangsdaten oder Gesprächsinhalte. Dasselbe gilt für Screenshots und Protokolle.
 - Sicherheitslücken nicht öffentlich melden, siehe [SECURITY.de.md](SECURITY.de.md).
 

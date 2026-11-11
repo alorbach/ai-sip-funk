@@ -21,8 +21,10 @@
  *      Schlüsseln und Kennwörtern werden für die Demo-Instanz entfernt.
  *   2. Eine kleine Schein-Telefonanlage auf 127.0.0.1:5060 beantwortet die Anmeldung, damit die Oberfläche
  *      „Telefonanlage verbunden“ zeigt. Ist der Port belegt, bleibt die Anlage „nicht erreichbar“.
- *   3. Der Server startet als eigener Prozess mit einem Vorspann, der jeden Abruf bei OpenAI abfängt
- *      (Modell-Liste aus einer festen Beispielliste). Es geht nichts ins Internet.
+ *   3. Der Server startet als eigener Prozess mit einem Vorspann, der jeden Abruf bei den KI-Anbietern
+ *      (OpenAI, Google Gemini) abfängt: Modell-Listen kommen aus festen Beispiellisten, alles andere
+ *      bekommt „kein Netz“. Zusätzlich lässt der Vorspann nur Verbindungen zum eigenen Rechner zu, damit
+ *      auch kein WebSocket (Live-Verbindung, Verbindungstest) hinausgeht. Es geht nichts ins Internet.
  *   4. Versteckte Fenster öffnen die Seiten in Deutsch und Englisch und speichern PNGs.
  *
  * Die Bilder vor dem Einchecken immer ansehen.
@@ -121,6 +123,7 @@ function writeDemoData(webPort) {
     'RTP_PORT=40200',
     'LOCAL_IP=127.0.0.1',
     'OPENAI_API_KEY=sk-demo-0000000000000000',
+    'GEMINI_API_KEY=AIza-demo-00000000000000000000',
     `WEB_PORT=${webPort}`,
     '',
   ].join('\n'));
@@ -129,6 +132,7 @@ function writeDemoData(webPort) {
     uiMode: 'easy',
     uiLang: 'de',
     setupDone: 'on',
+    aiProvider: 'openai',
     aiName: 'Alex',
     principal: 'Max Mustermann',
     address: 'sie',
@@ -218,15 +222,37 @@ function writeDemoData(webPort) {
   ];
   for (const r of records) fs.writeFileSync(path.join(dataDir, 'transcripts', `${r.id}.json`), JSON.stringify(r, null, 2) + '\n');
 
+  // Monatsverbrauch: erfundene Zahlen für den laufenden Monat
+  const d = new Date();
+  const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  fs.writeFileSync(path.join(dataDir, 'usage.json'), JSON.stringify({ months: { [month]: { openai: { calls: 14, seconds: 1980, costUsd: 3.42 }, gemini: { calls: 3, seconds: 420, costUsd: 0.11 } } } }, null, 2) + '\n');
+
   // Vorspann für den Server-Prozess: Kein Abruf verlässt den Rechner; die Modell-Liste ist eine feste Beispielliste.
   fs.writeFileSync(path.join(tempRoot, 'preload.mjs'), `
+import net from 'node:net';
 const models = ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini', 'gpt-realtime-2', 'gpt-realtime', 'gpt-6-luna', 'gpt-6-sol', 'gpt-6.1-terra'];
+const geminiModels = [['gemini-3.8-live', 'bidiGenerateContent'], ['gemini-3.8-flash', 'generateContent'], ['gemini-3.5-flash-lite', 'generateContent']];
 const local = /^https?:\\/\\/(127\\.0\\.0\\.1|localhost|\\[::1\\])[:/]/;
+// Netzsperre: Verbindungen (auch WebSockets) nur zum eigenen Rechner; alles andere scheitert sofort
+const connect = net.Socket.prototype.connect;
+net.Socket.prototype.connect = function (...args) {
+  const first = Array.isArray(args[0]) ? args[0][0] : args[0]; // Node reicht intern schon aufbereitete Argumente als Liste durch
+  const o = typeof first === 'object' && first !== null ? first : { port: first, host: typeof args[1] === 'string' ? args[1] : undefined };
+  const host = String(o.host || 'localhost');
+  if (!o.path && !/^(127\\.\\d+\\.\\d+\\.\\d+|localhost|::1|0\\.0\\.0\\.0)$/.test(host)) {
+    process.nextTick(() => this.destroy(new Error('Demo: kein Netz (' + host + ')')));
+    return this;
+  }
+  return connect.apply(this, args);
+};
 globalThis.fetch = async (input) => {
   const url = String(input && input.url ? input.url : input);
   if (local.test(url)) throw new Error('unerwarteter lokaler Abruf');
   if (/api\\.openai\\.com\\/v1\\/models/.test(url)) {
     return new Response(JSON.stringify({ object: 'list', data: models.map((id, i) => ({ id, object: 'model', owned_by: 'openai', created: 1900000000 - i })) }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }
+  if (/generativelanguage\\.googleapis\\.com\\/v1beta\\/models(\\?|$)/.test(url)) {
+    return new Response(JSON.stringify({ models: geminiModels.map(([id, method]) => ({ name: 'models/' + id, supportedGenerationMethods: [method] })) }), { status: 200, headers: { 'content-type': 'application/json' } });
   }
   return new Response(JSON.stringify({ error: { message: 'Demo: kein Netz' } }), { status: 503, headers: { 'content-type': 'application/json' } });
 };
@@ -271,7 +297,7 @@ function startFakeRegistrar() {
 function startServer() {
   const env = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (/(API_KEY|_TOKEN|SECRET|PASSWORD|^SIP_|^OPENAI_|^SMTP_|^MAIL_|^AI_|^OWNER_|^WEB_PORT$|^RTP_PORT$|^LOCAL_IP$|^ELECTRON_)/i.test(k)) continue;
+    if (/(API_KEY|ADMIN_KEY|_TOKEN|SECRET|PASSWORD|^SIP_|^OPENAI_|^GEMINI_|^SMTP_|^MAIL_|^AI_|^OWNER_|^WEB_PORT$|^RTP_PORT$|^LOCAL_IP$|^ELECTRON_)/i.test(k)) continue;
     env[k] = v;
   }
   env.SIPFUNK_DATA_DIR = dataDir;
@@ -301,6 +327,8 @@ const SHOTS = [
   { name: 'calls', hash: 'calls', mode: 'easy', height: 860, after: `(() => { const row = document.querySelector('#page-calls [data-id], #page-calls li, #page-calls .row'); if (row) row.click(); })()` },
   { name: 'contacts', hash: 'contacts', mode: 'easy', height: 500 },
   { name: 'settings-ai', hash: 'settings', mode: 'easy', height: 900 },
+  { name: 'settings-provider', hash: 'settings', mode: 'easy', height: 620, section: 'settings-provider' },
+  { name: 'settings-provider-gemini', hash: 'settings', mode: 'easy', height: 1060, section: 'settings-provider', provider: 'gemini' },
   { name: 'settings-incoming', hash: 'settings', mode: 'easy', height: 900, section: 'settings-incoming' },
   { name: 'settings-scam', hash: 'settings', mode: 'advanced', height: 900, section: 'settings-scam' },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },
@@ -317,7 +345,7 @@ async function capture(port, lang, shot) {
     if (args.verbose) win.webContents.on('console-message', (_e, _level, message) => process.stdout.write(`[${shot.name}] ${message}\n`));
     const step = (t) => { if (args.verbose) process.stdout.write(`[${shot.name}.${lang}] ${t}\n`); };
     const url = `http://127.0.0.1:${port}/#${shot.hash}`;
-    await setSettings(port, { uiLang: lang, uiMode: shot.mode });
+    await setSettings(port, { uiLang: lang, uiMode: shot.mode, aiProvider: shot.provider || 'openai' });
     step('Einstellungen gesetzt');
     await win.loadURL(url);
     step('Seite geladen');
@@ -342,6 +370,8 @@ async function capture(port, lang, shot) {
     if (shot.section) await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - (head ? head.offsetHeight : 0) - 20, behavior: 'instant' }); })()`);
     if (shot.after) await win.webContents.executeJavaScript(`Promise.resolve(${shot.after}).then(() => true, () => false)`);
     await sleep(900);
+    // Nachgeladene Inhalte (Modell-Liste, Verbrauch) verschieben die Seite: noch einmal an die Stelle springen
+    if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - (head ? head.offsetHeight : 0) - 20, behavior: 'instant' }); })()`); await sleep(300); }
     step('nehme auf');
     const image = await win.webContents.capturePage();
     const file = path.join(outDir, `${shot.name}.${lang}.png`);

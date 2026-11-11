@@ -2,7 +2,7 @@
 
 **English** · [Deutsch](README.de.md)
 
-SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP phone and connects the call audio to a live speech model from OpenAI. The AI can place outgoing calls and carry out a task, answer incoming calls as an answering machine, and notify you afterwards. Everything runs on your own computer: one user, one extension, one call at a time.
+SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP phone and connects the call audio to a live speech model from OpenAI or Google. The AI can place outgoing calls and carry out a task, answer incoming calls as an answering machine, and notify you afterwards. Everything runs on your own computer: one user, one extension, one call at a time.
 
 > **The software speaks German.** The web UI, the instructions given to the AI and the dialling rules are German and built for Germany. This documentation is available in English and German; quoted UI labels are the German ones you will see on screen.
 >
@@ -12,9 +12,9 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 
 > **Use at your own risk.** The software comes with no warranty. Whoever runs SIPFunk is responsible for every call the AI places or answers.
 >
-> **Read the legal notes first.** Calls are sent to OpenAI and logged as text; the AI has to identify itself as an AI; the optional spam defence can omit that notice if you switch AI disclosure off there; that is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
+> **Read the legal notes first.** Calls are sent to the selected AI provider (OpenAI or Google) and logged as text; the AI has to identify itself as an AI; the optional spam defence can omit that notice if you switch AI disclosure off there; that is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
 >
-> **OpenAI Realtime only.** SIPFunk currently works exclusively with the OpenAI Realtime API. Other live speech models may be added later.
+> **Two AI providers.** OpenAI Realtime is the tested default. Google Gemini (Live API) is available as a second provider; so far it has only been run against simulated connections in the automated tests and has not yet been tried on a real phone call.
 
 ## What it does
 
@@ -25,7 +25,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Spam defence.** The AI brushes off advertising and scam callers or keeps them busy, openly as an AI by default. If you switch AI disclosure off, it acts as a private person with a name of its own; that is only possible after you have explicitly confirmed the risk in the web UI. Voice, pace and instructions of the role are configurable.
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
 - **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
-- **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone.
+- **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone (OpenAI only).
 - **MCP interface** that lets an AI agent start calls and read results.
 
 ## Requirements
@@ -33,7 +33,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **FRITZ!Box** with the "LAN/WLAN (IP-Telefon)" feature. SIPFunk was developed and tested against a FRITZ!Box; other SIP systems with registration over UDP and G.711 may work but are untested (the per-number profiles need the `P-Called-Party-ID` header).
 - **Node.js 20.12 or later.**
 - **Windows 10 or 11** for the tray app. Server and web UI are plain Node.js; untested on other systems.
-- **OpenAI API key** with access to the Realtime models.
+- **API key for one of the two AI providers**: OpenAI (with access to the Realtime models) or Google Gemini (from Google AI Studio).
 - The computer has to be running for as long as the answering machine should take calls.
 
 ## Quick start
@@ -51,7 +51,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
    npm start
    ```
 
-4. Open <http://127.0.0.1:8080>. As long as the essentials are missing, the **setup assistant** opens: it asks for the credentials of the IP phone and the OpenAI key, checks both and stores them in `.env`. At the end it offers a test call in echo mode to an internal extension (e.g. `**610`, usually the first cordless phone); this costs nothing and proves that SIP and audio work. If you prefer, copy `.env.example` to `.env` and fill it in by hand instead (German comments: `.env.example.de`).
+4. Open <http://127.0.0.1:8080>. As long as the essentials are missing, the **setup assistant** opens: it asks for the credentials of the IP phone and the key of the AI provider (OpenAI or Google Gemini), checks both and stores them in `.env`. At the end it offers a test call in echo mode to an internal extension (e.g. `**610`, usually the first cordless phone); this costs nothing and proves that SIP and audio work. If you prefer, copy `.env.example` to `.env` and fill it in by hand instead (German comments: `.env.example.de`).
 
 On first start the Windows firewall asks about the UDP ports for SIP and RTP: allow them for private networks.
 
@@ -65,10 +65,10 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 
 ## Configuration
 
-- **`.env`**: credentials (SIP, OpenAI), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the OpenAI key there and applies them immediately; changes made by hand require a restart.
-- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, answering machine, notifications, e-mail, spam defence, technical values). Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
+- **`.env`**: credentials (SIP, AI provider), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the key of the AI provider there and applies them immediately; changes made by hand require a restart.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, AI provider, answering machine, notifications, e-mail, spam defence, technical values). The AI provider is chosen under "KI-Anbieter" (AI provider): OpenAI (default) or Google Gemini; one provider handles the call, the call plan, the summary, the assessment, the complaint draft and the voice samples. Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
 
-`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore` and do not belong in any repository, ticket or screenshot.
+`.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore`, as is the monthly usage counter `usage.json`, and do not belong in any repository, ticket or screenshot.
 
 ## Usage in brief
 
@@ -83,7 +83,7 @@ The web UI has four pages:
 
 While a call is running, the header shows its phase, the other party and the duration, plus "Mithören" (listen in) and "Auflegen" (hang up).
 
-The simulator lets you check conversation behaviour without a phone:
+The simulator lets you check conversation behaviour without a phone (it works with OpenAI only):
 
 ```bash
 npm run sim
@@ -99,13 +99,16 @@ Client setup and all tools: [user guide, chapter 13](doc/user-guide.md#13-mcp-in
 
 ## Cost
 
-OpenAI bills by token; a ChatGPT subscription does not cover the API. The web UI shows usage and an estimate in US dollars per call (price table in `src/ai/pricing.ts`, which has to be updated when prices change). Summary, assessment and call plan are negligible. Set a budget limit at OpenAI. Your line's call charges come on top.
+Both providers bill by token; a ChatGPT subscription does not cover the OpenAI API. The web UI shows usage and an estimate in US dollars per call (price table in `src/ai/pricing.ts`, which has to be updated when prices change), and under "Einstellungen › KI-Anbieter" the calls, minutes and estimated cost of the current month per provider. Summary, assessment and call plan are negligible. Set a budget limit at your provider. Your line's call charges come on top.
+
+For Gemini the estimate always uses the prices of the paid tier. Google offers a free quota for the Gemini API, but its terms restrict the free tier for users in the EEA, Switzerland and the UK; read [doc/legal.md](doc/legal.md) (section 3.5) before relying on it.
 
 A note from the author: SIPFunk is a good use for existing OpenAI API credit, for example credit you received in connection with Codex. Whether you get such credit, and how much, depends on OpenAI and on your account.
 
 ## Limitations
 
-- OpenAI Realtime is the only supported speech model (see above).
+- Google Gemini has not yet been tried on a real phone call; it has only been tested against simulated connections in the automated tests.
+- With Gemini a call lasts nine minutes at most, the speaking rate cannot be set, a late call plan and the switch into spam defence reach the AI only as follow-up instructions (weaker than with OpenAI), finishing a sentence after a mere "mhm" works less often, and the simulator is not available. Details in the [user guide, section 6.2](doc/user-guide.md#62-ai-provider).
 - One call at a time; during a call the extension is busy.
 - German: web UI, AI instructions and dialling rules are built for Germany. Emergency, special, premium-rate and international numbers are blocked.
 - No touch tones (DTMF), hence no phone menus; no taking over the call by microphone.
@@ -115,9 +118,9 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 
 ## Intended use and liability
 
-SIPFunk is a private, non-commercial project by an individual: not a product, no support, no connection to an employer. It is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to OpenAI for processing; only text logs are stored (7 days by default), no audio. The spam defence is off by default and identifies itself as an AI as well; without AI disclosure it can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
+SIPFunk is a private, non-commercial project by an individual: not a product, no support, no connection to an employer. It is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to the selected AI provider (OpenAI or Google) for processing; only text logs are stored (7 days by default), no audio. The spam defence is off by default and identifies itself as an AI as well; without AI disclosure it can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
 
-FRITZ!Box is a trademark of AVM GmbH, OpenAI is a trademark of OpenAI. All trademarks mentioned belong to their respective owners. SIPFunk is an independent project and is not affiliated with, endorsed by or sponsored by these companies.
+FRITZ!Box is a trademark of AVM GmbH, OpenAI is a trademark of OpenAI, Google and Gemini are trademarks of Google LLC. All trademarks mentioned belong to their respective owners. SIPFunk is an independent project and is not affiliated with, endorsed by or sponsored by these companies.
 
 ## Documentation
 

@@ -1,6 +1,6 @@
 # SIPFunk – Rechtliche Aspekte
 
-Stand der Rechtsrecherche: November 2026. Bezugsrahmen: Betrieb in Deutschland, EU-Recht. **Dies ist keine Rechtsberatung.** Die Hinweise stammen von einem Entwickler, nicht von einem Juristen, und können falsch oder überholt sein. Sie fassen die einschlägigen Regelungen zusammen, damit du die Risiken einschätzen und bei Bedarf gezielt nachfragen kannst. Gesetzesstände ändern sich; prüfe insbesondere die Übergangsfristen der KI-Verordnung und die Nutzungsbedingungen von OpenAI zum Zeitpunkt deiner Nutzung.
+Stand der Rechtsrecherche: November 2026. Bezugsrahmen: Betrieb in Deutschland, EU-Recht. **Dies ist keine Rechtsberatung.** Die Hinweise stammen von einem Entwickler, nicht von einem Juristen, und können falsch oder überholt sein. Sie fassen die einschlägigen Regelungen zusammen, damit du die Risiken einschätzen und bei Bedarf gezielt nachfragen kannst. Gesetzesstände ändern sich; prüfe insbesondere die Übergangsfristen der KI-Verordnung und die Nutzungsbedingungen deines KI-Anbieters (OpenAI oder Google) zum Zeitpunkt deiner Nutzung.
 
 Siehe auch: [Richtlinien](guidelines.de.md) · [Benutzerhandbuch](user-guide.de.md). English: [legal.md](legal.md).
 
@@ -14,7 +14,7 @@ SIPFunk ist eine Software, die du selbst betreibst. Es gibt keinen Dienstanbiete
 - **Verantwortlicher** nach DSGVO für die Verarbeitung der Gesprächsdaten (sofern die DSGVO überhaupt greift, Abschnitt 3).
 - **Anbieter und Betreiber** eines KI-Systems im Sinne der KI-Verordnung, soweit sie anwendbar ist (Abschnitt 2), denn du setzt das System selbst zusammen und nutzt es.
 
-OpenAI verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertragspartner gegenüber den Angerufenen. Auftragsverarbeiter im Sinne der DSGVO ist OpenAI nur, wenn du den dafür nötigen Vertrag abgeschlossen hast (Abschnitt 3.5).
+Der KI-Anbieter, den du in den Einstellungen wählst (OpenAI oder Google mit Gemini), verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertragspartner gegenüber den Angerufenen. Auftragsverarbeiter im Sinne der DSGVO ist er nur, wenn du den dafür nötigen Vertrag abgeschlossen hast (Abschnitt 3.5). Gesprächsinhalte gehen immer nur an den gewählten Anbieter.
 
 ---
 
@@ -59,7 +59,7 @@ Sie gilt **voll**, wenn SIPFunk geschäftlich eingesetzt wird: eine Firmennummer
 ### 3.2 Welche Daten verarbeitet werden
 
 - Rufnummern (Anrufer, Angerufener), Zeitpunkte, Dauer.
-- Gesprächsinhalt als Audio (nur live, Durchleitung an OpenAI, keine Speicherung) und als Text (Transkript, Zusammenfassung, Ergebnis, Einschätzung).
+- Gesprächsinhalt als Audio (nur live, Durchleitung an den gewählten KI-Anbieter, keine Speicherung bei dir) und als Text (Transkript, Zusammenfassung, Ergebnis, Einschätzung).
 - Kontaktdaten und Notizen in `contacts.json`.
 - Hintergrundwissen, das du der KI mitgibst.
 - Betriebslog mit Rufnummern.
@@ -72,11 +72,21 @@ Im geschäftlichen Betrieb kommen in Betracht: Vertragserfüllung/Anbahnung (Art
 
 ### 3.4 Informationspflichten (Art. 13)
 
-Anrufer müssen bei Erhebung informiert werden: Verantwortlicher, Zwecke, Rechtsgrundlage, Empfänger (OpenAI als Auftragsverarbeiter, Drittland USA), Speicherdauer, Rechte. Am Telefon genügt ein kurzer Hinweis mit Verweis auf eine ausführliche Information (Website, Datenschutzerklärung). Praktisch: im „Auftrag bei eingehenden Anrufen“ einen Satz vorgeben, z. B. „Weise kurz darauf hin, dass das Gespräch durch einen KI-Assistenten geführt und als Text protokolliert wird; Einzelheiten stehen in der Datenschutzerklärung auf unserer Website.“ Die Datenschutzerklärung der Firma ergänzen (Abschnitt „Telefonassistent“).
+Anrufer müssen bei Erhebung informiert werden: Verantwortlicher, Zwecke, Rechtsgrundlage, Empfänger (der KI-Anbieter, also OpenAI oder Google, als Auftragsverarbeiter, Drittland USA), Speicherdauer, Rechte. Am Telefon genügt ein kurzer Hinweis mit Verweis auf eine ausführliche Information (Website, Datenschutzerklärung). Praktisch: im „Auftrag bei eingehenden Anrufen“ einen Satz vorgeben, z. B. „Weise kurz darauf hin, dass das Gespräch durch einen KI-Assistenten geführt und als Text protokolliert wird; Einzelheiten stehen in der Datenschutzerklärung auf unserer Website.“ Die Datenschutzerklärung der Firma ergänzen (Abschnitt „Telefonassistent“).
 
 ### 3.5 Auftragsverarbeitung und Drittland (Art. 28, 44 ff.)
 
 OpenAI verarbeitet Audio und Text. Für den geschäftlichen Einsatz brauchst du einen **Auftragsverarbeitungsvertrag** mit OpenAI (OpenAI bietet ein Data Processing Addendum für die API an, das online abgeschlossen wird). Die Übermittlung in die USA stützt sich auf den Angemessenheitsbeschluss zum **EU-US Data Privacy Framework**, sofern OpenAI dort zertifiziert ist, andernfalls auf Standardvertragsklauseln; prüfe den aktuellen Stand im OpenAI-Trust-Portal. Nach OpenAIs API-Bedingungen werden API-Daten standardmäßig nicht zum Training genutzt und zur Missbrauchskontrolle zeitlich begrenzt gespeichert; die Fristen stehen in den OpenAI-Richtlinien.
+
+**Google Gemini statt OpenAI.** Wählst du in den Einstellungen Google Gemini als KI-Anbieter, gehen Gesprächsaudio und Texte an Google statt an OpenAI (Gemini API mit einem Schlüssel aus Google AI Studio; Google LLC, USA). Maßgeblich sind Googles „Gemini API Additional Terms of Service“; die folgenden Punkte geben die Fassung vom 23. März 2026 wieder, wie sie im November 2026 abrufbar war. Lies die aktuelle Fassung selbst.
+
+- **Bezahlte Dienste** (Projekt mit aktiver Abrechnung): Google verwendet Eingaben und Ausgaben nach eigenen Angaben nicht zur Verbesserung seiner Produkte und verarbeitet sie nach seinem Data Processing Addendum. Zur Missbrauchserkennung werden sie befristet protokolliert; Googles Richtlinien nennen 55 Tage.
+- **Unbezahlte Dienste** (kostenloses Kontingent): Google darf Inhalte und Antworten verwenden, um seine Produkte bereitzustellen, zu verbessern und zu entwickeln; menschliche Prüfer können sie lesen. Google selbst rät davon ab, dort sensible, vertrauliche oder personenbezogene Informationen einzugeben. Ein Telefongespräch enthält solche Informationen so gut wie immer. Für Entwickler im Europäischen Wirtschaftsraum, in der Schweiz und im Vereinigten Königreich gelten nach den Bedingungen die Datenregeln der bezahlten Dienste auch für das kostenlose Kontingent.
+- **Kostenloses Kontingent und Nutzer in Europa.** Unabhängig von den Datenregeln erlauben die Bedingungen nur die bezahlten Dienste, wenn eine Anwendung Nutzern im Europäischen Wirtschaftsraum, in der Schweiz oder im Vereinigten Königreich bereitgestellt wird. Ob der Betreiber selbst oder ein Gesprächspartner am Telefon in diesem Sinn „Nutzer“ ist, sagen die Bedingungen nicht. Der sichere Weg ist ein Projekt mit Abrechnung. SIPFunk kann nicht erkennen, über welche Stufe ein Schlüssel läuft, und verhindert die Nutzung des kostenlosen Kontingents nicht; die Entscheidung und das Risiko (bis zur Sperrung des Kontos) liegen bei dir.
+- **Alter.** Die Gemini API darf nur nutzen, wer mindestens 18 Jahre alt ist, und eine Anwendung darf sich nicht an Minderjährige richten.
+- **Geschäftlicher Einsatz.** Wie bei OpenAI brauchst du einen Auftragsverarbeitungsvertrag (bei Google Teil der Bedingungen der bezahlten Dienste) und eine Grundlage für die Übermittlung in die USA; prüfe Googles Zertifizierung unter dem EU-US Data Privacy Framework. Das kostenlose Kontingent kommt dafür nicht in Betracht.
+
+Welcher Anbieter gewählt ist, steht in den Einstellungen unter „KI-Anbieter“ und je Gespräch im Protokoll. Nenne in deiner Datenschutzinformation den Anbieter, den du tatsächlich verwendest.
 
 Mail-Anbieter (Gmail, Microsoft 365, dein SMTP-Anbieter) erhalten Zusammenfassung und Transkript per E-Mail. Für Firmen gilt auch hier: Auftragsverarbeitung mit dem Mail-Anbieter, meist durch die Geschäftskundenverträge abgedeckt.
 
@@ -99,7 +109,7 @@ Firmen nehmen den Telefonassistenten in das Verzeichnis der Verarbeitungstätigk
 
 § 201 StGB stellt das **Aufnehmen des nichtöffentlich gesprochenen Wortes auf einen Tonträger** ohne Einwilligung unter Strafe, ebenso das Abhören mit einem Abhörgerät durch Dritte.
 
-- SIPFunk **speichert kein Audio**. Das Audio wird live zu OpenAI gestreamt und dort in Echtzeit verarbeitet.
+- SIPFunk **speichert kein Audio**. Das Audio wird live zum gewählten KI-Anbieter (OpenAI oder Google) gestreamt und dort in Echtzeit verarbeitet.
 - Das **Transkript** ist eine Textfassung des Gesprächs. Ob eine automatische Live-Transkription einer „Aufnahme auf Tonträger“ gleichsteht, ist nicht höchstrichterlich geklärt; die herrschende Lesart sieht die Verschriftlichung durch den Gesprächspartner selbst nicht als Tonträgeraufnahme, jedoch als Datenverarbeitung (Abschnitt 3). Eine flüchtige Zwischenspeicherung des Audios beim Verarbeiter ist technisch unvermeidlich.
 - **Mithören im Browser** („Mithören“) ist das Mithören durch den Betreiber selbst, der Gesprächspartei ist (die KI handelt für ihn). Lass keine Dritten mithören.
 - **Empfehlung:** Weise im geschäftlichen Betrieb im Gespräch auf die Protokollierung hin (Abschnitt 3.4); privat entscheidest du selbst, ob du Anrufer informierst. Rechtlich am sichersten ist der Hinweis in jedem Fall.
@@ -142,8 +152,8 @@ Standardmäßig wimmelt die Spam-Abwehr offen als KI ab (Schalter „KI-Kennung�
 | **Täuschung / Betrug (§ 263 StGB)** | Kein Vermögensschaden beim Anrufer, keine Bereicherung | Keine Betrugsrelevanz. |
 | **Amtsanmaßung (§ 132), Beleidigung (§ 185), Nötigung (§ 240)** | Nur bei entsprechendem Verhalten der KI | Die Anweisungen verbieten es ausdrücklich; eine Garantie gibt es bei generativen Modellen nicht. Prüfe Transkripte. |
 | **Fehlerkennung** | Ein legitimer Anrufer (Arzt, Behörde, Kunde) wird hingehalten | Reputations- und ggf. Haftungsrisiko (z. B. verpasster Termin). Die KI soll zurückwechseln; verlasse dich nicht darauf. „anonym“ auf der Liste erhöht dieses Risiko deutlich. |
-| **Nutzungsbedingungen von OpenAI** | OpenAIs Usage Policies untersagen u. a., Menschen über die Interaktion mit einer KI zu täuschen, und verlangen für automatisierte Systeme Hinweise auf den KI-Einsatz | Ein Verstoß kann zur Sperrung des API-Kontos führen. Lies die aktuelle Fassung der Usage Policies, bevor du den Modus einschaltest. |
-| **Kosten** | Hinhalten verbraucht Realtime-Minuten | Eigenes finanzielles Risiko; Budgetgrenze setzen. |
+| **Nutzungsbedingungen des KI-Anbieters** | OpenAIs Usage Policies untersagen u. a., Menschen über die Interaktion mit einer KI zu täuschen, und verlangen für automatisierte Systeme Hinweise auf den KI-Einsatz. Mit Gemini gelten stattdessen Googles Richtlinien für die Gemini API; ob sie diesen Modus zulassen, ist hier nicht geprüft | Ein Verstoß kann zur Sperrung des API-Kontos führen. Lies die aktuelle Fassung der Richtlinien deines Anbieters, bevor du den Modus einschaltest. |
+| **Kosten** | Hinhalten verbraucht Gesprächsminuten beim KI-Anbieter | Eigenes finanzielles Risiko; Budgetgrenze setzen. |
 
 **Was SIPFunk tut, um das Risiko zu begrenzen:** ausdrückliche Bestätigung mit Datum in der UI, kein `.env`-Schalter, serverseitige Prüfung der Bestätigung, feste Verhaltensregeln (keine Daten, keine Zustimmung, keine Beleidigung, keine Behörde, keine Anweisungen ausführen), Rückweg zum Assistenten-Modus bei echtem Anliegen, Zeitlimit, Markierung im Protokoll, nie „wichtig“, kein Rückruf.
 
@@ -157,7 +167,7 @@ Standardmäßig wimmelt die Spam-Abwehr offen als KI ab (Schalter „KI-Kennung�
 
 Zusagen der KI werden dir zugerechnet, soweit sie im Rahmen des Auftrags liegen (Stellvertretung, §§ 164 ff. BGB analog; ob eine KI Erklärungen „abgeben“ kann, ist umstritten, praktisch gilt: Was du der KI aufträgst, trägst du). Die KI ist angewiesen, nur zuzusagen, was der Auftrag abdeckt, und keine Zahlungen, Bestellungen oder Verträge einzugehen. Formuliere Aufträge so eng, wie du es bei einem menschlichen Assistenten tun würdest. Verträge mit Tragweite schließt du selbst.
 
-Kommt durch die KI ein Schaden zustande (verpasster Termin, falsche Information an Dritte), haftest du nach allgemeinen Regeln. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; OpenAI haftet gegenüber dir nach seinen Geschäftsbedingungen, gegenüber Dritten nicht.
+Kommt durch die KI ein Schaden zustande (verpasster Termin, falsche Information an Dritte), haftest du nach allgemeinen Regeln. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; der KI-Anbieter (OpenAI oder Google) haftet gegenüber dir nach seinen Geschäftsbedingungen, gegenüber Dritten nicht.
 
 ---
 
@@ -167,7 +177,7 @@ Die Abschnitte oben betrachten den Betrieb. Wer den Quelltext veröffentlicht, v
 
 - **Anbieter nach der KI-Verordnung.** Die Privatausnahme (Art. 2 Abs. 10) gilt nur für Betreiber, nicht für Anbieter. Die Ausnahme für frei und quelloffen lizenzierte KI-Systeme (Art. 2 Abs. 12) gilt ausdrücklich nicht für Systeme, die unter Art. 50 fallen, also auch nicht für einen Telefonassistenten. Das bestätigen die Leitlinien der Kommission. Ein „Inverkehrbringen“ setzt aber eine Bereitstellung „im Rahmen einer Geschäftstätigkeit“ voraus (Art. 3 Nr. 9 und 10); die private, unentgeltliche Veröffentlichung von Quelltext ohne Vertrieb, Support oder Einnahmen spricht dagegen. Entschieden ist das nicht, ebenso wenig, ob schon die eigene private Nutzung („Inbetriebnahme zum Eigengebrauch“) zum Anbieter macht.
 - **Spam-Abwehr.** Sie ist der kritische Punkt: Die Software enthält eine Einstellung, die den KI-Hinweis bewusst weglässt. Standardmäßig ist die Abwehr aus und die KI-Kennung an; ohne Kennung ist sie nur nach Bestätigung nutzbar und in dieser Dokumentation als Risiko beschrieben. Ob ein abschaltbarer Hinweis der Gestaltungspflicht aus Art. 50 Abs. 1 genügt, ist nicht entschieden.
-- **Kennzeichnung synthetischer Sprache (Art. 50 Abs. 2).** Anbieter von Systemen, die synthetische Audioinhalte erzeugen, müssen die Ausgaben maschinenlesbar kennzeichnen. Die Pflicht knüpft am System an, nicht nur am Modell von OpenAI. Nach den Leitlinien der Kommission können flüchtige, in Echtzeit erzeugte Inhalte, die nicht gespeichert oder weiterverbreitet werden, ausgenommen sein, wenn eine Kennzeichnung technisch nicht machbar ist und die Betroffenen wissen, dass der Inhalt von einer KI stammt. Ein Telefongespräch lässt sich nicht maschinenlesbar kennzeichnen; die Ausnahme trägt also nur, wenn der KI-Hinweis im Gespräch fällt.
+- **Kennzeichnung synthetischer Sprache (Art. 50 Abs. 2).** Anbieter von Systemen, die synthetische Audioinhalte erzeugen, müssen die Ausgaben maschinenlesbar kennzeichnen. Die Pflicht knüpft am System an, nicht nur am Modell des KI-Anbieters. Nach den Leitlinien der Kommission können flüchtige, in Echtzeit erzeugte Inhalte, die nicht gespeichert oder weiterverbreitet werden, ausgenommen sein, wenn eine Kennzeichnung technisch nicht machbar ist und die Betroffenen wissen, dass der Inhalt von einer KI stammt. Ein Telefongespräch lässt sich nicht maschinenlesbar kennzeichnen; die Ausnahme trägt also nur, wenn der KI-Hinweis im Gespräch fällt.
 - **Haftung bei unentgeltlicher Überlassung.** Der Gewährleistungs- und Haftungsausschluss der Lizenz gilt nach deutschem Recht nicht unbegrenzt; für Vorsatz und grobe Fahrlässigkeit haftet auch, wer Software verschenkt.
 - **Cyber Resilience Act und Produkthaftung.** Die Verordnung (EU) 2024/2847 (Meldepflichten seit 11. September 2026, übrige Pflichten ab 11. Dezember 2027) und die neue Produkthaftung (Richtlinie (EU) 2024/2853, für Produkte ab dem 9. Dezember 2026) erfassen freie und quelloffene Software nur, wenn sie im Rahmen einer Geschäftstätigkeit bereitgestellt wird. Wer SIPFunk verkauft, mit bezahltem Support vertreibt, in ein eigenes Produkt einbaut oder für Kunden betreibt, verliert diese Ausnahmen und wird selbst Hersteller bzw. Anbieter.
 - **Daten außerhalb der Löschfrist.** Die Aufbewahrungsfrist gilt für die Protokolle. Das Betriebslog der Tray-App (`sipfunk.log`) enthält Rufnummern und wird nach derselben Frist gekürzt. Benachrichtigungs-Mails mit Zusammenfassung und Gesprächsverlauf liegen dagegen weiter im Postfach. Wer das Programm weitergibt, sollte darauf hinweisen; wer es betreibt, löscht die Mails selbst.
@@ -181,11 +191,12 @@ Die Abschnitte oben betrachten den Betrieb. Wer den Quelltext veröffentlicht, v
 - [ ] Aufbewahrung der Protokolle kurz, Datenordner im Backup verschlüsselt.
 - [ ] Keine Werbung, keine Scherzanrufe, kein Hinhalten legitimer Anrufer.
 - [ ] Spam-Abwehr nur nach Lektüre von Abschnitt 6, Nummernliste statt „anonym“.
+- [ ] Mit Google Gemini: Googles Bedingungen zum kostenlosen Kontingent gelesen (Abschnitt 3.5).
 
 **Geschäftlich zusätzlich**
 - [ ] Rechtsgrundlage festgelegt (Art. 6 lit. b/f), Verarbeitungsverzeichnis ergänzt.
 - [ ] Datenschutzerklärung um den Telefonassistenten ergänzt; Hinweis im Gespräch über „Auftrag bei eingehenden Anrufen“.
-- [ ] Auftragsverarbeitungsvertrag mit OpenAI geschlossen, Drittlandübermittlung geprüft.
+- [ ] Auftragsverarbeitungsvertrag mit dem KI-Anbieter (OpenAI oder Google) geschlossen, Drittlandübermittlung geprüft; mit Google Gemini ein Projekt mit Abrechnung, nicht das kostenlose Kontingent.
 - [ ] Mail-Anbieter als Auftragsverarbeiter abgedeckt.
 - [ ] Berufsgeheimnis (§ 203) geprüft, falls einschlägig.
 - [ ] Spam-Abwehr aus, solange nicht anwaltlich geprüft.
@@ -203,3 +214,4 @@ Die Abschnitte oben betrachten den Betrieb. Wer den Quelltext veröffentlicht, v
 - Telekommunikationsgesetz: § 120 (Rufnummernanzeige bei Werbeanrufen).
 - Bundesnetzagentur: Beschwerdeformulare zu unerlaubter Telefonwerbung und Rufnummernmissbrauch.
 - OpenAI: Usage Policies, API Data Processing Addendum, Enterprise Privacy (Datenaufbewahrung API).
+- Google: Gemini API Additional Terms of Service (Fassung vom 23. März 2026), Nutzungsrichtlinien, Preise und Abrechnung der Gemini API (aistudio.google.com/docs/terms, /usage-policies, /pricing, /billing), abgerufen im November 2026.

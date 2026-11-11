@@ -191,7 +191,9 @@ const SCENARIOS: Scenario[] = [
 ];
 
 const config = loadConfig();
-if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY fehlt in der .env');
+// Der Simulator braucht den Textmodus der OpenAI-Realtime-API; die Gemini Live API gibt nur Audio aus
+if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY fehlt in der .env (der Simulator läuft nur mit OpenAI, auch wenn Gemini als Anbieter gewählt ist)');
+if (loadSettings().aiProvider !== 'openai') console.log('Hinweis: In den Einstellungen ist ein anderer KI-Anbieter gewählt; der Simulator verwendet trotzdem OpenAI.');
 const apiKey = config.openaiApiKey;
 const textModel = config.openaiSummaryModel;
 const personas = loadPersonas(fileURLToPath(new URL('../../personas/', import.meta.url)));
