@@ -1,0 +1,31 @@
+src/ai/summary.ts
+  s_319bc174b0c320::t_42c9272263a4cc 34-46,50,87
+src/callManager.ts
+  s_319bc174b0c320::t_42c9272263a4cc 201-204
+src/ai/providers/gemini.ts
+  s_319bc174b0c320::t_42c9272263a4cc 29-42,46,52-64,128,151,156,198-199
+public/i18n-en.js
+  s_319bc174b0c320::t_42c9272263a4cc 576-578
+src/ai/providers/openai.ts
+  s_319bc174b0c320::t_42c9272263a4cc 55
+src/main.ts
+  s_319bc174b0c320::t_42c9272263a4cc 144,148,262,316,409,415,433,450-451,784,788
+src/web/server.ts
+  s_319bc174b0c320::t_42c9272263a4cc 178-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76c46588a88d8cd83611cb915736b050b756ffa8",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
