@@ -24,6 +24,7 @@ import { suggestMail } from './notify/autoconfig.js';
 import { OAuthLogin, TokenStore } from './notify/oauth.js';
 import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
+import { testConnection } from './ai/connectionTest.js';
 import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
@@ -761,6 +762,16 @@ const stopWeb = startWebServer({
     return state as unknown as Record<string, unknown>;
   },
   setup: { status: setupStatus, saveSip, saveAiKey },
+  ai: {
+    test: async (id) => {
+      const provider = id ? PROVIDERS[id as ProviderId] : ai().provider;
+      if (!provider) throw new Error('Unbekannter KI-Anbieter');
+      const r = resolveAi({ ...loadSettings(), aiProvider: provider.id });
+      const result = await testConnection(provider, r.key, r.realtimeModel());
+      log[result.ok ? 'info' : 'warn'](`Verbindungstest ${provider.label} (${result.model}): ${result.steps.map((s) => `${s.id} ${s.ok ? 'ok' : s.skipped ? 'übersprungen' : 'fehlgeschlagen'}`).join(', ')}`);
+      return result as unknown as Record<string, unknown>;
+    },
+  },
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
     ...aiUiData(),

@@ -29,6 +29,8 @@ export interface WebServerOptions {
     /** Schlüssel eines KI-Anbieters prüfen und speichern */
     saveAiKey: (provider: unknown, key: unknown) => Promise<{ ok: boolean; error?: string }>;
   };
+  /** KI-Anbieter: Verbindung in drei Schritten testen (Schlüssel, Modell, Live-Verbindung); ohne Angabe der gewählte Anbieter */
+  ai?: { test: (provider?: string) => Promise<Record<string, unknown>> };
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
@@ -147,6 +149,11 @@ export function startWebServer(opts: WebServerOptions): () => void {
         // Die Antwort enthält nur „ok“ oder eine Meldung – nie die übergebenen Zugangsdaten
         const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveAiKey(url.pathname.endsWith('/openai') ? 'openai' : body.provider, body.key);
         return r.ok ? sendJson(res, 200, { ok: true, setup: opts.setup.status() }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/ai/test') {
+        if (!opts.ai) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        const body = await readJson(req);
+        return sendJson(res, 200, await opts.ai.test(typeof body.provider === 'string' ? body.provider : undefined));
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {
         return sendJson(res, 200, publicSettings(loadSettings()));

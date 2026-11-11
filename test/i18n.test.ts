@@ -24,8 +24,8 @@ function sources(): string {
 // Texte, die erst im Browser zusammengesetzt werden (Großschreibung der Phase, Zusätze) oder Platzhalter enthalten
 const COMPOSED = new Set([
   'Wählt', 'Klingelt', 'Eingehender Anruf', 'Verbunden', 'Beendet', 'an', 'aus',
-  'KI-Gespräch (OpenAI-Schlüssel fehlt)',
-  'OpenAI-Schlüssel hinterlegt. Ein neuer Schlüssel ersetzt ihn.', 'Nummer steht auf deiner Spam-Liste.',
+  'KI-Gespräch (Schlüssel fehlt)',
+  'Nummer steht auf deiner Spam-Liste.',
 ]);
 
 test('Wörterbuch: Schlüssel stehen noch in den deutschen Quellen', () => {
