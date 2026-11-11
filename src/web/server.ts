@@ -41,7 +41,7 @@ export interface WebServerOptions {
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
-  voiceSample: (voice: string) => Promise<{ data: Buffer; mime: string }>;
+  voiceSample: (voice: string, connectionId?: string) => Promise<{ data: Buffer; mime: string }>;
   /** Modelle zur Auswahl, vom Anbieter geladen (ohne Angabe: vom gewählten); scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
   models: (refresh: boolean, connection?: string) => Promise<Record<string, unknown>>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
@@ -196,7 +196,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       const vx = /^\/api\/voices\/([A-Za-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {
-        const sample = await opts.voiceSample(vx[1]);
+        const sample = await opts.voiceSample(vx[1], url.searchParams.get('connection') ?? undefined);
         res.writeHead(200, { 'Content-Type': sample.mime, 'Content-Length': sample.data.length, 'Cache-Control': 'private, max-age=3600' });
         return res.end(sample.data);
       }

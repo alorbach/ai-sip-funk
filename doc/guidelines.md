@@ -84,7 +84,7 @@ By default the AI identifies itself as an AI in the spam defence as well (switch
 - `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `sipfunk.log` are confidential and not part of the repository; the same goes for the usage counter `usage.json`.
 - Give the key of every AI connection (OpenAI or Google) a budget limit at the provider; rotate it immediately if you suspect it has been disclosed.
 - The optional OpenAI admin key (`OPENAI_ADMIN_KEY`, for the actual monthly costs) can also manage users, projects and keys of the organisation. Store it only deliberately, give it an expiry date and remove it in the web UI when you no longer need it.
-- Google Gemini: before you use the free quota, read Google's terms; see [legal.md](legal.md), section 3.5. Google Gemini has not yet been tried on a real phone call, so check the logs of the first calls closely.
+- Google Gemini: before you use the free quota, read Google's terms; see [legal.md](legal.md), section 3.5. Google Gemini has so far been tried on only a few real phone calls (first calls on 11 November 2026) and OpenAI remains the tested default, so keep checking the logs of the first calls closely.
 - The mail OAuth token (`mail-token.json`) authorises sending mail in your name. If you pass the computer on, revoke it (Google account / Entra: remove app access) and delete the file.
 - The computer SIPFunk runs on is effectively your phone: screen lock, current updates, no remote access to the web UI port.
 - Logs contain phone numbers and call content of third parties. Treat them like letters: do not pass them on, do not sync them to cloud folders others can see.

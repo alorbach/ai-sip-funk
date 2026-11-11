@@ -14,7 +14,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 >
 > **Read the legal notes first.** Calls are sent to the selected AI provider (OpenAI or Google) and logged as text; the AI has to identify itself as an AI; the optional spam defence can omit that notice if you switch AI disclosure off there; that is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
 >
-> **Two AI providers.** OpenAI Realtime is the tested default. Google Gemini (Live API) is available as a second provider; so far it has only been run against simulated connections in the automated tests and has not yet been tried on a real phone call.
+> **Two AI providers.** OpenAI Realtime is the tested default. Google Gemini (Live API) is available as a second provider; so far it has been tried on only a few real phone calls (first calls on 11 November 2026). Check the logs of your first calls with it carefully.
 
 ## What it does
 
@@ -66,7 +66,7 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 ## Configuration
 
 - **`.env`**: credentials (SIP, keys of the AI connections), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the key of the AI provider there and applies them immediately; changes made by hand require a restart.
-- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, AI connections, answering machine, notifications, e-mail, spam defence, technical values); the section list on the left works like tabs and shows one section at a time. Under "KI-Verbindungen" (AI connections) you manage named accesses to the AI providers, each with its provider (OpenAI or Google Gemini), its own key and its voice and text model. "OpenAI" and "Google Gemini" exist from the start, and you can add more (for example a second account or a cheaper model) and switch between them there or on the dashboard. The active connection handles the call, the call plan, the summary, the assessment, the complaint draft and the voice samples; changes to connections apply immediately. Everything else is saved to `settings.json` with "Speichern"; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, AI connections, answering machine, notifications, e-mail, spam defence, technical values); the section list on the left works like tabs and shows one section at a time. Under "KI-Verbindungen" (AI connections) you manage named accesses to the AI providers, each with its provider (OpenAI or Google Gemini), its own key, its voice and text model and its default voice. "OpenAI" and "Google Gemini" exist from the start, and you can add more (for example a second account or a cheaper model) and switch between them there or on the dashboard. The card is an expandable list: a click on a connection shows its settings. The active connection handles the call, the call plan, the summary, the assessment, the complaint draft and the voice samples; changes to connections apply immediately. Everything else is saved to `settings.json` with "Speichern"; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore`, as is the monthly usage counter `usage.json`, and do not belong in any repository, ticket or screenshot.
 
@@ -107,7 +107,7 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 
 ## Limitations
 
-- Google Gemini has not yet been tried on a real phone call; it has only been tested against simulated connections in the automated tests.
+- Google Gemini has so far been tried on only a few real phone calls (first calls on 11 November 2026); OpenAI remains the tested default. Check the logs of your first calls with Gemini carefully.
 - With Gemini a call lasts nine minutes at most, the speaking rate cannot be set, a late call plan and the switch into spam defence reach the AI only as follow-up instructions (weaker than with OpenAI), finishing a sentence after a mere "mhm" works less often, and the simulator is not available. Details in the [user guide, section 6.2](doc/user-guide.md#62-ai-connections).
 - One call at a time; during a call the extension is busy.
 - German: web UI, AI instructions and dialling rules are built for Germany. Emergency, special, premium-rate and international numbers are blocked.

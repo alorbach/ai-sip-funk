@@ -12,7 +12,7 @@ Contents: [1 Overview](#1-what-sipfunk-is) · [2 Requirements](#2-requirements) 
 
 ## 1. What SIPFunk is
 
-SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the box like an IP phone (SIP extension) and connects the call audio to the live speech model of the AI provider you select: OpenAI (Realtime API, the tested default) or Google Gemini (Live API, not yet tried on a real phone call; section 6.2). This lets the AI
+SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the box like an IP phone (SIP extension) and connects the call audio to the live speech model of the AI provider you select: OpenAI (Realtime API, the tested default) or Google Gemini (Live API, so far tried on only a few real phone calls; section 6.2). This lets the AI
 
 - **place outgoing calls** and carry out a task ("Ask the practice for an appointment next week"),
 - **answer incoming calls** (answering machine) and take down the request and whether a call back is wanted,
@@ -134,7 +134,8 @@ The header is always visible: the four pages on the left, the connection status 
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
 - **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
 
-Style, voice, form of address and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them (and only them: the two save buttons do not touch each other's values). The field "KI-Verbindung" on the dashboard switches the active AI connection; that applies immediately and needs no save button. The models belong to the connection and are set under "Einstellungen › KI-Verbindungen" (section 6.2).
+Style, form of address and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them and the type of call (and only them: the two save buttons do not touch each other's values). The button does not remember the voice: the field "Stimme" (voice) on the dashboard applies only to the next call from there and otherwise shows the default voice of the active connection (e.g. "– Standard: marin –"). The field "KI-Verbindung" on the dashboard switches the active AI connection; that applies immediately and needs no save button. Models and default voice belong to the connection and are set under "Einstellungen › KI-Verbindungen" (section 6.2).
+
 ### 5.1 "Einfach" and "Erweitert" (simple and advanced)
 
 The switch at the top right of every page sets how much the web UI shows. It applies immediately and is remembered (`uiMode` in `settings.json`); "Einfach" is the default. Switching only hides and shows: hidden settings keep their values, and saving never touches a setting you did not change.
@@ -144,7 +145,7 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | Dashboard | number, task, style, voice with sample, form of address, AI connection, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), system log, codec and RTP counters, token usage |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
 | KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text) | – |
-| KI-Verbindungen | list of connections, add, rename, switch and remove, voice model, text model, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | custom model IDs, actual costs according to OpenAI (admin key) |
+| KI-Verbindungen | expandable list of connections, add, rename, switch and remove, default voice with sample, voice model, text model, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | custom model IDs, actual costs according to OpenAI (admin key) |
 | Anrufbeantworter | on/off, number of rings, own numbers (number, name, person, company or family) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
@@ -171,8 +172,8 @@ Three things stay German whatever you choose: the AI speaks German on the phone 
 
    > "Call the dentist's office. I need a check-up appointment within the next three weeks, mornings, name Max Mustermann, I don't have my insurance number to hand. Accept an appointment they offer if it is in the morning."
 
-3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; the voices of the provider of the active AI connection, "Probe hören" plays all of them with the configured AI name), **Anrede** (form of address) Du/Sie, **KI-Verbindung** (AI connection; which connection handles the call, with its key and models, section 6.2).
-4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name) and the **behaviour in the call** (section 6.1). The models are set per connection under "KI-Verbindungen" (section 6.2).
+3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; shows the default voice of the active AI connection, e.g. "– Standard: marin –"; another voice of its provider applies only to the next call from here; "Probe hören" (listen to a sample) plays all of them with the configured AI name; order of precedence in section 6.2), **Anrede** (form of address) Du/Sie, **KI-Verbindung** (AI connection; which connection handles the call, with its key, its models and its default voice, section 6.2).
+4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name) and the **behaviour in the call** (section 6.1). Models and default voice are set per connection under "KI-Verbindungen" (section 6.2).
 5. **"Anrufen …"** shows a confirmation with the number. **"Jetzt wählen"** (dial now) starts the call.
 
 During the call the transcript runs along. You can hang up at any time with **"Auflegen"**. Otherwise the call time limit (default 300 s; with Google Gemini never more than 540 s, section 6.2) ends the call automatically; the AI knows the limit and gets to the point.
@@ -204,15 +205,15 @@ Under "Einstellungen › KI-Assistent" you define how the AI conducts calls. Thi
 
 The tone itself is still set by the **Stil** (style) on the dashboard. **Zusätzliche Hinweise zum Verhalten** (additional behaviour notes) is a multi-line free text field for everything else; write it in German, because it goes into the German instructions. The basic rules of the AI (being honest about being an AI, inventing nothing, no commitments beyond the task, one question at a time) take precedence over all of these.
 
-The models are not set here: they belong to the AI connection and are set under "Einstellungen › KI-Verbindungen" (section 6.2).
+Models and default voice are not set here: they belong to the AI connection and are set under "Einstellungen › KI-Verbindungen" (section 6.2).
 
 ### 6.2 AI connections
 
-Under "Einstellungen › KI-Verbindungen" (AI connections; visible in both levels, "Einfach" and "Erweitert") you manage your accesses to the AI providers. A connection is a named access to an AI provider: the provider (OpenAI or Google Gemini), its own API key, and the models used with it – the voice model for calls and the text model for call plan, summary, assessment and complaint draft. Two connections exist from the start, "OpenAI" and "Google Gemini"; settings from earlier versions (selected provider, models) are carried over automatically. You can create further ones, up to twelve in total: for example two OpenAI accounts, a cheap and an expensive model, or Gemini next to OpenAI.
+Under "Einstellungen › KI-Verbindungen" (AI connections; visible in both levels, "Einfach" and "Erweitert") you manage your accesses to the AI providers. A connection is a named access to an AI provider: the provider (OpenAI or Google Gemini), its own API key, the models used with it – the voice model for calls and the text model for call plan, summary, assessment and complaint draft – and a default voice. Two connections exist from the start, "OpenAI" and "Google Gemini"; settings from earlier versions (selected provider, models) are carried over automatically. You can create further ones, up to twelve in total: for example two OpenAI accounts, a cheap and an expensive model, or Gemini next to OpenAI.
 
 One connection is the active one. It handles everything: the call itself, call plan, summary, assessment, complaint draft and voice samples. Call content goes to its provider and to no other. You switch between the connections when needed, in three places:
 
-- in the card: select the connection in the list and click "Diese Verbindung verwenden" (use this connection),
+- in the card: expand the connection in the list and click "Diese Verbindung verwenden" (use this connection),
 - on the dashboard: the field "KI-Verbindung" (AI connection), which replaces the former model field there,
 - in step 3 of the setup assistant ("KI-Verbindung").
 
@@ -223,22 +224,35 @@ One connection is the active one. It handles everything: the call itself, call p
 | Voice model (default, initial value) | `gpt-realtime-2.1`, `OPENAI_MODEL` | `gemini-3.8-live`, `GEMINI_MODEL` |
 | Text model (default, initial value) | `gpt-6-luna`, `OPENAI_SUMMARY_MODEL` | `gemini-3.5-flash-lite`, `GEMINI_SUMMARY_MODEL` |
 | Voices | marin, cedar and eight more | 30 voices of its own (e.g. Kore, Puck, Zephyr) |
-| Status | tested default | not yet tried on a real phone call |
+| Status | tested default | so far tried on only a few real phone calls (first calls on 11 November 2026) |
 
-![Settings › AI connections with an OpenAI connection: models, key, connection test, usage](images/settings-provider.en.png)
+![Settings › AI connections: the list of connections, the active OpenAI connection expanded with default voice, models, key and connection test; below it the usage](images/settings-provider.en.png)
 
-**Status of Gemini.** The Gemini path has so far only been tested against simulated connections in the automated tests. No real phone call and no real connection to Google has been made with it yet. The protocol details follow Google's documentation as of 11 November 2026.
+**Status of Gemini.** The Gemini path has so far been tried on only a few real phone calls. On 11 November 2026 the first three calls ran over Google Gemini, two on the answering machine and one call back to the owner; they went through without errors: the introduction as an AI, the task, the goodbye and hanging up all worked. OpenAI remains the tested default. Keep checking the logs of your first calls with Gemini carefully. The protocol details follow Google's documentation as of 11 November 2026.
 
-**Managing connections.** The list at the top of the card shows every connection with its provider, the voice model in effect and whether a key is stored; the active one carries the tag "aktiv" (active). A click selects a connection, and the fields below then belong to it.
+**Managing connections.** The card shows the connections as an expandable list. Each connection is a row with its name, provider · voice model · default voice, where applicable the tag "Schlüssel fehlt" (key missing) and, on the active connection, "✓ aktiv" (active). A click on the row (or Enter or the space bar while it has the focus) expands the settings of that connection in place, a second click collapses them again. Several connections can be expanded at the same time; when the page is first opened, the active one is expanded.
+
+Each connection has its own fields: "Name der Verbindung" (name of the connection), "Standardstimme" (default voice, with "Probe hören" – listen to a sample), "Sprachmodell für Anrufe" (voice model for calls), "Textmodell" (text model), in level "Erweitert" additionally one "Eigene Modell-ID" (custom model ID) each, "Modelle aktualisieren" (refresh models), the state of the key, "API-Schlüssel" (API key), "Schlüssel prüfen und speichern" (check key and save), "Verbindung testen" (test connection), "Diese Verbindung verwenden" (use this connection; the active one shows "Diese Verbindung führt die Gespräche." – this connection handles the calls – instead) and "Verbindung entfernen" (remove connection). The shared form below the list, whose fields were overwritten with a connection's values when you clicked it, no longer exists. Input that is not saved yet (e.g. a key you have typed) stays in place when you expand or collapse another connection.
+
+"Expanded" and "active" are different things: expanded means the settings of the connection are visible; active means it handles the calls ("✓ aktiv").
 
 - **Add:** choose the provider under "Neue Verbindung bei" (new connection with) and click "Verbindung hinzufügen" (add connection). The new connection has no key yet and uses the default models of its provider.
 - **Name:** "Name der Verbindung" (name of the connection) is yours to choose, e.g. "Privat" or "Günstiges Modell".
 - **Provider:** the provider of an existing connection cannot be changed; create a new connection instead.
 - **Remove:** "Verbindung entfernen" (remove connection) asks for confirmation, then removes the connection and deletes its key from `.env`. At least one connection has to remain. If you remove the active connection, the first of the remaining ones becomes active.
 
-Changes to connections – adding, renaming, choosing models, switching, removing – take effect immediately; the "Speichern" button is not needed for them.
+Changes to connections – adding, renaming, default voice, choosing models, switching, removing – take effect immediately; the "Speichern" button is not needed for them.
 
-**Models.** Each connection has its own voice model and text model. The choice comes from the provider of the connection: SIPFunk uses the key of the connection to ask which models the account offers and splits them into voice models (OpenAI: Realtime, Gemini: Live) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded when you open the card or select a connection, and the provider is asked at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once, with the key of the selected connection. The key stays in the background program and appears neither in the interface nor in the log.
+**Default voice and order of precedence.** Each connection has a "Standardstimme" (default voice) from the voices of its provider. "Probe hören" next to it plays the voices of that provider with the key of that connection, even if the connection is not active. Which voice a call gets is decided by this order of precedence; each level only counts if the voice belongs to the provider of the active connection:
+
+1. the "Stimme der Rolle" (voice of the role) of the spam defence, if the spam role is certain at pick-up (list match or "In die Spam-Falle"; section 10.4),
+2. the voice chosen for the call: on the dashboard the field "Stimme", for calls through the API or MCP the parameter `voice`; if nothing is chosen there, the contact's voice for outgoing calls and the voice of the own number for the answering machine (profile under "Anrufbeantworter › Eigene Rufnummern", section 7.3),
+3. the default voice of the active connection,
+4. if none has been chosen on the connection yet: the former general voice (from older versions or `AI_VOICE` in `.env`), otherwise the provider's first voice.
+
+The field "Stimme" on the dashboard shows the default voice of the active connection by default (e.g. "– Standard: marin –") and applies only to the next call from there. "Als Standard speichern" on the dashboard remembers task, style and form of address (and the type of call), but no longer the voice: the default voice is set on the connection. Nothing changes by itself on update: saved connections, keys and models stay, and a connection without a default voice of its own keeps using the previously saved general voice, provided it belongs to its provider.
+
+**Models.** Each connection has its own voice model and text model; the fields are in its expanded area. The choice comes from the provider of the connection: SIPFunk uses the key of the connection to ask which models the account offers and splits them into voice models (OpenAI: Realtime, Gemini: Live) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded when you open the card or expand a connection, and the provider is asked at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once, with the key of that connection. The key stays in the background program and appears neither in the interface nor in the log.
 
 - **Sprachmodell für Anrufe** (voice model for calls): the live model that speaks and listens, for outgoing calls and the answering machine. "(Standard)" marks the default (`gpt-realtime-2.1` with OpenAI, `gemini-3.8-live` with Gemini), "(günstig)" (cheaper) the OpenAI models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and the provider publishes their prices.
 - **Textmodell** (text model): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna` with OpenAI and `gemini-3.5-flash-lite` with Gemini.
@@ -248,13 +262,13 @@ A connection without a model of its own uses the default of its provider: `OPENA
 
 If the list cannot be loaded (no key, no network, key rejected), the reason is shown next to the button. Your saved choice is always kept and visible; if it is not in the loaded list, it carries the note "(nicht in der Liste)" (not in the list). Loading the list never changes a setting.
 
-**Key.** Every connection has its own key. Select the connection, enter the key under "API-Schlüssel" (API key) and click "Schlüssel prüfen und speichern" (check key and save). The key is accepted only by the local web UI on `127.0.0.1`, checked once with the provider and written to `.env` in the data folder. It is never returned by the API and never logged; the interface only shows whether a key is stored. The two built-in connections use `OPENAI_API_KEY` and `GEMINI_API_KEY`; every further connection uses `AI_KEY_<ID>`, where ID is the connection's id in upper case. The web UI writes that variable; you normally do not edit it by hand. Calls only ever use the key of the active connection.
+**Key.** Every connection has its own key. Expand the connection, enter the key under "API-Schlüssel" (API key) and click "Schlüssel prüfen und speichern" (check key and save). The key is accepted only by the local web UI on `127.0.0.1`, checked once with the provider and written to `.env` in the data folder. It is never returned by the API and never logged; the interface only shows whether a key is stored. The two built-in connections use `OPENAI_API_KEY` and `GEMINI_API_KEY`; every further connection uses `AI_KEY_<ID>`, where ID is the connection's id in upper case. The web UI writes that variable; you normally do not edit it by hand. Calls only ever use the key of the active connection.
 
-**Where it is stored.** The list of connections is in `settings.json` as `aiConnections` (a JSON list of `{id, name, provider, model, textModel}`), the id of the active one as `aiConnection`. `aiProvider` now just mirrors the provider of the active connection; `AI_PROVIDER` in `.env` still decides which of the two built-in connections is active at first. Keys are stored in `.env` only.
+**Where it is stored.** The list of connections is in `settings.json` as `aiConnections` (a JSON list of `{id, name, provider, model, textModel, voice}`), the id of the active one as `aiConnection`. `aiProvider` now just mirrors the provider of the active connection; `AI_PROVIDER` in `.env` still decides which of the two built-in connections is active at first. Keys are stored in `.env` only.
 
-**After switching.** Models are part of the connection and change with it. Voices belong to a provider: after switching to a connection of the other provider, a stored voice is ignored and that provider's first voice is used; this also applies to voices saved for contacts or for own-number profiles. Check the voice on the dashboard after switching.
+**After switching.** Models and default voice are part of the connection and change with it; the message after switching names the voice that now applies. Voices belong to a provider: a voice of the other provider that is saved for a contact, in the profile of an own number or as "Stimme der Rolle" of the spam defence is ignored, and the default voice of the active connection is used.
 
-**"Verbindung testen"** (test connection) checks three things for the connection selected in the card and shows a line for each:
+**"Verbindung testen"** (test connection) checks three things for the connection in whose expanded area you press the button and shows a line for each:
 
 1. **Schlüssel** (key): the key is valid (SIPFunk fetches the model list with it).
 2. **Sprachmodell** (voice model): the configured voice model is in the model list of the account, or the live connection was established anyway.
@@ -262,23 +276,25 @@ If the list cannot be loaded (no key, no network, key rejected), the reason is s
 
 The test does not check an actual phone call.
 
-**What is different with Gemini.** The card shows these notes when a Gemini connection is selected. SIPFunk uses the Gemini Live API with the model `gemini-3.8-live`: audio goes to Google as 16 kHz PCM and comes back as 24 kHz PCM, which is resampled to the 8 or 16 kHz of the phone. The following limitations apply:
+**What is different with Gemini.** The card shows these notes below the list when the active connection or an expanded one belongs to Gemini. SIPFunk uses the Gemini Live API with the model `gemini-3.8-live`: audio goes to Google as 16 kHz PCM and comes back as 24 kHz PCM, which is resampled to the 8 or 16 kHz of the phone. The following limitations apply:
 
 - A call lasts nine minutes (540 s) at most, whatever call time limit is configured. The Live API drops a connection after about ten minutes, and session resumption is not implemented.
 - The speaking rate cannot be set; it is only passed to the AI as a hint. The limit on output tokens per answer is not applied.
 - Instructions cannot be changed during a call. A call plan that arrives late and the switch into the spam defence are therefore sent as marked follow-up instructions ("[Regie]"), which is weaker than a system instruction. Instructions for a single answer (greeting, nudges from the watchdogs, goodbye) are sent the same way.
 - Answers cannot be truncated, deleted or cancelled. When the other party cuts in, Google cancels the answer itself; the AI finishing its sentence after a mere "mhm" therefore works less often.
 - The transcription of the other party arrives in fragments and is assembled after a short pause.
+- In one of the first calls Gemini at first only began a call-back number that was given in groups of digits and said it in full only when asked.
+- The log entry "erstes Audio … ms nach Satzende" (first audio … ms after the end of the turn) is not meaningful with Gemini, because the end of the turn is derived there from the start of the answer.
 - The call simulator (`npm run sim`, chapter 12) works with OpenAI only.
 - The cost estimate uses the prices of the paid tier, even if you use the free quota (chapter 15).
 
-![Settings › AI connections with a Google Gemini connection: limitations and the notice about the free quota](images/settings-provider-gemini.en.png)
+![Settings › AI connections: the active Google Gemini connection expanded in the list; below it the limitations and the notice about the free quota](images/settings-provider-gemini.en.png)
 
 **Free quota.** Google offers a free quota for the Gemini API. Google's Gemini API Additional Terms, however, say that only the paid services may be used when an application is made available to users in the European Economic Area, Switzerland or the United Kingdom. Google does not state whether a caller counts as such a user, and SIPFunk cannot tell which tier a key runs on. Read [legal.md](legal.md), section 3.5, before you use the free quota.
 
 **Verbrauch in diesem Monat** (usage this month). The card shows calls, minutes and estimated US dollars per provider for the current month; usage is counted per provider, not per connection, so several connections with the same provider share one line. The figures are the sum of SIPFunk's own estimates per call, kept in `usage.json` in the data folder for 13 months and independent of the log retention period. They cover the calls only, not the text model and not the voice samples, and they are an estimate, not the provider's bill.
 
-**Tatsächliche Kosten laut OpenAI (optional)** (actual costs according to OpenAI; level "Erweitert", OpenAI only). If you store an admin key of your OpenAI organisation (`sk-admin-…`) under "Admin-Schlüssel", the card also shows the organisation's actual costs since the start of the month. An admin key is required because OpenAI's costs endpoint (`GET /v1/organization/costs`) rejects normal API keys. Such a key can also manage users, projects and keys of the organisation: store it only deliberately and give it an expiry date at OpenAI. The figure covers everything the organisation uses, not just SIPFunk. The key is written to `.env` as `OPENAI_ADMIN_KEY`; "Admin-Schlüssel entfernen" (remove admin key) deletes it again. Google offers no such API, and OpenAI offers no API for the remaining credit balance.
+**Tatsächliche Kosten laut OpenAI (optional)** (actual costs according to OpenAI; level "Erweitert", OpenAI only). The block appears below the list when the active connection or an expanded one belongs to OpenAI. If you store an admin key of your OpenAI organisation (`sk-admin-…`) under "Admin-Schlüssel", the card also shows the organisation's actual costs since the start of the month. An admin key is required because OpenAI's costs endpoint (`GET /v1/organization/costs`) rejects normal API keys. Such a key can also manage users, projects and keys of the organisation: store it only deliberately and give it an expiry date at OpenAI. The figure covers everything the organisation uses, not just SIPFunk. The key is written to `.env` as `OPENAI_ADMIN_KEY`; "Admin-Schlüssel entfernen" (remove admin key) deletes it again. Google offers no such API, and OpenAI offers no API for the remaining credit balance.
 
 ## 7. Answering machine
 
@@ -286,7 +302,7 @@ The test does not check an actual phone call.
 
 "Einstellungen › Anrufbeantworter" → **"KI nimmt eingehende Anrufe an (allgemein)"** (AI answers incoming calls, general), **"Annahme beim … Klingeln"** (answer on the n-th ring; default: the 5th, calculated at about 5 s per ring), then **"Speichern"**. Alternatively via the tray menu or `INCOMING_ENABLED=on`. When switched off, the extension only rings along without picking up; during a running call it is busy.
 
-The answering machine uses the active AI connection (section 6.2) with its key and models. The connection to the AI provider is set up while the phone is still ringing so that the AI speaks without delay.
+The answering machine uses the active AI connection (section 6.2) with its key, its models and its default voice. The connection to the AI provider is set up while the phone is still ringing so that the AI speaks without delay.
 
 ### 7.2 What happens on an answered call
 
@@ -308,7 +324,7 @@ The FRITZ!Box transmits which of your numbers was dialled. Under "Einstellungen 
 - **Meldung als Assistent von** (announce as assistant of): the name the AI introduces itself with ("AI assistant of Mustermann IT-Service").
 - **Dahinter steht** (who is behind it): a person ("Max is not in right now"), a company ("nobody is available at Mustermann IT-Service right now", call back by "someone from …") or a family ("nobody is at home at Familie Mustermann right now"). On the **family answering machine** the AI asks which family member the call is for and records it in the result, so it also appears in the summary and the mail. A fitting announcement name is "Familie Mustermann". The field **Familienmitglieder (optional)** (family members) takes the names: the AI does not list them of its own accord and does not confirm who lives there; it only uses them to match a name the caller mentions.
 - **Annahme auf dieser Nummer** (answering on this number) and **Annahme beim … Klingeln**: override the general switch and the general number of rings for this number only.
-- **Anrede, Stil, Stimme**: different from the default, otherwise "– Standard –".
+- **Anrede, Stil, Stimme**: different from the default, otherwise "– Standard –". For the voice the default is the default voice of the active AI connection; a voice chosen here only counts if it belongs to the provider of the active connection (order of precedence in section 6.2).
 - **Auftrag** and **Zusätzliche Hinweise**: only for calls on this number; empty = the general settings.
 - **Hinweis im Tray, E-Mail, Mich auf der Inhabernummer anrufen** (tray notification, e-mail, call me on the owner number): per channel "general setting", "off", "only for important calls" or "for all calls". This way the company number can send mail for every call but never call back, while the private number only reports important calls.
 
@@ -440,7 +456,7 @@ The spam defence has two switches:
 The private person has its own settings, separate from the assistant (name and gender only apply without AI disclosure):
 
 - **Name der Rolle** (name of the role): an invented name it answers with ("Schmidt?") and gives when asked. If the caller asks for exactly this name, it says "Am Apparat" (speaking); if they ask for someone else, that person is not in. Empty = it gives no name. Do not use your real name.
-- **Stimme der Rolle** (voice) and **Sprechgeschwindigkeit der Rolle** (speaking rate): voice empty = same as the assistant; rate empty = 0.95, slightly slower than the assistant. Both apply when the spam defence is certain at pick-up (list match or "In die Spam-Falle"); with Google Gemini the rate is only a hint to the AI (section 6.2). If the AI only switches roles in mid-call, the assistant's voice and rate remain; name and own instructions still apply.
+- **Stimme der Rolle** (voice) and **Sprechgeschwindigkeit der Rolle** (speaking rate): voice empty = same as the assistant; rate empty = 0.95, slightly slower than the assistant. Both apply when the spam defence is certain at pick-up (list match or "In die Spam-Falle"); the voice of the role then takes precedence over every other voice but only counts if it belongs to the provider of the active AI connection (order of precedence in section 6.2); with Google Gemini the rate is only a hint to the AI (section 6.2). If the AI only switches roles in mid-call, the assistant's voice and rate remain; name and own instructions still apply.
 - **Die Rolle ist** (the role is): a man, a woman or automatic by voice (with OpenAI cedar, ash, ballad, echo and verse count as male; Gemini has its own list, for example Puck, Charon and Fenrir). This decides whether it says "Am Apparat" when asked for "Herr Schmidt" or for "Frau Schmidt".
 - **Eigene Anweisungen für die Rolle** (own instructions for the role): free text on character, tone and quirks, for example "Elderly gentleman, likes telling stories, friendly but long-winded". The protective rules (no data, no consent, no real identity, stay polite) always take precedence.
 
@@ -607,7 +623,7 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
 | Textmodell – text model | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | plan, summary, assessment, complaint |
 
-The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` (dashboard, AI assistant), `AI_PROVIDER`, `OPENAI_MODEL` and `GEMINI_MODEL` (AI connections), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
+The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` (dashboard, AI assistant), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` and `AI_VOICE` (AI connections; `AI_VOICE` is now only the initial value for connections without a default voice of their own), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
 
 ---
 
@@ -636,7 +652,7 @@ The log (in the terminal, on the dashboard under "Protokoll", and for the tray a
 | Extension does not ring | is the number assigned to the extension in the box? |
 | AI does not pick up | answering machine on? Profile of the number set to off? Is another call running? |
 | AI does not speak / silence after pick-up | log "Realtime: verbunden", "erstes Audio nach … ms"; key of the active AI connection, model access, internet; "Verbindung testen" under "Einstellungen › KI-Verbindungen" checks key, voice model and live connection |
-| Wrong voice after switching the AI connection | voices of the other provider are ignored and replaced by the provider's first voice; choose the voice again. The models belong to the connection and are set under "KI-Verbindungen" (section 6.2) |
+| Wrong voice after switching the AI connection | after switching, the default voice of the new connection applies: expand the connection under "Einstellungen › KI-Verbindungen" and choose its "Standardstimme" (default voice) there. Voices of the other provider (contact, profile of an own number, spam role) are ignored. Models and default voice belong to the connection (section 6.2) |
 | Call ends after nine minutes | with Google Gemini a call lasts 540 s at most, whatever the call time limit says (section 6.2) |
 | Choppy voice | log "RTP: Gegenstelle sendet …", "Unterläufe"; try `AUDIO_HD=false`; avoid Wi-Fi |
 | AI talks into pauses | increase "Stille bis Satzende" (e.g. 1200) |
@@ -655,7 +671,8 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 
 - **Extension / IP phone**: the device SIPFunk registers as with the box.
 - **AI provider**: the company whose models conduct the call and write the texts: OpenAI or Google (section 6.2).
-- **AI connection** (KI-Verbindung): a named access to an AI provider: provider, its own key and the models used with it. The active connection handles the calls (section 6.2).
+- **AI connection** (KI-Verbindung): a named access to an AI provider: provider, its own key, the models used with it and a default voice. The active connection handles the calls (section 6.2).
+- **Default voice** (Standardstimme): the voice of an AI connection; it applies when call, contact or own number do not specify a voice of its provider (section 6.2).
 - **Realtime API**: OpenAI interface for speech in real time (audio in, audio out).
 - **Live API**: Google's interface for speech in real time with Gemini.
 - **Server VAD**: voice activity detection on the AI provider's side that recognises the end of a turn. The threshold is an OpenAI parameter; with Gemini it only selects a low or high start sensitivity.

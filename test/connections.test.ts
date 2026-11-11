@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { cleanConnections, connectionKeyEnv, connectionsFrom, mergeConnections, parseConnections, type AiConnection } from '../src/ai/connections.js';
+import { callVoice, cleanConnections, connectionKeyEnv, connectionVoice, connectionsFrom, mergeConnections, parseConnections, pickVoice, type AiConnection } from '../src/ai/connections.js';
+import { gemini } from '../src/ai/providers/gemini.js';
+import { openai } from '../src/ai/providers/openai.js';
 import { loadSettings, saveSettings } from '../src/settings.js';
 import { resolveAi } from '../src/ai/providers/index.js';
 
@@ -14,8 +16,8 @@ const list = (items: Partial<AiConnection>[]) => JSON.stringify(items);
 test('Verbindungen: ohne gespeicherte Liste gibt es je Anbieter eine, die alten Einstellungen gehen darin auf', () => {
   const a = connectionsFrom({ aiProvider: 'openai', model: 'gpt-realtime-2.1-mini', summaryModel: 'gpt-6-sol' }, {});
   assert.deepEqual(a.list, [
-    { id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: 'gpt-6-sol' },
-    { id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '' },
+    { id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: 'gpt-6-sol', voice: '' },
+    { id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '', voice: '' },
   ]);
   assert.equal(a.active.id, 'openai');
   const g = connectionsFrom({ aiProvider: 'gemini', model: 'gpt-realtime-2.1', summaryModel: '' });
@@ -48,9 +50,9 @@ test('Verbindungen: Schlüssel liegen je Verbindung in einer eigenen Variablen d
   assert.equal(connectionKeyEnv({ id: 'gemini', provider: 'gemini' }), 'GEMINI_API_KEY');
   assert.equal(connectionKeyEnv({ id: 'c1a2b3', provider: 'openai' }), 'AI_KEY_C1A2B3');
   const json = list([
-    { id: 'openai', name: 'Privat', provider: 'openai', model: '', textModel: '' },
+    { id: 'openai', name: 'Privat', provider: 'openai', model: '', textModel: '', voice: '' },
     { id: 'c1', name: 'Firma', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: 'gpt-6-sol' },
-    { id: 'c2', name: 'Gemini bezahlt', provider: 'gemini', model: '', textModel: '' },
+    { id: 'c2', name: 'Gemini bezahlt', provider: 'gemini', model: '', textModel: '', voice: '' },
   ]);
   const env = { OPENAI_API_KEY: 'sk-privat', AI_KEY_C1: 'sk-firma', OPENAI_MODEL: 'gpt-realtime-eigen' };
   const privat = resolveAi({ aiConnections: json, aiConnection: 'openai' }, env);
@@ -70,7 +72,7 @@ test('Verbindungen: Schlüssel liegen je Verbindung in einer eigenen Variablen d
 });
 
 test('Verbindungen speichern: neue bekommen eine Kennung, der Anbieter bleibt fest, eine muss bleiben', () => {
-  const current: AiConnection[] = [{ id: 'openai', name: 'OpenAI', provider: 'openai', model: '', textModel: '' }];
+  const current: AiConnection[] = [{ id: 'openai', name: 'OpenAI', provider: 'openai', model: '', textModel: '', voice: '' }];
   let n = 0;
   const ids = () => ['gemini', 'gemini', 'x1', 'x2'][n++];
   const saved = cleanConnections(
@@ -93,8 +95,8 @@ test('Verbindungen speichern: neue bekommen eine Kennung, der Anbieter bleibt fe
 
 test('Verbindungen ändern: nur Genanntes wird ersetzt, entfernt wird nur ausdrücklich', () => {
   const current: AiConnection[] = [
-    { id: 'openai', name: 'OpenAI', provider: 'openai', model: '', textModel: '' },
-    { id: 'c1', name: 'Firma', provider: 'openai', model: '', textModel: '' },
+    { id: 'openai', name: 'OpenAI', provider: 'openai', model: '', textModel: '', voice: '' },
+    { id: 'c1', name: 'Firma', provider: 'openai', model: '', textModel: '', voice: '' },
   ];
   // Ein veraltetes Fenster kennt „Firma“ nicht und ändert nur „OpenAI“: „Firma“ bleibt
   const a = mergeConnections(current, [{ id: 'openai', name: 'Privat', provider: 'openai', model: 'gpt-realtime-2.1-mini' }], undefined);
@@ -114,7 +116,7 @@ test('Einstellungen: Die Liste der Verbindungen lässt sich nicht über das Form
   const cwd = process.cwd();
   process.chdir(dir);
   try {
-    const list = JSON.stringify([{ id: 'c1', name: 'Firma', provider: 'openai', model: '', textModel: '' }]);
+    const list = JSON.stringify([{ id: 'c1', name: 'Firma', provider: 'openai', model: '', textModel: '', voice: '' }]);
     saveSettings({}, { aiConnections: list, aiConnection: 'c1' });
     // Versuch, der Verbindung einen anderen Anbieter unterzuschieben (ihr Schlüssel ginge dann an Google)
     const forged = saveSettings({ aiConnections: list.replace('"openai"', '"gemini"'), aiConnection: 'gibt-es-nicht' });
@@ -154,4 +156,43 @@ test('Einstellungen: Eine nicht lesbare settings.json bleibt beim Speichern als 
     process.chdir(cwd);
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('Standardstimme je Verbindung: gespeichert wird nur eine Stimme des Anbieters, Bestehendes bleibt unverändert', () => {
+  // Liste aus der Zeit vor der Standardstimme: lesbar wie bisher, ohne eigene Stimme
+  const old = parseConnections(JSON.stringify([{ id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: 'gpt-6-sol' }]));
+  assert.deepEqual(old, [{ id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: 'gpt-6-sol', voice: '' }]);
+  const current: AiConnection[] = [
+    { id: 'openai', name: 'OpenAI', provider: 'openai', model: '', textModel: '', voice: 'cedar' },
+    { id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '', voice: '' },
+  ];
+  // Jede Verbindung speichert ihre eigene Stimme; die andere bleibt, wie sie ist
+  const a = mergeConnections(current, [{ id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '', voice: 'Puck' }], undefined);
+  assert.deepEqual(a.next.map((c) => [c.id, c.voice]), [['openai', 'cedar'], ['gemini', 'Puck']]);
+  // Eine Stimme des anderen Anbieters wird nicht gespeichert
+  const b = mergeConnections(current, [{ id: 'gemini', name: 'Google Gemini', provider: 'gemini', voice: 'cedar' }], undefined);
+  assert.equal(b.next[1].voice, '');
+  // Ein veraltetes Fenster schickt keine Stimme: Die gespeicherte bleibt, das Modell wird trotzdem geändert
+  const c = mergeConnections(current, [{ id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: '' }], undefined);
+  assert.deepEqual([c.next[0].model, c.next[0].voice], ['gpt-realtime-2.1-mini', 'cedar']);
+  // Ausdrücklich leer = wieder die Vorgabe
+  const d = mergeConnections(current, [{ id: 'openai', name: 'OpenAI', provider: 'openai', voice: '' }], undefined);
+  assert.equal(d.next[0].voice, '');
+});
+
+test('Rangfolge der Stimme: Spam-Rolle, Anruf, Verbindung, alte Einstellung, erste Stimme des Anbieters', () => {
+  const oa = { provider: 'openai' as const, voice: 'cedar' };
+  const plain = { provider: 'openai' as const, voice: '' };
+  const g = { provider: 'gemini' as const, voice: 'Puck' };
+  assert.equal(callVoice(oa, { scam: 'ash', call: 'sage', legacy: 'marin' }), 'ash', 'Spam-Rolle zuerst');
+  assert.equal(callVoice(oa, { call: 'sage', legacy: 'marin' }), 'sage', 'dann die Stimme des Anrufs (Dashboard, Kontakt, Profil)');
+  assert.equal(callVoice(oa, { call: '', legacy: 'marin' }), 'cedar', 'dann die Standardstimme der Verbindung');
+  assert.equal(callVoice(plain, { legacy: 'marin' }), 'marin', 'ohne eigene Stimme gilt die alte allgemeine Einstellung');
+  assert.equal(callVoice(plain, {}), openai.voices[0], 'zuletzt die erste Stimme des Anbieters');
+  // Stimmen des anderen Anbieters zählen auf keiner Stufe
+  assert.equal(callVoice(g, { scam: 'ash', call: 'sage', legacy: 'marin' }), 'Puck');
+  assert.equal(callVoice({ provider: 'gemini', voice: '' }, { call: 'marin', legacy: 'marin' }), gemini.voices[0]);
+  assert.equal(callVoice(g, { scam: 'Charon', call: 'Kore' }), 'Charon');
+  assert.equal(connectionVoice(g, 'marin'), 'Puck');
+  assert.equal(pickVoice(['a', 'b'], undefined, ' ', 'x', 'b'), 'b');
 });

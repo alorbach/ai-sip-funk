@@ -15,6 +15,8 @@ export interface AiConnection {
   model: string;
   /** Textmodell; leer = Vorgabe des Anbieters */
   textModel: string;
+  /** Standardstimme dieser Verbindung (eine Stimme ihres Anbieters); leer = Vorgabe, siehe connectionVoice */
+  voice: string;
 }
 
 /** Höchstens so viele Verbindungen (die Oberfläche bleibt übersichtlich, die .env auch) */
@@ -49,7 +51,8 @@ function clean(raw: unknown): AiConnection | undefined {
     return MODEL_ID.test(m) && provider.ownsModel(m) ? m : '';
   };
   const name = String(r.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 40) || provider.label;
-  return { id, name, provider: provider.id, model: model(r.model), textModel: model(r.textModel) };
+  const voice = String(r.voice ?? '').trim();
+  return { id, name, provider: provider.id, model: model(r.model), textModel: model(r.textModel), voice: provider.voices.includes(voice) ? voice : '' };
 }
 
 /** Gespeicherte Liste lesen; ungültige und doppelte Einträge entfallen. */
@@ -95,7 +98,7 @@ export function connectionsFrom(s: ConnectionSettings, env: NodeJS.ProcessEnv = 
         return p.id === chosen.id && MODEL_ID.test(v) && p.ownsModel(v) && !defaults.some((d) => d?.trim() === v) ? v : '';
       };
       const prefix = id === 'openai' ? 'OPENAI' : 'GEMINI';
-      return { id, name: p.label, provider: p.id, model: own(s.model, p.defaults.realtime, env[`${prefix}_MODEL`]), textModel: own(s.summaryModel, p.defaults.text, env[`${prefix}_SUMMARY_MODEL`]) };
+      return { id, name: p.label, provider: p.id, model: own(s.model, p.defaults.realtime, env[`${prefix}_MODEL`]), textModel: own(s.summaryModel, p.defaults.text, env[`${prefix}_SUMMARY_MODEL`]), voice: '' };
     });
   }
   const wanted = (s.aiConnection ?? '').trim();
@@ -123,7 +126,8 @@ export function cleanConnections(input: unknown, current: readonly AiConnection[
     if (!knownProvider(r.provider)) throw new Error('Unbekannter KI-Anbieter');
     // Der Anbieter einer Verbindung steht fest: Sonst ginge ihr gespeicherter Schlüssel an einen anderen Anbieter
     if (known && known.provider !== r.provider) throw new Error('Der Anbieter einer Verbindung lässt sich nicht ändern – leg dafür eine neue Verbindung an.');
-    const c = clean({ ...r, id });
+    // Ein Fenster aus der Zeit vor der Standardstimme schickt keine: Dann bleibt die gespeicherte
+    const c = clean({ ...r, id, voice: r.voice === undefined && known ? known.voice : r.voice });
     if (!c) throw new Error('Ungültige Verbindung');
     if (!String(r.name ?? '').trim()) throw new Error('Jede Verbindung braucht einen Namen');
     if (out.some((x) => x.id === c.id)) throw new Error('Verbindung doppelt in der Liste');
@@ -148,4 +152,35 @@ export function mergeConnections(current: readonly AiConnection[], changes: unkn
   if (!next.length) throw new Error('Mindestens eine Verbindung muss bleiben');
   if (next.length > MAX_CONNECTIONS) throw new Error(`Höchstens ${MAX_CONNECTIONS} Verbindungen`);
   return { next, removed };
+}
+
+/**
+ * Stimme für ein Gespräch: der erste Wunsch, der eine Stimme des Anbieters ist, sonst dessen erste Stimme.
+ * Stimmen gehören zum Anbieter; ein Wunsch des anderen Anbieters (Kontakt, Profil, alte Einstellung) zählt nicht.
+ */
+export function pickVoice(voices: readonly string[], ...wishes: (string | undefined)[]): string {
+  for (const w of wishes) {
+    const v = (w ?? '').trim();
+    if (v && voices.includes(v)) return v;
+  }
+  return voices[0] ?? '';
+}
+
+/**
+ * Standardstimme einer Verbindung: ihre eigene; ist keine gewählt, die Stimme aus der Zeit vor den Verbindungen
+ * (Einstellung „voice“ bzw. AI_VOICE), sofern sie zum Anbieter gehört; sonst die erste Stimme des Anbieters.
+ */
+export function connectionVoice(c: Pick<AiConnection, 'provider' | 'voice'>, legacyVoice?: string): string {
+  return pickVoice(providerById(c.provider).voices, c.voice, legacyVoice);
+}
+
+/**
+ * Rangfolge der Stimme für ein Gespräch (jeweils nur, wenn die Stimme zum Anbieter der Verbindung gehört):
+ * 1. Stimme der Spam-Rolle, wenn die Rolle ab Annahme feststeht
+ * 2. Stimme, die der Anruf selbst nennt (Dashboard, API, MCP); ohne Angabe die des Kontakts (ausgehend) bzw.
+ *    des Profils der eigenen Rufnummer (eingehend) – der Aufrufer reicht sie als `call` herein
+ * 3. Standardstimme der Verbindung (connectionVoice)
+ */
+export function callVoice(c: Pick<AiConnection, 'provider' | 'voice'>, o: { scam?: string; call?: string; legacy?: string }): string {
+  return pickVoice(providerById(c.provider).voices, o.scam, o.call, connectionVoice(c, o.legacy));
 }

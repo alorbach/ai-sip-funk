@@ -27,7 +27,7 @@ import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
 import { cleanAdminKey, fetchOpenAiMonthCosts, monthKey, UsageCounter } from './usageCounter.js';
 import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
-import { connectionKey, connectionKeyEnv, connectionsFrom, MAX_CONNECTIONS, mergeConnections, type AiConnection } from './ai/connections.js';
+import { callVoice, connectionKey, connectionKeyEnv, connectionsFrom, connectionVoice, MAX_CONNECTIONS, mergeConnections, type AiConnection } from './ai/connections.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
@@ -84,11 +84,13 @@ const manager = new CallManager({
     const principalKind = prof?.kind ?? 'person';
     // „model“ der Einstellungen stammt aus der Zeit vor den KI-Verbindungen: Das Modell gehört jetzt zur Verbindung (model: '' unten)
     const s = prof
-      ? { ...base, familyMembers: prof.members, address: prof.address || base.address, persona: prof.persona || base.persona, voice: prof.voice || base.voice, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
+      ? { ...base, familyMembers: prof.members, address: prof.address || base.address, persona: prof.persona || base.persona, incomingTask: prof.task || base.incomingTask, personaExtra: prof.extra || base.personaExtra }
       : base;
     if (prof) log.info(`Anrufbeantworter für ${called || '?'}: Profil „${prof.name}" (${principalKind === 'company' ? 'Firma' : principalKind === 'family' ? 'Familie' : 'Person'}${prof.address ? `, ${prof.address}` : ''}${prof.persona ? `, ${prof.persona}` : ''}${prof.voice ? `, ${prof.voice}` : ''})`);
     // Spam-Abwehr: Nummer aus der Liste -> von Anfang an als Privatperson; sonst darf die KI per flag_spam umschalten
     const scam = scamActive(s);
+    // Stimme: die des Profils; sonst entscheidet die Standardstimme der Verbindung (nicht die alte allgemeine Einstellung)
+    s.voice = prof?.voice ?? '';
     // Von Hand in die Spam-Falle umgeleitet (Pop-up beim Klingeln): gilt wie ein Listentreffer
     if (opts?.forceScam) {
       log.info(`Spam-Abwehr: Anruf von ${caller || 'anonym'} von Hand in die Spam-Falle umgeleitet (${s.scamStyle})`);
@@ -191,6 +193,8 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const contact = contacts.findByNumber(str('target'));
   if (contact) {
     for (const k of ['persona', 'voice', 'address', 'task'] as const) {
+      // Die Stimme eines Kontakts gilt für Anrufe bei ihm, nicht für den Anrufbeantworter
+      if (k === 'voice' && params.incoming === true) continue;
       if (!str(k) && contact[k]) params[k] = contact[k];
     }
   }
@@ -204,9 +208,8 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const t = tuning();
   // Spam-Rolle ab Annahme: eigene Stimme und eigenes Tempo, sofern eingestellt
   const sc = scam ? loadSettings() : undefined;
-  // Stimmen gehören zum Anbieter: Eine Stimme des anderen Anbieters (Kontakt, Profil, alte Einstellung) fällt auf dessen erste zurück
-  const voices = provider.voices;
-  const voice = sc && voices.includes(sc.scamVoice) ? sc.scamVoice : voices.includes(str('voice')) ? str('voice') : voices[0];
+  // Rangfolge siehe callVoice: Spam-Rolle, Anruf (bzw. Kontakt oder Profil), Standardstimme der Verbindung
+  const voice = callVoice(active.connection, { scam: sc?.scamVoice, call: str('voice'), legacy: saved.voice });
   const speechSpeed = sc ? scamSpeed(sc, SCAM_DEFAULT_SPEED) : t.speechSpeed;
   const scamOpen = loadSettings().scamDisclose === 'on';
   if (sc) log.info(`Spam-Abwehr: ${scamOpen ? 'mit KI-Kennung' : `Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}`}, Stimme ${voice} (${scamGender(sc.scamGender, voice, provider.maleVoices) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
@@ -533,7 +536,7 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
     .filter(Boolean)
     .join(' ');
   // Der Bericht am Stück ist gewollt lang: Token-Notbremse höher als im normalen Gespräch
-  await dialAi(owner, { ...s, model: '', task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
+  await dialAi(owner, { ...s, model: '', voice: '', task, context, incoming: false, plan: false, notifyCall: true, transferTo: digits || '', maxOutputTokens: 3000 }, `Wichtiger Anruf: rufe ${ownerName} unter der Inhabernummer an`);
 }
 
 /** Wählt, sobald die Leitung frei ist, und wartet das Gesprächsende ab (die Benachrichtigungen laufen nacheinander). */
@@ -676,7 +679,7 @@ function aiInfo(): Record<string, unknown> {
     hasKey: Boolean(active.key),
     connections: connectionsFrom(s).list.map((c) => {
       const r = resolveAi(s, process.env, c.id);
-      return { ...c, providerLabel: r.provider.label, hasKey: Boolean(r.key), effectiveModel: r.realtimeModel(), effectiveTextModel: r.textModel, defaultRealtime: r.defaultRealtime, defaultText: r.defaultText };
+      return { ...c, providerLabel: r.provider.label, hasKey: Boolean(r.key), effectiveVoice: connectionVoice(c, s.voice), effectiveModel: r.realtimeModel(), effectiveTextModel: r.textModel, defaultRealtime: r.defaultRealtime, defaultText: r.defaultText };
     }),
     providers: PROVIDER_IDS.map((id) => {
       const p = PROVIDERS[id];
@@ -870,9 +873,13 @@ const stopWeb = startWebServer({
     needKey('Der Beschwerde-Entwurf');
     return draftComplaint(ai().ask, record, contacts.findByNumber(record.target)?.name);
   },
-  voiceSample: async (voice) => {
-    const key = needKey('Die Hörprobe');
-    const { provider } = ai();
+  voiceSample: async (voice, connectionId) => {
+    // Ohne Angabe die aktive Verbindung; sonst die genannte (Hörprobe beim Wählen ihrer Standardstimme)
+    const connection = connectionById(connectionId);
+    if (!connection) throw new Error('Unbekannte KI-Verbindung');
+    const provider = providerById(connection.provider);
+    const key = connectionKey(connection);
+    if (!key) throw new Error(`Die Hörprobe braucht den ${provider.label}-Schlüssel (Einstellungen › KI-Verbindungen)`);
     if (!provider.voices.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
     const s = loadSettings();
     return voiceSample(provider, key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples', ...(provider.id === 'openai' ? [] : [provider.id])));

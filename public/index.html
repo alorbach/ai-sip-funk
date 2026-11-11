@@ -308,12 +308,21 @@
   .state[data-k="busy"]::before { content: "…"; }
   .todo { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .todo:empty { display: none; }
-  .conns { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  .conns li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); cursor: pointer; min-height: 44px; }
-  .conns li[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-  .conns li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .conns .name { font-weight: 600; overflow-wrap: anywhere; }
-  .conns .meta { color: var(--text-2); font-size: 13px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  /* KI-Verbindungen: eine Liste aufklappbarer Einträge. „Aktiv“ zeigt die Kennzeichnung (Text und Haken), „aufgeklappt“ der Pfeil und der Inhalt darunter. */
+  .conns { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface); }
+  .conn-item + .conn-item { border-top: 1px solid var(--line); }
+  .conn-h { margin: 0; font: inherit; }
+  .conn-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: var(--radius-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .conn-head:hover { background: var(--surface-2); }
+  .conn-head:focus-visible { outline-offset: -2px; }
+  .conn-head .chev { width: 12px; height: 12px; flex: none; color: var(--text-2); transition: transform .15s; }
+  .conn-head[aria-expanded="true"] .chev { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .conn-head .chev { transition: none; } }
+  .conn-head .name { font-weight: 600; overflow-wrap: anywhere; }
+  .conn-head .meta { color: var(--text-2); font-size: 13px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .conn-head .badge { flex: none; white-space: nowrap; }
+  .conn-panel { padding: 6px 12px 16px 34px; }
+  .conn-panel[hidden] { display: none; }
   .settings .card[hidden] { display: none; }
   ul.plain { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; color: var(--text-2); }
   .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
@@ -325,6 +334,9 @@
     .contact, .call { grid-template-columns: minmax(0, 1fr); }
     .contact .tools, .call .tools { opacity: 1; justify-content: flex-start; }
     .list-scroll { max-height: none; }
+    .conn-head { flex-wrap: wrap; }
+    .conn-head .meta { flex-basis: 100%; order: 5; padding-left: 22px; }
+    .conn-panel { padding-left: 12px; }
   }
 </style>
 </head>
@@ -393,7 +405,7 @@
             </div>
             <div class="footer-row">
               <p class="hint">„Anrufen“ zeigt erst eine Bestätigung. Notruf-, Sonder- und Auslandsnummern sind gesperrt. Interne Nebenstellen mit <code>**</code>. Name und Auftraggeber der KI stehen in den Einstellungen.</p>
-              <button id="save-defaults" class="btn quiet small" title="Speichert Auftrag, Stil, Stimme, Anrede und Modell als Standard">Als Standard speichern</button>
+              <button id="save-defaults" class="btn quiet small" title="Speichert Auftrag, Stil und Anrede als Standard">Als Standard speichern</button>
             </div>
           </div>
         </section>
@@ -499,47 +511,20 @@
               <label class="field"><span>Small Talk</span><select id="p-behave-smalltalk"><option value="">Standard (wie es der Stil vorgibt)</option><option value="nein">Keiner, gleich zur Sache</option><option value="ja">Gern ein, zwei Sätze</option></select></label>
               <label class="field span"><span>Zusätzliche Hinweise zum Verhalten</span><textarea id="p-extra" placeholder="z. B. Bei Handwerkern immer nach einem Kostenrahmen fragen. Meinen Vornamen nicht nennen."></textarea><small>Freier Text für alles, was die Auswahl oben nicht abdeckt. Verhalten und Hinweise gelten für ausgehende Anrufe und den Anrufbeantworter; die Grundregeln der KI gehen vor.</small></label>
             </div>
-            <p class="hint" style="margin-top:12px">Stil, Stimme, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard. Die Modelle gehören zur KI-Verbindung und stehen unter „KI-Verbindungen“.</p>
+            <p class="hint" style="margin-top:12px">Stil, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard. Modelle und Standardstimme gehören zur KI-Verbindung und stehen unter „KI-Verbindungen“.</p>
           </div>
         </section>
 
         <section class="card" id="settings-provider">
           <div class="head"><h2>KI-Verbindungen</h2></div>
           <div class="body">
-            <p class="hint" style="margin:0 0 12px">Eine Verbindung ist ein Zugang zu einem KI-Anbieter: Anbieter, Schlüssel und die Modelle, die damit benutzt werden. Du kannst mehrere anlegen und bei Bedarf umschalten, hier oder auf dem Dashboard. Die aktive Verbindung führt die Gespräche, schreibt Plan und Zusammenfassung und liefert die Hörproben; was am Telefon gesagt wird, geht nur an ihren Anbieter. Änderungen an Verbindungen gelten sofort.</p>
-            <ul class="conns" id="conn-list" aria-label="KI-Verbindungen" data-no-i18n></ul>
+            <p class="hint" style="margin:0 0 12px">Eine Verbindung ist ein Zugang zu einem KI-Anbieter: Anbieter, Schlüssel, Modelle und Standardstimme. Ein Klick auf eine Verbindung klappt ihre Einstellungen auf, ein zweiter klappt sie wieder zu. Du kannst mehrere anlegen und bei Bedarf umschalten, hier oder auf dem Dashboard. Die aktive Verbindung führt die Gespräche, schreibt Plan und Zusammenfassung und liefert die Hörproben; was am Telefon gesagt wird, geht nur an ihren Anbieter. Änderungen an Verbindungen gelten sofort.</p>
+            <ul class="conns" id="conn-list" aria-label="KI-Verbindungen"></ul>
             <div class="actions" style="margin-top:10px">
               <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Neue Verbindung bei</span><select id="conn-new-provider" style="width:auto" data-no-i18n></select></label>
               <button type="button" id="conn-add" class="btn small">Verbindung hinzufügen</button>
             </div>
-            <div class="subhead" style="margin-top:18px" id="conn-edit-title" data-no-i18n></div>
-            <div class="grid c2" style="margin-top:10px">
-              <label class="field"><span>Name der Verbindung</span><input id="conn-name" maxlength="40" autocomplete="off"><small>Frei wählbar, z. B. „Privat“ oder „Günstiges Modell“.</small></label>
-              <div class="field"><span>Anbieter</span><p class="state" id="ai-key-state" role="status"></p>
-                <small data-provider="openai">OpenAI Realtime. Braucht ein OpenAI-Konto mit Guthaben; Gespräche kosten je nach Länge einige Cent.</small>
-                <small data-provider="gemini" hidden>Gemini Live API mit einem Schlüssel aus Google AI Studio. Noch nicht am Telefon erprobt – lies die Hinweise unten.</small>
-              </div>
-              <label class="field"><span>Sprachmodell für Anrufe</span><select id="s-model"></select><small>Führt das Gespräch bei ausgehenden Anrufen und am Anrufbeantworter. Die neuesten Modelle stehen oben. „Günstig“ steht nur an Modellen, deren Preis SIPFunk kennt; alle Preise nennt der Anbieter.</small></label>
-              <label class="field"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><select id="t-summary-model"></select></label>
-              <label class="field adv"><span>Eigene Modell-ID (Sprachmodell)</span><input id="s-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Sprachmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
-              <label class="field adv"><span>Eigene Modell-ID (Textmodell)</span><input id="t-summary-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Textmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, entstehen weder Plan noch Zusammenfassung.</small></label>
-              <div class="actions span">
-                <button type="button" id="models-refresh" class="btn small quiet">Modelle aktualisieren</button>
-                <span id="models-state" class="hint" role="status" data-no-i18n></span>
-              </div>
-              <label class="field span"><span>API-Schlüssel</span><input id="ai-key" type="password" autocomplete="new-password" spellcheck="false">
-                <small data-provider="openai">Schlüssel erstellen: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>. Ein ChatGPT-Abo ersetzt ihn nicht.</small>
-                <small data-provider="gemini" hidden>Schlüssel erstellen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. Dafür genügt ein Google-Konto.</small>
-              </label>
-              <div class="actions span">
-                <button type="button" id="ai-key-save" class="btn">Schlüssel prüfen und speichern</button>
-                <button type="button" id="ai-test" class="btn">Verbindung testen</button>
-                <button type="button" id="conn-use" class="btn">Diese Verbindung verwenden</button>
-                <button type="button" id="conn-remove" class="btn quiet" style="margin-left:auto">Verbindung entfernen</button>
-              </div>
-              <p class="state span" id="ai-key-result" role="status"></p>
-              <ul class="todo span" id="ai-test-result" aria-live="polite" aria-label="Ergebnis des Verbindungstests"></ul>
-            </div>
+
             <p class="hint" style="margin-top:12px">Zum Prüfen geht der Schlüssel einmal an den Anbieter, sonst nirgendwohin. Er liegt nur auf diesem Rechner (Datei <code>.env</code> im Datenordner) und wird nie wieder angezeigt. Der Verbindungstest baut die Live-Verbindung kurz auf und schickt kein Audio.</p>
             <div class="subhead" style="margin-top:18px">Verbrauch in diesem Monat</div>
             <ul class="todo" id="usage-month" style="margin-top:8px" data-no-i18n></ul>
@@ -737,7 +722,7 @@
       <p class="hint">Die KI spricht über einen Anbieter von Sprachmodellen. Du brauchst dort ein Konto und einen API-Schlüssel; ohne Schlüssel funktionieren nur Echo und Testton.</p>
       <label class="field"><span>Verbindung</span><select id="su-ai-provider" data-no-i18n></select></label>
       <p class="hint" data-provider="openai">OpenAI: Konto mit Guthaben nötig, Gespräche kosten je nach Länge einige Cent. Schlüssel erstellen: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>.</p>
-      <p class="hint" data-provider="gemini" hidden>Google Gemini: Schlüssel aus Google AI Studio, <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. Noch nicht am Telefon erprobt; ein Gespräch dauert höchstens neun Minuten. Zum kostenlosen Kontingent steht ein Hinweis unter Einstellungen › KI-Verbindungen.</p>
+      <p class="hint" data-provider="gemini" hidden>Google Gemini: Schlüssel aus Google AI Studio, <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. Erst in wenigen Telefonaten erprobt; ein Gespräch dauert höchstens neun Minuten. Zum kostenlosen Kontingent steht ein Hinweis unter Einstellungen › KI-Verbindungen.</p>
       <label class="field"><span>API-Schlüssel</span><input id="su-ai-key" type="password" autocomplete="new-password" spellcheck="false"></label>
       <div class="actions"><button type="button" id="su-ai-save" class="btn primary">Schlüssel prüfen und speichern</button></div>
       <p class="state" id="su-ai-state" role="status"></p>
@@ -874,7 +859,7 @@ const PHASES = {
   calling: ['wählt', 'accent'], ringing: ['klingelt', 'accent'], incoming: ['eingehender Anruf', 'accent'], connected: ['verbunden', 'ok'], ended: ['beendet', 'warn'],
 };
 const FORM_FIELDS = {
-  mode: 'mode', task: 'task', persona: 'p-persona', voice: 'p-voice', address: 'p-address',
+  mode: 'mode', task: 'task', persona: 'p-persona', address: 'p-address',
   aiName: 'p-name', principal: 'p-principal', personaExtra: 'p-extra',
   behaveLength: 'p-behave-length', behavePace: 'p-behave-pace', behaveConfirm: 'p-behave-confirm', behaveSmalltalk: 'p-behave-smalltalk',
   incoming: 'p-incoming', incomingRings: 'p-incoming-rings', incomingTask: 'p-incoming-task', incomingIdentities: 'p-incoming-identities', incomingProfiles: 'p-incoming-profiles',
@@ -884,7 +869,8 @@ const FORM_FIELDS = {
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
-const DASH_KEYS = ['mode', 'task', 'persona', 'voice', 'address'];
+// Die Stimme gehört nicht dazu: Ohne Wahl für den Anruf gilt die Standardstimme der KI-Verbindung
+const DASH_KEYS = ['mode', 'task', 'persona', 'address'];
 const SETTINGS_KEYS = Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k));
 const BEHAVE_KEYS = ['behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk'];
 /** Zuletzt vom Server gelieferte Einstellungen: gespeichert wird nur, was davon abweicht. */
@@ -934,7 +920,7 @@ function showPage(id) {
   }
   if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
   try { localStorage.setItem('sipfunk.page', id); } catch {}
-  if (id === 'settings') { refreshMail(); loadModels(false); }
+  if (id === 'settings') { refreshMail(); loadOpenModels(); }
   window.scrollTo({ top: 0 });
 }
 document.querySelector('nav.tabs').onclick = (ev) => { const b = ev.target.closest('[data-page]'); if (b) showPage(b.dataset.page); };
@@ -1176,7 +1162,7 @@ function selectContact(c) {
     $('target').value = c.number;
     if (c.address) $('p-address').value = c.address;
     if (c.persona) $('p-persona').value = c.persona;
-    if (c.voice) $('p-voice').value = c.voice;
+    if (c.voice && voices.includes(c.voice)) $('p-voice').value = c.voice;
     if (c.task) $('task').value = c.task;
   }
   $('contact-hint').textContent = c ? `Kontakt: ${c.name}${c.owner ? ' (Inhaber)' : ''}` : '';
@@ -1304,25 +1290,28 @@ $('mail-test').onclick = () => saveThen($('mail-test'), 'Sende …', async () =>
 
 // ---- Stimmen-Hörprobe ----
 let voiceAudio = null;
-function openVoices() {
-  if (!aiAvailable) return toast('Die Hörprobe braucht den Schlüssel der KI-Verbindung (Einstellungen › KI-Verbindungen).', 'error');
+function openVoices(opt = {}) {
+  const c = opt.connection || activeConn();
+  if (!c.hasKey) return toast('Die Hörprobe braucht den Schlüssel der KI-Verbindung (Einstellungen › KI-Verbindungen).', 'error');
+  const names = opt.connection ? (aiProvider(c.provider).voices || []) : voices;
+  const current = opt.current !== undefined ? opt.current : ($('p-voice').value || c.effectiveVoice);
   const list = $('voices-list'); list.innerHTML = '';
-  for (const v of voices) {
+  for (const v of names) {
     const row = document.createElement('div'); row.className = 'voice';
     const name = document.createElement('span'); name.className = 'name'; name.textContent = v;
-    if (v === $('p-voice').value) { const s = document.createElement('small'); s.textContent = 'eingestellt'; name.appendChild(s); }
+    if (v === current) { const s = document.createElement('small'); s.textContent = 'eingestellt'; name.appendChild(s); }
     const play = document.createElement('button'); play.type = 'button'; play.className = 'btn small'; play.textContent = '▶ Anhören'; play.setAttribute('aria-label', `Stimme ${v} anhören`);
     play.onclick = async () => {
       voiceAudio?.pause();
       play.disabled = true; play.textContent = 'lädt …';
-      const a = new Audio(`/api/voices/${v}/sample`); voiceAudio = a;
+      const a = new Audio(`/api/voices/${v}/sample?connection=${encodeURIComponent(c.id)}`); voiceAudio = a;
       const reset = () => { play.disabled = false; play.textContent = '▶ Anhören'; };
       a.onplaying = reset;
       a.onerror = () => { reset(); toast(`Hörprobe für ${v} nicht verfügbar`, 'error'); };
       try { await a.play(); } catch { a.onerror(); }
     };
     const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn small'; pick.textContent = 'Wählen';
-    pick.onclick = () => { $('p-voice').value = v; voiceAudio?.pause(); $('voices').close(); };
+    pick.onclick = () => { if (opt.onPick) opt.onPick(v); else $('p-voice').value = v; voiceAudio?.pause(); $('voices').close(); };
     row.append(name, play, pick); list.appendChild(row);
   }
   $('voices').showModal();
@@ -1418,63 +1407,145 @@ async function saveKeys(keys) {
 function callParams() {
   const out = {};
   for (const k of [...DASH_KEYS, 'aiName', 'principal', 'personaExtra', ...BEHAVE_KEYS]) out[k] = fieldValue(FORM_FIELDS[k]);
+  out.voice = $('p-voice').value;
   return out;
 }
-// ---- KI-Verbindungen: Liste, aktive Verbindung, Modelle, Schlüssel, Verbindungstest. ----
+// ---- KI-Verbindungen: aufklappbare Liste. Jede Verbindung hat ihre eigenen Felder (Name, Stimme, Modelle, Schlüssel, Test). ----
 // Der Server meldet nur, ob ein Schlüssel hinterlegt ist. Änderungen an Verbindungen werden sofort gespeichert.
 let ai = { active: '', provider: 'openai', hasKey: false, connections: [], providers: [], maxConnections: 12 };
-/** Verbindung, die gerade bearbeitet wird (Kennung); ohne Auswahl die aktive */
-let editId = '';
+/** Aufgeklappte Verbindungen (Kennungen). Mehrere dürfen zugleich offen sein: Was in einer getippt, aber noch nicht gespeichert ist, bleibt stehen. */
+const openConns = new Set();
+let connsShown = false;
 const aiProvider = (id = ai.provider) => ai.providers.find((p) => p.id === id) || { id, label: id };
 const conn = (id) => ai.connections.find((c) => c.id === id);
-const activeConn = () => conn(ai.active) || ai.connections[0] || { id: '', name: '', provider: ai.provider, model: '', textModel: '' };
-const editConn = () => conn(editId) || activeConn();
+const activeConn = () => conn(ai.active) || ai.connections[0] || { id: '', name: '', provider: ai.provider, model: '', textModel: '', voice: '' };
+const connEl = (id) => [...$('conn-list').children].find((li) => li.dataset.id === id);
+const connPart = (id, name) => { const li = connEl(id); return li ? li.querySelector(`[data-f="${name}"]`) : null; };
 /** Auswahl mit Stimmen füllen; ein Wert, den der Anbieter nicht kennt, fällt auf den ersten Eintrag bzw. „Standard“ zurück. */
 function fillVoices(id, head) {
   const el = $(id), cur = el.value;
   el.innerHTML = head + voices.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
   el.value = voices.includes(cur) ? cur : head ? '' : voices[0] || '';
 }
+/** Stimme für den Anruf auf dem Dashboard: ohne eigene Wahl gilt die Standardstimme der aktiven Verbindung. */
+const fillCallVoice = () => fillVoices('p-voice', `<option value="" data-no-i18n>${esc(I18N.t('– Standard: {0} –', activeConn().effectiveVoice || ''))}</option>`);
+/** Textfeld füllen, ohne eine laufende oder noch nicht gespeicherte Eingabe zu überschreiben. */
+function setIfClean(input, value) {
+  if (input.value === value) { input.dataset.shown = value; return; }
+  if (document.activeElement === input || (input.dataset.shown !== undefined && input.value !== input.dataset.shown)) return;
+  input.value = input.dataset.shown = value;
+}
+const PROVIDER_NOTES = {
+  openai: ['OpenAI Realtime. Braucht ein OpenAI-Konto mit Guthaben; Gespräche kosten je nach Länge einige Cent.', 'Schlüssel erstellen: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>. Ein ChatGPT-Abo ersetzt ihn nicht.'],
+  gemini: ['Gemini Live API mit einem Schlüssel aus Google AI Studio. Erst in wenigen Telefonaten erprobt – lies die Hinweise unten.', 'Schlüssel erstellen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. Dafür genügt ein Google-Konto.'],
+};
+/** Eintrag einer Verbindung bauen: Kopfzeile zum Auf- und Zuklappen, darunter ihre eigenen Felder. */
+function buildConn(x) {
+  const id = x.id, p = aiProvider(x.provider), notes = PROVIDER_NOTES[x.provider] || ['', ''];
+  const li = document.createElement('li'); li.className = 'conn-item'; li.dataset.id = id;
+  li.innerHTML = `
+    <h3 class="conn-h"><button type="button" class="conn-head" data-f="head" id="conn-head-${id}" aria-expanded="false" aria-controls="conn-panel-${id}">
+      <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="name" data-f="head-name" data-no-i18n></span>
+      <span class="meta" data-f="head-meta" data-no-i18n></span>
+      <span class="badge" data-f="badge-key">Schlüssel fehlt</span>
+      <span class="badge owner" data-f="badge-active">✓ aktiv</span>
+    </button></h3>
+    <div class="conn-panel" data-f="panel" id="conn-panel-${id}" role="region" aria-labelledby="conn-head-${id}" hidden>
+      <div class="grid c2">
+        <label class="field"><span>Name der Verbindung</span><input data-f="name" maxlength="40" autocomplete="off"><small>Frei wählbar, z. B. „Privat“ oder „Günstiges Modell“.</small></label>
+        <div class="field"><span class="field-head"><label for="conn-voice-${id}">Standardstimme</label> <button type="button" class="linkish" data-f="voice-listen">Probe hören</button></span><select id="conn-voice-${id}" data-f="voice" data-no-i18n></select><small>Gilt, wenn Anruf, Kontakt oder eigene Rufnummer keine Stimme dieses Anbieters vorgeben.</small></div>
+        <label class="field"><span>Sprachmodell für Anrufe</span><select data-f="model"></select><small>Führt das Gespräch bei ausgehenden Anrufen und am Anrufbeantworter. Die neuesten Modelle stehen oben. „Günstig“ steht nur an Modellen, deren Preis SIPFunk kennt; alle Preise nennt der Anbieter.</small></label>
+        <label class="field"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><select data-f="text-model"></select></label>
+        <label class="field adv"><span>Eigene Modell-ID (Sprachmodell)</span><input data-f="model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Sprachmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
+        <label class="field adv"><span>Eigene Modell-ID (Textmodell)</span><input data-f="text-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Textmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, entstehen weder Plan noch Zusammenfassung.</small></label>
+        <div class="actions span">
+          <button type="button" data-f="models-refresh" class="btn small quiet">Modelle aktualisieren</button>
+          <span data-f="models-state" class="hint" role="status" data-no-i18n></span>
+        </div>
+        <div class="field span"><span>Anbieter</span><p class="state" data-f="key-state" role="status" data-no-i18n></p><small>${notes[0]}</small></div>
+        <label class="field span"><span>API-Schlüssel</span><input data-f="key" type="password" autocomplete="new-password" spellcheck="false"><small>${notes[1]}</small></label>
+        <div class="actions span">
+          <button type="button" data-f="key-save" class="btn">Schlüssel prüfen und speichern</button>
+          <button type="button" data-f="test" class="btn">Verbindung testen</button>
+          <button type="button" data-f="use" class="btn primary">Diese Verbindung verwenden</button>
+          <span class="hint" data-f="active-note">Diese Verbindung führt die Gespräche.</span>
+          <button type="button" data-f="remove" class="btn quiet" style="margin-left:auto">Verbindung entfernen</button>
+        </div>
+        <p class="state span" data-f="result" role="status"></p>
+        <ul class="todo span" data-f="test-result" aria-live="polite" aria-label="Ergebnis des Verbindungstests"></ul>
+      </div>
+    </div>`;
+  const f = (name) => li.querySelector(`[data-f="${name}"]`);
+  f('head').onclick = () => toggleConn(id);
+  f('name').onchange = () => { const v = f('name').value.trim(); if (v) patchConn(id, { name: v }); else f('name').value = f('name').dataset.shown || ''; };
+  f('voice').innerHTML = (p.voices || []).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  f('voice').onchange = () => patchConn(id, { voice: f('voice').value });
+  f('voice-listen').onclick = () => openVoices({ connection: conn(id), current: f('voice').value, onPick: (v) => { f('voice').value = v; patchConn(id, { voice: v }); } });
+  // Wer den Eintrag „(Standard)“ wählt, folgt weiter der Vorgabe (gespeichert wird dann nichts Festes)
+  f('model').onchange = () => patchConn(id, { model: f('model').value === conn(id).defaultRealtime ? '' : f('model').value });
+  f('text-model').onchange = () => patchConn(id, { textModel: f('text-model').value === conn(id).defaultText ? '' : f('text-model').value });
+  ownModel(f('model-custom'), id, 'model');
+  ownModel(f('text-model-custom'), id, 'textModel');
+  f('models-refresh').onclick = () => loadModels(id, true);
+  f('key-save').onclick = () => withBusy(f('key-save'), f('result'), I18N.t('Prüfe den Schlüssel bei {0} …', p.label), () => saveAiKey(f('key'), conn(id)));
+  f('key').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); f('key-save').click(); } });
+  f('test').onclick = () => testConn(id);
+  f('use').onclick = () => useConnection(id);
+  f('remove').onclick = () => removeConn(id);
+  return li;
+}
+/** Eintrag auf den Stand des Servers bringen; Eingaben, die noch nicht gespeichert sind, bleiben stehen. */
+function updateConn(li, x, act) {
+  const f = (name) => li.querySelector(`[data-f="${name}"]`);
+  const open = openConns.has(x.id), active = x.id === act.id, p = aiProvider(x.provider);
+  li.toggleAttribute('data-active', active);
+  f('head').setAttribute('aria-expanded', String(open)); f('panel').hidden = !open;
+  f('head-name').textContent = x.name;
+  f('head-meta').textContent = [x.providerLabel, x.effectiveModel, x.effectiveVoice].filter(Boolean).join(' · ');
+  f('badge-key').hidden = x.hasKey; f('badge-active').hidden = !active;
+  setIfClean(f('name'), x.name);
+  f('voice').value = x.effectiveVoice || '';
+  setState(f('key-state'), x.hasKey ? 'ok' : '', x.hasKey ? I18N.t('{0}-Schlüssel hinterlegt', p.label) : I18N.t('Noch kein {0}-Schlüssel hinterlegt', p.label));
+  f('key').placeholder = x.hasKey ? '•••••••• ' + I18N.t('gespeichert – ein neuer Schlüssel ersetzt ihn') : '';
+  f('test').disabled = !x.hasKey;
+  f('use').hidden = active; f('active-note').hidden = !active;
+  f('remove').disabled = ai.connections.length < 2;
+  renderModels(x.id);
+}
 function renderAi() {
-  const act = activeConn(), c = editConn(), p = aiProvider(c.provider);
+  const act = activeConn();
   const opts = ai.connections.map((x) => `<option value="${esc(x.id)}">${esc(x.name)}${x.hasKey ? '' : ' – ' + esc(I18N.t('Schlüssel fehlt'))}</option>`).join('');
   for (const id of ['p-connection', 'su-ai-provider']) { $(id).innerHTML = opts; $(id).value = act.id; }
-  $('conn-new-provider').innerHTML = ai.providers.map((x) => `<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');
-  const list = $('conn-list'); list.innerHTML = '';
-  for (const x of ai.connections) {
-    const li = document.createElement('li'); li.tabIndex = 0; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(x.id === c.id)); li.dataset.id = x.id;
-    const name = document.createElement('span'); name.className = 'name'; name.textContent = x.name;
-    const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = `${x.providerLabel} · ${x.effectiveModel} · ${x.hasKey ? I18N.t('Schlüssel hinterlegt') : I18N.t('Schlüssel fehlt')}`;
-    li.append(name, meta);
-    if (x.id === act.id) { const b = document.createElement('span'); b.className = 'badge owner'; b.textContent = I18N.t('aktiv'); li.appendChild(b); }
-    li.onclick = () => selectConn(x.id);
-    li.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectConn(x.id); } };
-    list.appendChild(li);
-  }
+  // Nur einmal füllen: Die Auswahl für eine neue Verbindung soll nicht bei jeder Änderung zurückspringen
+  if ($('conn-new-provider').options.length !== ai.providers.length) $('conn-new-provider').innerHTML = ai.providers.map((x) => `<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');
+  const list = $('conn-list');
+  for (const li of [...list.children]) if (!conn(li.dataset.id)) { openConns.delete(li.dataset.id); li.remove(); }
+  ai.connections.forEach((x, i) => {
+    const li = connEl(x.id) || buildConn(x);
+    if (list.children[i] !== li) list.insertBefore(li, list.children[i] || null);
+    updateConn(li, x, act);
+  });
   $('conn-add').disabled = ai.connections.length >= ai.maxConnections;
-  $('conn-edit-title').textContent = I18N.t('Verbindung „{0}“', c.name);
-  if (document.activeElement !== $('conn-name')) $('conn-name').value = c.name;
-  for (const el of document.querySelectorAll('[data-provider]')) el.hidden = el.dataset.provider !== (el.closest('#setup') ? act.provider : c.provider);
-  setState('ai-key-state', c.hasKey ? 'ok' : '', c.hasKey ? I18N.t('{0}-Schlüssel hinterlegt', p.label) : I18N.t('Noch kein {0}-Schlüssel hinterlegt', p.label));
-  $('ai-key').placeholder = c.hasKey ? '•••••••• ' + I18N.t('gespeichert – ein neuer Schlüssel ersetzt ihn') : '';
+  // Hinweise je Anbieter unter der Liste: für die aktive und jede aufgeklappte Verbindung; im Assistenten für die aktive
+  const shown = new Set([act.provider, ...[...openConns].map((id) => (conn(id) || {}).provider)]);
+  for (const el of document.querySelectorAll('[data-provider]')) el.hidden = el.closest('#setup') ? el.dataset.provider !== act.provider : !shown.has(el.dataset.provider);
   $('su-ai-key').placeholder = act.hasKey ? '•••••••• ' + I18N.t('gespeichert – ein neuer Schlüssel ersetzt ihn') : '';
-  $('ai-test').disabled = !c.hasKey;
-  $('conn-use').hidden = c.id === act.id;
-  $('conn-remove').disabled = ai.connections.length < 2;
-  renderModels();
 }
-/** Verbindung zum Bearbeiten auswählen. */
-function selectConn(id) {
-  if (id === editConn().id) return;
-  editId = id;
-  setState('ai-key-result', '', ''); $('ai-test-result').innerHTML = ''; $('ai-key').value = '';
-  renderAi(); loadModels(false);
+/** Verbindung auf- oder zuklappen (ohne zweite Angabe: umschalten). Andere bleiben, wie sie sind. */
+function toggleConn(id, open = !openConns.has(id)) {
+  if (open) openConns.add(id); else openConns.delete(id);
+  renderAi();
+  if (open) loadModels(id, false);
 }
+/** Modell-Listen aller aufgeklappten Verbindungen nachladen (z. B. beim Öffnen der Einstellungen). */
+function loadOpenModels() { for (const id of openConns) loadModels(id, false); }
 /** Stammdaten, die von der aktiven Verbindung abhängen (Stimmen, Schlüssel vorhanden), übernehmen. */
 function applyAiData(data, switched) {
   aiAvailable = data.aiAvailable; voices = data.voices || []; ai = data.ai || ai; modelNotes = data.modelNotes || {};
-  if (!conn(editId)) editId = ai.active;
-  fillVoices('p-voice', ''); fillVoices('c-voice', '<option value="">– Standard –</option>'); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
+  // Beim ersten Anzeigen ist die aktive Verbindung aufgeklappt
+  if (!connsShown && conn(ai.active)) { connsShown = true; openConns.add(ai.active); }
+  fillCallVoice(); fillVoices('c-voice', '<option value="">– Standard –</option>'); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
   renderModes(); renderAi();
   if (switched) { loadMonthUsage(false); syncProfiles(); renderProfiles(); render(); }
 }
@@ -1483,7 +1554,7 @@ async function refreshAi(switched) { applyAiData(await api('/api/status'), switc
  *  Geschickt wird nur die Änderung, nie die ganze Liste: Ein veraltetes Fenster überschreibt so nichts. */
 async function saveConnections(changes, active, remove) {
   const before = ai.active;
-  const body = { connections: changes.map(({ id, name, provider, model, textModel }) => ({ id, name, provider, model, textModel })), active, remove };
+  const body = { connections: changes.map(({ id, name, provider, model, textModel, voice }) => ({ id, name, provider, model, textModel, voice })), active, remove };
   const data = await api('/api/ai/connections', body);
   applyAiData(data, data.ai.active !== before);
   if ($('setup').open) { setupInfo = await api('/api/setup'); renderSetupState(); }
@@ -1493,18 +1564,15 @@ async function saveConnections(changes, active, remove) {
 async function useConnection(id) {
   try {
     await saveConnections([], id);
-    editId = id; renderAi(); loadModels(false);
     const c = activeConn();
-    toast(c.hasKey ? I18N.t('Aktive KI-Verbindung ist jetzt „{0}“. Stimme bitte prüfen.', c.name) : I18N.t('Aktive KI-Verbindung ist jetzt „{0}“. Es fehlt noch der Schlüssel.', c.name), c.hasKey ? 'ok' : 'warn');
+    toast(c.hasKey ? I18N.t('Aktive KI-Verbindung ist jetzt „{0}“ mit der Stimme {1}.', c.name, c.effectiveVoice) : I18N.t('Aktive KI-Verbindung ist jetzt „{0}“. Es fehlt noch der Schlüssel.', c.name), c.hasKey ? 'ok' : 'warn');
   } catch (err) { toast(err.message, 'error'); renderAi(); }
 }
 $('p-connection').onchange = (ev) => useConnection(ev.target.value);
 $('su-ai-provider').onchange = (ev) => { delete $('su-ai-state').dataset.touched; useConnection(ev.target.value); };
-$('conn-use').onclick = () => useConnection(editConn().id);
-/** Feld der bearbeiteten Verbindung ändern und speichern. */
+/** Feld einer Verbindung ändern und speichern. */
 let patchQueue = Promise.resolve();
-function patchConn(patch) {
-  const id = editConn().id;
+function patchConn(id, patch) {
   // Nacheinander, jeweils auf dem Stand nach der vorigen Änderung: Zwei schnelle Änderungen heben sich sonst gegenseitig auf
   patchQueue = patchQueue.then(async () => {
     const c = conn(id);
@@ -1514,69 +1582,67 @@ function patchConn(patch) {
   });
   return patchQueue;
 }
-$('conn-name').onchange = () => { const v = $('conn-name').value.trim(); if (v) patchConn({ name: v }); else renderAi(); };
 $('conn-add').onclick = async () => {
   const p = aiProvider($('conn-new-provider').value);
   let name = p.label;
   for (let n = 2; ai.connections.some((c) => c.name === name); n++) name = `${p.label} ${n}`;
   try {
     const known = ai.connections.map((c) => c.id);
-    const data = await saveConnections([{ name, provider: p.id, model: '', textModel: '' }]);
-    editId = (data.ai.connections.find((c) => !known.includes(c.id)) || {}).id || editId;
-    setState('ai-key-result', '', ''); $('ai-test-result').innerHTML = '';
-    renderAi(); loadModels(false); $('conn-name').focus(); $('conn-name').select();
+    const data = await saveConnections([{ name, provider: p.id, model: '', textModel: '', voice: '' }]);
+    const added = data.ai.connections.find((c) => !known.includes(c.id));
+    // Die neue Verbindung klappt auf, damit Name und Schlüssel gleich eingetragen werden können
+    if (added) { toggleConn(added.id, true); const input = connPart(added.id, 'name'); input.focus(); input.select(); }
   } catch (err) { toast(err.message, 'error'); }
 };
-$('conn-remove').onclick = async () => {
-  const c = editConn();
-  if (!confirm(I18N.t('Verbindung „{0}“ entfernen? Ihr Schlüssel wird aus der .env gelöscht.', c.name))) return;
+async function removeConn(id) {
+  const c = conn(id);
+  if (!c || !confirm(I18N.t('Verbindung „{0}“ entfernen? Ihr Schlüssel wird aus der .env gelöscht.', c.name))) return;
   try {
-    await saveConnections([], undefined, [c.id]);
-    delete catalogs[c.id]; loadModels(false);
+    await saveConnections([], undefined, [id]);
+    delete catalogs[id];
     toast(I18N.t('Verbindung „{0}“ entfernt.', c.name), 'ok');
   } catch (err) { toast(err.message, 'error'); renderAi(); }
-};
+}
 /** Schlüssel prüfen und speichern; das Feld wird danach geleert, der Schlüssel kommt nie zurück. */
-async function saveAiKey(inputId, c) {
-  await api('/api/ai/key', { connection: c.id, key: $(inputId).value });
-  $(inputId).value = '';
+async function saveAiKey(input, c) {
+  input = typeof input === 'string' ? $(input) : input;
+  await api('/api/ai/key', { connection: c.id, key: input.value });
+  input.value = '';
   await refreshAi(false);
-  delete catalogs[c.id]; if (editConn().id === c.id) loadModels(true);
+  delete catalogs[c.id]; if (openConns.has(c.id)) loadModels(c.id, true);
   // KI-Gespräche sind ab jetzt möglich: Auswahl auf dem Dashboard nachziehen
   if (c.id === ai.active && $('mode').value !== 'ai') { $('mode').value = 'ai'; render(); }
   return I18N.t('{0}-Schlüssel geprüft und gespeichert.', aiProvider(c.provider).label);
 }
-async function withBusy(btn, stateId, busyText, fn) {
-  btn.disabled = true; setState(stateId, 'busy', busyText);
-  try { setState(stateId, 'ok', await fn()); }
-  catch (err) { setState(stateId, 'bad', err.message); }
+async function withBusy(btn, state, busyText, fn) {
+  btn.disabled = true; setState(state, 'busy', busyText);
+  try { setState(state, 'ok', await fn()); }
+  catch (err) { setState(state, 'bad', err.message); }
   btn.disabled = false;
 }
-$('ai-key-save').onclick = () => withBusy($('ai-key-save'), 'ai-key-result', I18N.t('Prüfe den Schlüssel bei {0} …', aiProvider(editConn().provider).label), () => saveAiKey('ai-key', editConn()));
-$('ai-key').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('ai-key-save').click(); } });
-$('ai-test').onclick = async () => {
-  const btn = $('ai-test'), list = $('ai-test-result'), c = editConn();
-  btn.disabled = true; setState('ai-key-result', 'busy', I18N.t('Teste die Verbindung „{0}“ …', c.name)); list.innerHTML = '';
+async function testConn(id) {
+  const c = conn(id), btn = connPart(id, 'test'), list = connPart(id, 'test-result'), result = connPart(id, 'result');
+  btn.disabled = true; setState(result, 'busy', I18N.t('Teste die Verbindung „{0}“ …', c.name)); list.innerHTML = '';
   try {
-    const r = await api('/api/ai/test', { connection: c.id });
+    const r = await api('/api/ai/test', { connection: id });
     const names = { key: 'Schlüssel', model: 'Sprachmodell', live: 'Live-Verbindung' };
-    setState('ai-key-result', r.ok ? 'ok' : 'bad', r.ok ? I18N.t('Verbindung „{0}“ steht ({1}). Ein Telefonat ist damit noch nicht geprüft.', c.name, r.model) : I18N.t('Die Verbindung „{0}“ steht nicht.', c.name));
+    setState(result, r.ok ? 'ok' : 'bad', r.ok ? I18N.t('Verbindung „{0}“ steht ({1}). Ein Telefonat ist damit noch nicht geprüft.', c.name, r.model) : I18N.t('Die Verbindung „{0}“ steht nicht.', c.name));
     for (const s of r.steps) {
       const li = document.createElement('li'); li.className = 'state'; li.dataset.k = s.ok ? 'ok' : s.skipped ? '' : 'bad';
       const b = document.createElement('b'); b.textContent = I18N.t(names[s.id] || s.id) + ': ';
       li.append(b, document.createTextNode(I18N.t(s.text)));
       list.appendChild(li);
     }
-  } catch (err) { setState('ai-key-result', 'bad', err.message); }
-  btn.disabled = !editConn().hasKey;
-};
+  } catch (err) { setState(result, 'bad', err.message); }
+  btn.disabled = !(conn(id) || {}).hasKey;
+}
 
-// ---- Modelle der bearbeiteten Verbindung: Die Listen kommen vom Anbieter (über den Server, der sie zwischenspeichert). ----
+// ---- Modelle je Verbindung: Die Listen kommen vom Anbieter (über den Server, der sie zwischenspeichert). ----
 // Der gewählte Wert bleibt immer als Eintrag erhalten, auch wenn die Liste nicht geladen werden konnte oder ihn nicht enthält.
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
-let modelNotes = {}, modelsLoading = false;
-/** Geladene Modell-Listen je Verbindung */
-const catalogs = {};
+let modelNotes = {};
+/** Geladene Modell-Listen je Verbindung und welche gerade geladen werden */
+const catalogs = {}, modelsBusy = {};
 /** Einträge einer Auswahl; liefert auch, ob der aktuelle Wert in der Liste steht. */
 function modelOptions(kind, current, c) {
   const fetched = (catalogs[c.id] || {})[kind] || [];
@@ -1593,48 +1659,41 @@ function modelOptions(kind, current, c) {
     + (dated.length ? `<optgroup label="${esc(I18N.t('Fest datierte Versionen'))}">${dated.map((m) => opt(m.id, m.id)).join('')}</optgroup>` : '');
   return { html, known };
 }
-/** Auswahl und Stand der Modelle für die bearbeitete Verbindung zeichnen. */
-function renderModels() {
-  const c = editConn();
-  for (const [kind, sel, custom, value] of [['realtime', 's-model', 's-model-custom', c.effectiveModel], ['text', 't-summary-model', 't-summary-custom', c.effectiveTextModel]]) {
+/** Auswahl und Stand der Modelle einer Verbindung zeichnen. */
+function renderModels(id) {
+  const c = conn(id), li = connEl(id);
+  if (!c || !li) return;
+  const f = (name) => li.querySelector(`[data-f="${name}"]`);
+  for (const [kind, sel, custom, value] of [['realtime', 'model', 'model-custom', c.effectiveModel], ['text', 'text-model', 'text-model-custom', c.effectiveTextModel]]) {
     const { html, known } = modelOptions(kind, value, c);
-    $(sel).innerHTML = html; $(sel).value = value;
-    if (document.activeElement !== $(custom)) $(custom).value = known ? '' : value || '';
+    f(sel).innerHTML = html; f(sel).value = value;
+    setIfClean(f(custom), known ? '' : value || '');
   }
-  const cat = catalogs[c.id] || {}, at = cat.fetchedAt ? when(cat.fetchedAt) : '';
-  $('models-state').textContent = cat.error
-    ? I18N.t('Die Modell-Liste ließ sich nicht laden: {0}', I18N.t(cat.error)) + ' ' + (at ? I18N.t('Die Auswahl zeigt den Stand vom {0}.', at) : I18N.t('Die gespeicherte Auswahl bleibt erhalten.'))
-    : at ? I18N.t('{0} Sprach- und {1} Textmodelle von {2} geladen, Stand {3}.', cat.realtime.length, cat.text.length, aiProvider(c.provider).label, at) : '';
-  $('models-state').classList.toggle('warn', Boolean(cat.error));
+  const cat = catalogs[id] || {}, at = cat.fetchedAt ? when(cat.fetchedAt) : '', label = aiProvider(c.provider).label;
+  f('models-refresh').disabled = Boolean(modelsBusy[id]);
+  f('models-state').textContent = modelsBusy[id] ? I18N.t('Lade die Modelle von {0} …', label)
+    : cat.error ? I18N.t('Die Modell-Liste ließ sich nicht laden: {0}', I18N.t(cat.error)) + ' ' + (at ? I18N.t('Die Auswahl zeigt den Stand vom {0}.', at) : I18N.t('Die gespeicherte Auswahl bleibt erhalten.'))
+    : at ? I18N.t('{0} Sprach- und {1} Textmodelle von {2} geladen, Stand {3}.', cat.realtime.length, cat.text.length, label, at) : '';
+  f('models-state').classList.toggle('warn', Boolean(cat.error) && !modelsBusy[id]);
 }
-// Wer den Eintrag „(Standard)“ wählt, folgt weiter der Vorgabe (gespeichert wird dann nichts Festes)
-$('s-model').onchange = () => patchConn({ model: $('s-model').value === editConn().defaultRealtime ? '' : $('s-model').value });
-$('t-summary-model').onchange = () => patchConn({ textModel: $('t-summary-model').value === editConn().defaultText ? '' : $('t-summary-model').value });
 /** Eigene Modell-ID übernehmen; eine unzulässige oder eine des anderen Anbieters verwirft das Feld. */
-function ownModel(inputId, field) {
-  $(inputId).onchange = () => {
-    const v = $(inputId).value.trim(), c = editConn();
-    if (v && (!MODEL_ID.test(v) || /^gemini-/i.test(v) !== (c.provider === 'gemini'))) { renderAi(); return toast(MODEL_ID.test(v) ? I18N.t('Dieses Modell gehört nicht zum Anbieter der Verbindung.') : 'Die Modell-ID darf nur Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt enthalten.'); }
-    patchConn({ [field]: v });
+function ownModel(input, id, field) {
+  input.onchange = () => {
+    const v = input.value.trim(), c = conn(id);
+    if (v && (!MODEL_ID.test(v) || /^gemini-/i.test(v) !== (c.provider === 'gemini'))) { input.value = input.dataset.shown || ''; return toast(MODEL_ID.test(v) ? I18N.t('Dieses Modell gehört nicht zum Anbieter der Verbindung.') : 'Die Modell-ID darf nur Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt enthalten.'); }
+    patchConn(id, { [field]: v });
   };
 }
-ownModel('s-model-custom', 'model');
-ownModel('t-summary-custom', 'textModel');
-/** Modell-Liste der bearbeiteten Verbindung holen: der Server antwortet aus seinem Zwischenspeicher, mit force fragt er den Anbieter neu. */
-async function loadModels(force) {
-  const c = editConn();
-  if (modelsLoading || !c.id) return;
-  if (!force && catalogs[c.id] && catalogs[c.id].fetchedAt) return renderModels();
-  modelsLoading = true; $('models-refresh').disabled = true;
-  $('models-state').classList.remove('warn'); $('models-state').textContent = I18N.t('Lade die Modelle von {0} …', aiProvider(c.provider).label);
-  try { catalogs[c.id] = await api('/api/models?connection=' + encodeURIComponent(c.id), force ? {} : undefined); }
-  catch (err) { catalogs[c.id] = { ...(catalogs[c.id] || { realtime: [], text: [], fetchedAt: null }), error: err.message }; }
-  modelsLoading = false; $('models-refresh').disabled = false;
-  // Inzwischen eine andere Verbindung ausgewählt: deren Liste nachladen
-  if (editConn().id !== c.id) return loadModels(false);
-  renderModels();
+/** Modell-Liste einer Verbindung holen: der Server antwortet aus seinem Zwischenspeicher, mit force fragt er den Anbieter neu. */
+async function loadModels(id, force) {
+  if (!conn(id) || modelsBusy[id]) return;
+  if (!force && catalogs[id] && catalogs[id].fetchedAt) return renderModels(id);
+  modelsBusy[id] = true; renderModels(id);
+  try { catalogs[id] = await api('/api/models?connection=' + encodeURIComponent(id), force ? {} : undefined); }
+  catch (err) { catalogs[id] = { ...(catalogs[id] || { realtime: [], text: [], fetchedAt: null }), error: err.message }; }
+  modelsBusy[id] = false;
+  renderModels(id);
 }
-$('models-refresh').onclick = () => loadModels(true);
 
 // ---- Monatsverbrauch: eigene Schätzung je Anbieter, dazu (mit Admin-Schlüssel) die Kosten laut OpenAI ----
 const usd = (n) => new Intl.NumberFormat(I18N.locale, { style: 'currency', currency: 'USD' }).format(n || 0);
@@ -1688,7 +1747,7 @@ $('prepare').onclick = async () => {
     const c = contactFor(target);
     $('confirm-num').textContent = target;
     $('confirm-mode').textContent = (c ? `${c.name}${c.owner ? ' (Inhaber)' : ''} · ` : '') + ($('mode').value === 'ai'
-      ? `KI ${$('p-name').value} · ${$('p-persona').selectedOptions[0]?.textContent} · ${$('p-voice').value} · ${$('p-address').value === 'du' ? 'Du' : 'Sie'} · ${activeConn().name} (${activeConn().effectiveModel || ''})`
+      ? `KI ${$('p-name').value} · ${$('p-persona').selectedOptions[0]?.textContent} · ${$('p-voice').value || activeConn().effectiveVoice || ''} · ${$('p-address').value === 'du' ? 'Du' : 'Sie'} · ${activeConn().name} (${activeConn().effectiveModel || ''})`
       : 'Audio: ' + ($('mode').selectedOptions[0]?.textContent || ''));
     $('confirm').showModal();
   } catch (err) { toast(err.message); }
@@ -1818,7 +1877,7 @@ function showSection(id, remember = true) {
   for (const c of cards) c.hidden = c !== target;
   for (const b of subnav.querySelectorAll('[data-section]')) b.setAttribute('aria-current', String(b.dataset.section === target.id));
   if (remember) try { localStorage.setItem('sipfunk.section', target.id); } catch {}
-  if (target.id === 'settings-provider') loadModels(false);
+  if (target.id === 'settings-provider') loadOpenModels();
 }
 subnav.onclick = (ev) => { const b = ev.target.closest('[data-section]'); if (b) { showSection(b.dataset.section); window.scrollTo({ top: 0 }); } };
 // Vorläufig, bis die Stufe der Oberfläche bekannt ist (ein Abschnitt nur für „Erweitert“ fiele sonst weg): siehe Start
@@ -1829,7 +1888,7 @@ document.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) &&
 // ---- Einrichtungsassistent: führt beim ersten Start durch das Nötigste, später aus den Einstellungen aufrufbar ----
 let setupStep = 0, setupInfo = null;
 const setupSections = [...document.querySelectorAll('#setup-body > section')];
-function setState(id, k, text) { const el = $(id); el.dataset.k = k; el.textContent = text; }
+function setState(id, k, text) { const el = typeof id === 'string' ? $(id) : id; el.dataset.k = k; el.textContent = text; }
 /** Zustandszeilen des Assistenten aus dem, was der Server meldet (ohne Geheimnisse) und dem Leitungszustand. */
 function renderSetupState() {
   if (!setupInfo) return;
@@ -1957,12 +2016,11 @@ $('su-test').onclick = async () => {
       $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     }
     applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
-    // Eine gespeicherte Stimme des anderen Anbieters gibt es hier nicht: Die Auswahl zeigt dann die erste
-    fillVoices('p-voice', ''); fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
+    fillVoices('p-scam-voice', '<option value="">– wie der Assistent –</option>');
     setUiMode(settings.uiMode);
     showSection(storedSection(), false);
     loadMonthUsage(false);
-    loadModels(false); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
+    loadOpenModels(); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
     $('ui-lang').value = settings.uiLang || 'auto';
     // Die Sprache steht für den schnellen Start auch im Browser; weicht sie von den Einstellungen ab, einmal neu laden
     if (I18N.sync(settings.uiLang)) return;

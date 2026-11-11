@@ -23,6 +23,7 @@ export interface FormSettings {
   mode: string;
   task: string;
   persona: string;
+  /** Allgemeine Stimme aus der Zeit vor den KI-Verbindungen (Startwert AI_VOICE): gilt nur noch für Verbindungen ohne eigene Standardstimme, siehe callVoice in ai/connections.ts */
   voice: string;
   address: string; // 'sie' | 'du'
   aiName: string;

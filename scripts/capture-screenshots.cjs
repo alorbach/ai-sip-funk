@@ -136,7 +136,7 @@ function writeDemoData(webPort) {
     aiConnections: JSON.stringify([
       { id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1', textModel: '' },
       { id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '' },
-      { id: 'cdemo1', name: 'Günstig', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: '' },
+      { id: 'cdemo1', name: 'Günstig', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: '', voice: 'cedar' },
     ]),
     aiConnection: 'openai',
     aiName: 'Alex',
