@@ -104,6 +104,8 @@ const HOLD_MIN_MS = 1000;
 const HOLD_MAX_MS = 15000;
 /** So lange nach dem Satzende des Gegenübers wird auf die Transkription gewartet */
 const HOLD_AFTER_SPEECH_MS = 3000;
+/** So lange nach einem bloßen Zuhör-Laut gilt eine neu beginnende Antwort noch als Antwort darauf (Anbieter, die erst danach antworten) */
+const NOISE_REPLY_MS = 3000;
 /** Nach einem abgelehnten end_call: so lange darf das Gegenüber nach dem Ende des Satzes schweigen */
 const REJECT_SILENCE_MS = 2500;
 /** Sprache nach der Verabschiedung: so lange wird auf die Transkription gewartet */
@@ -185,6 +187,8 @@ export class RealtimeBridge implements AudioHandler {
   private hold?: { timer: NodeJS.Timeout; itemId?: string; held: { itemId: string; buf: Buffer }[]; texts: { itemId: string; text: string }[] };
   /** true = die Antwort auf ein bloßes Geräusch bleibt stumm (bis sie fertig ist oder das Gegenüber wieder spricht) */
   private muteNoiseResponse = false;
+  /** Bis zu diesem Zeitpunkt gilt eine neu beginnende Antwort als Antwort auf einen bloßen Zuhör-Laut und bleibt stumm (0 = aus) */
+  private muteReplyUntil = 0;
   /** Äußerung (Item), deren Transkription über das Auflegen nach der Verabschiedung entscheidet */
   private farewellItemId?: string;
   /** true ab transfer_call, bis die Vermittlung gescheitert ist: Der Stillstandswächter schweigt so lange */
@@ -353,6 +357,10 @@ export class RealtimeBridge implements AudioHandler {
     this.stallTimer = undefined;
     this.responseFirstItem = undefined;
     this.droppedItems = [];
+    if (this.muteReplyUntil) {
+      if (Date.now() < this.muteReplyUntil) this.muteNoiseResponse = true;
+      this.muteReplyUntil = 0;
+    }
     // Die erste Antwort nach unserer Abschluss-Anforderung ist die Verabschiedung
     if (this.goodbye === 'speaking' && !this.goodbyeResponseId && id) this.goodbyeResponseId = id;
   }
@@ -419,6 +427,7 @@ export class RealtimeBridge implements AudioHandler {
   private onSpeechStarted(itemId?: string): void {
     this.partnerSpeaking = true;
     this.muteNoiseResponse = false;
+    this.muteReplyUntil = 0;
     clearTimeout(this.rejectTimer);
     this.rejectTimer = undefined;
     clearTimeout(this.stallTimer);
@@ -825,6 +834,9 @@ export class RealtimeBridge implements AudioHandler {
       if (this.activeResponse) {
         this.muteNoiseResponse = true;
         this.live.cancelResponse();
+      } else if (this.live.answersAfterInterrupt) {
+        // Die Antwort auf den Laut entsteht bei diesem Anbieter erst noch: die nächste, die gleich beginnt, bleibt stumm
+        this.muteReplyUntil = Date.now() + NOISE_REPLY_MS;
       }
       for (const id of new Set([...h.held.map((x) => x.itemId), ...h.texts.map((x) => x.itemId)])) this.live.deleteItem(id);
       this.audioExpected(false);

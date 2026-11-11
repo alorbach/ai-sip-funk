@@ -1,5 +1,5 @@
 // Formular-Standardwerte: .env liefert die Basis, settings.json (per UI gespeichert) überschreibt sie.
-import { existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { isOn, writeFileAtomic } from './fsutil.js';
 import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
@@ -491,8 +491,30 @@ export function saveSettings(input: Record<string, unknown>, internal: Partial<F
   for (const [k, def] of MAIL_TEMPLATES) if (sameText(merged[k], def)) merged[k] = '';
   // Spam-Abwehr ohne KI-Kennung und ohne bestätigtes Risiko bleibt aus, egal was das Formular schickt
   if (!scamAllowed(merged)) merged.scamMode = 'off';
+  keepBrokenFile();
   writeFileAtomic(SETTINGS_FILE, JSON.stringify(merged, null, 2) + '\n');
   return merged;
+}
+
+/**
+ * Ist die vorhandene settings.json nicht lesbar (Tippfehler nach einer Änderung von Hand), gelten beim Laden die
+ * Vorgaben. Das nächste Speichern würde die Datei damit überschreiben und alles Eingestellte wäre weg: Vorher bleibt
+ * sie als settings.json.defekt erhalten (wie bei den Kontakten).
+ */
+function keepBrokenFile(): void {
+  if (!existsSync(SETTINGS_FILE)) return;
+  try {
+    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8')) as unknown;
+    if (saved && typeof saved === 'object') return;
+  } catch {
+    // nicht lesbar: sichern
+  }
+  try {
+    copyFileSync(SETTINGS_FILE, `${SETTINGS_FILE}.defekt`);
+    log.warn('settings.json war nicht lesbar und wird neu geschrieben; der alte Inhalt liegt in settings.json.defekt');
+  } catch (err) {
+    throw new Error(`settings.json ist nicht lesbar und ließ sich nicht sichern (${(err as Error).message}) – nichts gespeichert`);
+  }
 }
 
 /** Verhalten in Stufen: zulässige Werte je Einstellung ('' = Standard). */

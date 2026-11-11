@@ -105,6 +105,7 @@ export class GeminiLive implements LiveSession {
   readonly inputRate = INPUT_RATE;
   readonly outputRate = OUTPUT_RATE;
   readonly toolCallsBlock = true;
+  readonly answersAfterInterrupt = true;
   private ws: WebSocket;
   private closed = false;
   private configured = false;

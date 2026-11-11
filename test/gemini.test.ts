@@ -365,3 +365,24 @@ test('Gemini: Ein zweiter end_call bekommt eine Antwort, damit das Modell nicht 
   assert.deepEqual(r.map((x: any) => [x.id, x.response.result]), [['f2', 'ok']]);
   h.bridge.close();
 });
+
+test('Gemini: Die Antwort auf einen bloßen Zuhör-Laut bleibt stumm, auch wenn sie erst nach der Entscheidung beginnt', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  h.audio(4000);
+  assert.equal(h.drain(1000), 1000);
+  h.server({ serverContent: { interrupted: true } });
+  h.server({ serverContent: { inputTranscription: { text: 'Mhm.' } } });
+  h.tick(700);
+  // Jetzt erst antwortet das Modell auf das „Mhm": nicht hörbar, der eigene Satz läuft zu Ende
+  h.say(1500, 'Ja?');
+  assert.equal(h.drain(), 3000);
+  assert.ok(!h.texts.includes('ki: Ja?'));
+  // Die Antwort auf echte Sprache danach ist wieder zu hören
+  h.server({ serverContent: { inputTranscription: { text: 'Wann genau?' } } });
+  h.say(600, 'Um zehn.');
+  assert.equal(h.drain(), 600);
+  h.bridge.close();
+});

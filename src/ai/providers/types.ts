@@ -113,6 +113,8 @@ export interface LiveSession {
   readonly outputRate: number;
   /** true = das Modell wartet nach einem Tool-Aufruf, bis ein Ergebnis kommt: Dann braucht jeder Aufruf eine Antwort, auch ein verworfener */
   readonly toolCallsBlock?: boolean;
+  /** true = der Anbieter bricht eine Antwort bei einer Unterbrechung selbst ab und antwortet erst danach auf das Gehörte (auch auf einen bloßen Zuhör-Laut) */
+  readonly answersAfterInterrupt?: boolean;
   sendAudio(pcm: Int16Array): void;
   /** Anweisungen (und optional die Tool-Liste) im laufenden Gespräch ersetzen */
   update(instructions: string, tools?: readonly LiveTool[]): void;

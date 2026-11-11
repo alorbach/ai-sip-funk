@@ -134,3 +134,24 @@ test('Verbindungen: Das Modell der Verbindung gilt, auch wenn noch ein altes Mod
   assert.equal(r.realtimeModel(undefined), 'gpt-realtime-2.1-mini');
   assert.equal(r.textModel, 'gpt-6-luna', 'das alte Textmodell der Einstellungen gilt nicht mehr');
 });
+
+test('Einstellungen: Eine nicht lesbare settings.json bleibt beim Speichern als .defekt erhalten', async () => {
+  const { existsSync, readFileSync, writeFileSync } = await import('node:fs');
+  const dir = mkdtempSync(join(tmpdir(), 'sipfunk-set-'));
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    writeFileSync('settings.json', '{"principal": "Max Mustermann",}');
+    saveSettings({ aiName: 'Alex' });
+    assert.equal(readFileSync('settings.json.defekt', 'utf8'), '{"principal": "Max Mustermann",}');
+    assert.equal(loadSettings().aiName, 'Alex');
+    // Eine lesbare Datei wird nicht noch einmal gesichert
+    writeFileSync('settings.json.defekt', 'alt');
+    saveSettings({ aiName: 'Robin' });
+    assert.equal(readFileSync('settings.json.defekt', 'utf8'), 'alt');
+    assert.ok(existsSync('settings.json'));
+  } finally {
+    process.chdir(cwd);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
