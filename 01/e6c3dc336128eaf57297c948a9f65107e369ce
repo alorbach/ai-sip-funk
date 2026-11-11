@@ -1,0 +1,58 @@
+src/settings.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 7,16-17,34,164,213,497
+src/ai/providers/openaiLive.ts
+  s_319bc174b0c320::t_3b04aba5f87ef6 1-192
+src/ai/scam.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 29,31
+src/web/server.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 20,29-30,34-37,144,148,162,164,166-168
+test/providers.test.ts
+  s_319bc174b0c320::t_f41e7213c85607 1-125
+src/ai/voiceSample.ts
+  s_319bc174b0c320::t_26a61a9696ebd2 1-2,4,6,8,14-19,21-22
+src/ai/providers/index.ts
+  s_319bc174b0c320::t_b8059e8716ee06 1-68
+src/ai/models.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 98-100,127,129
+src/ai/providers/openai.ts
+  s_319bc174b0c320::t_5ff83b793d8e0a 1-61
+src/transcripts.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 25-26
+src/sim/simulate.ts
+  s_319bc174b0c320::t_51b270ebb2651b 343
+src/ai/providers/types.ts
+  s_319bc174b0c320::t_9a5ba46d969e9c 1-167
+src/ai/realtimeBridge.ts
+  s_319bc174b0c320::t_da76df94fca162 1-5,13-16,81,83-84,87,91,116,125-127,194-243,252-253,263,318,323,344,349-356,359-364,366-372,374-450,452-491,493-500,502-541,543,545-551,574,596,625,682-684,693,708,717,726-727,732,773,783,810,812,864,893,896-897
+  s_319bc174b0c320::t_4fc53d1d198717 679-680,772
+src/main.ts
+  s_319bc174b0c320::t_87d0c4cf3e17d8 12,14,27-28,33,47-54,113,120-121,144,182-184,203-205,208,233-234,243-244,259-260,332,381,392,404,440,562,606-608,620,623,658-689,692,696,699,703-705,709-711,746-749,752-753,755,757-760,763,766
+  s_319bc174b0c320::t_d46ca885cced51 624
+  s_319bc174b0c320::t_51b270ebb2651b 741
+src/ai/assess.ts
+  s_319bc174b0c320::t_f0964224844aff 2,13,26
+src/ai/complaint.ts
+  s_319bc174b0c320::t_67ed4b7a7f8243 4,44-45
+src/ai/plan.ts
+  s_319bc174b0c320::t_34f1d7977bffc3 5,42,58
+src/ai/summary.ts
+  s_319bc174b0c320::t_57498f14d2a9f5 3,5,26,33,35
+src/setup.ts
+  s_319bc174b0c320::t_0bcb858bbff5df 6,8-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "01e6c3dc336128eaf57297c948a9f65107e369ce",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
