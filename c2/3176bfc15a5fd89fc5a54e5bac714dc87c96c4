@@ -1,0 +1,31 @@
+.github/workflows/ci.yml
+  s_ee2ffaf82016ce::t_df8aa299436364 1-32
+package.json
+  s_ee2ffaf82016ce::t_48219ef9179cb7 21
+.github/workflows/release.yml
+  s_ee2ffaf82016ce::t_4e64551e4e23f6 1-288
+CHANGELOG.de.md
+  s_ee2ffaf82016ce::t_634f111a9ec6ad 9
+CHANGELOG.md
+  s_ee2ffaf82016ce::t_12446fa10db881 9
+CONTRIBUTING.de.md
+  s_ee2ffaf82016ce::t_d521fa3ec9abff 32-37
+CONTRIBUTING.md
+  s_ee2ffaf82016ce::t_d09bef3c6ed7cf 32-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c23176bfc15a5fd89fc5a54e5bac714dc87c96c4",
+  "prompts": {},
+  "sessions": {
+    "s_ee2ffaf82016ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64b67fd3-3584-41e0-bb0e-b4105102dbfc",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
