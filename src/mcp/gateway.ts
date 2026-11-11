@@ -100,7 +100,7 @@ const STATE_TEXT: Record<AgentCallState, string> = {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 /** Eine Zeile ohne Steuerzeichen: für Namen, die in die Systemanweisung gehen, und für Ereigniszeilen an den Agenten */
-const oneLine = (v: string): string => v.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
+const oneLine = (v: string): string => v.replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 export class McpGateway {
   private calls: AgentCall[] = [];
@@ -210,6 +210,8 @@ export class McpGateway {
     // Ziel auflösen: Nummernformat oder Kontaktname (genau, sonst ein eindeutiger Teiltreffer)
     let number: string;
     let contactName: string | undefined;
+    /** Der Agent hat den Kontakt beim Namen genannt (dann kennt er den Namen, aber nicht die Nummer) */
+    let named = false;
     if (NUMBER_LIKE.test(raw)) {
       number = this.deps.prepare(raw);
       contactName = this.contactFor(number)?.name;
@@ -224,6 +226,7 @@ export class McpGateway {
       // Auch die Nummer eines Kontakts geht durch den Rufzielschutz
       number = this.deps.prepare(hit.number);
       contactName = hit.name;
+      named = true;
     }
     if (p.targets === 'contacts' && !contactName) throw new Error('Nicht erlaubt: Agenten dürfen nur gespeicherte Kontakte anrufen (Einstellungen › MCP-Schnittstelle). Der Betreiber kann die Nummer als Kontakt anlegen.');
 
@@ -245,7 +248,8 @@ export class McpGateway {
     const call: AgentCall = {
       id: `c${++this.counter}`,
       number,
-      label: contactName ?? number,
+      // Der Agent sieht den Namen, wenn er ihn selbst genannt hat oder die Kontaktnamen lesen darf; sonst die Nummer, die er genannt hat
+      label: contactName && (named || p.contacts) ? contactName : number,
       contactName,
       params: { task, context: context || undefined, principal, address, persona: oneLine(str(args.persona)).slice(0, 40) || undefined, maxSeconds },
       state: 'awaiting_approval',
@@ -363,7 +367,7 @@ export class McpGateway {
     const head = [this.headline(call), `Auftrag: ${call.params.task}`];
     if (call.state !== 'ended') return [...head, 'Das Gespräch läuft noch; das Ergebnis gibt es nach dem Ende.'].join('\n');
     const record = call.recordId ? this.deps.records.read(call.recordId) : undefined;
-    if (record) return [...head, '', this.recordText(record)].join('\n');
+    if (record) return [...head, '', this.recordText(record, call.label)].join('\n');
     // Kein Protokoll: Das Gespräch kam nicht zustande (nicht bestätigt, nicht abgenommen, besetzt)
     return [...head, 'Es kam kein Gespräch zustande; es gibt kein Protokoll.'].join('\n');
   }
@@ -396,17 +400,24 @@ export class McpGateway {
     return this.deps.policy().history === 'all' || r.origin === 'mcp';
   }
 
-  /** Für den Agenten steht ein Kontaktname statt der Nummer, wo es einen gibt. */
+  /**
+   * Ziel eines gespeicherten Protokolls für den Agenten: der Kontaktname, wenn er Kontaktnamen lesen darf. Ohne diese
+   * Freigabe weder Name noch Nummer eines Kontakts (er kennt je nach Anruf nur das eine oder das andere); Nummern ohne
+   * Kontakt stehen so da.
+   */
   private targetLabel(number: string): string {
-    return this.contactFor(number)?.name ?? number;
+    const contact = this.contactFor(number);
+    if (!contact) return number;
+    return this.deps.policy().contacts ? contact.name : 'ein gespeicherter Kontakt';
   }
 
-  private recordText(r: CallRecord): string {
-    const lines = [`Protokoll ${r.id}`, `Ziel: ${this.targetLabel(r.target)} · Beginn: ${r.startedAt} · Dauer: ${r.durationSec}s · Ende: ${r.endReason}`];
+  /** `label`: wie der Agent das Ziel bei seinem eigenen Anruf kennt */
+  private recordText(r: CallRecord, label?: string): string {
+    const lines = [`Protokoll ${r.id}`, `Ziel: ${label ?? this.targetLabel(r.target)} · Beginn: ${r.startedAt} · Dauer: ${r.durationSec}s · Ende: ${r.endReason}`];
     if (r.outcome) lines.push('', `Ergebnis laut KI: ${r.outcome.result}${r.outcome.open ? `\nOffen: ${r.outcome.open}` : ''}`);
     lines.push('', r.summary ? `Zusammenfassung:\n${r.summary}` : 'Zusammenfassung: noch nicht fertig (in einigen Sekunden erneut abrufen).');
     lines.push('', 'Transkript:');
-    for (const e of r.entries) if (e.final) lines.push(`${e.speaker === 'ki' ? 'KI' : e.speaker === 'partner' ? 'Gegenüber' : '—'}: ${e.text}`);
+    for (const e of r.entries) if (e.final) lines.push(`${e.speaker === 'ki' ? 'KI' : e.speaker === 'partner' ? 'Gegenüber' : '—'}: ${oneLine(e.text)}`);
     return lines.join('\n');
   }
 

@@ -25,7 +25,7 @@ export const TOOLS: { name: string; description: string; inputSchema: z.ZodRawSh
   {
     name: 'start_call',
     description:
-      'Startet einen Telefonanruf, den die Sprach-KI von SIPFunk führt. Sie stellt sich immer als KI-Assistent im Auftrag des Betreibers vor (das lässt sich nicht abschalten), arbeitet `task` selbstständig ab und legt danach selbst auf. ' +
+      'Startet einen Telefonanruf, den die Sprach-KI von SIPFunk führt. Sie stellt sich als KI-Assistent im Auftrag des Betreibers vor (dafür gibt es keinen Schalter, und ihre Grundregeln gehen Auftrag und Vorgaben vor), arbeitet `task` selbstständig ab und legt danach selbst auf. ' +
       'Du liest über wait_for_events mit, kannst mit say Vorgaben nachschieben und beantwortest Rückfragen der KI. ' +
       'Je nach Einstellung muss der Betreiber den Anruf erst in SIPFunk bestätigen; dann meldet wait_for_events, wann gewählt wird. ' +
       'Notruf-, Sonder- und Auslandsnummern sind gesperrt; es gelten Limits je Stunde und Tag und eine Höchstdauer. Es läuft immer nur ein Anruf gleichzeitig. Liefert eine call_id.',

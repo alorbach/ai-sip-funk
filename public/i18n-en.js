@@ -652,9 +652,12 @@
     'laut Agent im Auftrag von {0} – nicht dein eingestellter Name': 'on behalf of {0}, according to the agent – not the name in your settings',
     'Hintergrundwissen vom Agenten:': 'Background knowledge from the agent:',
     'Von KI-Agent': 'By AI agent',
+    'Diese Anfrage gibt es nicht mehr (abgelaufen oder zurückgezogen).': 'This request no longer exists (expired or withdrawn).',
+    'Die MCP-Schnittstelle wurde inzwischen ausgeschaltet': 'The MCP interface has been switched off in the meantime',
   };
 
   const patterns = [
+    [/^Anruf nicht möglich: (.+)$/, (m, a) => `Call not possible: ${tr(a)}`],
     [/^(.+) · Anrufbeantworter an$/, (m, a) => `${tr(a)} · answering machine on`],
     [/^Anrufe mit (.+)$/, 'Calls with $1'],
     [/^Kontakt: (.+) \(Inhaber\)$/, 'Contact: $1 (owner)'],

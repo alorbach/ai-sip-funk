@@ -110,7 +110,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 - [ ] MCP on, defaults ("Nur gespeicherte Kontakte", ask "Immer"): `get_status`, then `start_call` to a contact with one of your own numbers or extensions. The confirmation dialog appears in the web UI, the tray app reports the request; after "Anrufen" it rings.
 - [ ] MCP during the call: `wait_for_events` returns what you say on the phone and what the AI says; the AI acts on a direction given with `say`; `end_call` makes it say goodbye; `get_call_result` returns result, summary and transcript. The call is listed under "Anrufe" with "Von KI-Agent".
 - [ ] MCP question: give a task with narrow leeway and offer something else on the phone. The AI says "Einen Moment bitte, ich frage kurz nach", the agent gets the question, its answer with `say` arrives on the phone. Without an answer the AI carries on after about 25 seconds.
-- [ ] MCP blocks: a number without a contact is refused with "Nur gespeicherte Kontakte"; "Ablehnen" in the dialog and an unanswered request (two minutes) do not dial; after the limit per hour `start_call` refuses.
+- [ ] MCP blocks: with the setting "Nur gespeicherte Kontakte", `start_call` refuses a number without a contact; "Ablehnen" in the dialog and an unanswered request (two minutes) do not dial; after the limit per hour `start_call` refuses.
 - [ ] MCP from the installed app: copy the configuration from "Agenten verbinden", for Codex or Claude Code over HTTP, for Claude Desktop as a process; the agent shows the eight tools.
 
 ## 9. Google Gemini: real phone calls (only a few so far)

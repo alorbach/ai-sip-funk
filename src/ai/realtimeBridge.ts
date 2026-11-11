@@ -381,6 +381,8 @@ export class RealtimeBridge implements AudioHandler {
     else {
       this.live.note(AGENT_END_NOTE);
       this.requestRespond('Beenden durch den Agenten');
+      // Noch vor der Begrüßung: Das Beenden nach der Begrüßung anstoßen, statt auf das Gegenüber zu warten
+      if (!this.greeted) this.pendingRespond = true;
     }
     return 'ending';
   }
@@ -406,8 +408,8 @@ export class RealtimeBridge implements AudioHandler {
     // Die KI wartet auf die Antwort einer Rückfrage: Erst die Antwort darauf lässt sie weitersprechen
     if (this.ask) return;
     if (this.partnerSpeaking) return;
-    // Eine Antwort läuft oder ist schon angefordert (Begrüßung, Satzende des Gegenübers): danach anfordern
-    if (this.activeResponse || this.awaitingAudioSince) {
+    // Eine Antwort läuft oder ist gerade angefordert (Begrüßung, Satzende des Gegenübers; der Wächter läuft noch): danach anfordern
+    if (this.activeResponse || this.audioWatchdog) {
       this.pendingRespond = true;
       return;
     }
@@ -618,10 +620,11 @@ export class RealtimeBridge implements AudioHandler {
       this.live.deleteItem(id);
     }
     this.droppedItems = [];
-    if (this.pendingRespond) {
+    // Hat das Gegenüber die Antwort unterbrochen und antwortet der Anbieter darauf von selbst, kommt die Vorgabe dort an:
+    // Die Anforderung bleibt vorgemerkt, bis das Gegenüber spricht (dann entfällt sie) oder die nächste Antwort fertig ist
+    if (this.pendingRespond && !(r.status === 'cancelled' && this.live.answersAfterInterrupt)) {
       this.pendingRespond = false;
-      // Hat das Gegenüber die Antwort unterbrochen und antwortet der Anbieter darauf von selbst, kommt die Vorgabe dort an
-      if (!(r.status === 'cancelled' && this.live.answersAfterInterrupt)) this.requestRespond('Regieanweisung des Agenten');
+      this.requestRespond('Regieanweisung des Agenten');
     }
     if (!this.playing && this.outQueue.length === 0) this.armStall();
     if (r.status === 'failed') {

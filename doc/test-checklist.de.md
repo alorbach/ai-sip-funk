@@ -110,7 +110,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 - [ ] MCP ein, Vorgaben („Nur gespeicherte Kontakte“, „Immer“ nachfragen): `get_status`, dann `start_call` an einen Kontakt mit einer eigenen Nummer oder Nebenstelle. Der Bestätigungsdialog erscheint in der Web-UI, die Tray-App meldet die Anfrage; nach „Anrufen“ klingelt es.
 - [ ] MCP im Gespräch: `wait_for_events` liefert, was du am Telefon sagst und was die KI sagt; eine Vorgabe mit `say` setzt die KI um; `end_call` lässt sie sich verabschieden; `get_call_result` liefert Ergebnis, Zusammenfassung und Transkript. Der Anruf steht unter „Anrufe“ mit „Von KI-Agent“.
 - [ ] MCP-Rückfrage: Auftrag mit engem Spielraum geben und am Telefon etwas anderes anbieten. Die KI sagt „Einen Moment bitte, ich frage kurz nach“, der Agent bekommt die Rückfrage, seine Antwort mit `say` kommt am Telefon an. Ohne Antwort macht die KI nach etwa 25 Sekunden weiter.
-- [ ] MCP-Sperren: Nummer ohne Kontakt wird bei „Nur gespeicherte Kontakte“ abgelehnt; „Ablehnen“ im Dialog und eine unbeantwortete Anfrage (zwei Minuten) wählen nicht; nach dem Limit je Stunde lehnt `start_call` ab.
+- [ ] MCP-Sperren: Mit der Einstellung „Nur gespeicherte Kontakte“ lehnt `start_call` eine Nummer ohne Kontakt ab; „Ablehnen“ im Dialog und eine unbeantwortete Anfrage (zwei Minuten) wählen nicht; nach dem Limit je Stunde lehnt `start_call` ab.
 - [ ] MCP aus der installierten App: Konfiguration aus „Agenten verbinden“ kopieren, für Codex oder Claude Code über HTTP, für Claude Desktop als Prozess; der Agent zeigt die acht Tools.
 
 ## 9. Google Gemini: echte Telefonate (erst wenige)

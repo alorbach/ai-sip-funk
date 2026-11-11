@@ -95,7 +95,7 @@ The simulator lets you check conversation behaviour without a phone (it works wi
 npm run sim
 ```
 
-AI agents reach SIPFunk through its MCP server, directly over HTTP on `http://127.0.0.1:8080/mcp` or as a stdio process (`npm run mcp`, or the installed `SIPFunk.exe`). The interface is off until you switch it on under "Einstellungen › MCP-Schnittstelle"; the same card shows the ready-made configuration for Codex, Claude Code and Claude Desktop. Setup, all tools and a worked example ("book a table"): [user guide, chapter 13](doc/user-guide.md#13-mcp-interface). An example skill for agents is in [`examples/skills/sipfunk-call`](examples/skills/sipfunk-call/SKILL.md).
+AI agents reach SIPFunk through its MCP server, directly over HTTP on `http://127.0.0.1:8080/mcp` or as a stdio process (`npm run mcp`; from the installed app with the configuration the web UI shows). The interface is off until you switch it on under "Einstellungen › MCP-Schnittstelle"; the same card shows the ready-made configuration for Codex, Claude Code and Claude Desktop. Setup, all tools and a worked example ("book a table"): [user guide, chapter 13](doc/user-guide.md#13-mcp-interface). An example skill for agents is in [`examples/skills/sipfunk-call`](examples/skills/sipfunk-call/SKILL.md).
 
 ## Cost
 

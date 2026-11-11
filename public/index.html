@@ -821,7 +821,7 @@
   <div class="head"><h3 id="mcp-confirm-title">Ein KI-Agent möchte anrufen</h3></div>
   <div class="body">
     <div class="confirm-num" id="mcp-confirm-who" data-no-i18n></div>
-    <div class="hint" id="mcp-confirm-meta"></div>
+    <div class="hint" id="mcp-confirm-meta" data-no-i18n></div>
     <p class="mcp-task" id="mcp-confirm-task" data-no-i18n></p>
   </div>
   <div class="foot">
@@ -1405,7 +1405,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`); ws.binaryType = 'arraybuffer';
   ws.onopen = () => {
     // Nach einer Unterbrechung (Server neu gestartet) kann sich alles geändert haben
-    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); loadMcp(); }
+    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); mcpAnswered = ''; loadMcp(); }
     wsWasDown = false;
   };
   ws.onmessage = (ev) => {
@@ -2056,7 +2056,7 @@ let mcp = { enabled: false, lastAccess: null, pending: null, call: null, connect
 /** TOML-Text ohne Maskierung (Windows-Pfade enthalten Backslashes) */
 const tomlStr = (v) => (v.includes("'") ? JSON.stringify(v) : `'${v}'`);
 /** Argument für die Kommandozeile: in Anführungszeichen, sobald etwas anderes als unverfängliche Zeichen vorkommt */
-const shellArg = (v) => (/^[\w.:\/\\=-]+$/.test(v) ? v : `"${v.replace(/"/g, '\\"')}"`);
+const shellArg = (v) => (/^[\w.:\/=-]+$/.test(v) ? v : `"${v.replace(/"/g, '\\"')}"`);
 function mcpSnippet() {
   const c = mcp.connect;
   if (!c) return { text: '', where: '' };
@@ -2119,7 +2119,6 @@ async function answerMcp(allow) {
     // Die Anfrage gibt es nicht mehr oder der Server ist nicht erreichbar: Der Dialog richtet sich nach dem Stand des Servers
     mcpAnswering = false;
     toast(err.message);
-    $('mcp-confirm').close();
     loadMcp();
   } finally {
     mcpAnswering = false;

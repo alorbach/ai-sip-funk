@@ -93,7 +93,7 @@ Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen (er l
 npm run sim
 ```
 
-KI-Agenten erreichen SIPFunk über den eingebauten MCP-Server, direkt über HTTP unter `http://127.0.0.1:8080/mcp` oder als stdio-Prozess (`npm run mcp` bzw. die installierte `SIPFunk.exe`). Die Schnittstelle ist aus, bis du sie unter „Einstellungen › MCP-Schnittstelle“ einschaltest; dieselbe Karte zeigt die fertige Konfiguration für Codex, Claude Code und Claude Desktop. Einrichtung, alle Tools und ein durchgespieltes Beispiel („Tisch reservieren“): [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle). Ein Beispiel-Skill für Agenten liegt unter [`examples/skills/sipfunk-anruf`](examples/skills/sipfunk-anruf/SKILL.md).
+KI-Agenten erreichen SIPFunk über den eingebauten MCP-Server, direkt über HTTP unter `http://127.0.0.1:8080/mcp` oder als stdio-Prozess (`npm run mcp`; aus der installierten App mit der Konfiguration, die die Web-UI anzeigt). Die Schnittstelle ist aus, bis du sie unter „Einstellungen › MCP-Schnittstelle“ einschaltest; dieselbe Karte zeigt die fertige Konfiguration für Codex, Claude Code und Claude Desktop. Einrichtung, alle Tools und ein durchgespieltes Beispiel („Tisch reservieren“): [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle). Ein Beispiel-Skill für Agenten liegt unter [`examples/skills/sipfunk-anruf`](examples/skills/sipfunk-anruf/SKILL.md).
 
 ## Kosten
 

@@ -129,6 +129,12 @@ test('Ziele: „nur Kontakte“ lehnt fremde Nummern ab, Kontakte gehen per Name
   const byNumber = await h.call('030 23125 310');
   assert.equal(byNumber.isError, undefined);
   assert.equal(h.state.dialed[1].number, '03023125310');
+  // Der Agent hat eine Nummer genannt: Ohne Freigabe der Kontaktnamen erfährt er nicht, wem sie gehört
+  assert.doesNotMatch(byNumber.text, /Zahnarzt|Beispiel/);
+  assert.doesNotMatch((await h.run('get_status')).text, /Zahnarzt|Beispiel/);
+  h.gw.callEnded('Nicht abgenommen');
+  h.state.policy = { ...h.state.policy, contacts: true };
+  assert.match((await h.call('030 23125 310')).text, /Zahnarztpraxis Dr\. Beispiel/);
 });
 
 test('Ziele: Kontaktname muss eindeutig sein; Teiltreffer nur mit freigegebener Kontaktliste', async () => {
@@ -348,6 +354,13 @@ test('Kontakte: Liste nur mit Freigabe, und dann nur Namen', async () => {
 test('Protokolle: „nur über MCP“ verbirgt alle anderen Gespräche, „alle“ zeigt sie; Kontakte erscheinen mit Namen', async () => {
   const h = harness({ history: 'own' });
   h.state.records = [record('r-mcp', '03023125410', 'mcp'), record('r-privat', '03023125999')];
+  // Ohne Freigabe der Kontaktnamen steht in Protokollen weder Name noch Nummer eines Kontakts
+  const hidden = await h.run('list_calls');
+  assert.match(hidden.text, /r-mcp · ein gespeicherter Kontakt/);
+  const hiddenRecord = (await h.run('get_call_result', { record_id: 'r-mcp' })).text;
+  assert.match(hiddenRecord, /^Ziel: ein gespeicherter Kontakt ·/m);
+  assert.doesNotMatch(hidden.text + hiddenRecord, /03023125410/);
+  h.state.policy = { ...h.state.policy, contacts: true };
   const own = await h.run('list_calls');
   assert.match(own.text, /r-mcp · Restaurant Sonne/);
   assert.doesNotMatch(own.text, /r-privat/);
@@ -602,7 +615,8 @@ test('Ablauf: Agent startet den Anruf, liest mit, beantwortet eine Rückfrage, g
   assert.match(result.text, /Zusammenfassung:\nReservierung bestätigt\./);
   assert.match(result.text, /Gegenüber: Freitag um 19 Uhr sind wir leider voll/);
   assert.doesNotMatch(result.text, /03023125410/); // Kontaktname statt Nummer
-  assert.match((await tool('list_calls')).text, /r-flow · Restaurant Sonne/);
+  // In der Liste der Protokolle steht ohne Freigabe der Kontaktnamen weder Name noch Nummer
+  assert.match((await tool('list_calls')).text, /r-flow · ein gespeicherter Kontakt/);
   await client.close();
 });
 
@@ -680,6 +694,22 @@ test('Beenden durch den Agenten: Die Selbstprüfung gegen den Gesprächsplan ent
   // Ohne Selbstprüfung: Das Tool-Ergebnis ist die Aufforderung zur Verabschiedung, nicht die Liste der Planschritte
   assert.match(f.outputs().at(-1) ?? '', /verabschiede dich jetzt/);
   assert.doesNotMatch(f.outputs().join('\n'), /Prüfe zuerst jeden Schritt/);
+  f.bridge().close();
+});
+
+test('Beenden noch vor der Begrüßung: wird nach der Begrüßung angestoßen', async () => {
+  const f = flowHarness();
+  await f.call('Restaurant Sonne');
+  f.ws.emit('open');
+  f.server({ type: 'session.updated' });
+  f.gw.linePhase('connected');
+  await f.run('end_call');
+  assert.equal(f.creates(), 0);
+  f.bridge().onConnected(8000);
+  await sleep(5);
+  assert.equal(f.creates(), 1); // Begrüßung
+  f.aiSays('r0', 'Guten Tag.');
+  assert.equal(f.creates(), 2); // danach das Beenden
   f.bridge().close();
 });
 
