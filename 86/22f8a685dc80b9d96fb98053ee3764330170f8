@@ -1,0 +1,34 @@
+src/ai/pricing.ts
+  s_319bc174b0c320::t_fd396fa43210d8 2-4,18,21-22,25,27-30,32
+src/ai/providers/types.ts
+  s_319bc174b0c320::t_fd952fa47968c0 99-100
+src/ai/realtimeBridge.ts
+  s_319bc174b0c320::t_fd952fa47968c0 224
+src/ai/providers/index.ts
+  s_319bc174b0c320::t_fd396fa43210d8 2,6
+src/ai/providers/geminiLive.ts
+  s_319bc174b0c320::t_9178f69945e957 1-113,115-184,188-203,208-220,227-240,247-395
+  s_319bc174b0c320::t_fd952fa47968c0 114,185-187,204-207,221-226,241-246
+src/ai/providers/gemini.ts
+  s_319bc174b0c320::t_afb8e462526947 1-180
+src/ai/connectionTest.ts
+  s_319bc174b0c320::t_a65fd389cd7da7 1-123
+test/gemini.test.ts
+  s_319bc174b0c320::t_dc4865df418dfd 1-342
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8622f8a685dc80b9d96fb98053ee3764330170f8",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
