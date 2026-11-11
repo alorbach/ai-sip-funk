@@ -33,6 +33,7 @@ SIPFunk ist ein kleines Projekt eines einzelnen Entwicklers. Fehlerberichte und 
 
 - Jeder Push nach `main` und jeder Pull Request lässt Typprüfung und Tests laufen (`.github/workflows/ci.yml`).
 - Ein neuer Tag `v1.2.3` baut den Windows-Installer und die portable ZIP-Datei und veröffentlicht beide als GitHub-Release (`.github/workflows/release.yml`). Die Version kommt aus dem Tag. Der Release-Text nennt die Änderungen seit dem vorigen Tag: von GitHub Copilot aus den Commit-Meldungen geschrieben, wenn im Repository das Secret `COPILOT_GITHUB_TOKEN` hinterlegt ist, sonst die von GitHub erzeugten Hinweise; die reine Commit-Liste hängt immer an.
+- Die Bilder in `doc/images/` erzeugt `npm run screenshots`: Es startet eine Demo-Instanz mit erfundenen Daten in einem temporären Ordner (nichts aus der eigenen Einrichtung, kein Netzzugriff) und nimmt die Web-UI auf Deutsch und Englisch auf. Nach sichtbaren Änderungen an der Oberfläche neu laufen lassen und die Bilder vor dem Einchecken ansehen.
 - Vor dem Tag die Einträge unter „Unveröffentlicht“ in beiden Changelogs zur neuen Version verschieben.
 
 ## Was nicht angenommen wird

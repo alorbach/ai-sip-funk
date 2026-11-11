@@ -6,6 +6,10 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 
 > **The software speaks German.** The web UI, the instructions given to the AI and the dialling rules are German and built for Germany. This documentation is available in English and German; quoted UI labels are the German ones you will see on screen.
 >
+![SIPFunk dashboard: start a call with a task, below it the recent calls](doc/images/dashboard.en.png)
+
+*The web UI with made-up example data. More images in the [user guide](doc/user-guide.md).*
+
 > **Use at your own risk.** The software comes with no warranty. Whoever runs SIPFunk is responsible for every call the AI places or answers.
 >
 > **Read the legal notes first.** Calls are sent to OpenAI and logged as text; the AI has to identify itself as an AI; the optional spam defence can omit that notice if you switch AI disclosure off there; that is legally unsettled. See [doc/legal.md](doc/legal.md) for an overview covering Germany and the EU. This is not legal advice.
@@ -57,7 +61,7 @@ On first start the Windows firewall asks about the UDP ports for SIP and RTP: al
 npm run tray
 ```
 
-SIPFunk then runs without a console in the notification area; double-clicking the icon opens the web UI. `npm run dist:win` builds an installer and a portable ZIP file (output in `release/`). When installed, configuration and data live under `%APPDATA%\SIPFunk`.
+SIPFunk then runs without a console in the notification area; double-clicking the icon opens the web UI. Ready-made installers and portable ZIP files are under [Releases](https://github.com/alorbach/ai-sip-funk/releases); they are not code-signed, so Windows SmartScreen warns on first start. To build them yourself: `npm run dist:win` builds an installer and a portable ZIP file (output in `release/`). When installed, configuration and data live under `%APPDATA%\SIPFunk`.
 
 ## Configuration
 
@@ -67,6 +71,8 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore` and do not belong in any repository, ticket or screenshot.
 
 ## Usage in brief
+
+![Call list with transcript, result and summary](doc/images/calls.en.png)
 
 The web UI has four pages:
 

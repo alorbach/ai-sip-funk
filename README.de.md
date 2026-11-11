@@ -4,6 +4,10 @@
 
 SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP-Telefon an einer FRITZ!Box an und verbindet das Telefonaudio mit einem Live-Sprachmodell von OpenAI. Die KI kann ausgehend anrufen und einen Auftrag erledigen, eingehende Anrufe als Anrufbeantworter annehmen und dich danach benachrichtigen. Alles läuft auf dem eigenen Rechner: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig.
 
+![SIPFunk-Dashboard: Anruf mit Auftrag starten, darunter die letzten Anrufe](doc/images/dashboard.de.png)
+
+*Die Web-UI mit erfundenen Beispieldaten. Mehr Bilder im [Benutzerhandbuch](doc/user-guide.de.md).*
+
 > **Nutzung auf eigene Verantwortung.** Die Software wird ohne Gewährleistung bereitgestellt. Wer SIPFunk betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt.
 >
 > **Rechtliches vorher lesen.** Gespräche werden an OpenAI übertragen und als Text protokolliert; die KI muss sich als KI zu erkennen geben; die optionale Spam-Abwehr kann auf diesen Hinweis verzichten, wenn du dort die KI-Kennung ausschaltest; das ist rechtlich nicht abschließend geklärt. Einordnung für Deutschland und die EU in [doc/legal.de.md](doc/legal.de.md). Das ist keine Rechtsberatung.
@@ -55,7 +59,7 @@ Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP
 npm run tray
 ```
 
-SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öffnet die Web-UI. Einen Installer und eine portable ZIP-Datei baut `npm run dist:win` (Ergebnis in `release/`). Installiert liegen Konfiguration und Daten unter `%APPDATA%\SIPFunk`.
+SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öffnet die Web-UI. Fertige Installer und portable ZIP-Dateien stehen unter [Releases](https://github.com/alorbach/ai-sip-funk/releases); sie sind nicht signiert, Windows SmartScreen warnt deshalb beim ersten Start. Selbst bauen: Einen Installer und eine portable ZIP-Datei baut `npm run dist:win` (Ergebnis in `release/`). Installiert liegen Konfiguration und Daten unter `%APPDATA%\SIPFunk`.
 
 ## Konfiguration
 
@@ -65,6 +69,8 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore` und gehören in kein Repository, kein Ticket und keinen Screenshot.
 
 ## Bedienung in Kürze
+
+![Anrufliste mit Protokoll, Ergebnis und Zusammenfassung](doc/images/calls.de.png)
 
 Die Web-UI hat vier Seiten:
 

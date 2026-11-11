@@ -69,6 +69,8 @@ Danach <http://127.0.0.1:8080> öffnen. Für den ersten Start ist keine Konfigur
 
 ### 4.2 Der Einrichtungsassistent
 
+![Einrichtungsassistent, erster Schritt](images/setup.de.png)
+
 Solange das Nötigste fehlt (Zugangsdaten zur Telefonanlage, OpenAI-Schlüssel, der Name, in dessen Auftrag die KI spricht), öffnet die Web-UI von selbst den Einrichtungsassistenten. Er hat sieben Schritte, jeder lässt sich überspringen; „Später einrichten“ oder Esc schließt ihn, und „Einrichtungsassistent …“ auf der Seite „Einstellungen“ öffnet ihn jederzeit wieder.
 
 1. **Willkommen**: was noch fehlt.
@@ -118,6 +120,10 @@ Erfolgreich ist der Test, wenn die Registrierung klappt, das Telefon klingelt, d
 ---
 
 ## 5. Die Web-UI im Überblick
+
+![Dashboard mit Anruf, Auftrag und den letzten Anrufen](images/dashboard.de.png)
+
+*Alle Bilder in diesem Handbuch zeigen erfundene Beispieldaten.*
 
 Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungsstatus und der Schalter „Einfach / Erweitert“ (Kapitel 5.1); die zuletzt geöffnete Seite wird gemerkt. Sobald ein Anruf läuft, erscheint darunter die Gesprächsleiste mit Phase (wählt, klingelt, eingehender Anruf, verbunden), Name oder Nummer des Gegenübers, Dauer, Codec, „Mithören“ und „Auflegen“; außerdem pulsiert ein Punkt am Reiter „Dashboard“. Bei einem klingelnden eingehenden Anruf stehen dort zusätzlich die Knöpfe aus Kapitel 8.
 
@@ -180,6 +186,8 @@ Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Aufl
 
 ### 6.1 Verhalten und KI-Modell
 
+![Einstellungen › KI-Assistent: Verhalten und KI-Modell](images/settings-ai.de.png)
+
 Unter „Einstellungen › KI-Assistent“ legst du fest, wie die KI Gespräche führt. Das gilt für ausgehende Anrufe und für den Anrufbeantworter; die Spam-Rolle hat eigene Einstellungen (Kapitel 10).
 
 **Verhalten im Gespräch.** Vier Auswahlfelder, jeweils mit „Standard“ als Vorgabe. Solange alle auf „Standard“ stehen, verhält sich die KI wie bisher.
@@ -222,6 +230,8 @@ Die Verbindung zu OpenAI wird schon beim Klingeln aufgebaut, damit die KI ohne V
 Statt des eingebauten Ablaufs kannst du einen eigenen **Auftrag bei eingehenden Anrufen** eintragen (z. B. „Sag, dass die Praxis bis 15. Januar geschlossen ist, und nimm nur Notfälle auf“).
 
 ### 7.3 Profile je eigener Rufnummer
+
+![Einstellungen › Anrufbeantworter mit zwei eigenen Rufnummern, eine davon für eine Familie](images/settings-incoming.de.png)
 
 Die FRITZ!Box übermittelt, welche deiner Nummern gewählt wurde. Unter „Einstellungen › Anrufbeantworter“ legst du mit „Nummer hinzufügen“ je Nummer ein Profil an:
 
@@ -356,6 +366,8 @@ Die Spam-Abwehr hat zwei Schalter:
 
 ### 10.4 Die Rolle einstellen
 
+![Einstellungen › Spam-Abwehr (Stufe „Erweitert“)](images/settings-scam.de.png)
+
 Die Privatperson hat eigene Einstellungen, getrennt vom Assistenten (Name und Geschlecht gelten nur ohne KI-Kennung):
 
 - **Name der Rolle**: ein erfundener Name, mit dem sie sich meldet („Schmidt?“) und den sie auf Nachfrage nennt. Verlangt der Anrufer genau diesen Namen, sagt sie „Am Apparat“; verlangt er jemand anderen, ist der gerade nicht da. Leer = sie nennt keinen Namen. Nimm nicht deinen echten Namen.
@@ -375,9 +387,13 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 
 ### 11.1 Kontakte
 
+![Kontakte](images/contacts.de.png)
+
 Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer.
 
 ### 11.2 Protokolle
+
+![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
 
 Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
 

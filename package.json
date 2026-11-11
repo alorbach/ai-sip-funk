@@ -2,6 +2,30 @@
   "name": "sipfunk",
   "version": "0.1.0",
   "description": "Local AI phone assistant: SIP client for a FRITZ!Box using the OpenAI Realtime API (outgoing calls, answering machine, spam defence)",
+  "keywords": [
+    "ai",
+    "voice-assistant",
+    "phone",
+    "sip",
+    "voip",
+    "fritzbox",
+    "openai",
+    "realtime-api",
+    "answering-machine",
+    "spam-call-blocker",
+    "electron",
+    "typescript",
+    "windows"
+  ],
+  "homepage": "https://github.com/alorbach/ai-sip-funk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alorbach/ai-sip-funk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alorbach/ai-sip-funk/issues"
+  },
+  "author": "Andre Lorbach",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "engines": {
@@ -17,6 +41,7 @@
     "sim": "tsx src/sim/simulate.ts",
     "build": "tsc -p tsconfig.build.json",
     "icons": "node scripts/generate-icons.mjs",
+    "screenshots": "npm run build && electron scripts/capture-screenshots.cjs",
     "tray": "npm run build && electron .",
     "dist:win": "npm run build && npm run icons && electron-builder --win --publish never"
   },

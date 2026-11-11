@@ -71,6 +71,8 @@ Then open <http://127.0.0.1:8080>. No configuration file is needed for the first
 
 ### 4.2 The setup assistant
 
+![Setup assistant, first step](images/setup.en.png)
+
 As long as the essentials are missing (credentials for the phone system, OpenAI key, the name the AI acts for), the web UI opens the setup assistant on its own. It has seven steps, each of which can be skipped; "Später einrichten" (set up later) or Esc closes it, and "Einrichtungsassistent …" on the "Einstellungen" page opens it again at any time.
 
 1. **Willkommen**: what is still missing.
@@ -120,6 +122,10 @@ The test has passed when registration works, the phone rings, the tone is audibl
 ---
 
 ## 5. The web UI at a glance
+
+![Dashboard with call, task and the recent calls](images/dashboard.en.png)
+
+*All images in this guide show made-up example data; the example conversations are German because the AI speaks German on the phone.*
 
 The header is always visible: the four pages on the left, the connection status and the switch "Einfach / Erweitert" (chapter 5.1) on the right; the page you opened last is remembered. As soon as a call is running, the call bar appears below with the phase (dialling, ringing, incoming call, connected), name or number of the other party, duration, codec, "Mithören" (listen in) and "Auflegen" (hang up); a dot pulses on the "Dashboard" tab. While an incoming call is ringing, the buttons from chapter 8 are shown there too.
 
@@ -182,6 +188,8 @@ During the call the transcript runs along. You can hang up at any time with **"A
 
 ### 6.1 Behaviour and AI model
 
+![Settings › AI assistant: behaviour and AI model](images/settings-ai.en.png)
+
 Under "Einstellungen › KI-Assistent" you define how the AI conducts calls. This applies to outgoing calls and to the answering machine; the spam role has its own settings (chapter 10).
 
 **Verhalten im Gespräch** (behaviour in the call). Four choices, each defaulting to "Standard". As long as all of them are on "Standard", the AI behaves as before.
@@ -224,6 +232,8 @@ The connection to OpenAI is set up while the phone is still ringing so that the 
 Instead of the built-in procedure you can enter your own **"Auftrag bei eingehenden Anrufen"** (task for incoming calls), e.g. "Say that the practice is closed until 15 January and only take emergencies".
 
 ### 7.3 Profiles per own number
+
+![Settings › Answering machine with two own numbers, one of them for a family](images/settings-incoming.en.png)
 
 The FRITZ!Box transmits which of your numbers was dialled. Under "Einstellungen › Anrufbeantworter", "Nummer hinzufügen" (add number) creates a profile per number:
 
@@ -358,6 +368,8 @@ The spam defence has two switches:
 
 ### 10.4 Configuring the role
 
+![Settings › Spam defence (level "Advanced")](images/settings-scam.en.png)
+
 The private person has its own settings, separate from the assistant (name and gender only apply without AI disclosure):
 
 - **Name der Rolle** (name of the role): an invented name it answers with ("Schmidt?") and gives when asked. If the caller asks for exactly this name, it says "Am Apparat" (speaking); if they ask for someone else, that person is not in. Empty = it gives no name. Do not use your real name.
@@ -377,9 +389,13 @@ Logs of such calls carry the tag "Spam-Abwehr". They never count as important; t
 
 ### 11.1 Contacts
 
+![Contacts](images/contacts.en.png)
+
 Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked). The flag **"Inhaber"** marks your own number.
 
 ### 11.2 Call logs
+
+![Calls with transcript, result and summary](images/calls.en.png)
 
 Every AI call that was actually connected is saved in `transcripts/` as JSON and Markdown: time, number, own number dialled, duration, codec, reason for ending, task, call plan, result according to the AI, transcript (text, no audio), usage, cost estimate, summary, spam defence tag. Calls that were never connected (not answered, busy) produce no log.
 

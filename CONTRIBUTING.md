@@ -33,6 +33,7 @@ SIPFunk is a small project by a single developer. Bug reports and improvements a
 
 - Every push to `main` and every pull request runs the type check and the tests (`.github/workflows/ci.yml`).
 - Pushing a tag `v1.2.3` builds the Windows installer and the portable ZIP and publishes them as a GitHub release (`.github/workflows/release.yml`). The version comes from the tag. The release text lists the changes since the previous tag: written by GitHub Copilot from the commit subjects if the repository secret `COPILOT_GITHUB_TOKEN` is set, otherwise GitHub's generated notes; the plain commit list is always attached.
+- The images in `doc/images/` come from `npm run screenshots`: it starts a demo instance with made-up data in a temporary folder (nothing from your own setup, no network access) and captures the web UI in German and English. Rerun it after visible UI changes and look at the images before committing.
 - Before tagging, move the entries under "Unreleased" in both changelogs to the new version.
 
 ## What will not be accepted
