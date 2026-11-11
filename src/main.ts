@@ -26,7 +26,7 @@ import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
 import { cleanAdminKey, fetchOpenAiMonthCosts, monthKey, UsageCounter } from './usageCounter.js';
-import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
+import { knownProvider, PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
@@ -692,7 +692,7 @@ function aiUiData(): Record<string, unknown> {
 
 /** Schlüssel eines Anbieters prüfen und in die .env schreiben; er wird nie zurückgegeben und steht in keinem Log. */
 async function saveAiKey(providerId: unknown, input: unknown): Promise<{ ok: boolean; error?: string }> {
-  const provider = PROVIDERS[String(providerId ?? 'openai') as ProviderId];
+  const provider = knownProvider(providerId ?? 'openai');
   if (!provider) return { ok: false, error: 'Unbekannter KI-Anbieter' };
   let key;
   try {
@@ -818,7 +818,7 @@ const stopWeb = startWebServer({
   usage: { get: usageInfo, saveAdminKey },
   ai: {
     test: async (id) => {
-      const provider = id ? PROVIDERS[id as ProviderId] : ai().provider;
+      const provider = id ? knownProvider(id) : ai().provider;
       if (!provider) throw new Error('Unbekannter KI-Anbieter');
       const r = resolveAi({ ...loadSettings(), aiProvider: provider.id });
       const result = await testConnection(provider, r.key, r.realtimeModel());

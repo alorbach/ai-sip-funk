@@ -7,9 +7,14 @@ export const PROVIDERS: Record<ProviderId, AiProvider> = { openai, gemini };
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[];
 
+/** Anbieter zur Kennung, nur für echte Einträge: „constructor“ und Ähnliches aus einer Anfrage sind kein Anbieter. */
+export function knownProvider(id: unknown): AiProvider | undefined {
+  return typeof id === 'string' && Object.hasOwn(PROVIDERS, id) ? PROVIDERS[id as ProviderId] : undefined;
+}
+
 /** Anbieter zur Kennung; unbekannt oder leer = OpenAI. */
 export function providerById(id: string | undefined): AiProvider {
-  return PROVIDERS[(id ?? '') as ProviderId] ?? openai;
+  return knownProvider(id) ?? openai;
 }
 
 /** Modell-IDs, wie sie in einer Adresse stehen dürfen (dieselbe Regel wie beim Speichern) */

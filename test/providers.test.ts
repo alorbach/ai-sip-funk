@@ -3,12 +3,16 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { RealtimeBridge } from '../src/ai/realtimeBridge.js';
-import { providerById, resolveAi } from '../src/ai/providers/index.js';
+import { knownProvider, providerById, resolveAi } from '../src/ai/providers/index.js';
 import type { LiveConfig, LiveEvents, LiveSession, LiveTool } from '../src/ai/providers/types.js';
 
 test('Anbieter: unbekannte Kennung fällt auf OpenAI zurück', () => {
   assert.equal(providerById('gibt-es-nicht').id, 'openai');
   assert.equal(providerById(undefined).id, 'openai');
+  // Namen, die jedes Objekt kennt, sind kein Anbieter
+  assert.equal(providerById('constructor').id, 'openai');
+  assert.equal(knownProvider('constructor'), undefined);
+  assert.equal(knownProvider('gemini')?.id, 'gemini');
 });
 
 test('Anbieter: Schlüssel und Modelle kommen aus Einstellungen und Umgebung', async () => {
