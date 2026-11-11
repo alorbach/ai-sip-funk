@@ -384,6 +384,11 @@ async function main() {
     else {
       try { fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* bleibt im Temp-Ordner liegen */ }
       try { fs.rmSync(path.join(tempRoot, 'preload.mjs'), { force: true }); } catch { /* egal */ }
+      // Electron hält seinen Profilordner bis zum Prozessende offen: Ein kurzlebiger Helfer räumt den Rest danach weg
+      try {
+        const helper = 'const fs=require("fs");let n=0;const t=setInterval(()=>{try{fs.rmSync(process.argv[1],{recursive:true,force:true});clearInterval(t);}catch(e){if(++n>20)clearInterval(t);}},500);';
+        spawn('node', ['-e', helper, tempRoot], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      } catch { /* bleibt im Temp-Ordner liegen */ }
     }
   }
   app.exit(failed ? 1 : 0);
