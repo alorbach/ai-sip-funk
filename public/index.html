@@ -671,7 +671,7 @@
         <section class="card" id="settings-mcp">
           <div class="head"><h2>MCP-Schnittstelle</h2><span class="hint" id="mcp-status" role="status"></span></div>
           <div class="body">
-            <p class="hint" style="margin:0 0 12px">Über die MCP-Schnittstelle kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren: Er startet einen Anruf mit einem Auftrag, liest mit, was gesagt wird, und kann der KI am Telefon Vorgaben machen. Die KI stellt sich dabei immer als KI vor.</p>
+            <p class="hint" style="margin:0 0 12px">Über die MCP-Schnittstelle kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren: Er startet einen Anruf mit einem Auftrag, liest mit, was gesagt wird, und kann der KI am Telefon Vorgaben machen. Die KI stellt sich dem Gegenüber dabei als KI vor.</p>
             <div class="grid c2">
               <label class="switch span"><span>KI-Agenten dürfen über MCP telefonieren<small>Ausgeschaltet lehnt SIPFunk jeden Zugriff eines Agenten ab.</small></span><input type="checkbox" id="p-mcp" role="switch"></label>
               <label class="field"><span>Wen ein Agent anrufen darf</span><select id="p-mcp-targets"><option value="contacts">Nur gespeicherte Kontakte</option><option value="any">Kontakte und jede erlaubte Nummer</option></select><small>Notruf, Sonder- und Auslandsnummern bleiben immer gesperrt.</small></label>
@@ -1405,7 +1405,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`); ws.binaryType = 'arraybuffer';
   ws.onopen = () => {
     // Nach einer Unterbrechung (Server neu gestartet) kann sich alles geändert haben
-    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); mcpAnswered = ''; loadMcp(); }
+    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); resetMcpDialog(); loadMcp(); }
     wsWasDown = false;
   };
   ws.onmessage = (ev) => {
@@ -2099,6 +2099,13 @@ function renderMcp(info) {
   $('mcp-confirm-task').textContent = p.task + (p.context ? '\n\n' + I18N.t('Hintergrundwissen vom Agenten:') + '\n' + p.context : '');
   if (!dlg.open) dlg.showModal();
   $('mcp-confirm-no').focus();
+}
+/** Nach einem Neustart des Servers beginnen die Kennungen neu: nichts Altes zeigen und nichts Altes verdecken */
+function resetMcpDialog() {
+  mcpAnswered = '';
+  const dlg = $('mcp-confirm');
+  dlg.dataset.id = '';
+  if (dlg.open && !mcpAnswering) dlg.close();
 }
 async function loadMcp() { try { renderMcp(await api('/api/mcp')); } catch {} }
 /** Kennung der Anfrage, die schon beantwortet ist, und ob die Antwort gerade unterwegs ist (gegen Doppelklicks) */

@@ -611,7 +611,7 @@
     'SIP-Kennwort und KI-Schlüssel nur in der .env; Mail-Kennwörter in settings.json': 'SIP password and AI keys in the .env only; mail passwords in settings.json',
     // ---- settings: MCP interface ----
     'MCP-Schnittstelle': 'MCP interface',
-    'Über die MCP-Schnittstelle kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren: Er startet einen Anruf mit einem Auftrag, liest mit, was gesagt wird, und kann der KI am Telefon Vorgaben machen. Die KI stellt sich dabei immer als KI vor.': 'Through the MCP interface an AI agent such as Codex, Claude Code or Claude Desktop can make phone calls for you: it starts a call with a task, reads along what is said, and can give the AI on the phone directions. The AI always introduces itself as an AI.',
+    'Über die MCP-Schnittstelle kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren: Er startet einen Anruf mit einem Auftrag, liest mit, was gesagt wird, und kann der KI am Telefon Vorgaben machen. Die KI stellt sich dem Gegenüber dabei als KI vor.': 'Through the MCP interface an AI agent such as Codex, Claude Code or Claude Desktop can make phone calls for you: it starts a call with a task, reads along what is said, and can give the AI on the phone directions. The AI introduces itself to the other party as an AI.',
     'KI-Agenten dürfen über MCP telefonieren': 'AI agents may make calls through MCP',
     'Ausgeschaltet lehnt SIPFunk jeden Zugriff eines Agenten ab.': 'When switched off, SIPFunk refuses every access by an agent.',
     'Wen ein Agent anrufen darf': 'Who an agent may call',
@@ -658,6 +658,7 @@
 
   const patterns = [
     [/^Anruf nicht möglich: (.+)$/, (m, a) => `Call not possible: ${tr(a)}`],
+    [/^Das KI-Gespräch braucht den (.+)-Schlüssel \(Einstellungen › KI-Verbindungen\)$/, 'The AI call needs the $1 key (Settings › AI connections)'],
     [/^(.+) · Anrufbeantworter an$/, (m, a) => `${tr(a)} · answering machine on`],
     [/^Anrufe mit (.+)$/, 'Calls with $1'],
     [/^Kontakt: (.+) \(Inhaber\)$/, 'Contact: $1 (owner)'],

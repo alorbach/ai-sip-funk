@@ -429,6 +429,8 @@ export class RealtimeBridge implements AudioHandler {
   // ---- intern ----
 
   private onResponseStarted(id?: string): void {
+    // Nach einer Unterbrechung antwortet der Anbieter von selbst: Diese Antwort kennt die vorgemerkte Vorgabe schon
+    if (this.lastResponseStatus === 'cancelled' && this.live.answersAfterInterrupt) this.pendingRespond = false;
     this.activeResponse = true;
     clearTimeout(this.stallTimer);
     this.stallTimer = undefined;
@@ -672,6 +674,7 @@ export class RealtimeBridge implements AudioHandler {
         return;
       }
       this.stallNudges++;
+      this.pendingRespond = false;
       log.warn(`Realtime: Stillstand – ${this.opts.stallMs} ms nach Ende der KI-Ausgabe weder Sprache des Gegenübers noch neue Antwort, stoße die KI an (${this.stallNudges}/${STALL_MAX_NUDGES})`);
       this.live.respond(this.opts.scam ? SCAM_STALL : STALL_INSTRUCTION);
       this.audioExpected(true, 'Stillstandswächter');
@@ -725,6 +728,7 @@ export class RealtimeBridge implements AudioHandler {
       if (this.goodbye !== 'none' || this.endRequested !== undefined || this.ask) return;
       log.warn(`Realtime: ${AUDIO_WATCHDOG_MS} ms nach ${label} keine Antwort entstanden – fordere eine an`);
       // Einmal nachfordern; bleibt es danach still, übernimmt der Stillstandswächter (höchstens STALL_MAX_NUDGES Anstöße)
+      this.pendingRespond = false;
       this.live.respond();
     }, AUDIO_WATCHDOG_MS);
     this.audioWatchdog.unref();

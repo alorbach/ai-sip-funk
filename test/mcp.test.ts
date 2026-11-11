@@ -353,22 +353,27 @@ test('Kontakte: Liste nur mit Freigabe, und dann nur Namen', async () => {
 
 test('Protokolle: „nur über MCP“ verbirgt alle anderen Gespräche, „alle“ zeigt sie; Kontakte erscheinen mit Namen', async () => {
   const h = harness({ history: 'own' });
-  h.state.records = [record('r-mcp', '03023125410', 'mcp'), record('r-privat', '03023125999')];
+  const R_MCP = '2026-11-11T10-00-00_03023125410';
+  const R_PRIVAT = '2026-11-11T09-00-00_03023125999';
+  h.state.records = [record(R_MCP, '03023125410', 'mcp'), record(R_PRIVAT, '03023125999')];
   // Ohne Freigabe der Kontaktnamen steht in Protokollen weder Name noch Nummer eines Kontakts
   const hidden = await h.run('list_calls');
-  assert.match(hidden.text, /r-mcp · ein gespeicherter Kontakt/);
-  const hiddenRecord = (await h.run('get_call_result', { record_id: 'r-mcp' })).text;
+  assert.match(hidden.text, /^2026-11-11T10-00-00 · ein gespeicherter Kontakt/m);
+  const hiddenRecord = (await h.run('get_call_result', { record_id: '2026-11-11T10-00-00' })).text;
   assert.match(hiddenRecord, /^Ziel: ein gespeicherter Kontakt ·/m);
   assert.doesNotMatch(hidden.text + hiddenRecord, /03023125410/);
   h.state.policy = { ...h.state.policy, contacts: true };
   const own = await h.run('list_calls');
-  assert.match(own.text, /r-mcp · Restaurant Sonne/);
-  assert.doesNotMatch(own.text, /r-privat/);
-  assert.equal((await h.run('get_call_result', { record_id: 'r-privat' })).isError, true);
-  assert.match((await h.run('get_call_result', { record_id: 'r-mcp' })).text, /19:30 Uhr reserviert/);
+  assert.match(own.text, /^2026-11-11T10-00-00 · Restaurant Sonne/m);
+  assert.doesNotMatch(own.text, /2026-11-11T09-00-00/);
+  // Die gespeicherte Kennung enthält die Rufnummer: Der Agent sieht nur den Zeitstempel und kommt mit der vollen Kennung nicht weiter
+  assert.doesNotMatch(own.text + hiddenRecord, /_0302|03023125410/);
+  assert.equal((await h.run('get_call_result', { record_id: R_MCP })).isError, true);
+  assert.equal((await h.run('get_call_result', { record_id: '2026-11-11T09-00-00' })).isError, true);
+  assert.match((await h.run('get_call_result', { record_id: '2026-11-11T10-00-00' })).text, /19:30 Uhr reserviert/);
   h.state.policy = { ...h.state.policy, history: 'all' };
-  assert.match((await h.run('list_calls')).text, /r-privat/);
-  assert.equal((await h.run('get_call_result', { record_id: 'r-privat' })).isError, undefined);
+  assert.match((await h.run('list_calls')).text, /2026-11-11T09-00-00/);
+  assert.equal((await h.run('get_call_result', { record_id: '2026-11-11T09-00-00' })).isError, undefined);
 });
 
 test('Status: nennt Erlaubnisse und Kontingent, aber keine Einstellungen mit Geheimnissen', async () => {
@@ -456,8 +461,9 @@ function flowHarness(policy: Partial<McpPolicy> = {}) {
       onUsage: () => undefined,
       onEndCall: (reason) => {
         ended.push(reason);
-        h.state.records.push({ ...record('r-flow', number, 'mcp'), entries: transcript.filter((e) => e.final) });
-        h.gw.callEnded(reason, 'r-flow');
+        const id = `2026-11-11T11-00-00_${number}`;
+        h.state.records.push({ ...record(id, number, 'mcp'), entries: transcript.filter((e) => e.final) });
+        h.gw.callEnded(reason, id);
       },
       onAskAgent: (q) => h.gw.question(q),
       onError: (m) => assert.fail(m),
@@ -614,9 +620,10 @@ test('Ablauf: Agent startet den Anruf, liest mit, beantwortet eine Rückfrage, g
   assert.match(result.text, /Ergebnis laut KI: Tisch für vier Personen am Freitag um 19:30 Uhr reserviert/);
   assert.match(result.text, /Zusammenfassung:\nReservierung bestätigt\./);
   assert.match(result.text, /Gegenüber: Freitag um 19 Uhr sind wir leider voll/);
-  assert.doesNotMatch(result.text, /03023125410/); // Kontaktname statt Nummer
+  assert.doesNotMatch(result.text, /03023125410/); // Kontaktname statt Nummer, auch nicht in der Kennung des Protokolls
+  assert.match(result.text, /^Protokoll 2026-11-11T11-00-00$/m);
   // In der Liste der Protokolle steht ohne Freigabe der Kontaktnamen weder Name noch Nummer
-  assert.match((await tool('list_calls')).text, /r-flow · ein gespeicherter Kontakt/);
+  assert.match((await tool('list_calls')).text, /^2026-11-11T11-00-00 · ein gespeicherter Kontakt/m);
   await client.close();
 });
 

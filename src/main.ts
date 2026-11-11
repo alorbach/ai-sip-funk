@@ -267,10 +267,12 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
     model,
     provider: provider.id,
     ask: active.ask,
-    task: input.context ? `${input.task}
+    // Ins Protokoll (und damit in die Zusammenfassung) kommt bei einem Agenten-Anruf nur, was der Agent selbst mitgegeben hat:
+    // Der Kontaktname aus dem Hintergrundwissen stünde sonst in dem, was er abrufen kann
+    task: (mcp ? str('context') : input.context) ? `${input.task}
 
 Hintergrundwissen:
-${input.context}` : input.task,
+${mcp ? str('context') : input.context}` : input.task,
     persona: { stil: persona.label, stimme: voice, anrede: input.formal ? 'Sie' : 'Du', name: input.aiName, auftraggeber: input.principalName },
     incoming: incoming ? { caller: str('target'), called: str('called'), principal: input.principalName } : undefined,
     notify: params.notifyCall === true || undefined,

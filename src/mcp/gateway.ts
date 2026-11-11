@@ -99,6 +99,11 @@ const STATE_TEXT: Record<AgentCallState, string> = {
 };
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+/**
+ * Kennung eines Protokolls, wie der Agent sie sieht: nur der Zeitstempel. Die gespeicherte Kennung enthält dahinter die
+ * gewählte Rufnummer (TranscriptStore.makeId) und darf deshalb nicht hinaus.
+ */
+const recordAlias = (id: string): string => id.split('_')[0];
 /** Eine Zeile ohne Steuerzeichen: für Namen, die in die Systemanweisung gehen, und für Ereigniszeilen an den Agenten */
 const oneLine = (v: string): string => v.replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -358,7 +363,9 @@ export class McpGateway {
   private result(args: Record<string, unknown>): string {
     const recordId = str(args.record_id);
     if (recordId) {
-      const record = this.deps.records.read(recordId);
+      // Gesucht wird nur unter den Protokollen, die der Agent lesen darf, und nur über die Kennung, die er zu sehen bekommt
+      const hit = this.deps.records.list().find((r) => this.mayRead(r) && recordAlias(r.id) === recordId);
+      const record = hit ? this.deps.records.read(hit.id) : undefined;
       if (!record || !this.mayRead(record)) throw new Error('Protokoll nicht gefunden oder für Agenten nicht freigegeben.');
       return this.recordText(record);
     }
@@ -375,7 +382,7 @@ export class McpGateway {
   private listCalls(): string {
     const items = this.deps.records.list().filter((r) => this.mayRead(r)).slice(0, 30);
     if (!items.length) return 'Keine Protokolle, die für Agenten freigegeben sind.';
-    return items.map((r) => `${r.id} · ${this.targetLabel(r.target)} · ${r.startedAt} · ${r.durationSec}s · ${r.endReason}\n  ${(r.summary ?? r.outcome?.result ?? '').split('\n')[0]}`).join('\n');
+    return items.map((r) => `${recordAlias(r.id)} · ${this.targetLabel(r.target)} · ${r.startedAt} · ${r.durationSec}s · ${r.endReason}\n  ${(r.summary ?? r.outcome?.result ?? '').split('\n')[0]}`).join('\n');
   }
 
   /** Die Rückfrage, auf deren Antwort die Sprach-KI noch wartet; nach Ablauf ihrer Frist macht sie ohne Antwort weiter. */
@@ -413,7 +420,7 @@ export class McpGateway {
 
   /** `label`: wie der Agent das Ziel bei seinem eigenen Anruf kennt */
   private recordText(r: CallRecord, label?: string): string {
-    const lines = [`Protokoll ${r.id}`, `Ziel: ${label ?? this.targetLabel(r.target)} · Beginn: ${r.startedAt} · Dauer: ${r.durationSec}s · Ende: ${r.endReason}`];
+    const lines = [`Protokoll ${recordAlias(r.id)}`, `Ziel: ${label ?? this.targetLabel(r.target)} · Beginn: ${r.startedAt} · Dauer: ${r.durationSec}s · Ende: ${r.endReason}`];
     if (r.outcome) lines.push('', `Ergebnis laut KI: ${r.outcome.result}${r.outcome.open ? `\nOffen: ${r.outcome.open}` : ''}`);
     lines.push('', r.summary ? `Zusammenfassung:\n${r.summary}` : 'Zusammenfassung: noch nicht fertig (in einigen Sekunden erneut abrufen).');
     lines.push('', 'Transkript:');

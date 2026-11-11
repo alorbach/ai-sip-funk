@@ -341,7 +341,7 @@ const SHOTS = [
   { name: 'settings-scam', hash: 'settings', mode: 'advanced', height: 900, section: 'settings-scam' },
   { name: 'settings-mcp', hash: 'settings', mode: 'easy', height: 980, section: 'settings-mcp' },
   // Anfrage eines Agenten, wie sie der Bestätigungsdialog zeigt (erfundene Daten, es wird nichts gewählt)
-  { name: 'mcp-confirm', hash: 'dashboard', mode: 'easy', height: 760, after: `renderMcp({ pending: { id: 'demo', number: '03023125410', contact: 'Restaurant Sonne', principal: 'Max Mustermann', task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.' } })` },
+  { name: 'mcp-confirm', hash: 'dashboard', mode: 'easy', height: 760, after: `renderMcp({ pending: { id: 'demo', number: '03023125410', contact: 'Restaurant Sonne', principal: 'Max Mustermann', ownPrincipal: true, context: 'Anlass ist ein Geburtstag. Ein Gast braucht einen Kinderstuhl.', task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.' } })` },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },
 ];
 
