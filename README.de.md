@@ -109,6 +109,8 @@ Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes Open
 
 SIPFunk ist ein privates, nichtkommerzielles Projekt einer Einzelperson: kein Produkt, kein Support, keine Verbindung zu einem Arbeitgeber. Es ist für den Eigenbetrieb an einem eigenen Anschluss gedacht. Wer es betreibt, ist für jeden Anruf verantwortlich, den die KI führt oder annimmt. Im Normalbetrieb stellt sich die KI als KI vor; Audio und Text gehen zur Verarbeitung an OpenAI; gespeichert werden nur Textprotokolle (Standard 7 Tage), kein Audio. Die Spam-Abwehr ist standardmäßig aus und gibt sich ebenfalls als KI zu erkennen; ohne KI-Kennung ist sie nur nach ausdrücklicher Bestätigung nutzbar. Die Software wird ohne Gewährleistung bereitgestellt, die Nutzung geschieht auf eigene Verantwortung; zwingende gesetzliche Pflichten und Haftungsregeln bleiben davon unberührt. Einzelheiten: [Richtlinien](doc/guidelines.de.md) und [Rechtliches](doc/legal.de.md).
 
+FRITZ!Box ist eine Marke der AVM GmbH, OpenAI eine Marke von OpenAI. Alle genannten Marken gehören ihren jeweiligen Inhabern. SIPFunk ist ein unabhängiges Projekt und steht in keiner Verbindung zu diesen Unternehmen; es wird von ihnen weder unterstützt noch empfohlen.
+
 ## Dokumentation
 
 - [Benutzerhandbuch](doc/user-guide.de.md): Einrichtung, alle Funktionen und Einstellungen, Fehlersuche.

@@ -111,6 +111,8 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 
 SIPFunk is a private, non-commercial project by an individual: not a product, no support, no connection to an employer. It is meant to be run by you on your own phone line. Whoever runs it is responsible for every call the AI places or answers. In normal operation the AI introduces itself as an AI; audio and text are sent to OpenAI for processing; only text logs are stored (7 days by default), no audio. The spam defence is off by default and identifies itself as an AI as well; without AI disclosure it can only be used after explicit confirmation. The software comes with no warranty and is used at your own risk; mandatory statutory duties and liability rules remain unaffected. Details: [guidelines](doc/guidelines.md) and [legal aspects](doc/legal.md).
 
+FRITZ!Box is a trademark of AVM GmbH, OpenAI is a trademark of OpenAI. All trademarks mentioned belong to their respective owners. SIPFunk is an independent project and is not affiliated with, endorsed by or sponsored by these companies.
+
 ## Documentation
 
 | | English | Deutsch |
