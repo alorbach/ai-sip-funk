@@ -26,7 +26,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
 - **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
 - **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone (OpenAI only).
-- **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result. Off by default; in the web UI you set whom an agent may call, whether you confirm each call, and the limits.
+- **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result. Off by default; in the web UI you set whom an agent may call, whether and when you confirm a call before it is dialled (always, only for numbers without a contact, never), and the limits.
 
 ## Requirements
 

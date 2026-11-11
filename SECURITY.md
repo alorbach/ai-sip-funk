@@ -12,7 +12,7 @@ SIPFunk is meant for a single user on their own computer in their own home or of
 - SIP and RTP run unencrypted over UDP to the phone system in the LAN.
 - Credentials are stored in plain text in the data folder: SIP password and the keys of all AI connections in `.env`, mail password and OAuth secret in `settings.json`, the OAuth token in `mail-token.json`. Call logs, contacts and the log contain phone numbers and call content. The data folder is the project folder or `%APPDATA%\SIPFunk`; protect it like a mailbox (user account with a password, disk encryption, encrypted backups).
 - Call audio and text go to the provider of the active AI connection (OpenAI or Google), notifications to your mail provider and, if the lookup is switched on, the caller's number to tellows.
-- What callers say is call content to the AI, not an instruction. The AI can only hang up, put the owner through to the caller during the call back, and flag a call as spam; it cannot dial numbers. The dial target protection (emergency, special, premium-rate and international numbers) and the call time limit are enforced in the core, not by the model.
+- What callers say is call content to the AI, not an instruction. The AI can only hang up, put the owner through to the caller during the call back, flag a call as spam and, in an agent call, ask the agent a question; it cannot dial numbers. Through that question and the transcript the agent reads along, what is said reaches the agent: for the agent it is likewise content and not a task. The dial target protection (emergency, special, premium-rate and international numbers) and the call time limit are enforced in the core, not by the model.
 
 ## Reporting a vulnerability
 

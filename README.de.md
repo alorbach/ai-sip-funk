@@ -24,7 +24,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
 - **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen; je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
 - **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen (nur mit OpenAI).
-- **MCP-Schnittstelle für KI-Agenten.** Ein Agent wie Codex, Claude Code oder Claude Desktop kann für dich telefonieren: Er startet den Anruf mit einem Auftrag, liest mit, was gesagt wird, gibt der KI am Telefon Vorgaben und holt das Ergebnis ab. Standardmäßig aus; in der Web-UI legst du fest, wen ein Agent anrufen darf, ob du jeden Anruf bestätigst, und die Limits.
+- **MCP-Schnittstelle für KI-Agenten.** Ein Agent wie Codex, Claude Code oder Claude Desktop kann für dich telefonieren: Er startet den Anruf mit einem Auftrag, liest mit, was gesagt wird, gibt der KI am Telefon Vorgaben und holt das Ergebnis ab. Standardmäßig aus; in der Web-UI legst du fest, wen ein Agent anrufen darf, ob und wann du einen Anruf vor dem Wählen bestätigst (immer, nur bei Nummern ohne Kontakt, nie), und die Limits.
 
 ## Voraussetzungen
 

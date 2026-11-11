@@ -173,14 +173,19 @@ function isOwnerNumber(target: string): boolean {
   return t.length > 0 && (contacts.isOwnerNumber(target) || config.ownerNumbers.some((n) => numberKey(n) === t));
 }
 
-/** Hintergrundwissen aus Kontakt und Historie: Notizen und die letzte Zusammenfassung. */
-function contactContext(target: string, incoming = false): string {
+/**
+ * Hintergrundwissen aus Kontakt und Historie: Notizen und die letzte Zusammenfassung.
+ * Bei einem Agenten-Anruf (`agent`) liest der Agent mit, was die KI sagt: Dann bleiben die Notizen draußen, und aus der
+ * Historie zählt nur, was der Agent ohnehin lesen darf (eigene Anrufe über MCP, oder alle mit der Freigabe dafür).
+ */
+function contactContext(target: string, incoming = false, agent = false): string {
   const parts: string[] = [];
   const c = contacts.findByNumber(target);
   if (c) {
-    parts.push(`${incoming ? `Die Nummer des Anrufers ist als Kontakt „${c.name}" gespeichert; wer wirklich dran ist, sagt er selbst.` : `Du rufst ${c.name} an.`}${c.notes ? ` Notizen zu diesem Kontakt: ${c.notes}` : ''}`);
+    parts.push(`${incoming ? `Die Nummer des Anrufers ist als Kontakt „${c.name}" gespeichert; wer wirklich dran ist, sagt er selbst.` : `Du rufst ${c.name} an.`}${c.notes && !agent ? ` Notizen zu diesem Kontakt: ${c.notes}` : ''}`);
   }
-  const last = store.listByNumber(target).find((r) => r.summary);
+  const allHistory = !agent || mcpPolicyFrom(loadSettings()).history === 'all';
+  const last = store.listByNumber(target).find((r) => r.summary && (allHistory || r.origin === 'mcp'));
   if (last) {
     parts.push(`Letztes Gespräch mit dieser Nummer am ${last.startedAt.slice(0, 10)} (${last.durationSec}s). Zusammenfassung:
 ${last.summary}`);
@@ -237,7 +242,7 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
     aiName: str('aiName', 'Alex') || 'Alex',
     principalName: owner && ownerFirst ? ownerFirst : str('principal', 'meinem Auftraggeber') || 'meinem Auftraggeber',
     task: str('task'),
-    context: [str('context'), contactContext(str('target'), incoming)].filter(Boolean).join('\n\n') || undefined,
+    context: [str('context'), contactContext(str('target'), incoming, mcp)].filter(Boolean).join('\n\n') || undefined,
     // Inhaber-Logik („dein Agent") nur beim Anrufen des Inhabers; beim Anrufbeantworter bleibt die KI der Assistent
     owner,
     // Rückrufnummer: der Inhaber-Kontakt, sofern wir nicht gerade ihn selbst anrufen
@@ -412,8 +417,14 @@ manager.on('callEnded', (reason: string) => {
     notify: c.notify,
     origin: c.origin,
   };
-  store.save(record);
-  if (c.origin === 'mcp') gateway.callEnded(reason, record.id);
+  let saved = false;
+  try {
+    store.save(record);
+    saved = true;
+  } finally {
+    // Auch wenn das Protokoll nicht geschrieben werden konnte: Der Anruf des Agenten ist vorbei, sonst bliebe das Gateway belegt
+    if (c.origin === 'mcp') gateway.callEnded(reason, saved ? record.id : undefined);
+  }
   try {
     usageCounter.add(c.provider, record.durationSec, record.costUsd ?? 0, c.startedAt);
   } catch (err) {
@@ -906,6 +917,7 @@ function onSettingsChanged(s: FormSettings): void {
   const t = tuningFrom(s);
   manager.setMaxCallSeconds(resolveAi(s).callLimit(t.maxCallSeconds));
   store.setRetention(t.retentionDays);
+  gateway.policyChanged();
 }
 
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen

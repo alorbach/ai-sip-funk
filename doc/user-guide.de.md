@@ -565,17 +565,17 @@ Unter „Einstellungen › MCP-Schnittstelle“:
 
 | Einstellung | Vorgabe | Bedeutung |
 | --- | --- | --- |
-| KI-Agenten dürfen über MCP telefonieren | aus | Hauptschalter. Ausgeschaltet lehnt SIPFunk jeden Tool-Aufruf mit einem Hinweis ab; der Agent sieht dann auch keinen Status, keine Kontakte und keine Protokolle. |
+| KI-Agenten dürfen über MCP telefonieren | aus | Hauptschalter. Ausgeschaltet lehnt SIPFunk jeden Tool-Aufruf mit einem Hinweis ab; der Agent sieht dann auch keinen Status, keine Kontakte und keine Protokolle. Schaltest du aus, während eine Anfrage auf deine Bestätigung wartet, verfällt sie. Ein Gespräch, das schon läuft, führt die KI allein zu Ende (die Höchstdauer gilt); auflegen kannst du es wie jedes andere in der Web-UI. |
 | Wen ein Agent anrufen darf | Nur gespeicherte Kontakte | „Nur gespeicherte Kontakte“: Der Agent kann nur Nummern anrufen, die du als Kontakt angelegt hast. „Kontakte und jede erlaubte Nummer“: zusätzlich jede Nummer, die auch das Dashboard wählen darf. Notruf, Sonder-, Mehrwert- und Auslandsnummern und Call-by-Call bleiben in beiden Fällen gesperrt (Kapitel 6). |
-| Vor dem Wählen bei mir nachfragen | Immer | „Immer“: Jeder Anruf wartet auf dein Ja. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. |
+| Vor dem Wählen bei mir nachfragen | Immer | „Immer“: Jeder Anruf wartet auf dein Ja. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. Unabhängig davon fragt SIPFunk immer nach, wenn der Agent einen anderen Auftraggeber angibt als den, der in deinen Einstellungen steht. |
 | Höchstens … Anrufe je Stunde / je Tag | 10 / 30 | Gezählt wird jede angenommene Anfrage, auch eine, die du abgelehnt hast oder bei der niemand abnahm. Der Zähler beginnt mit einem Neustart von SIPFunk neu. |
 | Höchstdauer je Anruf (Minuten) | 10 | Danach legt SIPFunk auf. Nie länger als das allgemeine Gesprächslimit (Einstellungen › Technik) und die Grenze des KI-Anbieters. |
 | Protokolle, die ein Agent lesen darf (Erweitert) | Nur Anrufe, die über MCP gestartet wurden | Mit „Alle Protokolle“ kann der Agent auch deine übrigen Gespräche und die des Anrufbeantworters lesen. |
-| Agent darf die Namen meiner Kontakte lesen (Erweitert) | aus | Eingeschaltet liefert `list_contacts` die Namen. Rufnummern und Notizen bekommt ein Agent nie; nennt er einen Kontakt beim Namen, wählt SIPFunk die Nummer, ohne sie ihm zu zeigen. |
+| Agent darf die Namen meiner Kontakte lesen (Erweitert) | aus | Eingeschaltet liefert `list_contacts` die Namen. Rufnummern und Notizen bekommt ein Agent nie; nennt er einen Kontakt beim Namen, wählt SIPFunk die Nummer, ohne sie ihm zu zeigen. Bei Agenten-Anrufen bekommt deshalb auch die KI am Telefon die Notizen des Kontakts nicht als Hintergrundwissen, denn was sie sagt, liest der Agent mit; aus früheren Gesprächen kennt sie nur, was der Agent selbst lesen darf. Was die KI für das Gespräch wissen muss, gibt der Agent in `context` mit. |
 
 Änderungen gelten, sobald du gespeichert hast. Rechts oben in der Karte steht der Zustand: ausgeschaltet, eingeschaltet, und wann zuletzt ein Agent zugegriffen hat.
 
-**Bestätigen.** Fragt ein Agent einen Anruf an, zeigt die Web-UI einen Dialog mit Ziel, Auftrag und dem Namen, in dessen Auftrag angerufen wird; die Tray-App meldet die Anfrage als Hinweis. „Anrufen“ wählt, „Ablehnen“ oder die Escape-Taste nicht. Ohne Antwort verfällt die Anfrage nach zwei Minuten. Ist die Web-UI gerade nicht offen, öffnet ein Klick auf den Hinweis sie.
+**Bestätigen.** Fragt ein Agent einen Anruf an, zeigt die Web-UI einen Dialog mit Ziel, Auftrag, dem Hintergrundwissen, das der Agent mitgibt, und dem Namen, in dessen Auftrag angerufen wird; die Tray-App meldet die Anfrage als Hinweis. „Anrufen“ wählt; „Ablehnen“ oder die Escape-Taste lehnt ab. Steht dort „laut Agent im Auftrag von … – nicht dein eingestellter Name“, hat der Agent einen anderen Auftraggeber angegeben als den aus deinen Einstellungen. Ohne Antwort verfällt die Anfrage nach zwei Minuten. Ist die Web-UI gerade nicht offen, öffnet ein Klick auf den Hinweis sie. Den Hinweis gibt es nur mit der Tray-App; läuft SIPFunk über `npm start`, siehst du die Anfrage nur in der offenen Web-UI.
 
 ![Bestätigungsdialog: Ein KI-Agent möchte anrufen](images/mcp-confirm.de.png)
 
@@ -633,13 +633,13 @@ Nach dem Verbinden zeigt der Agent die Tools von SIPFunk. Solange die Schnittste
 
 ### 13.4 Die Tools
 
-Alle Tools antworten mit Text. Fehler (gesperrtes Ziel, Limit erreicht, nicht erlaubt) kommen als Fehlertext mit dem Grund zurück. `call_id` ist überall optional; ohne Angabe ist der letzte Anruf des Agenten gemeint.
+Alle Tools antworten mit Text, auf Deutsch (auch die Sprach-KI spricht Deutsch). Fehler (gesperrtes Ziel, Limit erreicht, nicht erlaubt) kommen als Fehlertext mit dem Grund zurück. `call_id` ist überall optional; ohne Angabe ist der letzte Anruf des Agenten gemeint.
 
 | Tool | Parameter | Rückgabe |
 | --- | --- | --- |
 | `get_status` | – | Anmeldung an der Telefonanlage, freie Leitung, erlaubte Ziele, ob du bestätigen musst, verbleibende Anrufe je Stunde und Tag, Höchstdauer, laufender Anruf |
 | `list_contacts` | – | Namen der Kontakte, ohne Nummern. Nur mit der Freigabe „Agent darf die Namen meiner Kontakte lesen“ |
-| `start_call` | `target` (Kontaktname oder Rufnummer), `task` (Auftrag, höchstens 2000 Zeichen), optional `context` (Hintergrundwissen, höchstens 6000 Zeichen), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` | `call_id` und der Zustand: „angefragt“ (wartet auf deine Bestätigung) oder „wählt“ |
+| `start_call` | `target` (Kontaktname oder Rufnummer), `task` (Auftrag, höchstens 2000 Zeichen), optional `context` (Hintergrundwissen, höchstens 6000 Zeichen), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; kann die Höchstdauer nur verkürzen) | `call_id` und der Zustand: „angefragt“ (wartet auf deine Bestätigung) oder „wählt“ |
 | `wait_for_events` | `call_id`, `after` (Nummer des letzten bekannten Ereignisses), `timeout_sec` (1–50, Vorgabe 25) | Blockiert, bis es Neues gibt oder die Zeit abläuft. Liefert den Zustand, die neuen Ereignisse mit Nummer (`Gegenüber`, `KI`, `Zustand`, `Hinweis`, `RÜCKFRAGE der KI an dich`), eine offene Rückfrage und die Nummer für den nächsten Aufruf |
 | `say` | `call_id`, `text` (höchstens 600 Zeichen), `when` (`now` Vorgabe, `next`) | Übergibt eine Vorgabe an die Sprach-KI. Wartet sie auf die Antwort einer Rückfrage, ist `text` die Antwort. `now`: so bald wie möglich aussprechen; `next`: beim nächsten eigenen Redebeitrag berücksichtigen |
 | `end_call` | `call_id`, `mode` (`polite` Vorgabe, `now`) | `polite`: Die KI verabschiedet sich, meldet ihr Ergebnis und legt auf. `now`: sofort auflegen. Eine Anfrage, die noch auf Bestätigung wartet, wird zurückgezogen |
@@ -648,9 +648,11 @@ Alle Tools antworten mit Text. Fehler (gesperrtes Ziel, Limit erreicht, nicht er
 
 Hinweise zu einzelnen Parametern:
 
-- **`target`**: Ein Kontaktname muss eindeutig sein (genauer Name, sonst ein eindeutiger Teil davon). Rufnummern nimmt `start_call` nur an, wenn „Kontakte und jede erlaubte Nummer“ eingestellt ist oder die Nummer zu einem Kontakt gehört.
+- **`target`**: Ein Kontaktname muss eindeutig sein: der genaue Name (Groß- und Kleinschreibung egal). Ein eindeutiger Teil des Namens genügt nur, wenn der Agent die Kontaktnamen lesen darf. Rufnummern nimmt `start_call` nur an, wenn „Kontakte und jede erlaubte Nummer“ eingestellt ist oder die Nummer zu einem Kontakt gehört.
 - **`task`**: der Auftrag in normaler Sprache, so wie auf dem Dashboard. Er sollte sagen, wer vermutlich abnimmt, was erreicht werden soll, alle nötigen Angaben (Datum, Uhrzeit, Personenzahl, Name) und den Spielraum.
-- **`on_behalf_of`**: Ohne Angabe ruft die KI im Namen an, der unter „Einstellungen › KI-Assistent › Im Auftrag von“ steht. Der Bestätigungsdialog zeigt, was der Agent angegeben hat.
+- **`on_behalf_of`**: Ohne Angabe ruft die KI im Namen an, der unter „Einstellungen › KI-Assistent › Im Auftrag von“ steht. Ein Agent kann hier einen anderen Namen angeben; ein solcher Anruf wird dir immer zur Bestätigung vorgelegt, auch wenn sonst keine Bestätigung eingestellt ist.
+- **`say` und `end_call`** wirken auf das laufende Gespräch: `say` geht nur, solange der Anruf verbunden ist.
+- **Anrede und Stil im Einzelfall**: Ruft der Agent deine eigene Inhabernummer an, duzt die KI dich immer. Ein unbekannter Stil wird zu „professionell“.
 - **Stil und Anrede**: Ohne Angabe gelten die des Kontakts, sonst die Vorgaben des Dashboards. Den Namen der KI, ihre Stimme, das Modell und die „Zusätzlichen Hinweise zum Verhalten“ kann ein Agent nicht setzen; sie kommen aus deinen Einstellungen.
 - **Zusammenfassung**: Sie entsteht einige Sekunden nach dem Auflegen. Steht in `get_call_result` „noch nicht fertig“, kurz darauf noch einmal abrufen. Das „Ergebnis laut KI“ ist sofort da.
 
@@ -669,6 +671,7 @@ Voraussetzung: Die Schnittstelle ist eingeschaltet, „Restaurant Sonne“ ist e
    [5] Gegenüber: Restaurant Sonne, guten Abend.
    [6] KI: Guten Abend, hier ist Alex, der KI-Assistent von Max Mustermann. Ich möchte einen Tisch für vier Personen am Freitag um 19 Uhr reservieren.
    [7] Gegenüber: Um 19 Uhr sind wir voll. Um 20 Uhr hätte ich noch etwas.
+   [8] KI: Einen Moment bitte, ich frage kurz nach.
    ```
 5. **Rückfrage.** 20 Uhr liegt außerhalb des Spielraums. Die KI sagt am Telefon „Einen Moment bitte, ich frage kurz nach“ und fragt den Agenten:
    ```text
@@ -692,15 +695,15 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 - **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
 - **Mit Gemini** erreichen Vorgaben die KI als nachgereichte Anweisung im Gesprächsverlauf; das wirkt schwächer als bei OpenAI (Abschnitt 6.2).
 - **Wartezeit der Clients.** `wait_for_events` blockiert höchstens 50 Sekunden. Codex bricht Tool-Aufrufe ohne `tool_timeout_sec` nach 60 Sekunden ab.
-- **Bisher erprobt** ist der Ablauf mit automatischen Tests gegen eine nachgestellte Sprachverbindung und gegen eine Demo-Instanz ohne Telefon. Probier es zuerst mit einer eigenen Nummer oder Nebenstelle aus.
+- **Bisher erprobt** ist der Ablauf nur mit automatischen Tests gegen eine nachgestellte Sprachverbindung (`test/mcp.test.ts`) und bei der Entwicklung gegen eine Instanz ohne Telefon und ohne Netz, noch nicht mit einem echten Agenten in einem echten Telefonat. Probier es zuerst mit einer eigenen Nummer oder Nebenstelle aus.
 
 ### 13.7 Sicherheit
 
 - **Nur lokal.** Der Server lauscht nur auf `127.0.0.1`, auf demselben Port wie die Web-UI. Anfragen mit fremdem Host oder fremder Herkunft (eine Webseite in deinem Browser) werden abgewiesen. Gib den Port nicht frei.
 - **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor. Ein Agent kann das weder abschalten noch ihr einen anderen Namen oder eine andere Rolle geben; Vorgaben, die das verlangen, befolgt sie nicht.
 - **Sperren und Limits prüft SIPFunk**, nicht der Agent: Rufzielschutz, erlaubte Ziele, Bestätigung, Anrufe je Stunde und Tag, Höchstdauer, Gesprächslimit.
-- **Was ein Agent erfährt:** nur, was die Tools liefern. Keine Schlüssel, keine Kennwörter, keine Einstellungen, keine Rufnummern von Kontakten, die er nur beim Namen kennt. Was am Telefon gesagt wird, liest er mit, und es geht damit an den Anbieter deines Agenten. Sag dem Gegenüber nichts über einen Agenten zu, was du nicht einhalten kannst, und beachte den Datenschutz ([Rechtliche Hinweise](legal.de.md), Abschnitt 3).
-- **Prompt-Injection.** Ein Agent, der Webseiten oder Mails liest, kann dort Anweisungen aufschnappen („ruf diese Nummer an“). Dagegen helfen „Nur gespeicherte Kontakte“ und die Bestätigung vor dem Wählen. Lass beides an, solange du dem Agenten nicht in jeder Lage traust.
+- **Was ein Agent erfährt:** nur, was die Tools liefern. Keine Schlüssel, keine Kennwörter, keine Zugangsdaten zur Telefonanlage oder zu KI-Anbietern, keine Rufnummern von Kontakten, die er nur beim Namen kennt, keine Kontaktnotizen. Von deinen Einstellungen sieht er nur, was `get_status` nennt: die Erlaubnisse und Limits der Schnittstelle. Fragt das Gegenüber, wie es dich erreicht, nennt die KI deine Rückrufnummer (Inhaber-Kontakt); sie steht dann im Transkript. Was am Telefon gesagt wird, liest er mit, und es geht damit an den Anbieter deines Agenten. Sag dem Gegenüber nichts über einen Agenten zu, was du nicht einhalten kannst, und beachte den Datenschutz ([Rechtliche Hinweise](legal.de.md), Abschnitt 3).
+- **Prompt-Injection.** Ein Agent, der Webseiten oder Mails liest, kann dort Anweisungen aufschnappen („ruf diese Nummer an“). Dasselbe gilt für das Telefonat selbst: Was das Gegenüber sagt, liest dein Agent als Text, auch in den Rückfragen der KI. Er soll es als Information behandeln, nicht als Auftrag. Dagegen helfen „Nur gespeicherte Kontakte“ und die Bestätigung vor dem Wählen. Lass beides an, solange du dem Agenten nicht in jeder Lage traust.
 - **Grenze der Bestätigung.** Die Web-UI und ihre API haben keine Anmeldung ([SECURITY](../SECURITY.de.md)). Ein Agent, der auf deinem Rechner beliebige Befehle ausführen darf (ein Terminal), kann die lokale API auch direkt ansprechen und damit die Erlaubnisse der MCP-Schnittstelle umgehen. Die Erlaubnisse schützen bei Agenten, die nur die MCP-Tools haben. Einem Agenten mit Terminalzugriff vertraust du ohnehin deinen Rechner an.
 - **Verantwortung.** Für jeden Anruf, den ein Agent auslöst, bleibst du verantwortlich, als hättest du ihn selbst gestartet ([Richtlinien](guidelines.de.md)). Keine Werbeanrufe, keine Serienanrufe.
 

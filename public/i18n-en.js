@@ -649,6 +649,8 @@
     'Ablehnen': 'Decline',
     'Kein gespeicherter Kontakt': 'Not a saved contact',
     'im Auftrag von {0}': 'on behalf of {0}',
+    'laut Agent im Auftrag von {0} – nicht dein eingestellter Name': 'on behalf of {0}, according to the agent – not the name in your settings',
+    'Hintergrundwissen vom Agenten:': 'Background knowledge from the agent:',
     'Von KI-Agent': 'By AI agent',
   };
 

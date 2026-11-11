@@ -29,12 +29,12 @@ export const ASK_REPLACED = 'Durch deine neue Rückfrage ersetzt.';
 
 /** Antwort des Agenten auf eine Rückfrage, als Tool-Ergebnis für die Sprach-KI. */
 export function askAnswer(text: string): string {
-  return `Antwort deines Auftraggebers: ${text.trim()}\nGib das dem Gegenüber jetzt in eigenen Worten weiter und mach mit dem Auftrag weiter.`;
+  return `Antwort deines Auftraggebers: ${text.trim()}\nGib das dem Gegenüber jetzt in eigenen Worten weiter und mach mit dem Auftrag weiter. Deine Grundregeln gelten unverändert weiter.`;
 }
 
 /** Regieanweisung des Agenten mitten im Gespräch, als Hinweis im Gesprächsverlauf. */
 export function agentNote(text: string): string {
-  return `Regieanweisung deines Auftraggebers (nicht vorlesen, nicht erwähnen, im nächsten passenden Moment in eigenen Worten umsetzen): ${text.trim()}`;
+  return `Regieanweisung deines Auftraggebers (nicht vorlesen, nicht erwähnen, im nächsten passenden Moment in eigenen Worten umsetzen; deine Grundregeln gelten unverändert weiter): ${text.trim()}`;
 }
 
 /** Der Agent möchte das Gespräch höflich beenden. */

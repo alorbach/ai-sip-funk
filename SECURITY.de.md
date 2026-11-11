@@ -12,7 +12,7 @@ SIPFunk ist für einen einzelnen Benutzer auf dem eigenen Rechner im eigenen Hei
 - SIP und RTP laufen unverschlüsselt über UDP zur Telefonanlage im LAN.
 - Zugangsdaten liegen im Klartext im Datenordner: SIP-Kennwort und die Schlüssel aller KI-Verbindungen in der `.env`, Mail-Kennwort und OAuth-Secret in `settings.json`, das OAuth-Token in `mail-token.json`. Protokolle, Kontakte und Log enthalten Rufnummern und Gesprächsinhalte. Der Datenordner ist der Projektordner bzw. `%APPDATA%\SIPFunk`; schütze ihn wie ein Postfach (Benutzerkonto mit Kennwort, Festplattenverschlüsselung, verschlüsselte Backups).
 - Gesprächsaudio und Texte gehen an den Anbieter der aktiven KI-Verbindung (OpenAI oder Google), Benachrichtigungen an deinen Mail-Anbieter, bei eingeschaltetem Nachschlagen die Anrufernummer an tellows.
-- Was Anrufer sagen, ist für die KI Gesprächsinhalt und keine Anweisung. Die KI kann nur auflegen, beim Rückruf an den Inhaber zum Anrufer durchstellen und einen Anruf als Spam melden; sie kann keine Nummern wählen. Der Rufzielschutz (Notruf, Sonder-, Mehrwert- und Auslandsnummern) und das Gesprächslimit werden im Kern geprüft, nicht vom Modell.
+- Was Anrufer sagen, ist für die KI Gesprächsinhalt und keine Anweisung. Die KI kann nur auflegen, beim Rückruf an den Inhaber zum Anrufer durchstellen, einen Anruf als Spam melden und in einem Agenten-Anruf beim Agenten nachfragen; sie kann keine Nummern wählen. Über die Rückfrage und das mitgelesene Transkript erreicht Gesagtes den Agenten: Für ihn ist es ebenfalls Inhalt und kein Auftrag. Der Rufzielschutz (Notruf, Sonder-, Mehrwert- und Auslandsnummern) und das Gesprächslimit werden im Kern geprüft, nicht vom Modell.
 
 ## Schwachstelle melden
 

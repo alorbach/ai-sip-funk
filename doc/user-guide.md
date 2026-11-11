@@ -567,17 +567,17 @@ Under "Einstellungen › MCP-Schnittstelle":
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| KI-Agenten dürfen über MCP telefonieren (AI agents may make calls through MCP) | off | Main switch. When off, SIPFunk refuses every tool call with a note; the agent then sees no status, no contacts and no call logs either. |
+| KI-Agenten dürfen über MCP telefonieren (AI agents may make calls through MCP) | off | Main switch. When off, SIPFunk refuses every tool call with a note; the agent then sees no status, no contacts and no call logs either. If you switch it off while a request is waiting for your confirmation, the request lapses. A call that is already running is finished by the AI on its own (the maximum length applies); you can hang it up in the web UI like any other. |
 | Wen ein Agent anrufen darf (who an agent may call) | Nur gespeicherte Kontakte (saved contacts only) | "Nur gespeicherte Kontakte": the agent can only call numbers you have saved as a contact. "Kontakte und jede erlaubte Nummer" (contacts and any permitted number): in addition any number the dashboard may dial. Emergency, special, premium-rate and foreign numbers and call-by-call prefixes stay blocked in both cases (chapter 6). |
-| Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (always) | "Immer": every call waits for your yes. "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. |
+| Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (always) | "Immer": every call waits for your yes. "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. Regardless of this, SIPFunk always asks when the agent states a different principal from the one in your settings. |
 | Höchstens … Anrufe je Stunde / je Tag (at most … calls per hour / per day) | 10 / 30 | Every accepted request counts, including one you declined or one nobody answered. The counter starts again when SIPFunk restarts. |
 | Höchstdauer je Anruf (Minuten) (maximum length per call, minutes) | 10 | After that SIPFunk hangs up. Never longer than the general call time limit (Einstellungen › Technik) and the limit of the AI provider. |
 | Protokolle, die ein Agent lesen darf (call logs an agent may read; advanced) | Nur Anrufe, die über MCP gestartet wurden (only calls started through MCP) | With "Alle Protokolle" (all call logs) the agent can also read your other calls and those of the answering machine. |
-| Agent darf die Namen meiner Kontakte lesen (agent may read the names of my contacts; advanced) | off | When on, `list_contacts` returns the names. An agent never gets phone numbers or notes; if it names a contact, SIPFunk dials the number without showing it. |
+| Agent darf die Namen meiner Kontakte lesen (agent may read the names of my contacts; advanced) | off | When on, `list_contacts` returns the names. An agent never gets phone numbers or notes; if it names a contact, SIPFunk dials the number without showing it. In agent calls the AI on the phone therefore does not get the contact's notes as background knowledge either, because the agent reads along what it says; from earlier calls it knows only what the agent itself may read. Whatever the AI needs to know for the call, the agent passes in `context`. |
 
 Changes apply as soon as you have saved. The top right of the card shows the state: switched off, switched on, and when an agent last accessed the interface.
 
-**Confirming.** When an agent requests a call, the web UI shows a dialog with the target, the task and the name on whose behalf the call is made; the tray app reports the request as a notice. "Anrufen" (call) dials, "Ablehnen" (decline) or the Escape key does not. Without an answer the request expires after two minutes. If the web UI is not open, a click on the notice opens it.
+**Confirming.** When an agent requests a call, the web UI shows a dialog with the target, the task, the background knowledge the agent passes along and the name on whose behalf the call is made; the tray app reports the request as a notice. "Anrufen" (call) dials; "Ablehnen" (decline) or the Escape key declines. If it says "laut Agent im Auftrag von … – nicht dein eingestellter Name" (on behalf of …, according to the agent – not the name in your settings), the agent has stated a different principal from the one in your settings. Without an answer the request expires after two minutes. If the web UI is not open, a click on the notice opens it. The notice exists only with the tray app; if SIPFunk runs through `npm start`, you see the request only in the open web UI.
 
 ![Confirmation dialog: an AI agent wants to make a call](images/mcp-confirm.en.png)
 
@@ -641,7 +641,7 @@ All tools answer with text, in German (the voice AI speaks German too). Errors (
 | --- | --- | --- |
 | `get_status` | – | Registration with the phone system, free line, permitted targets, whether you have to confirm, calls left per hour and per day, maximum length, current call |
 | `list_contacts` | – | Names of the contacts, without numbers. Only with the permission "Agent darf die Namen meiner Kontakte lesen" |
-| `start_call` | `target` (contact name or phone number), `task` (at most 2000 characters), optional `context` (background knowledge, at most 6000 characters), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` | `call_id` and the state: requested (waiting for your confirmation) or dialling |
+| `start_call` | `target` (contact name or phone number), `task` (at most 2000 characters), optional `context` (background knowledge, at most 6000 characters), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; can only shorten the maximum length) | `call_id` and the state: requested (waiting for your confirmation) or dialling |
 | `wait_for_events` | `call_id`, `after` (number of the last known event), `timeout_sec` (1–50, default 25) | Blocks until there is something new or the time is up. Returns the state, the new events with their number (`Gegenüber` = other party, `KI` = the AI, `Zustand` = state, `Hinweis` = note, `RÜCKFRAGE der KI an dich` = the AI's question to you), an open question and the number for the next call |
 | `say` | `call_id`, `text` (at most 600 characters), `when` (`now` default, `next`) | Hands a direction to the voice AI. If it is waiting for the answer to a question, `text` is that answer. `now`: say it as soon as possible; `next`: take it into account the next time the AI speaks |
 | `end_call` | `call_id`, `mode` (`polite` default, `now`) | `polite`: the AI says goodbye, reports its result and hangs up. `now`: hang up immediately. A request still waiting for confirmation is withdrawn |
@@ -650,9 +650,11 @@ All tools answer with text, in German (the voice AI speaks German too). Errors (
 
 Notes on individual parameters:
 
-- **`target`**: a contact name has to be unambiguous (the exact name, otherwise an unambiguous part of it). `start_call` accepts phone numbers only if "Kontakte und jede erlaubte Nummer" is set or the number belongs to a contact.
+- **`target`**: a contact name has to be unambiguous: the exact name (case does not matter). An unambiguous part of the name is enough only if the agent may read the contact names. `start_call` accepts phone numbers only if "Kontakte und jede erlaubte Nummer" is set or the number belongs to a contact.
 - **`task`**: the task in plain language, as on the dashboard, best in German. It should say who will probably answer, what is to be achieved, all the details needed (date, time, number of people, name) and the leeway.
-- **`on_behalf_of`**: without it, the AI calls in the name entered under "Einstellungen › KI-Assistent › Im Auftrag von". The confirmation dialog shows what the agent stated.
+- **`on_behalf_of`**: without it, the AI calls in the name entered under "Einstellungen › KI-Assistent › Im Auftrag von". An agent can state a different name here; such a call is always put to you for confirmation, even if no confirmation is set otherwise.
+- **`say` and `end_call`** act on the running call: `say` works only while the call is connected.
+- **Form of address and style in special cases**: if the agent calls your own owner number, the AI always uses "du" with you. An unknown style becomes "professionell".
 - **Style and form of address**: without them, those of the contact apply, otherwise the defaults of the dashboard. An agent cannot set the AI's name, its voice, the model or the "Zusätzliche Hinweise zum Verhalten" (additional behaviour notes); they come from your settings.
 - **Summary**: it is written a few seconds after hanging up. If `get_call_result` says it is not ready yet, fetch it again shortly afterwards. The result according to the AI is there immediately.
 
@@ -671,6 +673,7 @@ Prerequisites: the interface is switched on, "Restaurant Sonne" is a contact, th
    [5] Gegenüber: Restaurant Sonne, guten Abend.
    [6] KI: Guten Abend, hier ist Alex, der KI-Assistent von Max Mustermann. Ich möchte einen Tisch für vier Personen am Freitag um 19 Uhr reservieren.
    [7] Gegenüber: Um 19 Uhr sind wir voll. Um 20 Uhr hätte ich noch etwas.
+   [8] KI: Einen Moment bitte, ich frage kurz nach.
    ```
 5. **Question.** 8 pm is outside the leeway. On the phone the AI says "Einen Moment bitte, ich frage kurz nach" and asks the agent:
    ```text
@@ -694,15 +697,15 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 - **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
 - **With Gemini**, directions reach the AI as an instruction added to the conversation; that has a weaker effect than with OpenAI (section 6.2).
 - **Client timeouts.** `wait_for_events` blocks for at most 50 seconds. Without `tool_timeout_sec`, Codex aborts tool calls after 60 seconds.
-- **Tried so far** only with automated tests against a simulated voice connection and against a demo instance without a phone. Try it with one of your own numbers or extensions first.
+- **Tried so far** only with automated tests against a simulated voice connection (`test/mcp.test.ts`) and, during development, against an instance without a phone and without network access, not yet with a real agent in a real phone call. Try it with one of your own numbers or extensions first.
 
 ### 13.7 Security
 
 - **Local only.** The server listens only on `127.0.0.1`, on the same port as the web UI. Requests with a foreign host or origin (a website in your browser) are refused. Do not expose the port.
 - **The AI stays an AI.** In every agent call it introduces itself as an AI assistant. An agent can neither switch that off nor give it another name or role; it does not follow directions that demand this.
 - **SIPFunk checks blocks and limits**, not the agent: dial target protection, permitted targets, confirmation, calls per hour and per day, maximum length, call time limit.
-- **What an agent learns:** only what the tools return. No keys, no passwords, no settings, no phone numbers of contacts it knows only by name. It reads along what is said on the phone, and with that it goes to the provider of your agent. Do not promise the other party anything about an agent that you cannot keep, and mind data protection ([legal notes](legal.md), section 3).
-- **Prompt injection.** An agent that reads websites or e-mails can pick up instructions there ("call this number"). "Nur gespeicherte Kontakte" and the confirmation before dialling help against that. Leave both on as long as you do not trust the agent in every situation.
+- **What an agent learns:** only what the tools return. No keys, no passwords, no credentials for the phone system or AI providers, no phone numbers of contacts it knows only by name, no contact notes. Of your settings it sees only what `get_status` states: the permissions and limits of the interface. If the other party asks how to reach you, the AI gives your call-back number (owner contact); it is then in the transcript. It reads along what is said on the phone, and with that it goes to the provider of your agent. Do not promise the other party anything about an agent that you cannot keep, and mind data protection ([legal notes](legal.md), section 3).
+- **Prompt injection.** An agent that reads websites or e-mails can pick up instructions there ("call this number"). The same goes for the phone call itself: what the other party says is read by your agent as text, also in the AI's questions. It should treat that as information, not as a task. "Nur gespeicherte Kontakte" and the confirmation before dialling help against that. Leave both on as long as you do not trust the agent in every situation.
 - **Limit of the confirmation.** The web UI and its API have no login ([SECURITY](../SECURITY.md)). An agent that may run arbitrary commands on your computer (a terminal) can also address the local API directly and so bypass the permissions of the MCP interface. The permissions protect with agents that have only the MCP tools. To an agent with terminal access you entrust your computer anyway.
 - **Responsibility.** You remain responsible for every call an agent triggers, as if you had started it yourself ([guidelines](guidelines.md)). No advertising calls, no serial calls.
 

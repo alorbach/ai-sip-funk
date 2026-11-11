@@ -687,7 +687,7 @@
               <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Agent</span><select id="mcp-agent" style="width:auto" data-no-i18n><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="claude-desktop">Claude Desktop</option></select></label>
               <label class="field adv" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Verbindung</span><select id="mcp-transport" style="width:auto"><option value="http">Direkt über HTTP</option><option value="stdio">Als Prozess (stdio)</option></select></label>
             </div>
-            <div class="snippet"><pre id="mcp-snippet" data-no-i18n tabindex="0" aria-label="Konfiguration"></pre><button type="button" id="mcp-copy" class="btn small">Kopieren</button></div>
+            <div class="snippet" role="group" aria-label="Konfiguration"><pre id="mcp-snippet" data-no-i18n tabindex="0"></pre><button type="button" id="mcp-copy" class="btn small">Kopieren</button></div>
             <p class="hint" id="mcp-where" style="margin-top:8px"></p>
             <p class="hint" style="margin-top:12px">SIPFunk muss laufen, damit der Agent es erreicht. Die Schnittstelle ist nur von diesem Rechner aus erreichbar. Für jeden Anruf, den ein Agent auslöst, bleibst du verantwortlich: Lass ihn nur Menschen anrufen, die damit einverstanden sind, und keine Werbeanrufe führen. Mehr dazu im Handbuch, Kapitel „MCP-Schnittstelle“.</p>
           </div>
@@ -2055,7 +2055,8 @@ $('su-test').onclick = async () => {
 let mcp = { enabled: false, lastAccess: null, pending: null, call: null, connect: null };
 /** TOML-Text ohne Maskierung (Windows-Pfade enthalten Backslashes) */
 const tomlStr = (v) => (v.includes("'") ? JSON.stringify(v) : `'${v}'`);
-const shellArg = (v) => (/[\s"]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
+/** Argument für die Kommandozeile: in Anführungszeichen, sobald etwas anderes als unverfängliche Zeichen vorkommt */
+const shellArg = (v) => (/^[\w.:\/\\=-]+$/.test(v) ? v : `"${v.replace(/"/g, '\\"')}"`);
 function mcpSnippet() {
   const c = mcp.connect;
   if (!c) return { text: '', where: '' };
@@ -2067,13 +2068,13 @@ function mcpSnippet() {
   if (agent === 'codex') {
     const text = http
       ? `[mcp_servers.sipfunk]\nurl = "${c.httpUrl}"\ntool_timeout_sec = 120`
-      : `[mcp_servers.sipfunk]\ncommand = ${tomlStr(c.stdio.command)}\nargs = [${c.stdio.args.map(tomlStr).join(', ')}]\ntool_timeout_sec = 120\n\n[mcp_servers.sipfunk.env]\n${env.map(([k, v]) => `${k} = "${v}"`).join('\n')}`;
+      : `[mcp_servers.sipfunk]\ncommand = ${tomlStr(c.stdio.command)}\nargs = [${c.stdio.args.map(tomlStr).join(', ')}]\ntool_timeout_sec = 120\n\n[mcp_servers.sipfunk.env]\n${env.map(([k, v]) => `${k} = ${tomlStr(v)}`).join('\n')}`;
     return { text, where: 'In die Datei ~/.codex/config.toml einfügen (unter Windows im Benutzerordner) und Codex neu starten.' };
   }
   if (agent === 'claude-code') {
     const text = http
       ? `claude mcp add --transport http sipfunk ${c.httpUrl}`
-      : `claude mcp add ${env.map(([k, v]) => `--env ${k}=${v}`).join(' ')} --transport stdio sipfunk -- ${[c.stdio.command, ...c.stdio.args].map(shellArg).join(' ')}`;
+      : `claude mcp add ${env.map(([k, v]) => `--env ${shellArg(`${k}=${v}`)}`).join(' ')} --transport stdio sipfunk -- ${[c.stdio.command, ...c.stdio.args].map(shellArg).join(' ')}`;
     return { text, where: 'Im Terminal ausführen. Mit „--scope user“ gilt die Verbindung für alle Projekte.' };
   }
   return {
@@ -2089,20 +2090,41 @@ function renderMcp(info) {
   $('mcp-snippet').textContent = snip.text;
   $('mcp-where').textContent = snip.where;
   const p = mcp.pending, dlg = $('mcp-confirm');
-  if (!p) { if (dlg.open) dlg.close(); return; }
+  // Eine Anfrage, die gerade beantwortet wird, nicht noch einmal zeigen (Zwischenstände vom Server tragen sie noch)
+  if (!p || p.id === mcpAnswered) { if (dlg.open && !mcpAnswering) dlg.close(); return; }
   if (dlg.open && dlg.dataset.id === p.id) return;
   dlg.dataset.id = p.id;
   $('mcp-confirm-who').textContent = p.contact || p.number;
-  $('mcp-confirm-meta').textContent = (p.contact ? p.number + ' · ' : I18N.t('Kein gespeicherter Kontakt') + ' · ') + I18N.t('im Auftrag von {0}', p.principal || '–');
-  $('mcp-confirm-task').textContent = p.task;
+  $('mcp-confirm-meta').textContent = (p.contact ? p.number + ' · ' : I18N.t('Kein gespeicherter Kontakt') + ' · ') + (p.ownPrincipal ? I18N.t('im Auftrag von {0}', p.principal || '–') : I18N.t('laut Agent im Auftrag von {0} – nicht dein eingestellter Name', p.principal || '–'));
+  $('mcp-confirm-task').textContent = p.task + (p.context ? '\n\n' + I18N.t('Hintergrundwissen vom Agenten:') + '\n' + p.context : '');
   if (!dlg.open) dlg.showModal();
   $('mcp-confirm-no').focus();
 }
 async function loadMcp() { try { renderMcp(await api('/api/mcp')); } catch {} }
+/** Kennung der Anfrage, die schon beantwortet ist, und ob die Antwort gerade unterwegs ist (gegen Doppelklicks) */
+let mcpAnswered = '', mcpAnswering = false;
 async function answerMcp(allow) {
+  if (mcpAnswering) return;
   const id = $('mcp-confirm').dataset.id;
-  $('mcp-confirm').close();
-  try { renderMcp(await api('/api/mcp/approve', { id, allow })); } catch (err) { toast(err.message); }
+  mcpAnswering = true;
+  $('mcp-confirm-yes').disabled = $('mcp-confirm-no').disabled = true;
+  try {
+    const info = await api('/api/mcp/approve', { id, allow });
+    mcpAnswered = id;
+    // Bestätigt, aber das Wählen ging nicht (Leitung inzwischen belegt, Schnittstelle ausgeschaltet): den Grund zeigen
+    if (info.failed) toast(info.failed);
+    mcpAnswering = false;
+    renderMcp(info);
+  } catch (err) {
+    // Die Anfrage gibt es nicht mehr oder der Server ist nicht erreichbar: Der Dialog richtet sich nach dem Stand des Servers
+    mcpAnswering = false;
+    toast(err.message);
+    $('mcp-confirm').close();
+    loadMcp();
+  } finally {
+    mcpAnswering = false;
+    $('mcp-confirm-yes').disabled = $('mcp-confirm-no').disabled = false;
+  }
 }
 $('mcp-confirm-yes').onclick = () => answerMcp(true);
 $('mcp-confirm-no').onclick = () => answerMcp(false);

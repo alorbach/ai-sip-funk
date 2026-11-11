@@ -62,7 +62,8 @@ export interface WebServerOptions {
   /** MCP-Schnittstelle für KI-Agenten: Zustand für die Oberfläche, Bestätigung einer Anfrage, Tool-Aufrufe (stdio-Prozess) und Streamable HTTP unter /mcp */
   mcp?: {
     info: () => Record<string, unknown>;
-    approve: (id: string, allow: boolean) => void;
+    /** Liefert einen Grund, wenn bestätigt wurde, das Wählen aber nicht ging */
+    approve: (id: string, allow: boolean) => string | undefined;
     run: (tool: string, args: Record<string, unknown>, client: string) => Promise<{ text: string; isError?: boolean }>;
     http: (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void>;
   };
@@ -162,8 +163,8 @@ export function startWebServer(opts: WebServerOptions): () => void {
       if (req.method === 'POST' && url.pathname === '/api/mcp/approve') {
         if (!opts.mcp) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
-        opts.mcp.approve(String(body.id ?? ''), body.allow === true);
-        return sendJson(res, 200, opts.mcp.info());
+        const failed = opts.mcp.approve(String(body.id ?? ''), body.allow === true);
+        return sendJson(res, 200, { ...opts.mcp.info(), failed });
       }
       // Tool-Aufruf des stdio-Prozesses (mcp/server.ts); Erlaubnisse und Limits prüft das Gateway
       if (req.method === 'POST' && url.pathname === '/api/mcp/call') {

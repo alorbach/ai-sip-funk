@@ -1,6 +1,7 @@
 // Gateway zwischen KI-Agenten (MCP) und SIPFunk: prüft, was ein Agent darf (Schalter, Ziele, Bestätigung, Limits),
 // führt den einen Anruf des Agenten als Folge von Ereignissen und gibt nur heraus, was der Betreiber erlaubt hat.
 // Alle Tools laufen hier durch – egal ob der Agent über Streamable HTTP (/mcp) oder den stdio-Prozess kommt.
+import { ASK_TIMEOUT_MS } from '../ai/agentCall.js';
 import { log } from '../log.js';
 import type { McpPolicy } from '../settings.js';
 import type { CallRecord, CallRecordSummary } from '../transcripts.js';
@@ -45,8 +46,9 @@ interface AgentCall {
   endReason?: string;
   /** Kennung des gespeicherten Protokolls (erst nach einem zustande gekommenen Gespräch) */
   recordId?: string;
-  /** Offene Rückfrage der Sprach-KI */
+  /** Offene Rückfrage der Sprach-KI; sie gilt nur, solange die KI auf die Antwort wartet (siehe openQuestion) */
   question?: string;
+  questionAt?: number;
   events: AgentEvent[];
   control?: AgentCallControl;
   approvalTimer?: NodeJS.Timeout;
@@ -59,7 +61,7 @@ export interface GatewayDeps {
   /** In wessen Auftrag die KI anruft, wenn der Agent nichts nennt */
   principal(): string;
   contacts(): { name: string; number: string }[];
-  findContact(number: string): { name: string } | undefined;
+  findContact(number: string): { name: string; number: string } | undefined;
   /** Rufzielschutz: liefert die normalisierte Nummer oder wirft mit dem Sperrgrund */
   prepare(target: string): string;
   line(): { phase: string; registered: boolean; maxCallSeconds: number };
@@ -97,6 +99,8 @@ const STATE_TEXT: Record<AgentCallState, string> = {
 };
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+/** Eine Zeile ohne Steuerzeichen: für Namen, die in die Systemanweisung gehen, und für Ereigniszeilen an den Agenten */
+const oneLine = (v: string): string => v.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 export class McpGateway {
   private calls: AgentCall[] = [];
@@ -208,12 +212,13 @@ export class McpGateway {
     let contactName: string | undefined;
     if (NUMBER_LIKE.test(raw)) {
       number = this.deps.prepare(raw);
-      contactName = this.deps.findContact(number)?.name;
+      contactName = this.contactFor(number)?.name;
     } else {
       const q = raw.toLowerCase();
       const all = this.deps.contacts();
       const exact = all.filter((c) => c.name.toLowerCase() === q);
-      const partial = all.filter((c) => c.name.toLowerCase().includes(q));
+      // Teiltreffer nur mit freigegebener Kontaktliste: Sonst ließen sich Namen durch Probieren kurzer Bruchstücke erraten
+      const partial = p.contacts ? all.filter((c) => c.name.toLowerCase().includes(q)) : [];
       const hit = exact.length === 1 ? exact[0] : exact.length === 0 && partial.length === 1 ? partial[0] : undefined;
       if (!hit) throw new Error(`Kein eindeutiger Kontakt „${raw}“. ${p.contacts ? 'list_contacts zeigt die vorhandenen Namen.' : 'Bitte den Betreiber um den genauen Namen des Kontakts.'}`);
       // Auch die Nummer eines Kontakts geht durch den Rufzielschutz
@@ -231,14 +236,18 @@ export class McpGateway {
     if (q.day <= 0) throw new Error(`Limit erreicht: höchstens ${p.perDay} Anrufe in 24 Stunden über MCP.`);
 
     const address = args.address === 'du' ? 'du' : args.address === 'sie' ? 'sie' : undefined;
-    const wantedMinutes = typeof args.max_minutes === 'number' && args.max_minutes > 0 ? args.max_minutes : undefined;
+    const wantedMinutes = typeof args.max_minutes === 'number' && Number.isFinite(args.max_minutes) ? Math.max(1, args.max_minutes) : undefined;
     const maxSeconds = Math.round(Math.min(p.maxSeconds, line.maxCallSeconds, wantedMinutes ? wantedMinutes * 60 : Infinity));
+    // Der Name geht in die Systemanweisung: eine Zeile, begrenzt. Weicht er vom Namen des Betreibers ab, entscheidet immer der Betreiber
+    const own = oneLine(this.deps.principal());
+    const principal = oneLine(str(args.on_behalf_of)).slice(0, 80) || own;
+    const otherPrincipal = principal.toLowerCase() !== own.toLowerCase();
     const call: AgentCall = {
       id: `c${++this.counter}`,
       number,
       label: contactName ?? number,
       contactName,
-      params: { task, context: context || undefined, principal: str(args.on_behalf_of).slice(0, 80) || this.deps.principal(), address, persona: str(args.persona) || undefined, maxSeconds },
+      params: { task, context: context || undefined, principal, address, persona: oneLine(str(args.persona)).slice(0, 40) || undefined, maxSeconds },
       state: 'awaiting_approval',
       createdAt: this.now(),
       events: [],
@@ -248,7 +257,7 @@ export class McpGateway {
     for (const old of this.calls.splice(KEEP_CALLS)) clearTimeout(old.approvalTimer);
     log.info(`MCP: Agent möchte ${contactName ? `den Kontakt „${contactName}“` : number} anrufen (${call.id})`);
 
-    const confirm = p.confirm === 'always' || (p.confirm === 'unknown' && !contactName);
+    const confirm = p.confirm === 'always' || (p.confirm === 'unknown' && !contactName) || otherPrincipal;
     if (!confirm) {
       this.dialNow(call);
       if (call.state === 'ended') throw new Error(call.endReason ?? 'Anruf nicht möglich');
@@ -289,13 +298,15 @@ export class McpGateway {
           resolve();
         };
         const timer = setTimeout(done, timeoutSec * 1000);
+        timer.unref();
         this.waiters.add(done);
       });
     }
     const events = fresh();
     const lines = [this.headline(call), ...events.map((e) => this.eventLine(e))];
     if (!events.length) lines.push(call.state === 'ended' ? '(keine weiteren Ereignisse)' : `(nichts Neues in ${timeoutSec} s)`);
-    if (call.question) lines.push(`OFFENE RÜCKFRAGE der KI an dich: ${call.question} → jetzt mit say beantworten (die KI wartet etwa 25 s).`);
+    const open = this.openQuestion(call);
+    if (open) lines.push(`OFFENE RÜCKFRAGE der KI an dich: ${open} → jetzt mit say beantworten (die KI wartet etwa ${Math.round(ASK_TIMEOUT_MS / 1000)} s).`);
     lines.push(call.state === 'ended' ? `Beendet. Ergebnis, Zusammenfassung und Transkript: get_call_result (call_id ${call.id}).` : `Weiter mit wait_for_events (call_id ${call.id}, after ${this.lastSeq(call)}).`);
     return lines.join('\n');
   }
@@ -309,7 +320,8 @@ export class McpGateway {
     if (call.state !== 'connected' || !call.control) throw new Error(`Das geht nur im laufenden Gespräch (Zustand: ${STATE_TEXT[call.state]}).`);
     const mode = call.control.say(text, args.when !== 'next');
     if (mode === 'closed' || mode === 'ending') throw new Error('Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an.');
-    if (mode === 'answered') call.question = undefined;
+    // Ob als Antwort oder als Vorgabe angekommen: Eine Rückfrage ist danach nicht mehr offen
+    call.question = undefined;
     this.push(call, 'note', `Vorgabe des Agenten: ${text}`);
     return mode === 'answered'
       ? 'Als Antwort auf die Rückfrage übergeben; die KI gibt es jetzt weiter.'
@@ -362,13 +374,31 @@ export class McpGateway {
     return items.map((r) => `${r.id} · ${this.targetLabel(r.target)} · ${r.startedAt} · ${r.durationSec}s · ${r.endReason}\n  ${(r.summary ?? r.outcome?.result ?? '').split('\n')[0]}`).join('\n');
   }
 
+  /** Die Rückfrage, auf deren Antwort die Sprach-KI noch wartet; nach Ablauf ihrer Frist macht sie ohne Antwort weiter. */
+  private openQuestion(call: AgentCall): string | undefined {
+    if (call.question && this.now() - (call.questionAt ?? 0) >= ASK_TIMEOUT_MS) call.question = undefined;
+    return call.question;
+  }
+
+  /** Kontakt zur Nummer – nur, wenn dessen gespeicherte Nummer selbst wählbar ist (eine Auslandsnummer kann sonst dieselben Ziffern haben wie eine andere Nummer). */
+  private contactFor(number: string): { name: string } | undefined {
+    const c = this.deps.findContact(number);
+    if (!c) return undefined;
+    try {
+      this.deps.prepare(c.number);
+      return c;
+    } catch {
+      return undefined;
+    }
+  }
+
   private mayRead(r: { origin?: string }): boolean {
     return this.deps.policy().history === 'all' || r.origin === 'mcp';
   }
 
   /** Für den Agenten steht ein Kontaktname statt der Nummer, wo es einen gibt. */
   private targetLabel(number: string): string {
-    return this.deps.findContact(number)?.name ?? number;
+    return this.contactFor(number)?.name ?? number;
   }
 
   private recordText(r: CallRecord): string {
@@ -387,7 +417,8 @@ export class McpGateway {
 
   private eventLine(e: AgentEvent): string {
     const who = { state: 'Zustand', partner: 'Gegenüber', assistant: 'KI', question: 'RÜCKFRAGE der KI an dich', note: 'Hinweis' }[e.type];
-    return `[${e.seq}] ${who}: ${e.text}`;
+    // Eine Zeile je Ereignis: Gesagtes kann sonst Zeilen nachahmen, die wie ein Zustand oder eine Rückfrage aussehen
+    return `[${e.seq}] ${who}: ${oneLine(e.text)}`;
   }
 
   private lastSeq(call: AgentCall): number {
@@ -408,6 +439,7 @@ export class McpGateway {
     call.recordId = recordId;
     call.control = undefined;
     call.question = undefined;
+    call.questionAt = undefined;
     call.expiresAt = undefined;
     this.push(call, 'state', `Beendet: ${reason}`);
     log.info(`MCP: Anruf ${call.id} beendet (${reason})`);
@@ -436,9 +468,15 @@ export class McpGateway {
     this.deps.publish(this.info());
   }
 
+  /** Der Anruf, der gerade auf der Leitung ist (gewählt, klingelt oder verbunden) – nur ihm gehören Äußerungen und Rückfragen. */
+  private get onLine(): AgentCall | undefined {
+    const call = this.active;
+    return call && call.state !== 'awaiting_approval' ? call : undefined;
+  }
+
   /** Fertige Äußerung aus dem Transkript des Agenten-Anrufs. */
   transcript(entry: { speaker: 'ki' | 'partner' | 'system'; text: string; final: boolean }): void {
-    const call = this.active;
+    const call = this.onLine;
     if (!call || !entry.final || !entry.text.trim()) return;
     // Rückfragen meldet question(); die Zeile im Transkript wäre dasselbe noch einmal
     if (entry.speaker === 'system' && entry.text.startsWith('Rückfrage an den Agenten:')) return;
@@ -447,9 +485,10 @@ export class McpGateway {
 
   /** Die Sprach-KI fragt beim Agenten nach. */
   question(text: string): void {
-    const call = this.active;
+    const call = this.onLine;
     if (!call) return;
-    call.question = text;
+    call.question = oneLine(text);
+    call.questionAt = this.now();
     this.push(call, 'question', text);
     this.deps.publish(this.info());
   }
@@ -463,15 +502,32 @@ export class McpGateway {
 
   // ---- Web-UI ----
 
-  /** Der Betreiber bestätigt oder lehnt eine Anfrage ab. */
-  approve(id: string, allow: boolean): void {
+  /**
+   * Der Betreiber bestätigt oder lehnt eine Anfrage ab. Liefert einen Grund, wenn bestätigt wurde, das Wählen aber
+   * nicht ging (Leitung inzwischen belegt, Schnittstelle inzwischen ausgeschaltet).
+   */
+  approve(id: string, allow: boolean): string | undefined {
     const call = this.calls.find((c) => c.id === id);
     if (!call || call.state !== 'awaiting_approval') throw new Error('Diese Anfrage gibt es nicht mehr (abgelaufen oder zurückgezogen).');
-    if (allow) {
+    if (!allow) this.finish(call, 'Vom Betreiber abgelehnt');
+    else if (!this.deps.policy().enabled) this.finish(call, 'Die MCP-Schnittstelle wurde inzwischen ausgeschaltet');
+    else {
       log.info(`MCP: Anruf ${call.id} vom Betreiber bestätigt`);
       this.dialNow(call);
-    } else this.finish(call, 'Vom Betreiber abgelehnt');
+    }
     this.deps.publish(this.info());
+    // (finish und dialNow ändern den Zustand; die Typprüfung sieht das nicht)
+    return allow && (call.state as AgentCallState) === 'ended' ? call.endReason : undefined;
+  }
+
+  /**
+   * Die Einstellungen wurden gespeichert. Ist die Schnittstelle jetzt aus, verfällt eine Anfrage, die noch auf Bestätigung
+   * wartet. Ein laufendes Gespräch wird nicht mitten im Satz abgebrochen: Die KI führt es allein zu Ende (Höchstdauer gilt).
+   */
+  policyChanged(): void {
+    const call = this.active;
+    if (!this.deps.policy().enabled && call?.state === 'awaiting_approval') this.finish(call, 'Die MCP-Schnittstelle wurde ausgeschaltet');
+    else this.deps.publish(this.info());
   }
 
   /** Zustand für die Web-UI: letzter Zugriff, offene Anfrage, laufender Anruf, Kontingent. Mit Rufnummer – das sieht nur der Betreiber. */
@@ -483,7 +539,7 @@ export class McpGateway {
       enabled: this.deps.policy().enabled,
       lastAccess: this.access ? { at: new Date(this.access.at).toISOString(), tool: this.access.tool, client: this.access.client, count: this.access.count } : null,
       quota: q,
-      pending: a?.state === 'awaiting_approval' ? { id: a.id, number: a.number, contact: a.contactName ?? '', task: a.params.task, principal: a.params.principal, expiresAt: new Date(a.expiresAt ?? this.now()).toISOString() } : null,
+      pending: a?.state === 'awaiting_approval' ? { id: a.id, number: a.number, contact: a.contactName ?? '', task: a.params.task, context: a.params.context ?? '', principal: a.params.principal, ownPrincipal: a.params.principal.toLowerCase() === oneLine(this.deps.principal()).toLowerCase(), expiresAt: new Date(a.expiresAt ?? this.now()).toISOString() } : null,
       call: a && a.state !== 'awaiting_approval' ? { id: a.id, number: a.number, contact: a.contactName ?? '', state: a.state } : null,
     };
   }

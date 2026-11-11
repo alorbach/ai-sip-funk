@@ -375,6 +375,8 @@ export class RealtimeBridge implements AudioHandler {
   agentEnd(): 'ending' | 'closed' {
     if (this.closed) return 'closed';
     if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
+    // Der Auftraggeber beendet: Die Selbstprüfung gegen den Gesprächsplan („sprich fehlende Schritte jetzt aus“) entfällt
+    this.endCallChecked = true;
     if (this.ask) this.resolveAsk(AGENT_END_NOTE);
     else {
       this.live.note(AGENT_END_NOTE);
@@ -399,8 +401,13 @@ export class RealtimeBridge implements AudioHandler {
    */
   private requestRespond(label: string): void {
     if (this.closed || this.endRequested !== undefined || this.goodbye !== 'none') return;
+    // Vor der Begrüßung: Die Begrüßung bzw. die Antwort auf die Meldung des Gegenübers kennt den Hinweis schon
+    if (!this.ready || !this.connected || !this.greeted) return;
+    // Die KI wartet auf die Antwort einer Rückfrage: Erst die Antwort darauf lässt sie weitersprechen
+    if (this.ask) return;
     if (this.partnerSpeaking) return;
-    if (this.activeResponse) {
+    // Eine Antwort läuft oder ist schon angefordert (Begrüßung, Satzende des Gegenübers): danach anfordern
+    if (this.activeResponse || this.awaitingAudioSince) {
       this.pendingRespond = true;
       return;
     }
@@ -613,7 +620,8 @@ export class RealtimeBridge implements AudioHandler {
     this.droppedItems = [];
     if (this.pendingRespond) {
       this.pendingRespond = false;
-      this.requestRespond('Regieanweisung des Agenten');
+      // Hat das Gegenüber die Antwort unterbrochen und antwortet der Anbieter darauf von selbst, kommt die Vorgabe dort an
+      if (!(r.status === 'cancelled' && this.live.answersAfterInterrupt)) this.requestRespond('Regieanweisung des Agenten');
     }
     if (!this.playing && this.outQueue.length === 0) this.armStall();
     if (r.status === 'failed') {
@@ -710,7 +718,8 @@ export class RealtimeBridge implements AudioHandler {
         return;
       }
       this.awaitingAudioSince = 0;
-      if (this.goodbye !== 'none' || this.endRequested !== undefined) return;
+      // Die KI wartet auf den Agenten (Rückfrage): Stille ist dann gewollt
+      if (this.goodbye !== 'none' || this.endRequested !== undefined || this.ask) return;
       log.warn(`Realtime: ${AUDIO_WATCHDOG_MS} ms nach ${label} keine Antwort entstanden – fordere eine an`);
       // Einmal nachfordern; bleibt es danach still, übernimmt der Stillstandswächter (höchstens STALL_MAX_NUDGES Anstöße)
       this.live.respond();
@@ -800,6 +809,9 @@ export class RealtimeBridge implements AudioHandler {
       log.info('Realtime: ask_principal – Rückfrage an den Agenten, warte auf die Antwort');
       clearTimeout(this.stallTimer);
       this.stallTimer = undefined;
+      // Bis zur Antwort des Agenten wird kein Audio erwartet und keine weitere Antwort angefordert
+      this.audioExpected(false);
+      this.pendingRespond = false;
       const timer = setTimeout(() => {
         log.warn(`Realtime: Rückfrage blieb ${ASK_TIMEOUT_MS} ms ohne Antwort des Agenten – KI macht ohne weiter`);
         this.opts.onTranscript({ speaker: 'system', text: 'Rückfrage an den Agenten blieb ohne Antwort', final: true });
@@ -839,7 +851,7 @@ export class RealtimeBridge implements AudioHandler {
       let retries = 0;
       const onSilence = (): void => {
         this.rejectTimer = undefined;
-        if (this.endRequested !== undefined || this.closed) return;
+        if (this.endRequested !== undefined || this.closed || this.ask) return;
         // Die KI spricht gerade selbst (ein Anbieter lässt sie nach dem Tool-Ergebnis von sich aus weiterreden):
         // nicht hineinreden, sondern nach ihrem Satz noch einmal nachsehen
         if (this.activeResponse && retries++ < 10) {

@@ -597,6 +597,11 @@ function normalize(s: FormSettings): FormSettings {
   if (s.mcpConfirm !== 'never' && s.mcpConfirm !== 'unknown') s.mcpConfirm = 'always';
   if (s.mcpContacts !== 'on') s.mcpContacts = 'off';
   if (s.mcpHistory !== 'all') s.mcpHistory = 'own';
+  // Die Limits so speichern, wie sie gelten: Die Oberfläche soll nicht 100 zeigen, wenn 60 wirkt
+  const mcp = mcpPolicyFrom(s);
+  s.mcpPerHour = String(mcp.perHour);
+  s.mcpPerDay = String(mcp.perDay);
+  s.mcpMaxMinutes = String(mcp.maxSeconds / 60);
   // Der „gewählte Anbieter“ ist der Anbieter der aktiven Verbindung
   s.aiProvider = connectionsFrom({ ...s, aiProvider: providerById(s.aiProvider).id }).active.provider;
   for (const [k, allowed] of BEHAVE_VALUES) if (!allowed.includes(s[k])) s[k] = '';
