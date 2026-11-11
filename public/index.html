@@ -1162,7 +1162,8 @@ function selectContact(c) {
     $('target').value = c.number;
     if (c.address) $('p-address').value = c.address;
     if (c.persona) $('p-persona').value = c.persona;
-    if (c.voice && voices.includes(c.voice)) $('p-voice').value = c.voice;
+    // Stimme des Kontakts vorbelegen; ohne eigene (passende) Stimme zurück auf den Standard der Verbindung
+    $('p-voice').value = c.voice && voices.includes(c.voice) ? c.voice : '';
     if (c.task) $('task').value = c.task;
   }
   $('contact-hint').textContent = c ? `Kontakt: ${c.name}${c.owner ? ' (Inhaber)' : ''}` : '';
@@ -1578,7 +1579,11 @@ function patchConn(id, patch) {
     const c = conn(id);
     if (!c) return;
     try { await saveConnections([{ ...c, ...patch }]); }
-    catch (err) { toast(err.message, 'error'); renderAi(); }
+    catch (err) {
+      // Nicht gespeichert: Die Textfelder zeigen wieder den gespeicherten Stand
+      for (const el of (connEl(id) || document.createElement('i')).querySelectorAll('input[data-shown]')) el.value = el.dataset.shown;
+      toast(err.message, 'error'); renderAi();
+    }
   });
   return patchQueue;
 }

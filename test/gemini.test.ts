@@ -455,3 +455,34 @@ test('Gemini: end_call gleich nach dem Satz des Gegenübers – der Satz steht i
   assert.deepEqual(h.texts, ['ki: Unter welcher Nummer?', 'partner: Unter dieser Nummer.', 'system: Ergebnis laut KI: Rückruf gewünscht']);
   h.bridge.close();
 });
+
+test('Gemini: Nachzügler nach end_call sind ein Nachtrag, geteilte und fremde Platzhalter bleiben draußen', (t) => {
+  const all: string[] = [];
+  const h = setup(t, { onTranscript: (e) => all.push(`${e.final ? 'fertig' : 'läuft'} ${e.speaker}: ${e.text}`) });
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  // Platzhalter über zwei Stücke verteilt: kein Zwischenstand „<no“
+  h.audio(20);
+  h.server({ serverContent: { outputTranscription: { text: 'Gut. <no' } } });
+  h.server({ serverContent: { outputTranscription: { text: ' speech>' } } });
+  h.server({ serverContent: { turnComplete: true } });
+  h.drain();
+  // Geräusch, das die Transkription als Platzhalter meldet: kein Beitrag des Gegenübers
+  h.server({ serverContent: { inputTranscription: { text: '<noise>' } } });
+  h.tick(700);
+  // Satz, end_call, dann der Rest des Satzes
+  h.server({ serverContent: { inputTranscription: { text: 'Unter dieser' } } });
+  const before = all.length;
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'Rückruf' } }] } });
+  h.server({ serverContent: { inputTranscription: { text: ' Nummer.' } } });
+  h.tick(700);
+  assert.deepEqual(all.slice(before), ['fertig partner: Unter dieser', 'fertig system: Ergebnis laut KI: Rückruf', 'fertig partner: Nummer.']);
+  assert.ok(!all.some((l) => /<no|noise|speech/.test(l)), all.join(' | '));
+  assert.ok(all.includes('fertig ki: Gut.'));
+  h.say(600, 'Auf Wiederhören.');
+  h.drain();
+  h.tick(1000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet'], 'der Nachtrag hält das Auflegen nicht auf');
+  h.bridge.close();
+});

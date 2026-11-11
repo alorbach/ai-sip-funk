@@ -125,6 +125,8 @@ export class GeminiLive implements LiveSession {
   private turn = 0;
   private turnOpen = false;
   private outText = '';
+  /** Was vom laufenden Zug schon als Zwischenstand gemeldet ist (bereinigt) */
+  private liveSent = '';
   private lateOut = '';
   /** Verbrauch, der in diesem Zug schon gemeldet wurde (die API kann ihn je Zug mehrfach und aufsummiert schicken) */
   private turnUsage: Usage = { ...EMPTY_USAGE };
@@ -134,6 +136,8 @@ export class GeminiLive implements LiveSession {
   private stoppedSent = false;
   private inText = '';
   private lateText = '';
+  /** Bis dahin zählt Transkription als Nachtrag zur gerade abgeschlossenen Äußerung */
+  private lateUntil = 0;
   private utteranceTimer?: NodeJS.Timeout;
   // ---- Was noch hinaus muss ----
   private pendingTools: { id: string; name: string; output: string }[] = [];
@@ -201,8 +205,12 @@ export class GeminiLive implements LiveSession {
       const said = (sc.outputTranscription as { text?: string } | undefined)?.text;
       if (said && this.turnOpen) {
         this.outText += said;
-        // Solange nur Platzhalter kamen („<no speech>“, „...“), zeigt das Transkript nichts
-        if (spokenText(this.outText)) e.aiText(this.itemId(), said, false);
+        // Zwischenstand ohne Platzhalter („<no speech>“, „...“); ein angefangener Platzhalter („<no“) wartet auf sein Ende
+        const clean = spokenText(this.outText.replace(/[<{][^<>{}]*$/, ''));
+        if (clean.length > this.liveSent.length && clean.startsWith(this.liveSent)) {
+          e.aiText(this.itemId(), clean.slice(this.liveSent.length), false);
+          this.liveSent = clean;
+        }
       } else if (said) {
         // Nachzügler der vorigen Antwort (die Reihenfolge ist nicht garantiert): kommt als Nachtrag ins Transkript
         this.lateOut += said;
@@ -213,7 +221,11 @@ export class GeminiLive implements LiveSession {
     if (calls?.length) {
       // Das Modell hat reagiert, die Äußerung des Gegenübers ist also zu Ende: erst sie ins Transkript, dann der
       // Aufruf. Sonst stünde z. B. „Ergebnis laut KI“ vor dem Satz, auf den es sich bezieht.
-      if (this.partnerActive && this.inText.trim()) this.finishUtterance();
+      if (this.partnerActive && spokenText(this.inText)) {
+        this.finishUtterance();
+        // Stücke desselben Satzes, die erst jetzt kommen, sind ein Nachtrag und keine neue Äußerung
+        this.lateUntil = Date.now() + UTTERANCE_GAP_MS;
+      }
       this.beginTurn();
       for (const c of calls) if (c && typeof c === 'object') e.toolCall(String(c.name), String(c.id), JSON.stringify(c.args ?? {}));
       // Das Modell wartet jetzt auf das Ergebnis: Für die Brücke ist diese Antwort damit zu Ende
@@ -251,6 +263,7 @@ export class GeminiLive implements LiveSession {
     this.turn++;
     this.turnOpen = true;
     this.outText = '';
+    this.liveSent = '';
     this.turnUsage = { ...EMPTY_USAGE };
     this.events.responseStarted(this.itemId());
   }
@@ -303,7 +316,7 @@ export class GeminiLive implements LiveSession {
   }
 
   private onHeard(text: string): void {
-    if (!this.partnerActive && this.turnOpen) {
+    if (!this.partnerActive && (this.turnOpen || Date.now() < this.lateUntil)) {
       // Nachzügler der vorigen Äußerung, während die KI schon antwortet: nur ins Transkript, keine neue Sprache
       this.lateText += text;
       this.armUtterance(UTTERANCE_GAP_MS);
@@ -327,10 +340,11 @@ export class GeminiLive implements LiveSession {
     if (this.partnerActive) {
       this.stopSpeech();
       this.partnerActive = false;
-      this.events.partnerText(`u${this.utterance}`, this.inText.trim());
+      // Platzhalter der Transkription („<noise>“) sind nichts Gesagtes: Die Äußerung gilt dann als Geräusch
+      this.events.partnerText(`u${this.utterance}`, spokenText(this.inText));
       this.inText = '';
     }
-    if (this.lateText.trim()) this.events.partnerText(`u${this.utterance}n`, this.lateText.trim());
+    if (spokenText(this.lateText)) this.events.partnerText(`u${this.utterance}n`, spokenText(this.lateText));
     this.lateText = '';
   }
 
