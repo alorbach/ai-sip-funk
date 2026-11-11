@@ -450,7 +450,8 @@ export class RealtimeBridge implements AudioHandler {
       const ms = this.outQueue.length * 20;
       if (!this.opts.allowInterrupt) {
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, Unterbrechen aus`);
-      } else if (!this.activeResponse && !this.greetingResponse && ms >= HOLD_MIN_MS) {
+      } else if (!this.activeResponse && !this.greetingResponse && (ms >= HOLD_MIN_MS || this.live.answersAfterInterrupt)) {
+        // (Ein Anbieter, der erst nach der Unterbrechung antwortet, braucht die Prüfung auch bei wenig Rest: Nur sie hält seine Antwort auf einen Zuhör-Laut stumm)
         // Antwort liegt vollständig vor: nur pausieren und erst nach der Transkription entscheiden
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, pausiere und prüfe, ob das Gegenüber etwas sagt`);
         this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId, held: [], texts: [] };

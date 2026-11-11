@@ -386,3 +386,20 @@ test('Gemini: Die Antwort auf einen bloßen Zuhör-Laut bleibt stumm, auch wenn 
   assert.equal(h.drain(), 600);
   h.bridge.close();
 });
+
+test('Gemini: Auch bei wenig Rest bleibt die Antwort auf einen Zuhör-Laut stumm; eine Nachricht in falscher Form beendet nichts', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  h.audio(1500);
+  assert.equal(h.drain(1000), 1000);
+  h.server({ serverContent: { interrupted: true } });
+  h.server({ serverContent: { inputTranscription: { text: 'Mhm.' } } });
+  h.tick(700);
+  h.say(1500, 'Ja?');
+  assert.equal(h.drain(), 500, 'nur der Rest des eigenen Satzes');
+  assert.doesNotThrow(() => h.server({ serverContent: { modelTurn: { parts: [null] } }, toolCall: { functionCalls: [null] } }));
+  assert.deepEqual(h.errors, []);
+  h.bridge.close();
+});

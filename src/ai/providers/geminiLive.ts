@@ -158,6 +158,9 @@ export class GeminiLive implements LiveSession {
     this.dispatching = true;
     try {
       this.dispatch(msg);
+    } catch (err) {
+      // Eine Nachricht in unerwarteter Form darf nicht den ganzen Prozess beenden: verwerfen, das Gespräch läuft weiter
+      log.warn(`Gemini: Nachricht nicht verarbeitet (${(err as Error).message})`);
     } finally {
       this.dispatching = false;
     }

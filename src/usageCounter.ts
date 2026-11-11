@@ -4,7 +4,7 @@
 //
 // Dazu, nur auf Wunsch: die tatsächlichen Monatskosten bei OpenAI. Die gibt die API nur mit einem Admin-Schlüssel
 // der Organisation heraus (nicht mit dem normalen API-Schlüssel), und sie umfassen alles, was die Organisation nutzt.
-import { existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { writeFileAtomic } from './fsutil.js';
 
 export interface MonthUsage {
@@ -34,18 +34,21 @@ export class UsageCounter {
     return !existsSync(this.file);
   }
 
-  private read(): Months {
+  private read(keepBroken = false): Months {
+    if (!existsSync(this.file)) return {};
     try {
       const data = JSON.parse(readFileSync(this.file, 'utf8')) as { months?: unknown };
       return data.months && typeof data.months === 'object' ? (data.months as Months) : {};
     } catch {
+      // Vor dem Überschreiben bleibt eine nicht lesbare Datei als .defekt erhalten (sonst wären die früheren Monate weg)
+      if (keepBroken) copyFileSync(this.file, `${this.file}.defekt`);
       return {};
     }
   }
 
   /** Ein beendetes Gespräch dazuzählen. */
   add(provider: string, seconds: number, costUsd: number, at: Date = this.now()): void {
-    const months = this.read();
+    const months = this.read(true);
     const month = (months[monthKey(at)] ??= {});
     const u = (month[provider] ??= { calls: 0, seconds: 0, costUsd: 0 });
     u.calls += 1;

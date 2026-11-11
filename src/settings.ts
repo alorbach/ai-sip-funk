@@ -454,7 +454,7 @@ export function loadSettings(): FormSettings {
   let text = '';
   try {
     text = readFileSync(SETTINGS_FILE, 'utf8');
-    const saved = JSON.parse(text) as unknown;
+    const saved = JSON.parse(text.replace(/^\uFEFF/, '')) as unknown;
     if (!saved || typeof saved !== 'object') throw new Error('kein JSON-Objekt');
     const picked = pick(saved as Record<string, unknown>);
     // Einstellungen aus der Zeit vor dem Schalter: Wer das Risiko bestätigt hatte, behält die Privatperson
@@ -504,7 +504,7 @@ export function saveSettings(input: Record<string, unknown>, internal: Partial<F
 function keepBrokenFile(): void {
   if (!existsSync(SETTINGS_FILE)) return;
   try {
-    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8')) as unknown;
+    const saved = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8').replace(/^\uFEFF/, '')) as unknown;
     if (saved && typeof saved === 'object') return;
   } catch {
     // nicht lesbar: sichern

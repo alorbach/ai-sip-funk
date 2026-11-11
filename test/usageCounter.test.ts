@@ -29,6 +29,7 @@ test('Monatszähler: summiert je Monat und Anbieter, übersteht eine defekte Dat
     writeFileSync(file, '{kaputt');
     assert.deepEqual(c.month(), {});
     c.add('openai', 5, 0.01);
+    assert.equal(readFileSync(`${file}.defekt`, 'utf8'), '{kaputt', 'der alte Inhalt bleibt erhalten');
     assert.equal(c.month().openai.calls, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
