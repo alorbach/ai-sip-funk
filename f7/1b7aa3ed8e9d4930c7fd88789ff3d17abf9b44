@@ -1,0 +1,21 @@
+README.de.md
+  s_ee2ffaf82016ce::t_a3d3a7cd32fc80 112-113
+README.md
+  s_ee2ffaf82016ce::t_07056c1e2cb312 114-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f71b7aa3ed8e9d4930c7fd88789ff3d17abf9b44",
+  "prompts": {},
+  "sessions": {
+    "s_ee2ffaf82016ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64b67fd3-3584-41e0-bb0e-b4105102dbfc",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
