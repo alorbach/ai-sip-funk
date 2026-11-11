@@ -1,0 +1,31 @@
+doc/architecture.de.md
+  s_095fa5b0e499bb::t_673101d80fbd34 82,106
+test/mcp.test.ts
+  s_095fa5b0e499bb::t_22843550a7d539 165-168
+src/mcp/gateway.ts
+  s_095fa5b0e499bb::t_22843550a7d539 231-236
+doc/architecture.md
+  s_095fa5b0e499bb::t_673101d80fbd34 82,106
+doc/user-guide.md
+  s_095fa5b0e499bb::t_673101d80fbd34 576,648
+doc/user-guide.de.md
+  s_095fa5b0e499bb::t_673101d80fbd34 574,646
+src/main.ts
+  s_095fa5b0e499bb::t_673101d80fbd34 257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18af16266dd73275a435bf17ca50b942c0af6e4a",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
