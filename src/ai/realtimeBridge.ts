@@ -1,6 +1,8 @@
-// Brücke zwischen Telefon-Audio (PCM16, 8 kHz) und der OpenAI-Realtime-API über WebSocket.
-// Zur API geht PCM16 mit 24 kHz; zwischen Telefon (8 oder 16 kHz) und API wird resampelt.
-import WebSocket from 'ws';
+// Brücke zwischen Telefon-Audio (PCM16, 8 oder 16 kHz) und dem Live-Sprachmodell eines KI-Anbieters.
+// Hier steckt die anbieterunabhängige Gesprächslogik: Begrüßung, Unterbrechung prüfen, Wächter gegen Stille,
+// Verabschiedung und Auflegen, Transkript, Tool-Aufrufe. Das Protokoll des Anbieters (OpenAI Realtime, Gemini Live)
+// übersetzt eine LiveSession aus ai/providers; zwischen Telefon und deren Abtastrate wird resampelt.
+import type WebSocket from 'ws';
 import type { AudioHandler } from '../callManager.js';
 import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
@@ -8,6 +10,10 @@ import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
+import { OpenAiLive } from './providers/openaiLive.js';
+import { EMPTY_USAGE, type LiveConfig, type LiveError, type LiveEvents, type LiveResponseDone, type LiveSession, type Usage } from './providers/types.js';
+
+export type { Usage } from './providers/types.js';
 
 /** Was die KI beim end_call als Ergebnis für den Auftraggeber meldet. */
 export interface CallOutcome {
@@ -22,16 +28,6 @@ export interface TranscriptEntry {
   text: string;
   final: boolean;
   itemId?: string;
-}
-
-export interface Usage {
-  inputTokens: number;
-  outputTokens: number;
-  inputAudioTokens: number;
-  outputAudioTokens: number;
-  inputTextTokens: number;
-  outputTextTokens: number;
-  cachedTokens: number;
 }
 
 export interface RealtimeBridgeOptions {
@@ -82,17 +78,17 @@ export interface RealtimeBridgeOptions {
   onError: (message: string) => void;
   /** Gespräch ist angenommen (z. B. Start des Spam-Zeitlimits) */
   onConnected?: () => void;
-  /** Nur für Tests: liefert statt der Verbindung zu OpenAI einen nachgestellten WebSocket */
+  /** Nur für Tests: liefert statt der Verbindung zum Anbieter einen nachgestellten WebSocket */
   createSocket?: (url: string) => WebSocket;
+  /** Baut die Live-Verbindung des gewählten Anbieters auf; ohne Angabe OpenAI Realtime */
+  createLive?: (config: LiveConfig, events: LiveEvents) => LiveSession;
 }
 
-// OpenAI generiert ca. 3x schneller als Echtzeit; eine lange Antwort liegt also fast komplett
+// Das Modell generiert ca. 3x schneller als Echtzeit; eine lange Antwort liegt also fast komplett
 // im Puffer. Die Grenze ist nur ein Sicherheitsnetz und darf im Normalfall nie greifen –
 // ein zu kleiner Wert hat hier Frames übersprungen und die Stimme "zu schnell" klingen lassen.
 const MAX_OUTPUT_QUEUE = 3000; // 60 s
-/** Abtastrate von und zur Realtime-API (PCM16) */
-const AI_RATE = 24000;
-// Audio von OpenAI kommt in Schüben. Ohne Vorpuffer spielt der erste Frame sofort,
+// Audio vom Anbieter kommt in Schüben. Ohne Vorpuffer spielt der erste Frame sofort,
 // die nächsten sind noch unterwegs – der Satzanfang klingt abgehackt.
 const PREBUFFER_FRAMES = 15; // 300 ms sammeln, bevor eine Antwort losgeht
 const PREBUFFER_MAX_WAIT_MS = 500; // spätestens dann loslegen, auch mit weniger
@@ -117,7 +113,7 @@ const STALL_INSTRUCTION =
   'Es ist still geworden: Du hast zuletzt gesprochen, und das Gegenüber hat seitdem nichts gesagt. Hast du etwas angekündigt („einen Moment", „ich halte das fest") oder eine Frage vorbereitet, dann stell diese Frage jetzt direkt. Sonst frag in einem kurzen Satz, ob das Gegenüber noch dran ist. Ein Satz, dann warten.';
 
 export class RealtimeBridge implements AudioHandler {
-  private ws: WebSocket;
+  private live: LiveSession;
   private ready = false;
   private closed = false;
   private connected = false;
@@ -126,9 +122,9 @@ export class RealtimeBridge implements AudioHandler {
   private outRemainder = Buffer.alloc(0); // angefangenes 16-Bit-Sample aus dem letzten Delta
   private pcmRemainder = new Int16Array(0); // resampelte Samples, die noch keinen ganzen Frame füllen
   private callRate = 8000;
-  private toAi = new Resampler(8000, AI_RATE);
-  private fromAi = new Resampler(AI_RATE, 8000);
-  private usage: Usage = { inputTokens: 0, outputTokens: 0, inputAudioTokens: 0, outputAudioTokens: 0, inputTextTokens: 0, outputTextTokens: 0, cachedTokens: 0 };
+  private toAi: Resampler;
+  private fromAi: Resampler;
+  private usage: Usage = { ...EMPTY_USAGE };
   private endRequested?: string;
   // Ablauf bei end_call: Modell ruft Tool auf -> wir erzwingen eine letzte Antwort (Ergebnis + Verabschiedung)
   // -> erst wenn die komplett ausgespielt ist, wird aufgelegt. Sonst legt das Modell mitten im Satz auf.
@@ -193,28 +189,58 @@ export class RealtimeBridge implements AudioHandler {
   private farewellItemId?: string;
   /** true ab transfer_call, bis die Vermittlung gescheitert ist: Der Stillstandswächter schweigt so lange */
   private transferring = false;
-  private optSeq = 0;
 
   constructor(private opts: RealtimeBridgeOptions) {
-    const url = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(opts.model)}`;
-    this.ws = opts.createSocket ? opts.createSocket(url) : new WebSocket(url, { headers: { Authorization: `Bearer ${opts.apiKey}` } });
-    this.ws.on('open', () => this.onOpen());
-    this.ws.on('message', (data) => this.onMessage(data.toString()));
-    this.ws.on('error', (err) => {
-      // Nach close() (z. B. Handler beim Umleiten ersetzt, Verbindung noch im Aufbau) geht der Fehler niemanden mehr an
-      if (this.closed) return;
-      log.error('Realtime-WebSocket:', err.message);
-      opts.onError(err.message);
-    });
-    this.ws.on('close', (code, reason) => {
-      if (!this.closed) {
-        log.warn(`Realtime-Verbindung geschlossen (${code} ${reason.toString()})`);
-        this.closed = true;
-        // Timer mit abräumen: close() kehrt später sofort zurück, und ein laufender Auflege-Timer träfe sonst das nächste Gespräch
-        this.clearTimers();
-        opts.onError('Verbindung zu OpenAI beendet');
-      }
-    });
+    const config: LiveConfig = {
+      apiKey: opts.apiKey,
+      model: opts.model,
+      instructions: opts.instructions,
+      voice: opts.voice,
+      tools: [END_CALL_TOOL, ...(opts.onTransfer ? [TRANSFER_CALL_TOOL] : []), ...(opts.onFlagSpam ? [FLAG_SPAM_TOOL] : [])],
+      allowInterrupt: opts.allowInterrupt,
+      vadSilenceMs: opts.vadSilenceMs,
+      vadThreshold: opts.vadThreshold ?? 0.6,
+      speechSpeed: opts.speechSpeed,
+      maxOutputTokens: opts.maxOutputTokens ?? 900,
+      transcriptionHints: opts.transcriptionHints ?? [],
+      createSocket: opts.createSocket,
+    };
+    const events: LiveEvents = {
+      open: () => log.info(`Realtime: verbunden (${this.opts.model})`),
+      ready: () => {
+        if (!this.ready) {
+          this.ready = true;
+          this.maybeGreet();
+        }
+      },
+      responseStarted: (id) => this.onResponseStarted(id),
+      audio: (itemId, pcm) => this.onAudio(itemId, pcm),
+      aiText: (itemId, text, final) => this.onAiText(itemId, text, final),
+      partnerText: (itemId, text) => this.onPartnerText(itemId, text),
+      speechStarted: (itemId) => this.onSpeechStarted(itemId),
+      speechStopped: () => this.onSpeechStopped(),
+      toolCall: (name, callId, args) => this.onToolCall(name, callId, args),
+      responseDone: (r) => this.onResponseDone(r),
+      error: (e) => this.onLiveError(e),
+      socketError: (message) => {
+        // Nach close() (z. B. Handler beim Umleiten ersetzt, Verbindung noch im Aufbau) geht der Fehler niemanden mehr an
+        if (this.closed) return;
+        log.error('Realtime-WebSocket:', message);
+        opts.onError(message);
+      },
+      closed: (code, reason) => {
+        if (!this.closed) {
+          log.warn(`Realtime-Verbindung geschlossen (${code} ${reason})`);
+          this.closed = true;
+          // Timer mit abräumen: close() kehrt später sofort zurück, und ein laufender Auflege-Timer träfe sonst das nächste Gespräch
+          this.clearTimers();
+          opts.onError(`Verbindung zu ${this.live.label} beendet`);
+        }
+      },
+    };
+    this.live = opts.createLive ? opts.createLive(config, events) : new OpenAiLive(config, events);
+    this.toAi = new Resampler(8000, this.live.inputRate);
+    this.fromAi = new Resampler(this.live.outputRate, 8000);
   }
 
   // ---- AudioHandler ----
@@ -223,8 +249,8 @@ export class RealtimeBridge implements AudioHandler {
     this.connected = true;
     this.opts.onConnected?.();
     this.callRate = sampleRate;
-    this.toAi = new Resampler(sampleRate, AI_RATE);
-    this.fromAi = new Resampler(AI_RATE, sampleRate);
+    this.toAi = new Resampler(sampleRate, this.live.inputRate);
+    this.fromAi = new Resampler(this.live.outputRate, sampleRate);
     // Erst zuhören: Meldet sich das Gegenüber ("Müller?"), antwortet die KI darauf.
     // Sagt es nichts, begrüßt sie nach der Wartezeit von sich aus.
     setTimeout(() => this.maybeGreet(), this.opts.greetingWaitMs).unref();
@@ -234,7 +260,7 @@ export class RealtimeBridge implements AudioHandler {
     if (!this.ready || !this.connected) return;
     const out = this.toAi.process(pcm);
     if (out.length === 0) return;
-    this.send({ type: 'input_audio_buffer.append', audio: Buffer.from(out.buffer, out.byteOffset, out.byteLength).toString('base64') });
+    this.live.sendAudio(out);
   }
 
   nextFrame(): Int16Array | undefined {
@@ -289,12 +315,12 @@ export class RealtimeBridge implements AudioHandler {
 
   /**
    * Systemanweisung nachreichen (z. B. wenn der Gesprächsplan erst nach dem Verbindungsaufbau fertig ist).
-   * Vor session.updated genügt es, die Option zu ersetzen; danach geht ein Update an die API.
+   * Vor dem Aufbau der Sitzung ersetzt die Verbindung nur ihre Vorgabe; danach geht ein Update an den Anbieter.
    */
   updateInstructions(instructions: string, planSteps: string[] = []): void {
     this.opts.instructions = instructions;
     this.planSteps = planSteps;
-    if (this.ready) this.send({ type: 'session.update', session: { type: 'realtime', instructions } });
+    if (!this.closed) this.live.update(instructions);
   }
 
   private clearTimers(): void {
@@ -315,273 +341,214 @@ export class RealtimeBridge implements AudioHandler {
     this.clearTimers();
     this.outQueue = [];
     this.queuedItems = [];
-    try {
-      this.ws.close();
-    } catch {
-      // bereits zu
-    }
+    this.live.close();
   }
 
   // ---- intern ----
 
-  private onOpen(): void {
-    log.info(`Realtime: verbunden (${this.opts.model})`);
-    this.send({
-      type: 'session.update',
-      session: {
-        type: 'realtime',
-        instructions: this.opts.instructions,
-        output_modalities: ['audio'],
-        audio: {
-          input: {
-            format: { type: 'audio/pcm', rate: AI_RATE },
-            // Telefonhörer am Ohr: Rauschfilter für nahe Mikrofone, damit Rascheln und Klappern nicht als Sprache gelten
-            noise_reduction: { type: 'near_field' },
-            turn_detection: { type: 'server_vad', create_response: true, interrupt_response: this.opts.allowInterrupt, silence_duration_ms: this.opts.vadSilenceMs, threshold: this.opts.vadThreshold ?? 0.6 },
-            transcription: {
-              model: 'gpt-transcribe',
-              language: 'de',
-              // Namen als Hinweis, damit eine Meldung mit Nachnamen beim Abnehmen richtig ankommt
-              prompt: `Deutsches Telefongespräch. Namen: ${(this.opts.transcriptionHints ?? []).filter(Boolean).join(', ') || '–'}.`,
-            },
-          },
-          output: { format: { type: 'audio/pcm', rate: AI_RATE }, voice: this.opts.voice, speed: this.opts.speechSpeed },
-        },
-        tools: [END_CALL_TOOL, ...(this.opts.onTransfer ? [TRANSFER_CALL_TOOL] : []), ...(this.opts.onFlagSpam ? [FLAG_SPAM_TOOL] : [])],
-        tool_choice: 'auto',
-        // Notbremse gegen Monologe (Audio kostet ~40 Token/s, 900 ≈ 22 s). Die eigentliche Kürze kommt aus dem Prompt;
-        // Gespräche mit gewollt langem Bericht (Rückruf an den Inhaber) heben das Limit an.
-        max_output_tokens: this.opts.maxOutputTokens ?? 900,
-      },
-    });
+  private onResponseStarted(id?: string): void {
+    this.activeResponse = true;
+    clearTimeout(this.stallTimer);
+    this.stallTimer = undefined;
+    this.responseFirstItem = undefined;
+    this.droppedItems = [];
+    // Die erste Antwort nach unserer Abschluss-Anforderung ist die Verabschiedung
+    if (this.goodbye === 'speaking' && !this.goodbyeResponseId && id) this.goodbyeResponseId = id;
   }
 
-  private onMessage(raw: string): void {
-    let ev: Record<string, unknown>;
-    try {
-      ev = JSON.parse(raw);
-    } catch {
+  private onAudio(itemId: string, pcm: Buffer): void {
+    if (!this.stats.firstDeltaAt) this.stats.firstDeltaAt = Date.now();
+    this.stats.deltas++;
+    if (this.awaitingAudioSince) {
+      log.info(`Realtime: erstes Audio ${Date.now() - this.awaitingAudioSince} ms nach ${this.awaitingLabel}`);
+      this.audioExpected(false);
+    }
+    if (this.isExtraItem(itemId)) return;
+    // Nach der Verabschiedung: Antwort auf ein mögliches Geräusch zurückhalten, bis die Transkription entschieden hat
+    if (this.endRequested !== undefined && this.goodbye === 'done') {
+      if (this.muteAfterGoodbye) return;
+      if (this.farewellDecisionTimer) {
+        this.heldAudio.push({ itemId, buf: pcm });
+        return;
+      }
+    }
+    if (this.muteNoiseResponse) return;
+    if (this.hold) {
+      this.hold.held.push({ itemId, buf: pcm });
       return;
     }
-    const type = String(ev.type);
-    switch (type) {
-      case 'session.updated':
-        if (!this.ready) {
-          this.ready = true;
-          this.maybeGreet();
-        }
-        break;
-      case 'response.created': {
-        this.activeResponse = true;
-        clearTimeout(this.stallTimer);
-        this.stallTimer = undefined;
-        this.responseFirstItem = undefined;
-        this.droppedItems = [];
-        // Die erste Antwort nach unserer Abschluss-Anforderung ist die Verabschiedung
-        const created = ev.response as { id?: string } | undefined;
-        if (this.goodbye === 'speaking' && !this.goodbyeResponseId && created?.id) this.goodbyeResponseId = created.id;
-        break;
-      }
-      case 'response.output_audio.delta':
-      case 'response.audio.delta':
-        if (!this.stats.firstDeltaAt) this.stats.firstDeltaAt = Date.now();
-        this.stats.deltas++;
-        if (this.awaitingAudioSince) {
-          log.info(`Realtime: erstes Audio ${Date.now() - this.awaitingAudioSince} ms nach ${this.awaitingLabel}`);
-          this.audioExpected(false);
-        }
-        if (this.isExtraItem(String(ev.item_id))) break;
-        // Nach der Verabschiedung: Antwort auf ein mögliches Geräusch zurückhalten, bis die Transkription entschieden hat
-        if (this.endRequested !== undefined && this.goodbye === 'done') {
-          if (this.muteAfterGoodbye) break;
-          if (this.farewellDecisionTimer) {
-            this.heldAudio.push({ itemId: String(ev.item_id), buf: Buffer.from(String(ev.delta), 'base64') });
-            break;
-          }
-        }
-        if (this.muteNoiseResponse) break;
-        if (this.hold) {
-          this.hold.held.push({ itemId: String(ev.item_id), buf: Buffer.from(String(ev.delta), 'base64') });
-          break;
-        }
-        this.enqueueAudio(Buffer.from(String(ev.delta), 'base64'), String(ev.item_id));
-        break;
-      case 'response.output_audio_transcript.delta':
-      case 'response.audio_transcript.delta':
-        if (this.isExtraItem(String(ev.item_id))) break;
-        if (this.muteNoiseResponse || (this.hold && String(ev.item_id) !== this.currentItemId)) break;
-        this.kiLive += String(ev.delta);
-        this.opts.onTranscript({ speaker: 'ki', text: this.kiLive, final: false, itemId: String(ev.item_id) });
-        break;
-      case 'response.output_audio_transcript.done':
-      case 'response.audio_transcript.done':
-        if (this.isExtraItem(String(ev.item_id))) break;
-        if (this.muteNoiseResponse) break;
-        if (this.hold && String(ev.item_id) !== this.currentItemId) {
-          this.hold.texts.push({ itemId: String(ev.item_id), text: String(ev.transcript) });
-          break;
-        }
-        this.kiLive = '';
-        this.opts.onTranscript({ speaker: 'ki', text: String(ev.transcript), final: true, itemId: String(ev.item_id) });
-        break;
-      case 'conversation.item.input_audio_transcription.completed': {
-        const text = String(ev.transcript ?? '').trim();
-        if (text) this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(ev.item_id) });
-        // Nur die Äußerung zählt, die die Prüfung ausgelöst hat – nicht die verspätete Transkription des Satzes davor
-        const itemId = typeof ev.item_id === 'string' ? ev.item_id : undefined;
-        const fits = (expected?: string) => !expected || !itemId || expected === itemId;
-        if (this.farewellDecisionTimer) {
-          if (!fits(this.farewellItemId)) break;
-          if (this.partnerSpeaking && isFarewell(text)) {
-            // „Ja …" und das Gegenüber redet schon weiter: erst die nächste Äußerung entscheidet
-            this.farewellItemId = undefined;
-            clearTimeout(this.farewellDecisionTimer);
-            this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
-          } else this.decideAfterGoodbye(text);
-        } else if (this.hold && fits(this.hold.itemId)) {
-          if (this.partnerSpeaking && isBackchannel(text)) this.hold.itemId = undefined;
-          else this.resolveHold(text);
-        }
-        break;
-      }
-      case 'input_audio_buffer.speech_started':
-        this.partnerSpeaking = true;
-        this.muteNoiseResponse = false;
-        clearTimeout(this.rejectTimer);
-        this.rejectTimer = undefined;
-        clearTimeout(this.stallTimer);
-        this.stallTimer = undefined;
-        this.stallNudges = 0;
-        clearTimeout(this.followUpTimer);
-        this.followUpTimer = undefined;
-        this.onSpeechAfterGoodbye(typeof ev.item_id === 'string' ? ev.item_id : undefined);
-        if (!this.greeted) {
-          this.greeted = true; // Gegenüber hat sich gemeldet, die VAD-Antwort übernimmt die Begrüßung
-          log.info('Realtime: Gegenüber spricht zuerst, KI antwortet darauf');
-        }
-        // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
-        // Dort entscheidet erst die Transkription, ob es Sprache war (siehe decideAfterGoodbye)
-        if (this.outQueue.length > 0 && this.endRequested !== undefined) {
-          log.info(`Realtime: speech_started während der Verabschiedung – ${this.outQueue.length * 20} ms Abschied laufen weiter`);
-        } else if (this.hold) {
-          // Prüfung läuft schon; das Gegenüber redet weiter
-        } else if (this.outQueue.length > 0) {
-          const ms = this.outQueue.length * 20;
-          if (!this.opts.allowInterrupt) {
-            log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, Unterbrechen aus`);
-          } else if (!this.activeResponse && !this.greetingResponse && ms >= HOLD_MIN_MS) {
-            // Antwort liegt vollständig vor: nur pausieren und erst nach der Transkription entscheiden
-            log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, pausiere und prüfe, ob das Gegenüber etwas sagt`);
-            this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId: typeof ev.item_id === 'string' ? ev.item_id : undefined, held: [], texts: [] };
-            this.hold.timer.unref();
-          } else {
-            log.info(`Realtime: speech_started – ${this.outQueue.length} Frames (${ms} ms) in der Warteschlange, verwerfe`);
-            this.discardOutput();
-          }
-        }
-        break;
-      case 'input_audio_buffer.speech_stopped':
-        this.partnerSpeaking = false;
-        if (this.hold) {
-          // Die Transkription kommt kurz nach dem Satzende; bleibt sie aus, gilt das Gesagte als Inhalt
-          clearTimeout(this.hold.timer);
-          this.hold.timer = setTimeout(() => this.resolveHold(undefined), HOLD_AFTER_SPEECH_MS);
-          this.hold.timer.unref();
-        }
-        // Die Server-VAD erzeugt jetzt die Antwort; bleibt sie aus, greift der Wächter
-        this.audioExpected(true, 'Satzende des Gegenübers');
-        break;
-      case 'response.function_call_arguments.done':
-        if (this.goodbye !== 'none') {
-          this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: String(ev.call_id), output: 'ok' } });
-          break;
-        }
-        // Antwort auf ein bloßes Geräusch ist verworfen: Ihr Tool-Aufruf gilt nicht
-        if (this.muteNoiseResponse) break;
-        // Das Modell handelt auf das Gesagte hin: Dann war es Inhalt, die Prüfung der Unterbrechung ist entschieden
-        if (this.hold) this.resolveHold(undefined);
-        this.onFunctionCall(String(ev.name), String(ev.call_id), String(ev.arguments));
-        break;
-      case 'response.done': {
-        this.muteNoiseResponse = false;
-        const r = ev.response as { id?: string; usage?: Record<string, unknown>; status?: string; status_details?: unknown; output?: { type?: string }[] } | undefined;
-        this.activeResponse = false;
-        if (r?.usage) this.addUsage(r.usage);
-        const st = this.stats;
-        if (st.deltas > 0) {
-          const genMs = Date.now() - st.firstDeltaAt;
-          const audioMs = (st.framesPlayed + this.outQueue.length) * 20;
-          log.info(`Realtime-Antwort: ${st.deltas} Deltas in ${genMs} ms für ${audioMs} ms Audio (${(audioMs / Math.max(genMs, 1)).toFixed(1)}x Echtzeit), Unterläufe ${st.underruns}, max. Puffer ${st.maxQueue * 20} ms, Unterbrechungen ${st.interruptions} (${st.discarded * 20} ms verworfen)`);
-          if (r?.status === 'incomplete') log.warn(`Realtime-Antwort abgeschnitten: ${JSON.stringify(r.status_details ?? {})} – Limit max_output_tokens ${this.opts.maxOutputTokens ?? 900}`);
-          if (this.greetingResponse && this.opts.greetingFollowUp && r?.status === 'completed') {
-            // Begrüßung fertig: Sagt das Gegenüber nach dem Ausspielen nichts, spricht die KI weiter
-            const wait = this.outQueue.length * 20 + this.opts.greetingFollowUp.afterMs;
-            clearTimeout(this.followUpTimer);
-            this.followUpTimer = setTimeout(() => {
-              this.followUpTimer = undefined;
-              if (this.closed || this.endRequested !== undefined || this.activeResponse) return;
-              log.info('Realtime: Gegenüber reagiert nicht auf die Begrüßung – KI stellt sich vor');
-              this.send({ type: 'response.create', response: { instructions: this.opts.greetingFollowUp!.instruction } });
-              this.audioExpected(true, 'Nachfassen nach der Begrüßung');
-            }, wait);
-            this.followUpTimer.unref();
-          }
-        } else {
-          const types = (r?.output ?? []).map((o) => o.type ?? '?').join(', ') || 'keine';
-          log.info(`Realtime-Antwort ohne Audio: Status ${r?.status ?? '?'}, Inhalte: ${types}${r?.status_details ? ` – ${JSON.stringify(r.status_details)}` : ''}`);
-        }
-        this.greetingResponse = false;
-        if (this.limitedSamples > 0 && st.framesPlayed > 0) {
-          log.info(`Realtime: Begrenzer griff bei ${((100 * this.limitedSamples) / (st.framesPlayed * samplesPerFrame(this.callRate))).toFixed(1)} % der Samples (AI_OUTPUT_GAIN ${this.opts.outputGain})`);
-          this.limitedSamples = 0;
-        }
-        this.stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, deltas: 0 };
-        if (this.goodbye === 'pending') {
-          // Die Antwort mit dem Tool-Aufruf ist fertig; jetzt die Abschlussantwort anfordern
-          this.goodbye = 'speaking';
-          this.goodbyeResponseId = undefined;
-          this.send({ type: 'response.create', response: { instructions: this.opts.scam ? SCAM_FAREWELL : farewellInstruction(this.opts.formal, this.opts.owner) } });
-        } else if (this.goodbye === 'speaking' && this.goodbyeResponseId && (r as { id?: string } | undefined)?.id === this.goodbyeResponseId) {
-          // Nur das Ende der Verabschiedungs-Antwort zählt, nicht irgendeine andere (z. B. leere VAD-Antwort)
-          this.goodbye = 'done';
-          log.info('Realtime: Abschluss gesprochen, lege auf sobald das Audio ausgespielt ist');
-        }
-        for (const id of this.droppedItems) {
-          log.info(`Realtime: zweite Nachricht in einer Antwort verworfen (${id})`);
-          this.sendOptional({ type: 'conversation.item.delete', item_id: id });
-        }
-        this.droppedItems = [];
-        if (!this.playing && this.outQueue.length === 0) this.armStall();
-        if (r?.status === 'failed') {
-          log.error('Realtime-Antwort fehlgeschlagen:', JSON.stringify(r.status_details));
-          this.opts.onError('OpenAI-Antwort fehlgeschlagen');
-        }
-        break;
-      }
-      case 'error': {
-        const e = ev.error as { message?: string; code?: string; event_id?: string } | undefined;
-        // Zwei Auslöser wollten gleichzeitig eine Antwort (z. B. Wächter und Server-VAD): Die laufende Antwort genügt, das Gespräch geht weiter
-        if (e?.code === 'conversation_already_has_active_response') {
-          log.warn('Realtime: Antwort läuft bereits, zusätzliche Anforderung verworfen');
-          if (this.goodbye === 'speaking') {
-            // Getroffen hat es die Verabschiedung (das Gegenüber sprach im selben Moment): nach der laufenden Antwort erneut anfordern
-            this.goodbye = 'pending';
-            this.goodbyeResponseId = undefined;
-          }
-          break;
-        }
-        // Abgelehntes Aufräumen (Antwort war schon fertig, Item schon weg, Kürzung hinter dem Ende): das Gespräch läuft weiter
-        if (e?.code === 'response_cancel_not_active' || String(e?.event_id ?? '').startsWith('opt_')) {
-          log.warn(`Realtime: Aufräum-Ereignis abgelehnt (${e?.code ?? '?'}: ${e?.message ?? ''}) – ohne Folgen`);
-          break;
-        }
-        log.error('Realtime-Fehler:', e?.code, e?.message);
-        this.opts.onError(e?.message ?? 'Unbekannter Realtime-Fehler');
-        break;
-      }
-      default:
-        break;
+    this.enqueueAudio(pcm, itemId);
+  }
+
+  private onAiText(itemId: string, text: string, final: boolean): void {
+    if (this.isExtraItem(itemId)) return;
+    if (!final) {
+      if (this.muteNoiseResponse || (this.hold && itemId !== this.currentItemId)) return;
+      this.kiLive += text;
+      this.opts.onTranscript({ speaker: 'ki', text: this.kiLive, final: false, itemId });
+      return;
     }
+    if (this.muteNoiseResponse) return;
+    if (this.hold && itemId !== this.currentItemId) {
+      this.hold.texts.push({ itemId, text });
+      return;
+    }
+    this.kiLive = '';
+    this.opts.onTranscript({ speaker: 'ki', text, final: true, itemId });
+  }
+
+  private onPartnerText(itemId: string | undefined, text: string): void {
+    if (text) this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
+    // Nur die Äußerung zählt, die die Prüfung ausgelöst hat – nicht die verspätete Transkription des Satzes davor
+    const fits = (expected?: string) => !expected || !itemId || expected === itemId;
+    if (this.farewellDecisionTimer) {
+      if (!fits(this.farewellItemId)) return;
+      if (this.partnerSpeaking && isFarewell(text)) {
+        // „Ja …" und das Gegenüber redet schon weiter: erst die nächste Äußerung entscheidet
+        this.farewellItemId = undefined;
+        clearTimeout(this.farewellDecisionTimer);
+        this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
+      } else this.decideAfterGoodbye(text);
+    } else if (this.hold && fits(this.hold.itemId)) {
+      if (this.partnerSpeaking && isBackchannel(text)) this.hold.itemId = undefined;
+      else this.resolveHold(text);
+    }
+  }
+
+  private onSpeechStarted(itemId?: string): void {
+    this.partnerSpeaking = true;
+    this.muteNoiseResponse = false;
+    clearTimeout(this.rejectTimer);
+    this.rejectTimer = undefined;
+    clearTimeout(this.stallTimer);
+    this.stallTimer = undefined;
+    this.stallNudges = 0;
+    clearTimeout(this.followUpTimer);
+    this.followUpTimer = undefined;
+    this.onSpeechAfterGoodbye(itemId);
+    if (!this.greeted) {
+      this.greeted = true; // Gegenüber hat sich gemeldet, die Antwort des Modells darauf übernimmt die Begrüßung
+      log.info('Realtime: Gegenüber spricht zuerst, KI antwortet darauf');
+    }
+    // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
+    // Dort entscheidet erst die Transkription, ob es Sprache war (siehe decideAfterGoodbye)
+    if (this.outQueue.length > 0 && this.endRequested !== undefined) {
+      log.info(`Realtime: speech_started während der Verabschiedung – ${this.outQueue.length * 20} ms Abschied laufen weiter`);
+    } else if (this.hold) {
+      // Prüfung läuft schon; das Gegenüber redet weiter
+    } else if (this.outQueue.length > 0) {
+      const ms = this.outQueue.length * 20;
+      if (!this.opts.allowInterrupt) {
+        log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, Unterbrechen aus`);
+      } else if (!this.activeResponse && !this.greetingResponse && ms >= HOLD_MIN_MS) {
+        // Antwort liegt vollständig vor: nur pausieren und erst nach der Transkription entscheiden
+        log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, pausiere und prüfe, ob das Gegenüber etwas sagt`);
+        this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId, held: [], texts: [] };
+        this.hold.timer.unref();
+      } else {
+        log.info(`Realtime: speech_started – ${this.outQueue.length} Frames (${ms} ms) in der Warteschlange, verwerfe`);
+        this.discardOutput();
+      }
+    }
+  }
+
+  private onSpeechStopped(): void {
+    this.partnerSpeaking = false;
+    if (this.hold) {
+      // Die Transkription kommt kurz nach dem Satzende; bleibt sie aus, gilt das Gesagte als Inhalt
+      clearTimeout(this.hold.timer);
+      this.hold.timer = setTimeout(() => this.resolveHold(undefined), HOLD_AFTER_SPEECH_MS);
+      this.hold.timer.unref();
+    }
+    // Der Anbieter erzeugt jetzt die Antwort; bleibt sie aus, greift der Wächter
+    this.audioExpected(true, 'Satzende des Gegenübers');
+  }
+
+  private onToolCall(name: string, callId: string, args: string): void {
+    if (this.goodbye !== 'none') {
+      this.live.toolOutput(callId, name, 'ok');
+      return;
+    }
+    // Antwort auf ein bloßes Geräusch ist verworfen: Ihr Tool-Aufruf gilt nicht
+    if (this.muteNoiseResponse) return;
+    // Das Modell handelt auf das Gesagte hin: Dann war es Inhalt, die Prüfung der Unterbrechung ist entschieden
+    if (this.hold) this.resolveHold(undefined);
+    this.onFunctionCall(name, callId, args);
+  }
+
+  private onResponseDone(r: LiveResponseDone): void {
+    this.muteNoiseResponse = false;
+    this.activeResponse = false;
+    if (r.usage) this.addUsage(r.usage);
+    const st = this.stats;
+    if (st.deltas > 0) {
+      const genMs = Date.now() - st.firstDeltaAt;
+      const audioMs = (st.framesPlayed + this.outQueue.length) * 20;
+      log.info(`Realtime-Antwort: ${st.deltas} Deltas in ${genMs} ms für ${audioMs} ms Audio (${(audioMs / Math.max(genMs, 1)).toFixed(1)}x Echtzeit), Unterläufe ${st.underruns}, max. Puffer ${st.maxQueue * 20} ms, Unterbrechungen ${st.interruptions} (${st.discarded * 20} ms verworfen)`);
+      if (r.status === 'incomplete') log.warn(`Realtime-Antwort abgeschnitten: ${JSON.stringify(r.statusDetails ?? {})} – Limit max_output_tokens ${this.opts.maxOutputTokens ?? 900}`);
+      if (this.greetingResponse && this.opts.greetingFollowUp && r.status === 'completed') {
+        // Begrüßung fertig: Sagt das Gegenüber nach dem Ausspielen nichts, spricht die KI weiter
+        const wait = this.outQueue.length * 20 + this.opts.greetingFollowUp.afterMs;
+        clearTimeout(this.followUpTimer);
+        this.followUpTimer = setTimeout(() => {
+          this.followUpTimer = undefined;
+          if (this.closed || this.endRequested !== undefined || this.activeResponse) return;
+          log.info('Realtime: Gegenüber reagiert nicht auf die Begrüßung – KI stellt sich vor');
+          this.live.respond(this.opts.greetingFollowUp!.instruction);
+          this.audioExpected(true, 'Nachfassen nach der Begrüßung');
+        }, wait);
+        this.followUpTimer.unref();
+      }
+    } else {
+      const types = r.outputTypes.join(', ') || 'keine';
+      log.info(`Realtime-Antwort ohne Audio: Status ${r.status ?? '?'}, Inhalte: ${types}${r.statusDetails ? ` – ${JSON.stringify(r.statusDetails)}` : ''}`);
+    }
+    this.greetingResponse = false;
+    if (this.limitedSamples > 0 && st.framesPlayed > 0) {
+      log.info(`Realtime: Begrenzer griff bei ${((100 * this.limitedSamples) / (st.framesPlayed * samplesPerFrame(this.callRate))).toFixed(1)} % der Samples (AI_OUTPUT_GAIN ${this.opts.outputGain})`);
+      this.limitedSamples = 0;
+    }
+    this.stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, deltas: 0 };
+    if (this.goodbye === 'pending') {
+      // Die Antwort mit dem Tool-Aufruf ist fertig; jetzt die Abschlussantwort anfordern
+      this.goodbye = 'speaking';
+      this.goodbyeResponseId = undefined;
+      this.live.respond(this.opts.scam ? SCAM_FAREWELL : farewellInstruction(this.opts.formal, this.opts.owner));
+    } else if (this.goodbye === 'speaking' && this.goodbyeResponseId && r.id === this.goodbyeResponseId) {
+      // Nur das Ende der Verabschiedungs-Antwort zählt, nicht irgendeine andere (z. B. leere Antwort auf ein Geräusch)
+      this.goodbye = 'done';
+      log.info('Realtime: Abschluss gesprochen, lege auf sobald das Audio ausgespielt ist');
+    }
+    for (const id of this.droppedItems) {
+      log.info(`Realtime: zweite Nachricht in einer Antwort verworfen (${id})`);
+      this.live.deleteItem(id);
+    }
+    this.droppedItems = [];
+    if (!this.playing && this.outQueue.length === 0) this.armStall();
+    if (r.status === 'failed') {
+      log.error('Realtime-Antwort fehlgeschlagen:', JSON.stringify(r.statusDetails));
+      this.opts.onError(`${this.live.label}-Antwort fehlgeschlagen`);
+    }
+  }
+
+  private onLiveError(e: LiveError): void {
+    // Zwei Auslöser wollten gleichzeitig eine Antwort (z. B. Wächter und Spracherkennung): Die laufende Antwort genügt, das Gespräch geht weiter
+    if (e.kind === 'busy') {
+      log.warn('Realtime: Antwort läuft bereits, zusätzliche Anforderung verworfen');
+      if (this.goodbye === 'speaking') {
+        // Getroffen hat es die Verabschiedung (das Gegenüber sprach im selben Moment): nach der laufenden Antwort erneut anfordern
+        this.goodbye = 'pending';
+        this.goodbyeResponseId = undefined;
+      }
+      return;
+    }
+    // Abgelehntes Aufräumen (Antwort war schon fertig, Item schon weg, Kürzung hinter dem Ende): das Gespräch läuft weiter
+    if (e.kind === 'cleanup') {
+      log.warn(`Realtime: Aufräum-Ereignis abgelehnt (${e.code ?? '?'}: ${e.message ?? ''}) – ohne Folgen`);
+      return;
+    }
+    log.error('Realtime-Fehler:', e.code, e.message);
+    this.opts.onError(e.message ?? 'Unbekannter Realtime-Fehler');
   }
 
   /**
@@ -604,7 +571,7 @@ export class RealtimeBridge implements AudioHandler {
       }
       this.stallNudges++;
       log.warn(`Realtime: Stillstand – ${this.opts.stallMs} ms nach Ende der KI-Ausgabe weder Sprache des Gegenübers noch neue Antwort, stoße die KI an (${this.stallNudges}/${STALL_MAX_NUDGES})`);
-      this.send({ type: 'response.create', response: { instructions: this.opts.scam ? SCAM_STALL : STALL_INSTRUCTION } });
+      this.live.respond(this.opts.scam ? SCAM_STALL : STALL_INSTRUCTION);
       this.audioExpected(true, 'Stillstandswächter');
     }, this.opts.stallMs);
     this.stallTimer.unref();
@@ -626,7 +593,7 @@ export class RealtimeBridge implements AudioHandler {
     this.greeted = true;
     log.info('Realtime: Gegenüber schweigt, KI begrüßt von sich aus');
     this.greetingResponse = true;
-    this.send({ type: 'response.create', response: { instructions: this.opts.greetingInstruction } });
+    this.live.respond(this.opts.greetingInstruction);
     this.audioExpected(true, 'Begrüßungsanforderung');
   }
 
@@ -655,7 +622,7 @@ export class RealtimeBridge implements AudioHandler {
       if (this.goodbye !== 'none' || this.endRequested !== undefined) return;
       log.warn(`Realtime: ${AUDIO_WATCHDOG_MS} ms nach ${label} keine Antwort entstanden – fordere eine an`);
       // Einmal nachfordern; bleibt es danach still, übernimmt der Stillstandswächter (höchstens STALL_MAX_NUDGES Anstöße)
-      this.send({ type: 'response.create' });
+      this.live.respond();
     }, AUDIO_WATCHDOG_MS);
     this.audioWatchdog.unref();
   }
@@ -709,10 +676,12 @@ export class RealtimeBridge implements AudioHandler {
       this.opts.instructions = instructions;
       this.opts.scam = true;
       this.planSteps = [];
+      // Einmal genügt: Kann ein Anbieter die Tool-Liste nicht kürzen, bleibt ein zweiter Aufruf ohne Wirkung
+      this.opts.onFlagSpam = undefined;
       // Neue Rolle, flag_spam ist ab jetzt nicht mehr nötig
-      this.send({ type: 'session.update', session: { type: 'realtime', instructions, tools: [END_CALL_TOOL] } });
-      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: this.opts.scamDisclose ? FLAG_SPAM_ACK_OPEN : FLAG_SPAM_ACK } });
-      this.send({ type: 'response.create' });
+      this.live.update(instructions, [END_CALL_TOOL]);
+      this.live.toolOutput(callId, name, this.opts.scamDisclose ? FLAG_SPAM_ACK_OPEN : FLAG_SPAM_ACK);
+      this.live.respond();
       this.audioExpected(true, 'Spam-Abwehr');
       return;
     }
@@ -721,7 +690,7 @@ export class RealtimeBridge implements AudioHandler {
       return;
     }
     if (name !== 'end_call') {
-      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: 'Unbekannte Funktion' } });
+      this.live.toolOutput(callId, name, 'Unbekannte Funktion');
       return;
     }
     let outcome: CallOutcome = { result: '', open: '' };
@@ -736,7 +705,7 @@ export class RealtimeBridge implements AudioHandler {
       // Gesprochen und im selben Atemzug beendet („ich richte das jetzt aus" + end_call):
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
       log.info('Realtime: end_call zusammen mit Sprache – abgelehnt, Gegenüber darf erst antworten');
-      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: END_CALL_WHILE_SPEAKING } });
+      this.live.toolOutput(callId, name, END_CALL_WHILE_SPEAKING);
       // Kommt nichts vom Gegenüber, darf das Gespräch nicht bis zum Limit hängen. Die Frist läuft erst,
       // wenn der Satz ausgespielt ist – er liegt hier noch fast vollständig im Puffer.
       const rejectWait = this.outQueue.length * 20 + REJECT_SILENCE_MS;
@@ -745,7 +714,7 @@ export class RealtimeBridge implements AudioHandler {
         this.rejectTimer = undefined;
         if (this.endRequested !== undefined || this.closed) return;
         log.info('Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll beenden');
-        this.send({ type: 'response.create', response: { instructions: END_CALL_AFTER_SILENCE } });
+        this.live.respond(END_CALL_AFTER_SILENCE);
       }, rejectWait);
       this.rejectTimer.unref();
       return;
@@ -754,13 +723,13 @@ export class RealtimeBridge implements AudioHandler {
       // Erster end_call mit Plan: Schritte gegen das Gesagte prüfen lassen, dann erst beenden
       this.endCallChecked = true;
       log.info(`Realtime: end_call – Selbstprüfung gegen ${this.planSteps.length} Planschritte angefordert`);
-      this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: endCallCheckInstruction(this.planSteps) } });
-      this.send({ type: 'response.create' });
+      this.live.toolOutput(callId, name, endCallCheckInstruction(this.planSteps));
+      this.live.respond();
       return;
     }
     const reason = outcome.open ? 'KI hat beendet, Auftrag teilweise offen' : 'KI hat das Gespräch beendet';
     log.info(`Realtime: end_call – Ergebnis: ${outcome.result || '–'}${outcome.open ? ` · offen: ${outcome.open}` : ''}; fordere Verabschiedung an`);
-    this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: 'ok – verabschiede dich jetzt' } });
+    this.live.toolOutput(callId, name, 'ok – verabschiede dich jetzt');
     this.endRequested = reason;
     this.goodbye = 'pending';
     if (outcome.result) this.opts.onOutcome?.(outcome);
@@ -800,8 +769,8 @@ export class RealtimeBridge implements AudioHandler {
     }
     this.transferring = false;
     log.warn(`Realtime: Vermittlung fehlgeschlagen – ${result.reason}`);
-    this.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: `Vermittlung nicht möglich: ${result.reason}. Sag das dem Gesprächspartner in einem Satz und nenne ihm stattdessen die Rückrufnummer.` } });
-    this.send({ type: 'response.create' });
+    this.live.toolOutput(callId, TRANSFER_CALL_TOOL.name, `Vermittlung nicht möglich: ${result.reason}. Sag das dem Gesprächspartner in einem Satz und nenne ihm stattdessen die Rückrufnummer.`);
+    this.live.respond();
     this.audioExpected(true, 'Vermittlung fehlgeschlagen');
   }
 
@@ -811,7 +780,7 @@ export class RealtimeBridge implements AudioHandler {
     this.stats.discarded += this.outQueue.length;
     // Je Item in der Warteschlange: das gerade gespielte bis zur gehörten Stelle, noch nicht begonnene ab 0 ms
     for (const q of this.queuedItems) {
-      this.sendOptional({ type: 'conversation.item.truncate', item_id: q.id, content_index: 0, audio_end_ms: q.id === this.playItemId ? this.playedMsForItem : 0 });
+      this.live.truncate(q.id, q.id === this.playItemId ? this.playedMsForItem : 0);
     }
     this.queuedItems = [];
     this.outQueue = [];
@@ -838,9 +807,9 @@ export class RealtimeBridge implements AudioHandler {
       // Was das Modell auf den Laut hin sagen wollte, wird weder gesprochen noch im Verlauf behalten
       if (this.activeResponse) {
         this.muteNoiseResponse = true;
-        this.sendOptional({ type: 'response.cancel' });
+        this.live.cancelResponse();
       }
-      for (const id of new Set([...h.held.map((x) => x.itemId), ...h.texts.map((x) => x.itemId)])) this.sendOptional({ type: 'conversation.item.delete', item_id: id });
+      for (const id of new Set([...h.held.map((x) => x.itemId), ...h.texts.map((x) => x.itemId)])) this.live.deleteItem(id);
       this.audioExpected(false);
       return;
     }
@@ -892,7 +861,7 @@ export class RealtimeBridge implements AudioHandler {
       this.heldAudio = [];
       this.muteAfterGoodbye = true;
       // Nur die Antwort auf das Geräusch abbrechen – läuft noch die Verabschiedung selbst, bleibt sie unangetastet
-      if (this.activeResponse && this.goodbye === 'done') this.sendOptional({ type: 'response.cancel' });
+      if (this.activeResponse && this.goodbye === 'done') this.live.cancelResponse();
       if (this.goodbye === 'done') this.finishEndCall();
       return;
     }
@@ -921,43 +890,11 @@ export class RealtimeBridge implements AudioHandler {
     log.info('Realtime: Gegenüber spricht noch – Auflegen abgebrochen, Gespräch geht weiter');
     this.opts.onTranscript({ speaker: 'system', text: 'Gegenüber hat noch etwas gesagt – Gespräch geht weiter', final: true });
     // Dem Modell den Zustandswechsel klar machen, sonst hängt es in der "ich beende jetzt"-Haltung fest
-    this.send({
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'system',
-        content: [
-          {
-            type: 'input_text',
-            text: 'Das Gegenüber hat nach deiner Verabschiedung noch etwas gesagt. Das Gespräch läuft ganz normal weiter: Geh auf das Gesagte ein, als wäre nichts beendet worden. Wenn danach alles geklärt ist, rufe erneut end_call auf (ohne dich vorher zu verabschieden).',
-          },
-        ],
-      },
-    });
+    this.live.note('Das Gegenüber hat nach deiner Verabschiedung noch etwas gesagt. Das Gespräch läuft ganz normal weiter: Geh auf das Gesagte ein, als wäre nichts beendet worden. Wenn danach alles geklärt ist, rufe erneut end_call auf (ohne dich vorher zu verabschieden).');
   }
 
-  private addUsage(u: Record<string, unknown>): void {
-    const num = (v: unknown) => (typeof v === 'number' ? v : 0);
-    const inD = (u.input_token_details ?? {}) as Record<string, unknown>;
-    const outD = (u.output_token_details ?? {}) as Record<string, unknown>;
-    this.usage.inputTokens += num(u.input_tokens);
-    this.usage.outputTokens += num(u.output_tokens);
-    this.usage.inputAudioTokens += num(inD.audio_tokens);
-    this.usage.inputTextTokens += num(inD.text_tokens);
-    this.usage.cachedTokens += num(inD.cached_tokens);
-    this.usage.outputAudioTokens += num(outD.audio_tokens);
-    this.usage.outputTextTokens += num(outD.text_tokens);
+  private addUsage(u: Usage): void {
+    for (const k of Object.keys(this.usage) as (keyof Usage)[]) this.usage[k] += u[k];
     this.opts.onUsage({ ...this.usage });
-  }
-
-  /** Aufräum-Ereignis (cancel, truncate, delete): Lehnt die API es ab, ist das kein Grund aufzulegen (siehe case 'error'). */
-  private sendOptional(obj: Record<string, unknown>): void {
-    this.send({ ...obj, event_id: `opt_${++this.optSeq}` });
-  }
-
-  private send(obj: unknown): void {
-    if (this.closed) return;
-    if (this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify(obj));
   }
 }

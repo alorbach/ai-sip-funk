@@ -9,9 +9,9 @@ import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
-import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas, VOICES } from './ai/personas.js';
+import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, REALTIME_MODELS, realtimeModel, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -24,11 +24,13 @@ import { suggestMail } from './notify/autoconfig.js';
 import { OAuthLogin, TokenStore } from './notify/oauth.js';
 import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
+import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
+import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
 import { ContactStore, numberKey } from './contacts.js';
 import { writeEnvValues } from './envFile.js';
-import { checkOpenAiKey, cleanOpenAiKey, cleanSipAccount, explainSipError, testSipAccount } from './setup.js';
+import { cleanSipAccount, explainSipError, testSipAccount } from './setup.js';
 
 // Datenordner: .env, settings.json, contacts.json, transcripts/. Standard = Projektordner; die Tray-App
 // setzt SIPFUNK_DATA_DIR auf den Benutzerdaten-Ordner, damit das installierte Programm beschreibbar bleibt.
@@ -42,7 +44,14 @@ const personas = loadPersonas(join(projectRoot, 'personas'));
 const bus = new EventEmitter();
 const contacts = new ContactStore(join(dataDir, 'contacts.json'));
 // Technische Werte (Limits, Wächter, Modelle) kommen aus den Einstellungen; die .env liefert nur die Basis
-const tuning = () => tuningFrom(loadSettings());
+// Der gewählte KI-Anbieter mit Schlüssel und Modellen; wird je Aufruf neu gelesen, weil er sich in der Oberfläche ändern lässt
+const ai = () => resolveAi(loadSettings());
+/** Technische Werte; das Gesprächslimit beachtet die Grenze des gewählten Anbieters. */
+const tuning = () => {
+  const s = loadSettings();
+  const t = tuningFrom(s);
+  return { ...t, maxCallSeconds: resolveAi(s).callLimit(t.maxCallSeconds) };
+};
 const store = new TranscriptStore(join(dataDir, 'transcripts'), tuning().retentionDays);
 store.startCleanupTimer();
 
@@ -101,14 +110,15 @@ const modes = [
 /** Laufendes KI-Gespräch: Transkript, Usage und Metadaten fürs Protokoll. */
 let transcript: TranscriptEntry[] = [];
 let current:
-  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean }
+  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; provider: ProviderId; ask: TextModel; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean }
   | undefined;
 /** Zeitlimit der Spam-Abwehr (läuft ab Umschalten bzw. Annahme) */
 let spamTimer: NodeJS.Timeout | undefined;
 
 /** Zeitlimit der Spam-Abwehr in Sekunden (je nach Stil). */
 function scamLimit(s: ReturnType<typeof loadSettings>): number {
-  return s.scamStyle === 'beschaeftigen' ? scamMaxSeconds(s, tuningFrom(s).maxCallSeconds) : Math.min(120, tuningFrom(s).maxCallSeconds);
+  const max = resolveAi(s).callLimit(tuningFrom(s).maxCallSeconds);
+  return s.scamStyle === 'beschaeftigen' ? scamMaxSeconds(s, max) : Math.min(120, max);
 }
 
 /** Zeitlimit der Spam-Abwehr starten: beim Umschalten im Gespräch sofort, bei Listentreffern erst mit der Annahme. */
@@ -131,7 +141,7 @@ function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: st
   const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
   const limit = scamLimit(s);
   if (current) current.spam = true;
-  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice), disclose: s.scamDisclose === 'on' });
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice, providerById(s.aiProvider).maleVoices), disclose: s.scamDisclose === 'on' });
 }
 
 function createHandler(mode: string, params: Record<string, unknown>): AudioHandler {
@@ -169,7 +179,9 @@ ${last.summary}`);
 }
 
 function createAiHandler(params: Record<string, unknown>): AudioHandler {
-  if (!config.openaiApiKey) throw new Error('Der OpenAI-Schlüssel fehlt noch (Einstellungen › Einrichtungsassistent)');
+  const active = ai();
+  const { provider } = active;
+  const apiKey = needKey('Das KI-Gespräch');
   const str = (k: string, fallback = '') => (typeof params[k] === 'string' ? (params[k] as string) : fallback);
   // Kontakt-Standardwerte greifen, wo das Formular nichts vorgibt
   const contact = contacts.findByNumber(str('target'));
@@ -188,10 +200,12 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const t = tuning();
   // Spam-Rolle ab Annahme: eigene Stimme und eigenes Tempo, sofern eingestellt
   const sc = scam ? loadSettings() : undefined;
-  const voice = sc && VOICES.includes(sc.scamVoice) ? sc.scamVoice : VOICES.includes(str('voice')) ? str('voice') : VOICES[0];
+  // Stimmen gehören zum Anbieter: Eine Stimme des anderen Anbieters (Kontakt, Profil, alte Einstellung) fällt auf dessen erste zurück
+  const voices = provider.voices;
+  const voice = sc && voices.includes(sc.scamVoice) ? sc.scamVoice : voices.includes(str('voice')) ? str('voice') : voices[0];
   const speechSpeed = sc ? scamSpeed(sc, SCAM_DEFAULT_SPEED) : t.speechSpeed;
   const scamOpen = loadSettings().scamDisclose === 'on';
-  if (sc) log.info(`Spam-Abwehr: ${scamOpen ? 'mit KI-Kennung' : `Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}`}, Stimme ${voice} (${scamGender(sc.scamGender, voice) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
+  if (sc) log.info(`Spam-Abwehr: ${scamOpen ? 'mit KI-Kennung' : `Rolle${sc.scamName.trim() ? ` „${sc.scamName.trim()}"` : ' ohne Namen'}`}, Stimme ${voice} (${scamGender(sc.scamGender, voice, provider.maleVoices) === 'm' ? 'Mann' : 'Frau'}), Tempo ${speechSpeed}${sc.scamExtra.trim() ? ', eigene Anweisungen' : ''}`);
   // Anruf beim Inhaber selbst: immer Du und Vorname – er weiß, wer da anruft
   const owner = !incoming && isOwnerNumber(str('target'));
   const ownerFirst = owner ? firstName(contact?.name || str('principal', '')) : '';
@@ -216,8 +230,8 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
-  const model = realtimeModel(orSaved('model'), config.openaiModel);
-  log.info(`KI: Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
+  const model = active.realtimeModel(orSaved('model'));
+  log.info(`KI: ${provider.label}, Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 
   transcript = [];
   // Zeitlimit eines früheren Spam-Anrufs (z. B. auf „klingeln lassen" gestellt) gilt nicht für dieses Gespräch
@@ -226,6 +240,8 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
   current = {
     startedAt: new Date(),
     model,
+    provider: provider.id,
+    ask: active.ask,
     task: input.context ? `${input.task}
 
 Hintergrundwissen:
@@ -240,7 +256,8 @@ ${input.context}` : input.task,
   // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
   const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice) : undefined;
   const bridge = new RealtimeBridge({
-    apiKey: config.openaiApiKey,
+    apiKey,
+    createLive: (cfg, events) => provider.createLive(cfg, events),
     model,
     instructions: scamInstructions ?? instructions,
     voice,
@@ -312,7 +329,7 @@ ${input.context}` : input.task,
   // Inhaber ist der Auftrag schon fest strukturiert; der Plan brachte dort nur Selbstprüfungs-Schleifen am Ende.
   if (input.task.trim() && !incoming && params.plan !== false) {
     const started = current;
-    planCall(config.openaiApiKey, tuning().summaryModel, {
+    planCall(active.ask, {
       task: input.task,
       context: str('context') || undefined,
       principalName: input.principalName,
@@ -361,6 +378,7 @@ manager.on('callEnded', (reason: string) => {
     outcome: c.outcome,
     persona: c.persona,
     model: c.model,
+    provider: c.provider,
     entries: transcript.filter((e) => e.final),
     usage: c.usage,
     costUsd: c.usage ? estimateCostUsd(c.model, c.usage) : undefined,
@@ -371,7 +389,7 @@ manager.on('callEnded', (reason: string) => {
   store.save(record);
   bus.emit('message', { type: 'transcripts', items: store.list() });
   bus.emit('message', { type: 'summary', text: 'Zusammenfassung wird erstellt …' });
-  summarize(config.openaiApiKey!, tuning().summaryModel, record.task, record.entries, record.outcome)
+  summarize(c.ask, record.task, record.entries, record.outcome)
     .then((summary) => {
       record.summary = summary;
       store.save(record);
@@ -383,7 +401,7 @@ manager.on('callEnded', (reason: string) => {
     .catch((err) => {
       log.error((err as Error).message);
       bus.emit('message', { type: 'summary', text: `Keine Zusammenfassung: ${(err as Error).message}` });
-      // Auch ohne Zusammenfassung (OpenAI gerade nicht erreichbar) soll der Inhaber vom Anruf erfahren
+      // Auch ohne Zusammenfassung (Anbieter gerade nicht erreichbar) soll der Inhaber vom Anruf erfahren
       if (c.incoming) notifyAfterIncoming(record, c.incoming).catch((e) => log.error(`Benachrichtigung: ${(e as Error).message}`));
     });
 });
@@ -419,7 +437,7 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
     // Spam-Abwehr: nie wichtig, kein Rückruf; Hinweis und Mail nur zur Information
     assessment = { important: false, reason: 'Spam-Abwehr war aktiv', headline: `Spam-Anruf von ${who || 'anonym'} abgewehrt` };
   } else try {
-    assessment = await assessCall(config.openaiApiKey!, tuning().summaryModel, { caller: inc.caller, callerName: contact?.name, summary: record.summary ?? '', task: record.task });
+    assessment = await assessCall(ai().ask, { caller: inc.caller, callerName: contact?.name, summary: record.summary ?? '', task: record.task });
     assessed = true;
     log.info(`Einschätzung: ${assessment.important ? 'wichtig' : 'unwichtig'} – ${assessment.reason}`);
   } catch (err) {
@@ -541,7 +559,7 @@ function ringInfo(): Record<string, unknown> {
   if (!ring) return { ringing: false };
   // Mit KI-Kennung braucht die Spam-Falle keine Bestätigung des Risikos
   const accepted = scamAllowed(loadSettings());
-  return { ringing: true, ...ring, canTrap: accepted && Boolean(config.openaiApiKey), trapHint: accepted ? '' : 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen' };
+  return { ringing: true, ...ring, canTrap: accepted && Boolean(ai().key), trapHint: accepted ? '' : 'Spam-Falle erst unter Einstellungen › Spam-Abwehr bestätigen' };
 }
 manager.on('ring', (r: { caller: string; called: string; willAnswer: boolean; answerAt?: number }) => {
   const s = loadSettings();
@@ -585,8 +603,9 @@ function divertRing(mode: 'scam' | 'answer' | 'skip'): { ok: boolean; reason: st
 }
 
 function needKey(what: string): string {
-  if (!config.openaiApiKey) throw new Error(`${what} braucht den OpenAI-Schlüssel (Einstellungen › Einrichtungsassistent)`);
-  return config.openaiApiKey;
+  const { provider, key } = ai();
+  if (!key) throw new Error(`${what} braucht den ${provider.label}-Schlüssel (Einstellungen › KI-Anbieter)`);
+  return key;
 }
 
 // ---- Einrichtungsassistent: Zustand ohne Geheimnisse; Zugangsdaten werden geprüft und erst dann in die .env geschrieben ----
@@ -598,10 +617,11 @@ function setupStatus(): Record<string, unknown> {
   return {
     available: true,
     // Der Assistent meldet sich von selbst, solange das Nötigste fehlt und er nicht übersprungen wurde
-    needed: s.setupDone !== 'on' && (!sipConfigured || !config.openaiApiKey || !s.principal.trim()),
+    needed: s.setupDone !== 'on' && (!sipConfigured || !ai().key || !s.principal.trim()),
     done: s.setupDone === 'on',
     sip: { server: config.sipServer, user: config.sipUser, hasPassword: Boolean(config.sipPassword), configured: sipConfigured, registered: st.registered, error: st.sipError ? explainSipError(st.sipError, config.sipServer) : undefined },
-    openai: { hasKey: Boolean(config.openaiApiKey) },
+    ai: aiInfo(),
+    openai: { hasKey: Boolean(providerKey(PROVIDERS.openai)) },
     principal: s.principal.trim().length > 0,
   };
 }
@@ -635,28 +655,60 @@ async function saveSip(input: Record<string, unknown>): Promise<{ ok: boolean; e
   return r.ok ? { ok: true } : { ok: false, error: `Gespeichert, aber die Anmeldung steht noch nicht: ${explainSipError(r.error ?? '', account.server)}` };
 }
 
-async function saveOpenAi(input: unknown): Promise<{ ok: boolean; error?: string }> {
+/** KI-Anbieter für Oberfläche und Assistent: wer gewählt ist und wer einen Schlüssel hat – nie der Schlüssel selbst. */
+function aiInfo(): Record<string, unknown> {
+  const active = ai();
+  return {
+    provider: active.provider.id,
+    hasKey: Boolean(active.key),
+    providers: PROVIDER_IDS.map((id) => {
+      const p = PROVIDERS[id];
+      const r = resolveAi({ aiProvider: id });
+      return { id, label: p.label, hasKey: Boolean(providerKey(p)), keyUrl: p.keyUrl, voices: p.voices, models: p.defaults.known, defaultRealtime: r.defaultRealtime, defaultText: r.defaultText, maxCallSeconds: p.maxCallSeconds ?? null, supports: p.supports };
+    }),
+  };
+}
+
+/** Stammdaten der Oberfläche, die vom gewählten Anbieter abhängen. */
+function aiUiData(): Record<string, unknown> {
+  const active = ai();
+  return {
+    voices: active.provider.voices,
+    model: active.realtimeModel(),
+    // Rückfall, solange die Liste des Anbieters nicht geladen ist, und Kennzeichnung in der Auswahl
+    models: active.provider.defaults.known,
+    modelNotes: { defaultRealtime: active.defaultRealtime, defaultText: active.defaultText, textModel: active.textModel, budget: BUDGET_MODELS },
+    aiAvailable: Boolean(active.key),
+    ai: aiInfo(),
+  };
+}
+
+/** Schlüssel eines Anbieters prüfen und in die .env schreiben; er wird nie zurückgegeben und steht in keinem Log. */
+async function saveAiKey(providerId: unknown, input: unknown): Promise<{ ok: boolean; error?: string }> {
+  const provider = PROVIDERS[String(providerId ?? 'openai') as ProviderId];
+  if (!provider) return { ok: false, error: 'Unbekannter KI-Anbieter' };
   let key;
   try {
-    key = cleanOpenAiKey(input);
+    key = provider.cleanKey(input);
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
-  const check = await checkOpenAiKey(key);
+  const check = await provider.checkKey(key);
   if (!check.ok) return check;
   try {
-    writeEnvValues(envFile, { OPENAI_API_KEY: key });
+    writeEnvValues(envFile, { [provider.keyEnv]: key });
   } catch (err) {
     return { ok: false, error: `Der Schlüssel stimmt, ließ sich aber nicht speichern: ${(err as Error).message}` };
   }
-  config.openaiApiKey = key;
-  modelCatalog.clear();
-  log.info('Einrichtung: OpenAI-Schlüssel geprüft und gespeichert (.env)');
+  if (provider.id === 'openai') config.openaiApiKey = key;
+  modelCatalogs[provider.id].clear();
+  log.info(`Einrichtung: ${provider.label}-Schlüssel geprüft und gespeichert (.env)`);
   return { ok: true };
 }
 
-// Modelle zur Auswahl: von OpenAI geladen und zwischengespeichert; der Schlüssel kann zur Laufzeit dazukommen
-const modelCatalog = new ModelCatalog(() => config.openaiApiKey);
+// Modelle zur Auswahl: je Anbieter geladen und zwischengespeichert; der Schlüssel kann zur Laufzeit dazukommen
+const catalogFor = (p: AiProvider) => new ModelCatalog(() => providerKey(p), fetch, undefined, undefined, (key, fetchImpl) => p.fetchModels(key, fetchImpl), `Der ${p.label}-Schlüssel fehlt noch (Einstellungen › KI-Anbieter).`);
+const modelCatalogs = Object.fromEntries(PROVIDER_IDS.map((id) => [id, catalogFor(PROVIDERS[id])])) as Record<ProviderId, ModelCatalog>;
 
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
 const mailConfig = () => mailConfigFrom(loadSettings());
@@ -686,32 +738,32 @@ const stopWeb = startWebServer({
   onSettingsChanged: (s) => {
     manager.setIncoming(incomingFrom(s));
     const t = tuningFrom(s);
-    manager.setMaxCallSeconds(t.maxCallSeconds);
+    manager.setMaxCallSeconds(resolveAi(s).callLimit(t.maxCallSeconds));
     store.setRetention(t.retentionDays);
   },
   ring: { info: ringInfo, divert: divertRing },
   // Der Schlüssel kann zur Laufzeit dazukommen (Einrichtungsassistent): bei jedem Aufruf neu prüfen
-  complaint: async (record) => draftComplaint(needKey('Der Beschwerde-Entwurf'), tuning().summaryModel, record, contacts.findByNumber(record.target)?.name),
+  complaint: async (record) => {
+    needKey('Der Beschwerde-Entwurf');
+    return draftComplaint(ai().ask, record, contacts.findByNumber(record.target)?.name);
+  },
   voiceSample: async (voice) => {
     const key = needKey('Die Hörprobe');
-    if (!VOICES.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
+    const { provider } = ai();
+    if (!provider.voices.includes(voice)) throw new Error(`Unbekannte Stimme: ${voice}`);
     const s = loadSettings();
-    return voiceSample(key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples'));
+    return voiceSample(provider, key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples', ...(provider.id === 'openai' ? [] : [provider.id])));
   },
-  models: async (refresh) => {
-    const state = await modelCatalog.get(refresh);
-    if (refresh) log[state.error ? 'warn' : 'info'](state.error ? `Modell-Liste nicht aktualisiert: ${state.error}` : `Modell-Liste von OpenAI geladen (${state.realtime.length} Sprach-, ${state.text.length} Textmodelle)`);
+  models: async (refresh, providerId) => {
+    const provider = providerId ? providerById(providerId) : ai().provider;
+    const state = { ...(await modelCatalogs[provider.id].get(refresh)), provider: provider.id };
+    if (refresh) log[state.error ? 'warn' : 'info'](state.error ? `Modell-Liste nicht aktualisiert: ${state.error}` : `Modell-Liste von ${provider.label} geladen (${state.realtime.length} Sprach-, ${state.text.length} Textmodelle)`);
     return state as unknown as Record<string, unknown>;
   },
-  setup: { status: setupStatus, saveSip, saveOpenAi },
+  setup: { status: setupStatus, saveSip, saveAiKey },
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
-    voices: VOICES,
-    model: realtimeModel(loadSettings().model, config.openaiModel),
-    // Rückfall, solange die Liste von OpenAI nicht geladen ist, und Kennzeichnung in der Auswahl
-    models: REALTIME_MODELS,
-    modelNotes: { defaultRealtime: config.openaiModel, defaultText: config.openaiSummaryModel, budget: BUDGET_MODELS },
-    aiAvailable: Boolean(config.openaiApiKey),
+    ...aiUiData(),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
     env: { sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
   }),

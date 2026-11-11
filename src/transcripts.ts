@@ -22,6 +22,8 @@ export interface CallRecord {
   outcome?: CallOutcome;
   persona?: Record<string, string>;
   model?: string;
+  /** KI-Anbieter des Gesprächs ('openai' | 'gemini'); fehlt in alten Protokollen (= OpenAI) */
+  provider?: string;
   entries: TranscriptEntry[];
   usage?: Usage;
   costUsd?: number;

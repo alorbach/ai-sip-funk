@@ -26,9 +26,9 @@ export type ScamGender = 'm' | 'w';
 const MALE_VOICES = ['cedar', 'ash', 'ballad', 'echo', 'verse'];
 
 /** Geschlecht der Rolle: ausdrücklich eingestellt ('m'/'w') oder nach der Stimme, mit der sie spricht. */
-export function scamGender(setting: string | undefined, voice: string): ScamGender {
+export function scamGender(setting: string | undefined, voice: string, maleVoices: readonly string[] = MALE_VOICES): ScamGender {
   if (setting === 'm' || setting === 'w') return setting;
-  return MALE_VOICES.includes(voice) ? 'm' : 'w';
+  return maleVoices.includes(voice) ? 'm' : 'w';
 }
 
 /** Einzeilig und ohne Anführungszeichen, damit der Name die Anweisung nicht zerlegt. */

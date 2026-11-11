@@ -3,11 +3,10 @@
 // und schreibt sie in kein Log.
 import { SipClient } from './sip/client.js';
 import type { SipAccount } from './callManager.js';
+import type { CheckResult } from './ai/providers/types.js';
 
-export interface CheckResult {
-  ok: boolean;
-  error?: string;
-}
+export type { CheckResult } from './ai/providers/types.js';
+export { checkOpenAiKey, cleanOpenAiKey } from './ai/providers/openai.js';
 
 /** Eingaben des Assistenten zur Telefonanlage prüfen und säubern; wirft mit einer verständlichen Meldung. */
 export function cleanSipAccount(input: { server?: unknown; user?: unknown; password?: unknown }): SipAccount {
@@ -56,30 +55,5 @@ export async function testSipAccount(account: SipAccount, opts: { serverPort?: n
     clearTimeout(timer);
     // Nicht auf das Abmelden warten (bis 2 s): Die Antwort an den Assistenten soll sofort kommen
     void client.stop().catch(() => undefined);
-  }
-}
-
-/** Form eines OpenAI-Schlüssels grob prüfen (keine Leerzeichen, plausibel lang); wirft mit Meldung. */
-export function cleanOpenAiKey(input: unknown): string {
-  const key = String(input ?? '').trim();
-  if (!key) throw new Error('Schlüssel fehlt');
-  if (/\s/.test(key) || key.length < 20 || key.length > 400) throw new Error('Das sieht nicht nach einem OpenAI-Schlüssel aus (beginnt meist mit „sk-“, ohne Leerzeichen)');
-  return key;
-}
-
-/** Schlüssel bei OpenAI prüfen: Liste der Modelle abrufen. Der Schlüssel geht nur an api.openai.com. */
-export async function checkOpenAiKey(key: string, fetchImpl: typeof fetch = fetch, timeoutMs = 8000): Promise<CheckResult> {
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    const res = await fetchImpl('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${key}` }, signal: ctl.signal });
-    if (res.ok) return { ok: true };
-    if (res.status === 401) return { ok: false, error: 'OpenAI hat den Schlüssel abgelehnt – bitte neu kopieren.' };
-    if (res.status === 429) return { ok: false, error: 'OpenAI meldet ein erschöpftes Kontingent oder zu viele Anfragen – Guthaben im OpenAI-Konto prüfen.' };
-    return { ok: false, error: `OpenAI antwortete mit Status ${res.status}.` };
-  } catch {
-    return { ok: false, error: 'OpenAI ist nicht erreichbar – besteht eine Internetverbindung?' };
-  } finally {
-    clearTimeout(timer);
   }
 }

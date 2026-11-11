@@ -1,7 +1,7 @@
 // Beschwerde-Entwurf für die Bundesnetzagentur (unerlaubte Telefonwerbung / Rufnummernmissbrauch)
 // aus einem Gesprächsprotokoll der Spam-Abwehr. Nur ein Textvorschlag; der Inhaber prüft, ergänzt
 // und reicht ihn selbst ein (Online-Formular der Bundesnetzagentur). Keine Rechtsberatung.
-import { responsesText } from './summary.js';
+import type { TextModel } from './providers/types.js';
 import type { CallRecord } from '../transcripts.js';
 
 /** Die Fakten aus dem Protokoll, die in jede Beschwerde gehören – ohne Modell, testbar. */
@@ -41,8 +41,8 @@ export function buildComplaintPrompt(r: CallRecord, callerName?: string): string
   ].join('\n');
 }
 
-export async function draftComplaint(apiKey: string, model: string, record: CallRecord, callerName?: string): Promise<string> {
-  const text = await responsesText(apiKey, model, buildComplaintPrompt(record, callerName), 1500);
+export async function draftComplaint(ask: TextModel, record: CallRecord, callerName?: string): Promise<string> {
+  const text = await ask(buildComplaintPrompt(record, callerName), 1500);
   const body = text.trim();
   return [
     body,

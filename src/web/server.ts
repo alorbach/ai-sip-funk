@@ -17,7 +17,7 @@ export type HandlerFactory = (mode: string, params: Record<string, unknown>) => 
 export interface WebServerOptions {
   port: number;
   manager: CallManager;
-  /** Erzeugt den Audio-Handler für einen Anruf; 'tone' und 'echo' gibt es immer, 'ai' nur mit OPENAI_API_KEY. */
+  /** Erzeugt den Audio-Handler für einen Anruf; 'tone' und 'echo' gibt es immer, 'ai' nur mit dem Schlüssel des gewählten KI-Anbieters. */
   createHandler: HandlerFactory;
   modes: { id: string; label: string }[];
   /** Zusätzliche Stammdaten für die UI (Personas, Stimmen); wird je Abruf neu gebildet, weil sich z. B. der OpenAI-Schlüssel zur Laufzeit ändern kann */
@@ -26,14 +26,15 @@ export interface WebServerOptions {
   setup?: {
     status: () => Record<string, unknown>;
     saveSip: (input: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
-    saveOpenAi: (key: unknown) => Promise<{ ok: boolean; error?: string }>;
+    /** Schlüssel eines KI-Anbieters prüfen und speichern */
+    saveAiKey: (provider: unknown, key: unknown) => Promise<{ ok: boolean; error?: string }>;
   };
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
   onSettingsChanged?: (settings: FormSettings) => void;
-  /** Hörprobe einer Stimme als MP3 (nur mit OpenAI-Key) */
-  voiceSample: (voice: string) => Promise<Buffer>;
-  /** Modelle zur Auswahl, von OpenAI geladen; scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
-  models: (refresh: boolean) => Promise<Record<string, unknown>>;
+  /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
+  voiceSample: (voice: string) => Promise<{ data: Buffer; mime: string }>;
+  /** Modelle zur Auswahl, vom Anbieter geladen (ohne Angabe: vom gewählten); scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
+  models: (refresh: boolean, provider?: string) => Promise<Record<string, unknown>>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
   ring?: { info: () => Record<string, unknown>; divert: (mode: 'scam' | 'answer' | 'skip') => { ok: boolean; reason: string } };
   /** Beschwerde-Entwurf (Bundesnetzagentur) aus einem Spam-Protokoll (nur mit OpenAI-Key) */
@@ -140,11 +141,11 @@ export function startWebServer(opts: WebServerOptions): () => void {
       if (req.method === 'GET' && url.pathname === '/api/setup') {
         return sendJson(res, 200, opts.setup ? opts.setup.status() : { available: false });
       }
-      if (req.method === 'POST' && (url.pathname === '/api/setup/sip' || url.pathname === '/api/setup/openai')) {
+      if (req.method === 'POST' && (url.pathname === '/api/setup/sip' || url.pathname === '/api/setup/openai' || url.pathname === '/api/ai/key')) {
         if (!opts.setup) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
         // Die Antwort enthält nur „ok“ oder eine Meldung – nie die übergebenen Zugangsdaten
-        const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveOpenAi(body.key);
+        const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveAiKey(url.pathname.endsWith('/openai') ? 'openai' : body.provider, body.key);
         return r.ok ? sendJson(res, 200, { ok: true, setup: opts.setup.status() }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {
@@ -158,13 +159,13 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       // Modell-Liste von OpenAI (zwischengespeichert); POST verlangt einen neuen Abruf („Aktualisieren“)
       if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/models') {
-        return sendJson(res, 200, await opts.models(req.method === 'POST'));
+        return sendJson(res, 200, await opts.models(req.method === 'POST', url.searchParams.get('provider') ?? undefined));
       }
-      const vx = /^\/api\/voices\/([a-z]+)\/sample$/.exec(url.pathname);
+      const vx = /^\/api\/voices\/([A-Za-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {
-        const mp3 = await opts.voiceSample(vx[1]);
-        res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': mp3.length, 'Cache-Control': 'private, max-age=3600' });
-        return res.end(mp3);
+        const sample = await opts.voiceSample(vx[1]);
+        res.writeHead(200, { 'Content-Type': sample.mime, 'Content-Length': sample.data.length, 'Cache-Control': 'private, max-age=3600' });
+        return res.end(sample.data);
       }
       if (req.method === 'GET' && url.pathname === '/api/mail/status') {
         return sendJson(res, 200, opts.mail ? opts.mail.status() : { provider: 'none', configured: false, loggedIn: false });

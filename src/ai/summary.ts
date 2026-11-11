@@ -1,7 +1,8 @@
 // Kurze Zusammenfassung nach dem Gespräch per OpenAI Responses API (Text).
 import type { CallOutcome, TranscriptEntry } from './realtimeBridge.js';
+import type { TextModel } from './providers/types.js';
 
-export async function summarize(apiKey: string, model: string, task: string | undefined, entries: TranscriptEntry[], outcome?: CallOutcome): Promise<string> {
+export async function summarize(ask: TextModel, task: string | undefined, entries: TranscriptEntry[], outcome?: CallOutcome): Promise<string> {
   const dialog = entries
     .filter((e) => e.final)
     .map((e) => (e.speaker === 'system' ? `[System: ${e.text}]` : `${e.speaker === 'ki' ? 'KI' : 'Gegenüber'}: ${e.text}`))
@@ -22,16 +23,16 @@ export async function summarize(apiKey: string, model: string, task: string | un
     dialog,
   ].join('\n');
 
-  return responsesText(apiKey, model, prompt, 2000);
+  return ask(prompt, 2000);
 }
 
 /**
  * Textantwort des Textmodells (Responses API) auf einen Prompt; wirft bei Fehler oder leerer Antwort.
  * Mit `format` antwortet das Modell als JSON nach dem angegebenen Schema (der Aufrufer parst den Text).
  */
-export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }): Promise<string> {
+export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }, fetchImpl: typeof fetch = fetch): Promise<string> {
   const ask = (reasoning: boolean) =>
-    fetch('https://api.openai.com/v1/responses', {
+    fetchImpl('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       // Reasoning-Modelle denken vor der Antwort; das Budget muss Reasoning + Text decken

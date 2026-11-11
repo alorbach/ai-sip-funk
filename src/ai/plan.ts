@@ -2,7 +2,7 @@
 // Gegenüber, Einstieg und einzelne Schritte. Das Realtime-Modell spricht gut, plant aber
 // schlecht – ohne diese Vorarbeit lässt es Teile des Auftrags aus oder erfindet einen Grund.
 // Läuft parallel zum Wählen; kommt der Plan nicht rechtzeitig, telefoniert die KI ohne ihn.
-import { responsesText } from './summary.js';
+import type { TextModel } from './providers/types.js';
 
 export interface CallPlan {
   /** Wer vermutlich abnimmt und wie die Person angesprochen wird */
@@ -39,7 +39,7 @@ const SCHEMA = {
   },
 };
 
-export async function planCall(apiKey: string, model: string, p: PlanInput): Promise<CallPlan> {
+export async function planCall(ask: TextModel, p: PlanInput): Promise<CallPlan> {
   const prompt = [
     `Ein KI-Telefonassistent namens ${p.aiName} ruft gleich im Auftrag von ${p.principalName} an. Du bereitest den Anruf vor: Zerlege den Auftrag in einen knappen Gesprächsplan. Antworte als JSON. Der Plan richtet sich an den Assistenten (sprich ihn mit „du" an); die Anrede ${p.formal ? '„Sie"' : '„Du"'} gilt für das Gegenüber am Telefon.`,
     '',
@@ -55,7 +55,7 @@ export async function planCall(apiKey: string, model: string, p: PlanInput): Pro
     ...(p.context?.trim() ? ['', `Hintergrundwissen (nur für Rückfragen, nicht als Schritte): ${p.context.trim()}`] : []),
   ].join('\n');
 
-  const text = await responsesText(apiKey, model, prompt, 1500, { name: 'gespraechsplan', schema: SCHEMA });
+  const text = await ask(prompt, 1500, { name: 'gespraechsplan', schema: SCHEMA });
   const plan = JSON.parse(text) as CallPlan;
   plan.schritte = plan.schritte.map((s) => s.trim()).filter(Boolean);
   return plan;

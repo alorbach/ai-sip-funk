@@ -340,7 +340,7 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
   const scamInput = { style: s.scamStyle ?? 'abwimmeln', maxMinutes: s.scamMinutes ?? 1, callerKnown, name: process.env.SIM_SCAM_NAME ?? loadSettings().scamName, extra: process.env.SIM_SCAM_EXTRA ?? loadSettings().scamExtra, gender: scamGender(process.env.SIM_SCAM_GENDER ?? loadSettings().scamGender, loadSettings().scamVoice || loadSettings().voice), disclose: (process.env.SIM_SCAM_DISCLOSE ?? loadSettings().scamDisclose) === 'on' } as const;
   const t0 = Date.now();
   // Gesprächsplan nur bei ausgehenden Aufträgen (wie in der App)
-  const rawPlan: CallPlan = incoming ? { gegenueber: '', einstieg: '', schritte: [], hinweise: '' } : await planCall(apiKey, textModel, { task: s.task, principalName: principal, aiName: 'Salve', formal: s.formal, owner: Boolean(s.owner), contactName: s.contactName });
+  const rawPlan: CallPlan = incoming ? { gegenueber: '', einstieg: '', schritte: [], hinweise: '' } : await planCall((prompt, max, format) => responsesText(apiKey, textModel, prompt, max, format), { task: s.task, principalName: principal, aiName: 'Salve', formal: s.formal, owner: Boolean(s.owner), contactName: s.contactName });
   const plan = incoming ? (kind === 'scam-list' ? `Spam-Abwehr ab Annahme (${scamInput.style}${scamInput.style === 'beschaeftigen' ? `, ${scamInput.maxMinutes} min` : ''}), Anrufer ${callerKnown ? s.caller : 'anonym'}` : `Anrufbeantworter, Spam-Abwehr ${s.scamAllowed ? 'an' : 'aus'}, Anrufer ${callerKnown ? s.caller : 'anonym'}`) : formatPlan(rawPlan);
   const planMs = Date.now() - t0;
   const instructions = kind === 'scam-list' ? buildScamInstructions(scamInput) : buildInstructions({ ...input, plan: incoming ? undefined : plan });

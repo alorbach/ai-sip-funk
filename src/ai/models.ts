@@ -95,6 +95,9 @@ export class ModelCatalog {
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly ttlMs = 6 * 60 * 60 * 1000,
     private readonly now: () => number = Date.now,
+    /** Abruf beim Anbieter; ohne Angabe OpenAI */
+    private readonly loader: (apiKey: string, fetchImpl: typeof fetch) => Promise<ModelLists> = fetchModels,
+    private readonly missingKey = 'Der OpenAI-Schlüssel fehlt noch (Einstellungen › Einrichtungsassistent).',
   ) {}
 
   private state(error?: string): ModelCatalogState {
@@ -121,9 +124,9 @@ export class ModelCatalog {
 
   private async load(): Promise<ModelCatalogState> {
     const key = this.apiKey();
-    if (!key) return this.state('Der OpenAI-Schlüssel fehlt noch (Einstellungen › Einrichtungsassistent).');
+    if (!key) return this.state(this.missingKey);
     try {
-      const lists = await fetchModels(key, this.fetchImpl);
+      const lists = await this.loader(key, this.fetchImpl);
       // Ein inzwischen ausgetauschter Schlüssel hat den Speicher geleert: das Ergebnis des alten nicht mehr übernehmen
       if (this.apiKey() !== key) return this.state();
       this.lists = lists;

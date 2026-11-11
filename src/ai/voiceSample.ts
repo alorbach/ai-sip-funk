@@ -1,27 +1,23 @@
-// Hörprobe einer Stimme über die OpenAI-Sprachausgabe (gpt-4o-mini-tts, dieselben Stimmen wie Realtime).
-// Ergebnis wird je Stimme und Text im Datenordner gecacht, damit die Probe nur einmal Geld kostet.
+// Hörprobe einer Stimme über die Sprachausgabe des gewählten Anbieters.
+// Ergebnis wird je Anbieter, Stimme und Text im Datenordner gecacht, damit die Probe nur einmal Geld kostet.
 import { createHash } from 'node:crypto';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { AiProvider, VoiceSampleAudio } from './providers/types.js';
 
-const TTS_MODEL = 'gpt-4o-mini-tts';
+const MIME: Record<string, string> = { mp3: 'audio/mpeg', wav: 'audio/wav' };
 
 export function sampleText(aiName: string, principalName: string): string {
   return `Hallo? Hier ist ${aiName}, der Telefonassistent von ${principalName}. ${principalName} ist gerade nicht da – worum geht es denn?`;
 }
 
-export async function voiceSample(apiKey: string, voice: string, text: string, cacheDir: string): Promise<Buffer> {
-  const hash = createHash('sha1').update(`${TTS_MODEL}\n${text}`).digest('hex').slice(0, 8);
-  const file = join(cacheDir, `${voice}-${hash}.mp3`);
-  if (existsSync(file)) return readFileSync(file);
-  const res = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: TTS_MODEL, voice, input: text, response_format: 'mp3' }),
-  });
-  if (!res.ok) throw new Error(`Hörprobe fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
-  const buf = Buffer.from(await res.arrayBuffer());
+export async function voiceSample(provider: AiProvider, apiKey: string, voice: string, text: string, cacheDir: string): Promise<VoiceSampleAudio> {
+  const hash = createHash('sha1').update(`${provider.sampleModel}\n${text}`).digest('hex').slice(0, 8);
+  const base = `${voice}-${hash}.`;
+  const cached = existsSync(cacheDir) ? readdirSync(cacheDir).find((f) => f.startsWith(base) && MIME[f.slice(base.length)]) : undefined;
+  if (cached) return { data: readFileSync(join(cacheDir, cached)), ext: cached.slice(base.length), mime: MIME[cached.slice(base.length)] };
+  const audio = await provider.voiceSample(apiKey, voice, text);
   mkdirSync(cacheDir, { recursive: true });
-  writeFileSync(file, buf);
-  return buf;
+  writeFileSync(join(cacheDir, `${base}${audio.ext}`), audio.data);
+  return audio;
 }
