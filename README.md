@@ -65,8 +65,8 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 
 ## Configuration
 
-- **`.env`**: credentials (SIP, AI provider), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the key of the AI provider there and applies them immediately; changes made by hand require a restart.
-- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, AI provider, answering machine, notifications, e-mail, spam defence, technical values). The AI provider is chosen under "KI-Anbieter" (AI provider): OpenAI (default) or Google Gemini; one provider handles the call, the call plan, the summary, the assessment, the complaint draft and the voice samples. Saved to `settings.json`; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
+- **`.env`**: credentials (SIP, keys of the AI connections), ports and initial values. All variables are listed with comments in [.env.example](.env.example). The setup assistant writes the SIP credentials and the key of the AI provider there and applies them immediately; changes made by hand require a restart.
+- **Web UI, page "Einstellungen" (settings)**: everything else (AI assistant, AI connections, answering machine, notifications, e-mail, spam defence, technical values); the section list on the left works like tabs and shows one section at a time. Under "KI-Verbindungen" (AI connections) you manage named accesses to the AI providers, each with its provider (OpenAI or Google Gemini), its own key and its voice and text model. "OpenAI" and "Google Gemini" exist from the start, and you can add more (for example a second account or a cheaper model) and switch between them there or on the dashboard. The active connection handles the call, the call plan, the summary, the assessment, the complaint draft and the voice samples; changes to connections apply immediately. Everything else is saved to `settings.json` with "Speichern"; these values override the initial values from `.env` and apply from the next call. The switch "Einfach / Erweitert" (simple / advanced) in the header decides how much of it is shown; "Einfach" is the default. The interface is available in German and English ("Sprache" on the settings page; by default it follows the browser language). The AI itself speaks German on the phone.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` and log files contain credentials or personal data. They are listed in `.gitignore`, as is the monthly usage counter `usage.json`, and do not belong in any repository, ticket or screenshot.
 
@@ -76,7 +76,7 @@ SIPFunk then runs without a console in the notification area; double-clicking th
 
 The web UI has four pages:
 
-- **Dashboard**: start a call (number or contact, task, style, voice, form of address, model), transcript of the running call, server log. "Anrufen …" (call) always shows a confirmation first.
+- **Dashboard**: start a call (number or contact, task, style, voice, form of address, AI connection), transcript of the running call, server log. "Anrufen …" (call) always shows a confirmation first.
 - **Anrufe** (calls): stored calls with transcript, summary, result and cost.
 - **Kontakte** (contacts): names, numbers, defaults and notes.
 - **Einstellungen** (settings): see above.
@@ -99,7 +99,7 @@ Client setup and all tools: [user guide, chapter 13](doc/user-guide.md#13-mcp-in
 
 ## Cost
 
-Both providers bill by token; a ChatGPT subscription does not cover the OpenAI API. The web UI shows usage and an estimate in US dollars per call (price table in `src/ai/pricing.ts`, which has to be updated when prices change), and under "Einstellungen › KI-Anbieter" the calls, minutes and estimated cost of the current month per provider. Summary, assessment and call plan are negligible. Set a budget limit at your provider. Your line's call charges come on top.
+Both providers bill by token; a ChatGPT subscription does not cover the OpenAI API. The web UI shows usage and an estimate in US dollars per call (price table in `src/ai/pricing.ts`, which has to be updated when prices change), and under "Einstellungen › KI-Verbindungen" the calls, minutes and estimated cost of the current month per provider. Summary, assessment and call plan are negligible. Set a budget limit at your provider. Your line's call charges come on top.
 
 For Gemini the estimate always uses the prices of the paid tier. Google offers a free quota for the Gemini API, but its terms restrict the free tier for users in the EEA, Switzerland and the UK; read [doc/legal.md](doc/legal.md) (section 3.5) before relying on it.
 
@@ -108,7 +108,7 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 ## Limitations
 
 - Google Gemini has not yet been tried on a real phone call; it has only been tested against simulated connections in the automated tests.
-- With Gemini a call lasts nine minutes at most, the speaking rate cannot be set, a late call plan and the switch into spam defence reach the AI only as follow-up instructions (weaker than with OpenAI), finishing a sentence after a mere "mhm" works less often, and the simulator is not available. Details in the [user guide, section 6.2](doc/user-guide.md#62-ai-provider).
+- With Gemini a call lasts nine minutes at most, the speaking rate cannot be set, a late call plan and the switch into spam defence reach the AI only as follow-up instructions (weaker than with OpenAI), finishing a sentence after a mere "mhm" works less often, and the simulator is not available. Details in the [user guide, section 6.2](doc/user-guide.md#62-ai-connections).
 - One call at a time; during a call the extension is busy.
 - German: web UI, AI instructions and dialling rules are built for Germany. Emergency, special, premium-rate and international numbers are blocked.
 - No touch tones (DTMF), hence no phone menus; no taking over the call by microphone.

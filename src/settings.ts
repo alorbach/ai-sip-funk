@@ -5,6 +5,7 @@ import { log } from './log.js';
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js';
 import type { PrincipalKind } from './ai/personas.js';
 import { providerById } from './ai/providers/index.js';
+import { connectionsFrom } from './ai/connections.js';
 
 export interface FormSettings {
   /** Sprache der Oberfläche: 'auto' (Sprache des Browsers) | 'de' | 'en'. Die KI spricht unabhängig davon Deutsch */
@@ -15,6 +16,10 @@ export interface FormSettings {
   uiMode: string;
   /** KI-Anbieter für Gespräch, Textmodell und Hörprobe: 'openai' | 'gemini' */
   aiProvider: string;
+  /** KI-Verbindungen als JSON-Liste (siehe ai/connections.ts); leer = je Anbieter eine */
+  aiConnections: string;
+  /** Kennung der aktiven KI-Verbindung; leer = die des gewählten Anbieters */
+  aiConnection: string;
   mode: string;
   task: string;
   persona: string;
@@ -161,7 +166,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -211,6 +216,8 @@ function envDefaults(): FormSettings {
     uiLang: 'auto',
     setupDone: 'off',
     aiProvider: e('AI_PROVIDER', 'openai').toLowerCase(),
+    aiConnections: '',
+    aiConnection: '',
     mode: e('AI_DEFAULT_MODE', 'ai'),
     task: e('AI_TASK'),
     persona: e('AI_PERSONA', 'professionell'),
@@ -494,7 +501,8 @@ function normalize(s: FormSettings): FormSettings {
   if (s.setupDone !== 'on') s.setupDone = 'off';
   if (s.uiLang !== 'de' && s.uiLang !== 'en') s.uiLang = 'auto';
   if (s.scamDisclose !== 'off') s.scamDisclose = 'on';
-  s.aiProvider = providerById(s.aiProvider).id;
+  // Der „gewählte Anbieter“ ist der Anbieter der aktiven Verbindung
+  s.aiProvider = connectionsFrom({ ...s, aiProvider: providerById(s.aiProvider).id }).active.provider;
   for (const [k, allowed] of BEHAVE_VALUES) if (!allowed.includes(s[k])) s[k] = '';
   return s;
 }

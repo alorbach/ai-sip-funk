@@ -86,7 +86,7 @@ OpenAI verarbeitet Audio und Text. Für den geschäftlichen Einsatz brauchst du 
 - **Alter.** Die Gemini API darf nur nutzen, wer mindestens 18 Jahre alt ist, und eine Anwendung darf sich nicht an Minderjährige richten.
 - **Geschäftlicher Einsatz.** Wie bei OpenAI brauchst du einen Auftragsverarbeitungsvertrag (bei Google Teil der Bedingungen der bezahlten Dienste) und eine Grundlage für die Übermittlung in die USA; prüfe Googles Zertifizierung unter dem EU-US Data Privacy Framework. Das kostenlose Kontingent kommt dafür nicht in Betracht.
 
-Welcher Anbieter gewählt ist, steht in den Einstellungen unter „KI-Anbieter“ und je Gespräch im Protokoll. Nenne in deiner Datenschutzinformation den Anbieter, den du tatsächlich verwendest.
+Welcher Anbieter gewählt ist, steht in den Einstellungen unter „KI-Verbindungen“ und je Gespräch im Protokoll. Nenne in deiner Datenschutzinformation den Anbieter, den du tatsächlich verwendest.
 
 Mail-Anbieter (Gmail, Microsoft 365, dein SMTP-Anbieter) erhalten Zusammenfassung und Transkript per E-Mail. Für Firmen gilt auch hier: Auftragsverarbeitung mit dem Mail-Anbieter, meist durch die Geschäftskundenverträge abgedeckt.
 

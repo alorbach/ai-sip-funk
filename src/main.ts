@@ -11,7 +11,7 @@ import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { incomingFrom, incomingOverride, loadSettings, saveSettings, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -26,7 +26,8 @@ import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
 import { cleanAdminKey, fetchOpenAiMonthCosts, monthKey, UsageCounter } from './usageCounter.js';
-import { knownProvider, PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
+import { PROVIDER_IDS, PROVIDERS, providerById, providerKey, resolveAi } from './ai/providers/index.js';
+import { cleanConnections, connectionKey, connectionKeyEnv, connectionsFrom, MAX_CONNECTIONS, type AiConnection } from './ai/connections.js';
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
@@ -143,7 +144,7 @@ function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: st
   const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
   const limit = scamLimit(s);
   if (current) current.spam = true;
-  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice, providerById(s.aiProvider).maleVoices), disclose: s.scamDisclose === 'on' });
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice, resolveAi(s).provider.maleVoices), disclose: s.scamDisclose === 'on' });
 }
 
 function createHandler(mode: string, params: Record<string, unknown>): AudioHandler {
@@ -611,7 +612,7 @@ function divertRing(mode: 'scam' | 'answer' | 'skip'): { ok: boolean; reason: st
 
 function needKey(what: string): string {
   const { provider, key } = ai();
-  if (!key) throw new Error(`${what} braucht den ${provider.label}-Schlüssel (Einstellungen › KI-Anbieter)`);
+  if (!key) throw new Error(`${what} braucht den ${provider.label}-Schlüssel (Einstellungen › KI-Verbindungen)`);
   return key;
 }
 
@@ -662,38 +663,50 @@ async function saveSip(input: Record<string, unknown>): Promise<{ ok: boolean; e
   return r.ok ? { ok: true } : { ok: false, error: `Gespeichert, aber die Anmeldung steht noch nicht: ${explainSipError(r.error ?? '', account.server)}` };
 }
 
-/** KI-Anbieter für Oberfläche und Assistent: wer gewählt ist und wer einen Schlüssel hat – nie der Schlüssel selbst. */
+/** KI-Verbindungen für Oberfläche und Assistent: welche es gibt, welche aktiv ist, wer einen Schlüssel hat – nie der Schlüssel selbst. */
 function aiInfo(): Record<string, unknown> {
-  const active = ai();
+  const s = loadSettings();
+  const active = resolveAi(s);
   return {
+    active: active.connection.id,
     provider: active.provider.id,
     hasKey: Boolean(active.key),
+    connections: connectionsFrom(s).list.map((c) => {
+      const r = resolveAi(s, process.env, c.id);
+      return { ...c, providerLabel: r.provider.label, hasKey: Boolean(r.key), effectiveModel: r.realtimeModel(), effectiveTextModel: r.textModel, defaultRealtime: r.defaultRealtime, defaultText: r.defaultText };
+    }),
     providers: PROVIDER_IDS.map((id) => {
       const p = PROVIDERS[id];
-      const r = resolveAi({ aiProvider: id });
-      return { id, label: p.label, hasKey: Boolean(providerKey(p)), keyUrl: p.keyUrl, voices: p.voices, models: p.defaults.known, defaultRealtime: r.defaultRealtime, defaultText: r.defaultText, maxCallSeconds: p.maxCallSeconds ?? null, supports: p.supports };
+      return { id, label: p.label, keyUrl: p.keyUrl, voices: p.voices, models: p.defaults.known, maxCallSeconds: p.maxCallSeconds ?? null, supports: p.supports };
     }),
+    maxConnections: MAX_CONNECTIONS,
   };
 }
 
-/** Stammdaten der Oberfläche, die vom gewählten Anbieter abhängen. */
+/** Stammdaten der Oberfläche, die von der aktiven Verbindung abhängen. */
 function aiUiData(): Record<string, unknown> {
   const active = ai();
   return {
     voices: active.provider.voices,
     model: active.realtimeModel(),
-    // Rückfall, solange die Liste des Anbieters nicht geladen ist, und Kennzeichnung in der Auswahl
-    models: active.provider.defaults.known,
-    modelNotes: { defaultRealtime: active.defaultRealtime, defaultText: active.defaultText, textModel: active.textModel, budget: BUDGET_MODELS },
+    modelNotes: { budget: BUDGET_MODELS },
     aiAvailable: Boolean(active.key),
     ai: aiInfo(),
   };
 }
 
-/** Schlüssel eines Anbieters prüfen und in die .env schreiben; er wird nie zurückgegeben und steht in keinem Log. */
-async function saveAiKey(providerId: unknown, input: unknown): Promise<{ ok: boolean; error?: string }> {
-  const provider = knownProvider(providerId ?? 'openai');
-  if (!provider) return { ok: false, error: 'Unbekannter KI-Anbieter' };
+/** Verbindung zur Kennung; für ältere Aufrufer gilt auch die Kennung eines Anbieters (dessen mitgelieferte Verbindung). */
+function connectionById(id: unknown): AiConnection | undefined {
+  const { list, active } = connectionsFrom(loadSettings());
+  if (id === undefined || id === null || id === '') return active;
+  return list.find((c) => c.id === id);
+}
+
+/** Schlüssel einer Verbindung prüfen und in die .env schreiben; er wird nie zurückgegeben und steht in keinem Log. */
+async function saveAiKey(connectionId: unknown, input: unknown): Promise<{ ok: boolean; error?: string }> {
+  const connection = connectionById(connectionId);
+  if (!connection) return { ok: false, error: 'Unbekannte KI-Verbindung' };
+  const provider = providerById(connection.provider);
   let key;
   try {
     key = provider.cleanKey(input);
@@ -702,20 +715,60 @@ async function saveAiKey(providerId: unknown, input: unknown): Promise<{ ok: boo
   }
   const check = await provider.checkKey(key);
   if (!check.ok) return check;
+  const keyEnv = connectionKeyEnv(connection);
   try {
-    writeEnvValues(envFile, { [provider.keyEnv]: key });
+    writeEnvValues(envFile, { [keyEnv]: key });
   } catch (err) {
     return { ok: false, error: `Der Schlüssel stimmt, ließ sich aber nicht speichern: ${(err as Error).message}` };
   }
-  if (provider.id === 'openai') config.openaiApiKey = key;
-  modelCatalogs[provider.id].clear();
-  log.info(`Einrichtung: ${provider.label}-Schlüssel geprüft und gespeichert (.env)`);
+  if (keyEnv === 'OPENAI_API_KEY') config.openaiApiKey = key;
+  catalogFor(connection).clear();
+  log.info(`Einrichtung: Schlüssel der KI-Verbindung „${connection.name}“ (${provider.label}) geprüft und gespeichert (.env)`);
   return { ok: true };
 }
 
-// Modelle zur Auswahl: je Anbieter geladen und zwischengespeichert; der Schlüssel kann zur Laufzeit dazukommen
-const catalogFor = (p: AiProvider) => new ModelCatalog(() => providerKey(p), fetch, undefined, undefined, (key, fetchImpl) => p.fetchModels(key, fetchImpl), `Der ${p.label}-Schlüssel fehlt noch (Einstellungen › KI-Anbieter).`);
-const modelCatalogs = Object.fromEntries(PROVIDER_IDS.map((id) => [id, catalogFor(PROVIDERS[id])])) as Record<ProviderId, ModelCatalog>;
+/**
+ * Liste der Verbindungen und die aktive davon speichern. Entfernte Verbindungen verlieren ihren Schlüssel in der .env.
+ * Während eines Gesprächs bleibt alles, wie es ist: Das laufende Gespräch gehört zu seiner Verbindung.
+ */
+function saveConnections(input: Record<string, unknown>): { ok: boolean; error?: string } {
+  const s = loadSettings();
+  const current = connectionsFrom(s).list;
+  let next: AiConnection[];
+  try {
+    next = cleanConnections(input.connections, current);
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  const wanted = typeof input.active === 'string' ? input.active : s.aiConnection;
+  // Eine neue Verbindung hat ihre Kennung erst jetzt bekommen: Die Oberfläche nennt dann ihre Stelle in der Liste
+  const active = next.find((c) => c.id === wanted) ?? (typeof input.activeIndex === 'number' ? next[input.activeIndex] : undefined) ?? next.find((c) => c.id === connectionsFrom(s).active.id) ?? next[0];
+  const removed = current.filter((c) => !next.some((n) => n.id === c.id));
+  try {
+    if (removed.length) writeEnvValues(envFile, Object.fromEntries(removed.map((c) => [connectionKeyEnv(c), ''])));
+    const saved = saveSettings({ aiConnections: JSON.stringify(next), aiConnection: active.id });
+    if (removed.some((c) => connectionKeyEnv(c) === 'OPENAI_API_KEY')) config.openaiApiKey = undefined;
+    onSettingsChanged(saved);
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+  for (const c of removed) log.info(`KI-Verbindung „${c.name}“ entfernt, ihr Schlüssel ist aus der .env gelöscht`);
+  log.info(`KI-Verbindungen gespeichert (${next.length}), aktiv: „${active.name}“ (${providerById(active.provider).label})`);
+  return { ok: true };
+}
+
+// Modelle zur Auswahl: je Verbindung geladen und zwischengespeichert (jede hat ihren eigenen Schlüssel, der zur Laufzeit dazukommen kann)
+const catalogs = new Map<string, ModelCatalog>();
+function catalogFor(c: AiConnection): ModelCatalog {
+  const id = `${c.id}:${c.provider}`;
+  let catalog = catalogs.get(id);
+  if (!catalog) {
+    const p = providerById(c.provider);
+    catalog = new ModelCatalog(() => connectionKey(c), fetch, undefined, undefined, (key, fetchImpl) => p.fetchModels(key, fetchImpl), `Der ${p.label}-Schlüssel fehlt noch (Einstellungen › KI-Verbindungen).`);
+    catalogs.set(id, catalog);
+  }
+  return catalog;
+}
 
 // ---- Monatsverbrauch: eigener Zähler je Anbieter; die Kosten laut OpenAI nur mit hinterlegtem Admin-Schlüssel ----
 const usageCounter = new UsageCounter(join(dataDir, 'usage.json'));
@@ -764,6 +817,14 @@ async function saveAdminKey(input: unknown): Promise<{ ok: boolean; error?: stri
   }
 }
 
+/** Nach dem Speichern von Einstellungen: was sofort gelten soll, an die laufenden Teile weitergeben. */
+function onSettingsChanged(s: FormSettings): void {
+  manager.setIncoming(incomingFrom(s));
+  const t = tuningFrom(s);
+  manager.setMaxCallSeconds(resolveAi(s).callLimit(t.maxCallSeconds));
+  store.setRetention(t.retentionDays);
+}
+
 // Mail-Konfiguration kommt aus den Einstellungen (UI) und wird bei jedem Versand neu gelesen
 const mailConfig = () => mailConfigFrom(loadSettings());
 const mailer = new Mailer(mailConfig, mailTokens);
@@ -789,12 +850,7 @@ const stopWeb = startWebServer({
   bus,
   store,
   contacts,
-  onSettingsChanged: (s) => {
-    manager.setIncoming(incomingFrom(s));
-    const t = tuningFrom(s);
-    manager.setMaxCallSeconds(resolveAi(s).callLimit(t.maxCallSeconds));
-    store.setRetention(t.retentionDays);
-  },
+  onSettingsChanged,
   ring: { info: ringInfo, divert: divertRing },
   // Der Schlüssel kann zur Laufzeit dazukommen (Einrichtungsassistent): bei jedem Aufruf neu prüfen
   complaint: async (record) => {
@@ -808,24 +864,27 @@ const stopWeb = startWebServer({
     const s = loadSettings();
     return voiceSample(provider, key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples', ...(provider.id === 'openai' ? [] : [provider.id])));
   },
-  models: async (refresh, providerId) => {
-    const provider = providerId ? providerById(providerId) : ai().provider;
-    const state = { ...(await modelCatalogs[provider.id].get(refresh)), provider: provider.id };
+  models: async (refresh, connectionId) => {
+    const connection = connectionById(connectionId);
+    if (!connection) throw new Error('Unbekannte KI-Verbindung');
+    const provider = providerById(connection.provider);
+    const state = { ...(await catalogFor(connection).get(refresh)), provider: provider.id, connection: connection.id };
     if (refresh) log[state.error ? 'warn' : 'info'](state.error ? `Modell-Liste nicht aktualisiert: ${state.error}` : `Modell-Liste von ${provider.label} geladen (${state.realtime.length} Sprach-, ${state.text.length} Textmodelle)`);
     return state as unknown as Record<string, unknown>;
   },
   setup: { status: setupStatus, saveSip, saveAiKey },
-  usage: { get: usageInfo, saveAdminKey },
   ai: {
     test: async (id) => {
-      const provider = id ? knownProvider(id) : ai().provider;
-      if (!provider) throw new Error('Unbekannter KI-Anbieter');
-      const r = resolveAi({ ...loadSettings(), aiProvider: provider.id });
-      const result = await testConnection(provider, r.key, r.realtimeModel());
-      log[result.ok ? 'info' : 'warn'](`Verbindungstest ${provider.label} (${result.model}): ${result.steps.map((s) => `${s.id} ${s.ok ? 'ok' : s.skipped ? 'übersprungen' : 'fehlgeschlagen'}`).join(', ')}`);
+      const connection = connectionById(id);
+      if (!connection) throw new Error('Unbekannte KI-Verbindung');
+      const r = resolveAi(loadSettings(), process.env, connection.id);
+      const result = await testConnection(r.provider, r.key, r.realtimeModel());
+      log[result.ok ? 'info' : 'warn'](`Verbindungstest „${connection.name}“ (${r.provider.label}, ${result.model}): ${result.steps.map((st) => `${st.id} ${st.ok ? 'ok' : st.skipped ? 'übersprungen' : 'fehlgeschlagen'}`).join(', ')}`);
       return result as unknown as Record<string, unknown>;
     },
+    saveConnections: async (body) => saveConnections(body),
   },
+  usage: { get: usageInfo, saveAdminKey },
   uiData: () => ({
     personas: personas.map(({ id, label }) => ({ id, label })),
     ...aiUiData(),

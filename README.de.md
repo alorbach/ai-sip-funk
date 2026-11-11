@@ -63,8 +63,8 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 
 ## Konfiguration
 
-- **`.env`**: Zugangsdaten (SIP, KI-Anbieter), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den Schlüssel des KI-Anbieters dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
-- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, KI-Anbieter, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik). Den KI-Anbieter wählst du unter „KI-Anbieter“: OpenAI (Standard) oder Google Gemini; ein Anbieter übernimmt das Gespräch, den Gesprächsplan, die Zusammenfassung, die Einschätzung, den Beschwerde-Entwurf und die Hörproben. Gespeichert wird in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard. Die Oberfläche gibt es auf Deutsch und Englisch („Sprache“ auf der Seite „Einstellungen“; standardmäßig nach der Sprache des Browsers). Die KI selbst spricht am Telefon Deutsch.
+- **`.env`**: Zugangsdaten (SIP, Schlüssel der KI-Verbindungen), Ports und Startwerte. Alle Variablen stehen kommentiert in [.env.example.de](.env.example.de) (englisch: [.env.example](.env.example)). Der Einrichtungsassistent schreibt die SIP-Zugangsdaten und den Schlüssel des KI-Anbieters dorthin und übernimmt sie sofort; Änderungen von Hand brauchen einen Neustart.
+- **Web-UI, Seite „Einstellungen“**: alles Übrige (KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, Technik); die Abschnittsliste links arbeitet wie Reiter und zeigt jeweils einen Abschnitt. Unter „KI-Verbindungen“ verwaltest du benannte Zugänge zu den KI-Anbietern, jeweils mit Anbieter (OpenAI oder Google Gemini), eigenem Schlüssel und Sprach- und Textmodell. „OpenAI“ und „Google Gemini“ gibt es von Anfang an; du kannst weitere anlegen (zum Beispiel ein zweites Konto oder ein günstigeres Modell) und dort oder auf dem Dashboard zwischen ihnen umschalten. Die aktive Verbindung übernimmt das Gespräch, den Gesprächsplan, die Zusammenfassung, die Einschätzung, den Beschwerde-Entwurf und die Hörproben; Änderungen an Verbindungen gelten sofort. Alles Übrige speicherst du mit „Speichern“ in `settings.json`; diese Werte überschreiben die Startwerte aus der `.env` und gelten ab dem nächsten Anruf. Der Schalter „Einfach / Erweitert“ im Kopf bestimmt, wie viel davon zu sehen ist; „Einfach“ ist der Standard. Die Oberfläche gibt es auf Deutsch und Englisch („Sprache“ auf der Seite „Einstellungen“; standardmäßig nach der Sprache des Browsers). Die KI selbst spricht am Telefon Deutsch.
 
 `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json` und Logdateien enthalten Zugangsdaten oder personenbezogene Daten. Sie stehen in der `.gitignore`, ebenso der Monatszähler `usage.json`, und gehören in kein Repository, kein Ticket und keinen Screenshot.
 
@@ -74,7 +74,7 @@ SIPFunk läuft dann ohne Konsole im Infobereich; Doppelklick auf das Symbol öff
 
 Die Web-UI hat vier Seiten:
 
-- **Dashboard**: Anruf starten (Rufnummer oder Kontakt, Auftrag, Stil, Stimme, Anrede, Modell), Transkript des laufenden Gesprächs, Protokoll des Servers. „Anrufen …“ zeigt immer erst eine Bestätigung.
+- **Dashboard**: Anruf starten (Rufnummer oder Kontakt, Auftrag, Stil, Stimme, Anrede, KI-Verbindung), Transkript des laufenden Gesprächs, Protokoll des Servers. „Anrufen …“ zeigt immer erst eine Bestätigung.
 - **Anrufe**: gespeicherte Gespräche mit Transkript, Zusammenfassung, Ergebnis und Kosten.
 - **Kontakte**: Namen, Nummern, Vorgaben und Notizen.
 - **Einstellungen**: siehe oben.
@@ -97,7 +97,7 @@ Einrichtung der Clients und alle Tools: [Handbuch, Kapitel 13](doc/user-guide.de
 
 ## Kosten
 
-Beide Anbieter rechnen nach Token ab; ein Abo bei ChatGPT deckt die OpenAI-API nicht ab. Die Web-UI zeigt je Gespräch den Verbrauch und eine Schätzung in US-Dollar (Preistabelle in `src/ai/pricing.ts`, muss bei Preisänderungen angepasst werden) und unter „Einstellungen › KI-Anbieter“ Gespräche, Minuten und geschätzte Kosten des laufenden Monats je Anbieter. Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Setze bei deinem Anbieter ein Budget-Limit. Dazu kommen die Telefonkosten deines Anschlusses.
+Beide Anbieter rechnen nach Token ab; ein Abo bei ChatGPT deckt die OpenAI-API nicht ab. Die Web-UI zeigt je Gespräch den Verbrauch und eine Schätzung in US-Dollar (Preistabelle in `src/ai/pricing.ts`, muss bei Preisänderungen angepasst werden) und unter „Einstellungen › KI-Verbindungen“ Gespräche, Minuten und geschätzte Kosten des laufenden Monats je Anbieter. Zusammenfassung, Einschätzung und Gesprächsplan fallen kaum ins Gewicht. Setze bei deinem Anbieter ein Budget-Limit. Dazu kommen die Telefonkosten deines Anschlusses.
 
 Bei Gemini rechnet die Schätzung immer mit den Preisen der bezahlten Stufe. Google bietet für die Gemini API ein kostenloses Kontingent an, schränkt es in seinen Bedingungen aber für Nutzer im EWR, in der Schweiz und im Vereinigten Königreich ein; lies [doc/legal.de.md](doc/legal.de.md) (Abschnitt 3.5), bevor du dich darauf verlässt.
 
@@ -106,7 +106,7 @@ Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes Open
 ## Grenzen
 
 - Google Gemini ist noch nicht an einem echten Telefonat erprobt; getestet ist es nur in den automatischen Tests gegen nachgestellte Verbindungen.
-- Mit Gemini dauert ein Gespräch höchstens neun Minuten, die Sprechgeschwindigkeit lässt sich nicht einstellen, ein spät fertiger Gesprächsplan und der Wechsel in die Spam-Abwehr erreichen die KI nur als nachgereichte Anweisung (schwächer als bei OpenAI), das Zu-Ende-Sprechen nach einem bloßen „Mhm“ klappt seltener, und der Simulator steht nicht zur Verfügung. Einzelheiten im [Handbuch, Abschnitt 6.2](doc/user-guide.de.md#62-ki-anbieter).
+- Mit Gemini dauert ein Gespräch höchstens neun Minuten, die Sprechgeschwindigkeit lässt sich nicht einstellen, ein spät fertiger Gesprächsplan und der Wechsel in die Spam-Abwehr erreichen die KI nur als nachgereichte Anweisung (schwächer als bei OpenAI), das Zu-Ende-Sprechen nach einem bloßen „Mhm“ klappt seltener, und der Simulator steht nicht zur Verfügung. Einzelheiten im [Handbuch, Abschnitt 6.2](doc/user-guide.de.md#62-ki-verbindungen).
 - Ein Gespräch gleichzeitig; während eines Gesprächs ist die Nebenstelle besetzt.
 - Deutsch: Web-UI, Anweisungen an die KI und Rufnummernregeln sind auf Deutschland ausgelegt. Notruf, Sonder-, Mehrwert- und Auslandsnummern sind gesperrt.
 - Keine Tastentöne (DTMF), also keine Sprachmenüs; keine Übernahme des Gesprächs per Mikrofon.

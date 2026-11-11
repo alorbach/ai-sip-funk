@@ -17,7 +17,7 @@ Web-UI / Tray / MCP ──HTTP, WebSocket──▶ Node-Prozess (ein Gespräch g
         KI-Anbieter, Text ◀──HTTPS──────┘ Plan, Zusammenfassung, Einschätzung, Beschwerde
 ```
 
-SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an das Live-Sprachmodell des gewählten KI-Anbieters durch (OpenAI-Realtime-API oder Gemini Live API). SIP, RTP und G.711 sind selbst umgesetzt, bewusst nur so weit, wie es eine FRITZ!Box-Nebenstelle braucht; es gibt keine native Abhängigkeit. Laufzeit-Abhängigkeiten sind `ws`, `nodemailer`, `zod` und das MCP-SDK.
+SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an das Live-Sprachmodell des Anbieters der aktiven KI-Verbindung durch (OpenAI-Realtime-API oder Gemini Live API). SIP, RTP und G.711 sind selbst umgesetzt, bewusst nur so weit, wie es eine FRITZ!Box-Nebenstelle braucht; es gibt keine native Abhängigkeit. Laufzeit-Abhängigkeiten sind `ws`, `nodemailer`, `zod` und das MCP-SDK.
 
 ## Aufbau des Quelltexts
 
@@ -33,10 +33,11 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 | `src/rtp/` | RTP-Sitzung, G.711 (A-law/µ-law), Resampler, Testton und Echo |
 | `src/ai/realtimeBridge.ts` | Brücke zwischen Telefonaudio und Live-Sprachmodell, nur die anbieterunabhängige Gesprächslogik: Begrüßung, Unterbrechung prüfen, Wächter, Verabschiedung und Auflegen, Transkript, Werkzeug-Aufrufe, Resampling auf die Abtastrate der Sitzung. Spricht mit einer `LiveSession` |
 | `src/ai/providers/types.ts` | was SIPFunk von einem KI-Anbieter braucht: die Schnittstellen `AiProvider` (Schlüsselprüfung, Modell-Liste, Textmodell, Hörprobe, Live-Verbindung), `LiveSession` (Befehle der Brücke) und `LiveEvents` (Ereignisse an die Brücke) |
-| `src/ai/providers/index.ts` | `PROVIDERS` und `resolveAi`: der gewählte Anbieter samt Schlüssel, Modellen und Gesprächslimit, abgeleitet aus Einstellungen und `.env` |
+| `src/ai/connections.ts` | KI-Verbindungen: die Liste der Verbindungen (Kennung, Name, Anbieter, Sprachmodell, Textmodell), die Variable der `.env`, in der der Schlüssel einer Verbindung liegt, die Prüfung einer Liste aus der Web-UI und die Übernahme der bisherigen Einstellungen (gewählter Anbieter, Modelle) |
+| `src/ai/providers/index.ts` | `PROVIDERS` und `resolveAi`: löst die aktive Verbindung (oder die genannte) in Anbieter, Schlüssel, Modelle und Gesprächslimit auf, abgeleitet aus Einstellungen und `.env` |
 | `src/ai/providers/openai.ts`, `openaiLive.ts` | OpenAI: Responses-API für Text, Sprachausgabe für Hörproben; Adapter für die Realtime-API (WebSocket, PCM16 mit 24 kHz in beide Richtungen) |
 | `src/ai/providers/gemini.ts`, `geminiLive.ts` | Google Gemini: `generateContent` für Text, Sprachausgabe für Hörproben; Adapter für die Gemini Live API (WebSocket, PCM16 mit 16 kHz hin, 24 kHz zurück). Der Kopfkommentar von `geminiLive.ts` nennt die Unterschiede zu OpenAI Realtime |
-| `src/ai/connectionTest.ts` | „Verbindung testen“ für einen Anbieter: Schlüssel, Sprachmodell, Live-Verbindung |
+| `src/ai/connectionTest.ts` | „Verbindung testen“ für eine Verbindung: Schlüssel, Sprachmodell, Live-Verbindung |
 | `src/usageCounter.ts` | Monatsverbrauch je Anbieter in `usage.json`; optionaler Abruf der tatsächlichen Kosten der OpenAI-Organisation |
 | `src/ai/personas.ts`, `scam.ts`, `plan.ts` | Systemanweisungen: Assistent, Spam-Rolle, Gesprächsplan |
 | `src/ai/summary.ts`, `assess.ts`, `complaint.ts`, `farewell.ts`, `pricing.ts`, `voiceSample.ts` | Zusammenfassung, Einschätzung, Beschwerde-Entwurf, Verabschiedungserkennung, Kostenschätzung, Stimmproben |
@@ -72,9 +73,13 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 
 Die Systemanweisung wird je Anruf zusammengesetzt: feste Grundregeln, Stil-Preset, Anrede, Name, Auftrag, Gesprächsplan, Hintergrundwissen. Grundregeln haben Vorrang vor allem, was der Benutzer eingibt.
 
-## KI-Anbieter
+## KI-Anbieter und KI-Verbindungen
 
-Die Einstellung `aiProvider` (`openai`, der Standard, oder `gemini`; Startwert `AI_PROVIDER`) wählt einen Anbieter für alles: das Gespräch, Gesprächsplan, Zusammenfassung, Einschätzung, Beschwerde-Entwurf und Hörproben. `resolveAi` liefert den Anbieter samt seinem Schlüssel aus der `.env` (`OPENAI_API_KEY`, `GEMINI_API_KEY`), den Modellen und dem Gesprächslimit; ein gespeichertes Modell des anderen Anbieters wird ignoriert, und es gilt die Vorgabe (`OPENAI_MODEL`, `OPENAI_SUMMARY_MODEL`, `GEMINI_MODEL`, `GEMINI_SUMMARY_MODEL` oder die eingebaute Vorgabe). Schlüssel kommen über die lokale Web-UI in die `.env`, werden einmal beim Anbieter geprüft und nie zurückgeliefert oder protokolliert.
+Eine KI-Verbindung (`src/ai/connections.ts`) ist ein benannter Zugang zu einem Anbieter: Kennung, Name, Anbieter, Sprachmodell und Textmodell. Die Liste steht in der `settings.json` als `aiConnections` (eine JSON-Liste aus `{id, name, provider, model, textModel}`, höchstens 12), die Kennung der aktiven als `aiConnection`. Solange keine Liste gespeichert ist, gibt es je Anbieter eine Verbindung (`openai`, `gemini`), und die bisherigen Einstellungen gehen darin auf: Der bisher gewählte Anbieter bestimmt, welche aktiv ist, und seine Modelle wandern in seine Verbindung. `aiProvider` spiegelt nur noch den Anbieter der aktiven Verbindung; `AI_PROVIDER` in der `.env` wählt weiterhin die anfängliche.
+
+Die aktive Verbindung übernimmt alles: das Gespräch, Gesprächsplan, Zusammenfassung, Einschätzung, Beschwerde-Entwurf und Hörproben. `resolveAi` löst die aktive Verbindung (oder die genannte) in den Anbieter samt Schlüssel aus der `.env`, den Modellen und dem Gesprächslimit auf. Die beiden mitgelieferten Verbindungen behalten `OPENAI_API_KEY` und `GEMINI_API_KEY`; jede weitere benutzt `AI_KEY_<ID>` (die Kennung in Großbuchstaben). Ein leeres Modell oder eines, das zu einem anderen Anbieter gehört, bedeutet die Vorgabe des Anbieters (`OPENAI_MODEL`, `OPENAI_SUMMARY_MODEL`, `GEMINI_MODEL`, `GEMINI_SUMMARY_MODEL` oder die eingebaute Vorgabe). Ein Anruf über die API oder MCP darf ein Sprachmodell nennen; eines eines anderen Anbieters wird ignoriert. Der Anbieter einer bestehenden Verbindung lässt sich nicht ändern, weil ihr gespeicherter Schlüssel sonst an einen anderen Anbieter ginge. Das Entfernen einer Verbindung löscht ihren Schlüssel aus der `.env`; mindestens eine Verbindung muss bleiben.
+
+Schlüssel kommen über die lokale Web-UI in die `.env`, werden einmal beim Anbieter geprüft und nie zurückgeliefert oder protokolliert. Änderungen an Verbindungen werden sofort gespeichert, ohne den Speichern-Knopf der Seite „Einstellungen“; Schlüssel, Verbindungstest und Modell-Liste beziehen sich jeweils auf eine Verbindung, und die Modell-Liste wird je Verbindung zwischengespeichert. Der Monatsverbrauch wird je Anbieter gezählt, nicht je Verbindung.
 
 Die Gemini Live API unterscheidet sich von OpenAI Realtime in Punkten, die der Adapter nur zum Teil verbergen kann:
 
@@ -95,7 +100,7 @@ Was nicht schiefgehen darf, entscheidet der Code, nicht das Modell:
 - Die KI hat kein Werkzeug zum Wählen. Durchstellen gibt es nur im Rückruf an den Inhaber und nur zur Nummer des ursprünglichen Anrufers.
 - Die Spam-Abwehr wirkt nur mit eingeschalteter KI-Kennung oder gespeicherter Risiko-Bestätigung (`scamAllowed()` und `scamActive()` in `settings.ts`); beim Speichern ohne beides wird sie ausgeschaltet. Das Zeitlimit setzt ein Timer im Server durch.
 - Kontakte sind von der Spam-Erkennung im Gespräch ausgenommen: Für sie steht `flag_spam` gar nicht in der Werkzeugliste.
-- Kennwörter verlassen die API nur maskiert. Schlüssel der KI-Anbieter liefert sie nie zurück; sie meldet nur, ob einer hinterlegt ist.
+- Kennwörter verlassen die API nur maskiert. Schlüssel der KI-Verbindungen liefert sie nie zurück; sie meldet nur, ob einer hinterlegt ist.
 
 ## Daten
 

@@ -16,12 +16,19 @@ Test only with your own numbers and extensions or with people who are in on it.
 ## 1. Basic function without AI
 
 - [ ] First start with an empty data folder: the web UI opens the setup assistant; a wrong password is rejected with a clear sentence and nothing is saved; with the right one the header switches to "Telefonanlage verbunden" without a restart.
-- [ ] Step "KI-Anbieter" (AI provider) with OpenAI: an invalid key is rejected, a valid one is saved; afterwards "KI-Gespräch" can be selected. Neither value is ever shown again.
-- [ ] "Einstellungen › KI-Anbieter", "Verbindung testen" (test connection) with OpenAI: three lines (Schlüssel, Sprachmodell, Live-Verbindung), all passed. Without a stored key the first line fails and the other two say "Nicht geprüft."
-- [ ] Gemini key: select Google Gemini under "KI-Anbieter"; an invalid key is rejected, a valid one from Google AI Studio is saved ("Schlüssel prüfen und speichern"). "Stand" then shows that a key is stored, the key itself is never shown again, and `.env` contains `GEMINI_API_KEY`.
-- [ ] "Verbindung testen" with Google Gemini: all three lines passed. This is the first real connection to Google; it does not test a phone call.
-- [ ] Switching the provider: after selecting Google Gemini the message asks you to check voice and models; the voice lists show the Gemini voices (e.g. Kore), the voice model is `gemini-3.8-live`, and the notes "Was mit Gemini anders ist" and on the free quota appear. After switching back to OpenAI its voices and models are there again.
-- [ ] "Verbrauch in diesem Monat" (usage this month): after an AI call the line of the provider used counts one call more; `usage.json` exists in the data folder.
+- [ ] Step "KI-Verbindung" (AI connection) with the connection "OpenAI": an invalid key is rejected, a valid one is saved; afterwards "KI-Gespräch" can be selected. Neither value is ever shown again.
+- [ ] Settings as tabs: a click in the section list on the left shows only the card of that section; after reloading the page the same section is open; "Technik" is only offered in "Erweitert". A value changed in one section and one changed in another are both saved by a single "Speichern" (or Ctrl+S).
+- [ ] After an update from a version without connections: "Einstellungen › KI-Verbindungen" lists "OpenAI" and "Google Gemini", the previously selected provider is "aktiv", and its models are still set.
+- [ ] "Einstellungen › KI-Verbindungen", connection "OpenAI", "Verbindung testen" (test connection): three lines (Schlüssel, Sprachmodell, Live-Verbindung), all passed. As long as the selected connection has no stored key, the button cannot be pressed.
+- [ ] Gemini key: select the connection "Google Gemini" under "KI-Verbindungen"; an invalid key is rejected, a valid one from Google AI Studio is saved ("Schlüssel prüfen und speichern"). The card then shows that a key is stored, the key itself is never shown again, and `.env` contains `GEMINI_API_KEY`.
+- [ ] "Verbindung testen" with the connection "Google Gemini": all three lines passed. This is the first real connection to Google; it does not test a phone call.
+- [ ] Switching the connection: after "Diese Verbindung verwenden" (use this connection) on "Google Gemini" the message asks you to check the voice; the voice lists show the Gemini voices (e.g. Kore), the voice model of the connection is `gemini-3.8-live`, and the notes "Was mit Gemini anders ist" and on the free quota appear while the Gemini connection is selected. After switching back to "OpenAI" its voices and models are there again.
+- [ ] Second connection: "Neue Verbindung bei" OpenAI → "Verbindung hinzufügen" (add connection) creates a third entry without "Speichern"; give it a name. Its provider cannot be changed.
+- [ ] Key of the second connection: an invalid key is rejected, a valid one is saved; the list shows "Schlüssel hinterlegt", and `.env` contains a new line `AI_KEY_<ID>`. The key of the connection "OpenAI" (`OPENAI_API_KEY`) is unchanged.
+- [ ] Models of the second connection: "Modelle aktualisieren" (refresh models) loads the list with its key; choose another voice model (e.g. a cheaper one) and a text model. The connection "OpenAI" keeps its own models. In "Erweitert" a custom model ID of the other provider is rejected.
+- [ ] Switching on the dashboard: choose the second connection in the field "KI-Verbindung"; the message names it as active, the card marks it "aktiv", and the next AI call uses its model (the log of the call shows provider and model).
+- [ ] Removing: "Verbindung entfernen" (remove connection) on the second connection asks for confirmation; afterwards it is gone from the card and from the dashboard, the line `AI_KEY_<ID>` in `.env` no longer contains a key, and another connection is active. With only one connection left, the button is disabled.
+- [ ] "Verbrauch in diesem Monat" (usage this month): after an AI call the line of the provider used counts one call more, whichever connection of that provider handled it; `usage.json` exists in the data folder.
 - [ ] Last step: the echo test call to your own extension rings and you hear yourself.
 - [ ] Installed tray app, first start: the browser opens with the assistant; "Server neu starten" and "Beenden" during a call hang up the call.
 - [ ] Switch "Einfach / Erweitert": applies at once; a technical value changed in "Erweitert" is still there after switching back and saving something else in "Einfach".
@@ -98,7 +105,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 
 ## 9. Google Gemini: first real phone call (open)
 
-**Open item.** The Gemini path has so far only run against simulated connections in the automated tests; no real phone call has been made with it yet. Select Google Gemini under "Einstellungen › KI-Anbieter", then:
+**Open item.** The Gemini path has so far only run against simulated connections in the automated tests; no real phone call has been made with it yet. Make the connection "Google Gemini" the active one under "Einstellungen › KI-Verbindungen" ("Diese Verbindung verwenden"), then:
 
 - [ ] **Outgoing** (as in section 2): the AI greets, works through a two-part task, the transcript shows both sides, and the log contains provider, model, call plan, result and cost estimate.
 - [ ] **Answering machine** (as in section 3): "Hallo?", one introduction as AI assistant, request and call-back wish taken down.

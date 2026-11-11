@@ -16,12 +16,19 @@ Getestet wird nur mit eigenen Nummern und Nebenstellen oder mit eingeweihten Per
 ## 1. Grundfunktion ohne KI
 
 - [ ] Erster Start mit leerem Datenordner: Die Web-UI öffnet den Einrichtungsassistenten; ein falsches Kennwort wird mit einem klaren Satz abgelehnt und nichts gespeichert; mit dem richtigen wechselt der Kopf ohne Neustart auf „Telefonanlage verbunden“.
-- [ ] Schritt „KI-Anbieter“ mit OpenAI: Ein ungültiger Schlüssel wird abgelehnt, ein gültiger gespeichert; danach ist „KI-Gespräch“ wählbar. Keiner der beiden Werte wird je wieder angezeigt.
-- [ ] „Einstellungen › KI-Anbieter“, „Verbindung testen“ mit OpenAI: drei Zeilen (Schlüssel, Sprachmodell, Live-Verbindung), alle bestanden. Ohne hinterlegten Schlüssel scheitert die erste Zeile, und die beiden anderen melden „Nicht geprüft.“
-- [ ] Gemini-Schlüssel: unter „KI-Anbieter“ Google Gemini wählen; ein ungültiger Schlüssel wird abgelehnt, ein gültiger aus Google AI Studio gespeichert („Schlüssel prüfen und speichern“). „Stand“ zeigt danach, dass ein Schlüssel hinterlegt ist, der Schlüssel selbst wird nie wieder angezeigt, und in der `.env` steht `GEMINI_API_KEY`.
-- [ ] „Verbindung testen“ mit Google Gemini: alle drei Zeilen bestanden. Das ist die erste echte Verbindung zu Google; ein Telefonat ist damit nicht geprüft.
-- [ ] Anbieter wechseln: Nach der Wahl von Google Gemini bittet der Hinweis, Stimme und Modelle zu prüfen; die Stimmenlisten zeigen die Gemini-Stimmen (z. B. Kore), das Sprachmodell ist `gemini-3.8-live`, und die Hinweise „Was mit Gemini anders ist“ und zum kostenlosen Kontingent erscheinen. Nach dem Zurückwechseln zu OpenAI sind dessen Stimmen und Modelle wieder da.
-- [ ] „Verbrauch in diesem Monat“: Nach einem KI-Gespräch zählt die Zeile des verwendeten Anbieters ein Gespräch mehr; `usage.json` liegt im Datenordner.
+- [ ] Schritt „KI-Verbindung“ mit der Verbindung „OpenAI“: Ein ungültiger Schlüssel wird abgelehnt, ein gültiger gespeichert; danach ist „KI-Gespräch“ wählbar. Keiner der beiden Werte wird je wieder angezeigt.
+- [ ] Einstellungen als Reiter: Ein Klick in der Abschnittsliste links zeigt nur die Karte dieses Abschnitts; nach dem Neuladen der Seite ist derselbe Abschnitt offen; „Technik“ gibt es nur in „Erweitert“. Ein in einem Abschnitt und ein in einem anderen Abschnitt geänderter Wert werden mit einem einzigen „Speichern“ (oder Strg+S) beide gespeichert.
+- [ ] Nach einem Update von einer Version ohne Verbindungen: „Einstellungen › KI-Verbindungen“ zeigt „OpenAI“ und „Google Gemini“, der bisher gewählte Anbieter ist „aktiv“, und seine Modelle sind weiterhin eingestellt.
+- [ ] „Einstellungen › KI-Verbindungen“, Verbindung „OpenAI“, „Verbindung testen“: drei Zeilen (Schlüssel, Sprachmodell, Live-Verbindung), alle bestanden. Solange an der gewählten Verbindung kein Schlüssel hinterlegt ist, lässt sich der Knopf nicht drücken.
+- [ ] Gemini-Schlüssel: unter „KI-Verbindungen“ die Verbindung „Google Gemini“ auswählen; ein ungültiger Schlüssel wird abgelehnt, ein gültiger aus Google AI Studio gespeichert („Schlüssel prüfen und speichern“). Die Karte zeigt danach, dass ein Schlüssel hinterlegt ist, der Schlüssel selbst wird nie wieder angezeigt, und in der `.env` steht `GEMINI_API_KEY`.
+- [ ] „Verbindung testen“ mit der Verbindung „Google Gemini“: alle drei Zeilen bestanden. Das ist die erste echte Verbindung zu Google; ein Telefonat ist damit nicht geprüft.
+- [ ] Verbindung umschalten: Nach „Diese Verbindung verwenden“ bei „Google Gemini“ bittet der Hinweis, die Stimme zu prüfen; die Stimmenlisten zeigen die Gemini-Stimmen (z. B. Kore), das Sprachmodell der Verbindung ist `gemini-3.8-live`, und die Hinweise „Was mit Gemini anders ist“ und zum kostenlosen Kontingent erscheinen, solange die Gemini-Verbindung ausgewählt ist. Nach dem Zurückschalten auf „OpenAI“ sind dessen Stimmen und Modelle wieder da.
+- [ ] Zweite Verbindung: „Neue Verbindung bei“ OpenAI → „Verbindung hinzufügen“ legt ohne „Speichern“ einen dritten Eintrag an; gib ihm einen Namen. Sein Anbieter lässt sich nicht ändern.
+- [ ] Schlüssel der zweiten Verbindung: Ein ungültiger Schlüssel wird abgelehnt, ein gültiger gespeichert; die Liste zeigt „Schlüssel hinterlegt“, und in der `.env` steht eine neue Zeile `AI_KEY_<ID>`. Der Schlüssel der Verbindung „OpenAI“ (`OPENAI_API_KEY`) ist unverändert.
+- [ ] Modelle der zweiten Verbindung: „Modelle aktualisieren“ lädt die Liste mit ihrem Schlüssel; wähl ein anderes Sprachmodell (z. B. ein günstigeres) und ein Textmodell. Die Verbindung „OpenAI“ behält ihre eigenen Modelle. In „Erweitert“ wird eine eigene Modell-ID des anderen Anbieters abgelehnt.
+- [ ] Umschalten auf dem Dashboard: im Feld „KI-Verbindung“ die zweite Verbindung wählen; der Hinweis nennt sie als aktiv, die Karte kennzeichnet sie mit „aktiv“, und das nächste KI-Gespräch benutzt ihr Modell (das Protokoll des Gesprächs zeigt Anbieter und Modell).
+- [ ] Entfernen: „Verbindung entfernen“ bei der zweiten Verbindung fragt nach; danach fehlt sie in der Karte und auf dem Dashboard, die Zeile `AI_KEY_<ID>` in der `.env` enthält keinen Schlüssel mehr, und eine andere Verbindung ist aktiv. Ist nur noch eine Verbindung übrig, ist der Knopf gesperrt.
+- [ ] „Verbrauch in diesem Monat“: Nach einem KI-Gespräch zählt die Zeile des verwendeten Anbieters ein Gespräch mehr, gleich welche Verbindung dieses Anbieters es geführt hat; `usage.json` liegt im Datenordner.
 - [ ] Letzter Schritt: Der Echo-Testanruf an die eigene Nebenstelle klingelt, und du hörst dich selbst.
 - [ ] Installierte Tray-App, erster Start: Der Browser öffnet sich mit dem Assistenten; „Server neu starten“ und „Beenden“ während eines Gesprächs legen das Gespräch auf.
 - [ ] Schalter „Einfach / Erweitert“: wirkt sofort; ein in „Erweitert“ geänderter Technik-Wert ist nach dem Zurückschalten und dem Speichern von etwas anderem in „Einfach“ noch da.
@@ -98,7 +105,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 ## 9. Google Gemini: erstes echtes Telefonat (offen)
 
-**Offener Punkt.** Der Gemini-Weg lief bisher nur in den automatischen Tests gegen nachgestellte Verbindungen; ein echtes Telefonat gab es damit noch nicht. Unter „Einstellungen › KI-Anbieter“ Google Gemini wählen, dann:
+**Offener Punkt.** Der Gemini-Weg lief bisher nur in den automatischen Tests gegen nachgestellte Verbindungen; ein echtes Telefonat gab es damit noch nicht. Unter „Einstellungen › KI-Verbindungen“ die Verbindung „Google Gemini“ aktiv schalten („Diese Verbindung verwenden“), dann:
 
 - [ ] **Ausgehend** (wie Abschnitt 2): Die KI begrüßt, arbeitet einen zweiteiligen Auftrag ab, das Transkript zeigt beide Seiten, und das Protokoll enthält Anbieter, Modell, Gesprächsplan, Ergebnis und Kostenschätzung.
 - [ ] **Anrufbeantworter** (wie Abschnitt 3): „Hallo?“, eine Vorstellung als KI-Assistent, Anliegen und Rückrufwunsch aufgenommen.

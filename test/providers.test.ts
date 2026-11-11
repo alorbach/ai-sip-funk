@@ -26,8 +26,9 @@ test('Anbieter: Schlüssel und Modelle kommen aus Einstellungen und Umgebung', a
   const own = resolveAi({ aiProvider: 'openai', model: 'gpt-realtime-2.1-mini', summaryModel: '' }, env);
   assert.equal(own.key, 'sk-test');
   assert.equal(own.realtimeModel(), 'gpt-realtime-2.1-mini');
-  assert.equal(own.realtimeModel(''), 'gpt-realtime-eigen', 'leer = Vorgabe aus der .env');
-  assert.equal(own.realtimeModel('böse/../id'), 'gpt-realtime-eigen', 'unzulässige Zeichen = Vorgabe');
+  assert.equal(own.realtimeModel(''), 'gpt-realtime-2.1-mini', 'leer = Modell der Verbindung');
+  assert.equal(own.realtimeModel('böse/../id'), 'gpt-realtime-2.1-mini', 'unzulässige Zeichen = Modell der Verbindung');
+  assert.equal(resolveAi({ aiProvider: 'openai', model: '' }, env).realtimeModel(), 'gpt-realtime-eigen', 'nichts eingestellt = Vorgabe aus der .env');
   assert.equal(own.textModel, 'gpt-text-eigen');
   assert.equal(own.callLimit(3600), 3600, 'OpenAI hat keine eigene Grenze');
 });

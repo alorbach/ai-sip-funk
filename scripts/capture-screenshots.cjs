@@ -124,6 +124,7 @@ function writeDemoData(webPort) {
     'LOCAL_IP=127.0.0.1',
     'OPENAI_API_KEY=sk-demo-0000000000000000',
     'GEMINI_API_KEY=AIza-demo-00000000000000000000',
+    'AI_KEY_CDEMO1=sk-demo-1111111111111111',
     `WEB_PORT=${webPort}`,
     '',
   ].join('\n'));
@@ -132,7 +133,12 @@ function writeDemoData(webPort) {
     uiMode: 'easy',
     uiLang: 'de',
     setupDone: 'on',
-    aiProvider: 'openai',
+    aiConnections: JSON.stringify([
+      { id: 'openai', name: 'OpenAI', provider: 'openai', model: 'gpt-realtime-2.1', textModel: '' },
+      { id: 'gemini', name: 'Google Gemini', provider: 'gemini', model: '', textModel: '' },
+      { id: 'cdemo1', name: 'Günstig', provider: 'openai', model: 'gpt-realtime-2.1-mini', textModel: '' },
+    ]),
+    aiConnection: 'openai',
     aiName: 'Alex',
     principal: 'Max Mustermann',
     address: 'sie',
@@ -326,9 +332,9 @@ const SHOTS = [
   { name: 'dashboard', hash: 'dashboard', mode: 'easy', height: 960 },
   { name: 'calls', hash: 'calls', mode: 'easy', height: 860, after: `(() => { const row = document.querySelector('#page-calls [data-id], #page-calls li, #page-calls .row'); if (row) row.click(); })()` },
   { name: 'contacts', hash: 'contacts', mode: 'easy', height: 500 },
-  { name: 'settings-ai', hash: 'settings', mode: 'easy', height: 900 },
-  { name: 'settings-provider', hash: 'settings', mode: 'easy', height: 620, section: 'settings-provider' },
-  { name: 'settings-provider-gemini', hash: 'settings', mode: 'easy', height: 1060, section: 'settings-provider', provider: 'gemini' },
+  { name: 'settings-ai', hash: 'settings', mode: 'easy', height: 760, section: 'settings-ai' },
+  { name: 'settings-provider', hash: 'settings', mode: 'easy', height: 1100, section: 'settings-provider' },
+  { name: 'settings-provider-gemini', hash: 'settings', mode: 'easy', height: 1100, section: 'settings-provider', connection: 'gemini', bottom: true },
   { name: 'settings-incoming', hash: 'settings', mode: 'easy', height: 900, section: 'settings-incoming' },
   { name: 'settings-scam', hash: 'settings', mode: 'advanced', height: 900, section: 'settings-scam' },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },
@@ -345,7 +351,7 @@ async function capture(port, lang, shot) {
     if (args.verbose) win.webContents.on('console-message', (_e, _level, message) => process.stdout.write(`[${shot.name}] ${message}\n`));
     const step = (t) => { if (args.verbose) process.stdout.write(`[${shot.name}.${lang}] ${t}\n`); };
     const url = `http://127.0.0.1:${port}/#${shot.hash}`;
-    await setSettings(port, { uiLang: lang, uiMode: shot.mode, aiProvider: shot.provider || 'openai' });
+    await setSettings(port, { uiLang: lang, uiMode: shot.mode, aiConnection: shot.connection || 'openai' });
     step('Einstellungen gesetzt');
     await win.loadURL(url);
     step('Seite geladen');
@@ -366,12 +372,12 @@ async function capture(port, lang, shot) {
     step('Status: ' + state);
     await win.webContents.insertCSS('::-webkit-scrollbar { display: none; }');
     await sleep(900);
-    // Sofort springen (die Seite scrollt sonst weich) und Platz für die feste Kopfzeile lassen
-    if (shot.section) await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - (head ? head.offsetHeight : 0) - 20, behavior: 'instant' }); })()`);
+    // Abschnitt der Einstellungen wählen (es ist immer nur eine Karte zu sehen) und Platz für die feste Kopfzeile lassen
+    if (shot.section) await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`);
     if (shot.after) await win.webContents.executeJavaScript(`Promise.resolve(${shot.after}).then(() => true, () => false)`);
     await sleep(900);
     // Nachgeladene Inhalte (Modell-Liste, Verbrauch) verschieben die Seite: noch einmal an die Stelle springen
-    if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - (head ? head.offsetHeight : 0) - 20, behavior: 'instant' }); })()`); await sleep(300); }
+    if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`); await sleep(300); }
     step('nehme auf');
     const image = await win.webContents.capturePage();
     const file = path.join(outDir, `${shot.name}.${lang}.png`);

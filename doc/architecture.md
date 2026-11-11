@@ -17,7 +17,7 @@ Web UI / tray / MCP ──HTTP, WebSocket──▶ Node process (one call at a t
         AI provider, text ◀──HTTPS──────┘ plan, summary, assessment, complaint
 ```
 
-SIPFunk registers with the box as an IP phone and passes the call audio through to the live speech model of the selected AI provider (OpenAI Realtime API or Gemini Live API). SIP, RTP and G.711 are implemented in-house, deliberately only as far as a FRITZ!Box extension needs; there is no native dependency. Runtime dependencies are `ws`, `nodemailer`, `zod` and the MCP SDK.
+SIPFunk registers with the box as an IP phone and passes the call audio through to the live speech model of the active AI connection's provider (OpenAI Realtime API or Gemini Live API). SIP, RTP and G.711 are implemented in-house, deliberately only as far as a FRITZ!Box extension needs; there is no native dependency. Runtime dependencies are `ws`, `nodemailer`, `zod` and the MCP SDK.
 
 ## Source layout
 
@@ -33,10 +33,11 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 | `src/rtp/` | RTP session, G.711 (A-law/µ-law), resampler, test tone and echo |
 | `src/ai/realtimeBridge.ts` | bridge between phone audio and the live speech model, provider-independent call logic only: greeting, interruption check, watchdogs, goodbye and hang-up, transcript, tool calls, resampling to the sample rate of the session. Talks to a `LiveSession` |
 | `src/ai/providers/types.ts` | what SIPFunk needs from an AI provider: the interfaces `AiProvider` (key check, model list, text model, voice sample, live connection), `LiveSession` (commands of the bridge) and `LiveEvents` (events to the bridge) |
-| `src/ai/providers/index.ts` | `PROVIDERS` and `resolveAi`: the selected provider with key, models and call limit, derived from the settings and `.env` |
+| `src/ai/connections.ts` | AI connections: the list of connections (id, name, provider, voice model, text model), the `.env` variable that holds the key of each connection, checking a list coming from the web UI, and the carry-over of earlier settings (selected provider, models) |
+| `src/ai/providers/index.ts` | `PROVIDERS` and `resolveAi`: resolves the active connection (or the one named) into provider, key, models and call limit, derived from the settings and `.env` |
 | `src/ai/providers/openai.ts`, `openaiLive.ts` | OpenAI: Responses API for text, speech output for voice samples; adapter for the Realtime API (WebSocket, PCM16 at 24 kHz in both directions) |
 | `src/ai/providers/gemini.ts`, `geminiLive.ts` | Google Gemini: `generateContent` for text, speech output for voice samples; adapter for the Gemini Live API (WebSocket, PCM16 at 16 kHz in, 24 kHz out). The header comment of `geminiLive.ts` lists the differences to OpenAI Realtime |
-| `src/ai/connectionTest.ts` | "Verbindung testen" (test connection) for a provider: key, voice model, live connection |
+| `src/ai/connectionTest.ts` | "Verbindung testen" (test connection) for a connection: key, voice model, live connection |
 | `src/usageCounter.ts` | monthly usage per provider in `usage.json`; optional query of the actual costs of the OpenAI organisation |
 | `src/ai/personas.ts`, `scam.ts`, `plan.ts` | system instructions: assistant, spam role, call plan |
 | `src/ai/summary.ts`, `assess.ts`, `complaint.ts`, `farewell.ts`, `pricing.ts`, `voiceSample.ts` | summary, assessment, complaint draft, goodbye detection, cost estimate, voice samples |
@@ -72,9 +73,13 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 
 The system instruction is assembled per call: fixed ground rules, style preset, form of address, name, task, call plan, background knowledge. Ground rules take precedence over anything the user enters.
 
-## AI providers
+## AI providers and connections
 
-The setting `aiProvider` (`openai`, the default, or `gemini`; initial value `AI_PROVIDER`) selects one provider for everything: the call, call plan, summary, assessment, complaint draft and voice samples. `resolveAi` returns the provider together with its key from `.env` (`OPENAI_API_KEY`, `GEMINI_API_KEY`), the models and the call limit; a stored model that belongs to the other provider is ignored and the default applies (`OPENAI_MODEL`, `OPENAI_SUMMARY_MODEL`, `GEMINI_MODEL`, `GEMINI_SUMMARY_MODEL` or the built-in default). Keys reach `.env` through the local web UI, are checked once with the provider and are never returned or logged.
+An AI connection (`src/ai/connections.ts`) is a named access to a provider: id, name, provider, voice model and text model. The list is stored in `settings.json` as `aiConnections` (a JSON list of `{id, name, provider, model, textModel}`, at most 12), the id of the active one as `aiConnection`. As long as no list is stored, there is one connection per provider (`openai`, `gemini`), and the earlier settings are carried over: the previously selected provider decides which one is active, and its models go into its connection. `aiProvider` now just mirrors the provider of the active connection; `AI_PROVIDER` in `.env` still picks the initial one.
+
+The active connection does everything: the call, call plan, summary, assessment, complaint draft and voice samples. `resolveAi` resolves the active connection (or the one named) into the provider together with the key from `.env`, the models and the call limit. The two built-in connections keep `OPENAI_API_KEY` and `GEMINI_API_KEY`; every further connection uses `AI_KEY_<ID>` (the id in upper case). An empty model, or one that belongs to another provider, means the provider default (`OPENAI_MODEL`, `OPENAI_SUMMARY_MODEL`, `GEMINI_MODEL`, `GEMINI_SUMMARY_MODEL` or the built-in default). A call started through the API or MCP may name a voice model; one of another provider is ignored. The provider of an existing connection cannot be changed, because its stored key would otherwise go to another provider. Removing a connection deletes its key from `.env`; at least one connection has to remain.
+
+Keys reach `.env` through the local web UI, are checked once with the provider and are never returned or logged. Changes to connections are saved at once, without the save button of the settings page; key, connection test and model list each refer to one connection, and the model list is cached per connection. Monthly usage is counted per provider, not per connection.
 
 The Gemini Live API differs from OpenAI Realtime in ways the adapter can only partly hide:
 
@@ -95,7 +100,7 @@ What must not go wrong is decided by the code, not by the model:
 - The AI has no tool for dialling. Transfer exists only in the call back to the owner and only to the number of the original caller.
 - The spam defence only takes effect with AI disclosure switched on or with a stored risk confirmation (`scamAllowed()` and `scamActive()` in `settings.ts`); saving without either switches it off. The time limit is enforced by a timer in the server.
 - Contacts are exempt from spam detection during the call: for them `flag_spam` is not in the tool list at all.
-- Passwords leave the API only masked. Keys of the AI providers are never returned; the API only reports whether one is stored.
+- Passwords leave the API only masked. Keys of the AI connections are never returned; the API only reports whether one is stored.
 
 ## Data
 

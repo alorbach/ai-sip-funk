@@ -27,10 +27,15 @@ export interface WebServerOptions {
     status: () => Record<string, unknown>;
     saveSip: (input: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
     /** Schlüssel eines KI-Anbieters prüfen und speichern */
-    saveAiKey: (provider: unknown, key: unknown) => Promise<{ ok: boolean; error?: string }>;
+    saveAiKey: (connection: unknown, key: unknown) => Promise<{ ok: boolean; error?: string }>;
   };
-  /** KI-Anbieter: Verbindung in drei Schritten testen (Schlüssel, Modell, Live-Verbindung); ohne Angabe der gewählte Anbieter */
-  ai?: { test: (provider?: string) => Promise<Record<string, unknown>> };
+  /** KI-Verbindungen: in drei Schritten testen (Schlüssel, Modell, Live-Verbindung) und die Liste speichern */
+  ai?: {
+    /** ohne Angabe: die aktive Verbindung */
+    test: (connection?: string) => Promise<Record<string, unknown>>;
+    /** Liste der KI-Verbindungen und die aktive davon speichern */
+    saveConnections: (body: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>;
+  };
   /** Monatsverbrauch (eigene Schätzung je Anbieter, optional die Kosten laut OpenAI) und der Admin-Schlüssel dafür; leerer Schlüssel = entfernen */
   usage?: { get: (refresh: boolean) => Promise<Record<string, unknown>>; saveAdminKey: (key: unknown) => Promise<{ ok: boolean; error?: string }> };
   /** Nach dem Speichern der Einstellungen (z. B. Anrufbeantworter umschalten) */
@@ -38,7 +43,7 @@ export interface WebServerOptions {
   /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
   voiceSample: (voice: string) => Promise<{ data: Buffer; mime: string }>;
   /** Modelle zur Auswahl, vom Anbieter geladen (ohne Angabe: vom gewählten); scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
-  models: (refresh: boolean, provider?: string) => Promise<Record<string, unknown>>;
+  models: (refresh: boolean, connection?: string) => Promise<Record<string, unknown>>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
   ring?: { info: () => Record<string, unknown>; divert: (mode: 'scam' | 'answer' | 'skip') => { ok: boolean; reason: string } };
   /** Beschwerde-Entwurf (Bundesnetzagentur) aus einem Spam-Protokoll (nur mit OpenAI-Key) */
@@ -149,13 +154,19 @@ export function startWebServer(opts: WebServerOptions): () => void {
         if (!opts.setup) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
         // Die Antwort enthält nur „ok“ oder eine Meldung – nie die übergebenen Zugangsdaten
-        const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveAiKey(url.pathname.endsWith('/openai') ? 'openai' : body.provider, body.key);
+        const r = url.pathname.endsWith('/sip') ? await opts.setup.saveSip(body) : await opts.setup.saveAiKey(url.pathname.endsWith('/openai') ? 'openai' : (body.connection ?? body.provider), body.key);
         return r.ok ? sendJson(res, 200, { ok: true, setup: opts.setup.status() }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
       }
       if (req.method === 'POST' && url.pathname === '/api/ai/test') {
         if (!opts.ai) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
-        return sendJson(res, 200, await opts.ai.test(typeof body.provider === 'string' ? body.provider : undefined));
+        const id = body.connection ?? body.provider;
+        return sendJson(res, 200, await opts.ai.test(typeof id === 'string' ? id : undefined));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/ai/connections') {
+        if (!opts.ai) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        const r = await opts.ai.saveConnections(await readJson(req));
+        return r.ok ? sendJson(res, 200, { ok: true, ...opts.uiData() }) : sendJson(res, 400, { error: r.error ?? 'Nicht gespeichert' });
       }
       if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/usage') {
         if (!opts.usage) return sendJson(res, 400, { error: 'Nicht verfügbar' });
@@ -178,7 +189,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       // Modell-Liste von OpenAI (zwischengespeichert); POST verlangt einen neuen Abruf („Aktualisieren“)
       if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/models') {
-        return sendJson(res, 200, await opts.models(req.method === 'POST', url.searchParams.get('provider') ?? undefined));
+        return sendJson(res, 200, await opts.models(req.method === 'POST', url.searchParams.get('connection') ?? undefined));
       }
       const vx = /^\/api\/voices\/([A-Za-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {

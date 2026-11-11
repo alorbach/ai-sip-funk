@@ -13,7 +13,7 @@ Diese Richtlinien beschreiben, wie SIPFunk gedacht ist und wofür nicht. Sie erg
 3. **Datensparsamkeit.** Es wird kein Audio gespeichert. Transkripte werden nur so lange aufbewahrt, wie sie gebraucht werden („Protokolle aufbewahren“ unter Einstellungen › Technik). Hintergrundwissen für die KI enthält nur, was sie für den Auftrag braucht.
 4. **Keine Entscheidungen mit Tragweite.** Die KI schließt keine Verträge, zahlt nichts, bestellt nichts, gibt keine sensiblen Daten (Gesundheit, Zahlung, Ausweis, Passwörter) weiter und nimmt keine an. Was der Auftrag nicht abdeckt, nimmt sie als Frage mit.
 5. **Keine Täuschung über Identität.** Die KI gibt sich nicht als eine reale Person aus. „Im Auftrag von“ ist dein Name oder der Name deiner Firma, nicht der eines Dritten.
-6. **Lokal und privat.** Die Web-UI ist nur auf dem eigenen Rechner erreichbar. Gesprächsinhalte gehen nur an den KI-Anbieter, den du gewählt hast (OpenAI oder Google Gemini). Zugangsdaten bleiben im Datenordner. Weder Rufnummern noch Schlüssel gehören in Chats, Tickets oder Screenshots.
+6. **Lokal und privat.** Die Web-UI ist nur auf dem eigenen Rechner erreichbar. Gesprächsinhalte gehen nur an den Anbieter der aktiven KI-Verbindung (OpenAI oder Google Gemini). Zugangsdaten bleiben im Datenordner. Weder Rufnummern noch Schlüssel gehören in Chats, Tickets oder Screenshots.
 
 ---
 
@@ -82,7 +82,7 @@ Standardmäßig gibt sich die KI auch in der Spam-Abwehr als KI zu erkennen (Sch
 ## 7. Umgang mit Daten und Zugängen
 
 - `.env`, `settings.json`, `contacts.json`, `transcripts/`, `mail-token.json`, `sipfunk.log` sind vertraulich und nicht Teil des Repositories; dasselbe gilt für den Monatszähler `usage.json`.
-- Schlüssel des KI-Anbieters (OpenAI oder Google) mit Budgetgrenze versehen, bei Verdacht auf Weitergabe sofort rotieren.
+- Den Schlüssel jeder KI-Verbindung (OpenAI oder Google) beim Anbieter mit einer Budgetgrenze versehen, bei Verdacht auf Weitergabe sofort rotieren.
 - Der optionale OpenAI-Admin-Schlüssel (`OPENAI_ADMIN_KEY`, für die tatsächlichen Monatskosten) kann auch Nutzer, Projekte und Schlüssel der Organisation verwalten. Hinterlege ihn nur bewusst, gib ihm ein Ablaufdatum und entferne ihn in der Web-UI, wenn du ihn nicht mehr brauchst.
 - Google Gemini: Lies Googles Bedingungen, bevor du das kostenlose Kontingent nutzt; siehe [legal.de.md](legal.de.md), Abschnitt 3.5. Google Gemini ist noch nicht an einem echten Telefonat erprobt; prüfe die Protokolle der ersten Gespräche deshalb genau.
 - Mail-OAuth-Token (`mail-token.json`) berechtigt zum Mailversand in deinem Namen. Bei Weitergabe des Rechners widerrufen (Google-Konto / Entra: App-Zugriff entfernen) und Datei löschen.

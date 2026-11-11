@@ -88,7 +88,7 @@ OpenAI processes audio and text. For business use you need a **data processing a
 - **Age.** Only people aged 18 or older may use the Gemini API, and an application must not be directed at minors.
 - **Business use.** As with OpenAI you need a data processing agreement (at Google part of the terms of the paid services) and a basis for the transfer to the USA; check Google's certification under the EU-US Data Privacy Framework. The free quota is not an option here.
 
-Which provider is selected is shown in the settings under "AI provider" and recorded per call in the log. Name the provider you actually use in your privacy information.
+Which provider is selected is shown in the settings under "AI connections" and recorded per call in the log. Name the provider you actually use in your privacy information.
 
 Mail providers (Gmail, Microsoft 365, your SMTP provider) receive summary and transcript by e-mail. For companies the same applies here: a processing agreement with the mail provider, usually covered by the business customer contracts.
 

@@ -1,6 +1,7 @@
 // Die KI-Anbieter, zwischen denen die Einstellungen wählen, und was aus Einstellungen und .env für ein Gespräch folgt.
 import { gemini } from './gemini.js';
 import { openai } from './openai.js';
+import { connectionKey, connectionsFrom, type AiConnection, type ConnectionSettings } from '../connections.js';
 import type { AiProvider, ProviderId, TextModel } from './types.js';
 
 export const PROVIDERS: Record<ProviderId, AiProvider> = { openai, gemini };
@@ -27,13 +28,15 @@ const ENV_MODELS: Record<ProviderId, { realtime: string; text: string }> = {
 };
 
 export interface ActiveAi {
+  /** Die Verbindung, um die es geht (ohne Angabe: die aktive) */
+  connection: AiConnection;
   provider: AiProvider;
-  /** Schlüssel des Anbieters aus der .env; undefined = noch nicht hinterlegt */
+  /** Schlüssel der Verbindung aus der .env; undefined = noch nicht hinterlegt */
   key?: string;
-  /** Vorgaben, wenn nichts (Passendes) eingestellt ist */
+  /** Vorgaben, wenn an der Verbindung nichts (Passendes) eingestellt ist */
   defaultRealtime: string;
   defaultText: string;
-  /** Sprachmodell für einen Anruf: der gewünschte Wert, sofern er zum Anbieter gehört, sonst die Vorgabe */
+  /** Sprachmodell für einen Anruf: der gewünschte Wert, sofern er zum Anbieter gehört, sonst das Modell der Verbindung */
   realtimeModel(value?: string): string;
   textModel: string;
   /** Textmodell, gebunden an Schlüssel und Modell; wirft ohne Schlüssel */
@@ -47,26 +50,33 @@ export function providerKey(provider: AiProvider, env: NodeJS.ProcessEnv = proce
   return env[provider.keyEnv]?.trim() || undefined;
 }
 
-/** Gewählter Anbieter samt Schlüssel und Modellen. Modelle eines anderen Anbieters in den Einstellungen gelten nicht. */
-export function resolveAi(s: { aiProvider?: string; model?: string; summaryModel?: string }, env: NodeJS.ProcessEnv = process.env): ActiveAi {
-  const provider = providerById(s.aiProvider);
-  const key = providerKey(provider, env);
+/**
+ * Die aktive KI-Verbindung (oder die mit der genannten Kennung) samt Anbieter, Schlüssel und Modellen.
+ * Modelle eines anderen Anbieters gelten nicht; dann greift die Vorgabe (.env bzw. Anbieter).
+ */
+export function resolveAi(s: ConnectionSettings, env: NodeJS.ProcessEnv = process.env, connectionId?: string): ActiveAi {
+  const { list, active } = connectionsFrom(s);
+  const connection = (connectionId !== undefined && list.find((c) => c.id === connectionId)) || active;
+  const provider = providerById(connection.provider);
+  const key = connectionKey(connection, env);
   const own = (value: string | undefined, fallback: string) => {
     const v = (value ?? '').trim();
     return MODEL_ID.test(v) && provider.ownsModel(v) ? v : fallback;
   };
   const defaultRealtime = own(env[ENV_MODELS[provider.id].realtime], provider.defaults.realtime);
   const defaultText = own(env[ENV_MODELS[provider.id].text], provider.defaults.text);
-  const textModel = own(s.summaryModel, defaultText);
+  const realtime = own(connection.model, defaultRealtime);
+  const textModel = own(connection.textModel, defaultText);
   return {
+    connection,
     provider,
     key,
     defaultRealtime,
     defaultText,
-    realtimeModel: (value = s.model) => own(value, defaultRealtime),
+    realtimeModel: (value) => own(value, realtime),
     textModel,
     ask: (prompt, maxOutputTokens, format) => {
-      if (!key) return Promise.reject(new Error(`Der ${provider.label}-Schlüssel fehlt noch (Einstellungen › KI-Anbieter)`));
+      if (!key) return Promise.reject(new Error(`Der ${provider.label}-Schlüssel fehlt noch (Einstellungen › KI-Verbindungen)`));
       return provider.text(key, textModel, prompt, maxOutputTokens, format);
     },
     callLimit: (seconds) => (provider.maxCallSeconds ? Math.min(seconds, provider.maxCallSeconds) : seconds),
