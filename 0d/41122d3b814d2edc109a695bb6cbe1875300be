@@ -1,0 +1,48 @@
+package.json
+  s_ee2ffaf82016ce::t_56297d280abd90 44
+  s_ee2ffaf82016ce::t_0b6803501283bd 5-28
+README.md
+  s_ee2ffaf82016ce::t_4ada0d09bb6a7e 9-12,75
+  s_ee2ffaf82016ce::t_0b6803501283bd 64
+  s_ee2ffaf82016ce::t_3229d84430d0a0 76
+doc/user-guide.de.md
+  s_ee2ffaf82016ce::t_4ada0d09bb6a7e 72-73,124-127,189-190,234-235,369-370,390-391,396
+  s_ee2ffaf82016ce::t_59b9177a350c3a 397
+CONTRIBUTING.md
+  s_ee2ffaf82016ce::t_0b6803501283bd 36
+scripts/capture-screenshots.cjs
+  s_ee2ffaf82016ce::t_01c9be3cdbd575 300,339
+  s_ee2ffaf82016ce::t_eeb70849da9ba1 302-303,341-342
+  s_ee2ffaf82016ce::t_939a35fe399916 318,321,323,345
+  s_ee2ffaf82016ce::t_7986c1f2a263e1 324-326,328-336
+  s_ee2ffaf82016ce::t_e0e0e4e44451e4 1-13,15-299,301,304-308,312-314,316,319,322,340,343-344,346-367,369-371,373-376,378-393
+  s_ee2ffaf82016ce::t_56e12630378de3 315
+  s_ee2ffaf82016ce::t_5bc369375d9e97 327,337-338
+  s_ee2ffaf82016ce::t_38ba0646bbe69a 14,317,368,372,377
+  s_ee2ffaf82016ce::t_dfd3fbc3f5b0c2 309-311,320
+doc/user-guide.md
+  s_ee2ffaf82016ce::t_4ada0d09bb6a7e 74-75,126-129,191-192,236-237,371-372,392-393,398
+  s_ee2ffaf82016ce::t_8d87598fd5b8f8 399
+CONTRIBUTING.de.md
+  s_ee2ffaf82016ce::t_0b6803501283bd 36
+README.de.md
+  s_ee2ffaf82016ce::t_4ada0d09bb6a7e 7-10,73
+  s_ee2ffaf82016ce::t_0b6803501283bd 62
+  s_ee2ffaf82016ce::t_dd1c83bbcd1d0b 74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d41122d3b814d2edc109a695bb6cbe1875300be",
+  "prompts": {},
+  "sessions": {
+    "s_ee2ffaf82016ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64b67fd3-3584-41e0-bb0e-b4105102dbfc",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
