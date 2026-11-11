@@ -1,0 +1,20 @@
+.github/workflows/release.yml
+  s_f828863347c33d::t_c4feea6f1e0b1d 106
+  s_f828863347c33d::t_8d7f05ea82478b 96-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17ff10bdb643300a48e1e79f92aee96f66a9530c",
+  "prompts": {},
+  "sessions": {
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
