@@ -1,0 +1,29 @@
+public/index.html
+  s_319bc174b0c320::t_a41aa326189ed6 310-311,463,468,497-498,510-552,708-713,716,749,815,849,1282,1399-1426,1428-1480,1531,1534,1538,1548,1700-1702,1708,1785,1808,1810-1812,1815
+  s_319bc174b0c320::t_64e8dcab97af97 1427,1819-1820
+src/main.ts
+  s_319bc174b0c320::t_a41aa326189ed6 27,765-774
+public/i18n-en.js
+  s_319bc174b0c320::t_f92e757dc6d567 56,140,176,179,189-190,363,374-378,396-398,401-403,421,447,452,519-566,609-614
+test/i18n.test.ts
+  s_319bc174b0c320::t_f92e757dc6d567 27-28
+src/web/server.ts
+  s_319bc174b0c320::t_a41aa326189ed6 32-33,153-156
+  s_319bc174b0c320::t_dd6f7b9ff41cd4 157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d729422b0425cbb5fb3908e76336484af36ef41",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
