@@ -175,7 +175,10 @@ export function startWebServer(opts: WebServerOptions): () => void {
       if (req.method === 'POST' && url.pathname === '/api/ai/admin-key') {
         if (!opts.usage) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         // Die Antwort enthält nur „ok“ oder eine Meldung – nie den Schlüssel
-        const r = await opts.usage.saveAdminKey((await readJson(req)).key);
+        const key = (await readJson(req)).key;
+        // Ein leerer Text heißt „entfernen“; eine Anfrage ganz ohne Schlüsselfeld soll das nicht auslösen
+        if (typeof key !== 'string') return sendJson(res, 400, { error: 'Schlüssel fehlt' });
+        const r = await opts.usage.saveAdminKey(key);
         return r.ok ? sendJson(res, 200, { ok: true, usage: await opts.usage.get(false) }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {

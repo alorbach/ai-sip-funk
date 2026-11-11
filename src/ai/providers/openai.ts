@@ -52,6 +52,7 @@ export const openai: AiProvider = {
   async voiceSample(key, voice, text, fetchImpl = fetch) {
     const res = await fetchImpl('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
+      signal: AbortSignal.timeout(30_000),
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: TTS_MODEL, voice, input: text, response_format: 'mp3' }),
     });

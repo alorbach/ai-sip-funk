@@ -26,17 +26,42 @@ export function cleanGeminiKey(input: unknown): string {
   return key;
 }
 
-/** Abruf bei Google mit Zeitlimit; die ursprüngliche Fehlermeldung wird nicht weitergereicht (sie könnte Teile der Anfrage enthalten). */
-async function call(fetchImpl: typeof fetch, path: string, key: string, body?: unknown, timeoutMs = 8000, extraHeaders: Record<string, string> = {}): Promise<Response> {
+interface Reply {
+  status: number;
+  ok: boolean;
+  /** Ganzer Text der Antwort */
+  text: string;
+  /** Antwort als JSON; null, wenn sie keines ist */
+  json(): unknown;
+}
+
+/**
+ * Abruf bei Google mit Zeitlimit, das auch das Lesen der Antwort deckt (sonst hinge ein stockender Abruf für immer).
+ * Die ursprüngliche Fehlermeldung wird nicht weitergereicht (sie könnte Teile der Anfrage enthalten).
+ */
+async function call(fetchImpl: typeof fetch, path: string, key: string, body?: unknown, timeoutMs = 8000, extraHeaders: Record<string, string> = {}): Promise<Reply> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    return await fetchImpl(`${API}${path}`, {
+    const res = await fetchImpl(`${API}${path}`, {
       method: body === undefined ? 'GET' : 'POST',
       headers: { 'x-goog-api-key': key, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...extraHeaders },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ctl.signal,
     });
+    const text = await res.text();
+    return {
+      status: res.status,
+      ok: res.ok,
+      text,
+      json: () => {
+        try {
+          return JSON.parse(text) as unknown;
+        } catch {
+          return null;
+        }
+      },
+    };
   } catch {
     throw new Error('Google ist nicht erreichbar – besteht eine Internetverbindung?');
   } finally {
@@ -100,7 +125,7 @@ export async function fetchGeminiModels(key: string, fetchImpl: typeof fetch = f
   const res = await call(fetchImpl, '/models?pageSize=1000', key);
   const error = statusError(res.status);
   if (error) throw new Error(error);
-  const models = ((await res.json().catch(() => null)) as { models?: unknown } | null)?.models;
+  const models = (res.json() as { models?: unknown } | null)?.models;
   if (!Array.isArray(models)) throw new Error('Google lieferte keine Modell-Liste.');
   return classifyGeminiModels(models as ApiModel[]);
 }
@@ -123,12 +148,12 @@ export async function geminiText(key: string, model: string, prompt: string, max
       },
     }, 60_000);
     if (!res.ok) {
-      const failure = (await res.text()).slice(0, 200);
+      const failure = res.text.slice(0, 200);
       if (res.status === 400 && thinking && /thinking/i.test(failure)) { thinking = false; continue; }
       if (res.status === 400 && schema && /schema/i.test(failure)) { schema = false; continue; }
       throw new Error(`Textmodell fehlgeschlagen: ${res.status} ${failure}`);
     }
-    const data = (await res.json()) as { candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+    const data = (res.json() ?? {}) as { candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
     const cand = data.candidates?.[0];
     const text = (cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? '').join('');
     if (!text.trim()) throw new Error(`Antwort leer (Status ${cand?.finishReason ?? '?'})`);
@@ -170,8 +195,8 @@ export const gemini: AiProvider = {
       response_format: { type: 'audio' },
       generation_config: { speech_config: [{ voice }] },
     }, 30_000, { 'Api-Revision': '2026-05-20' });
-    if (!res.ok) throw new Error(`Hörprobe fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
-    const data = (await res.json()) as { steps?: { type?: string; content?: { type?: string; data?: string }[] }[] };
+    if (!res.ok) throw new Error(`Hörprobe fehlgeschlagen: ${res.status} ${res.text.slice(0, 200)}`);
+    const data = (res.json() ?? {}) as { steps?: { type?: string; content?: { type?: string; data?: string }[] }[] };
     const b64 = (data.steps ?? []).flatMap((s) => s.content ?? []).find((c) => c.type === 'audio' && c.data)?.data;
     if (!b64) throw new Error('Hörprobe fehlgeschlagen: Die Antwort enthielt kein Audio');
     const audio = Buffer.from(b64, 'base64');

@@ -141,11 +141,11 @@ function armSpamLimit(s: ReturnType<typeof loadSettings>): void {
 }
 
 /** Spam-Abwehr: Anweisungen bauen und das Gespräch markieren (das Zeitlimit startet armSpamLimit). */
-function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: string): string {
+function startScam(s: ReturnType<typeof loadSettings>, caller: string, voice: string, maleVoices: readonly string[]): string {
   const style: ScamStyle = s.scamStyle === 'beschaeftigen' ? 'beschaeftigen' : 'abwimmeln';
   const limit = scamLimit(s);
   if (current) current.spam = true;
-  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice, resolveAi(s).provider.maleVoices), disclose: s.scamDisclose === 'on' });
+  return buildScamInstructions({ style, maxMinutes: Math.max(1, Math.round(limit / 60)), callerKnown: /\d{3,}/.test(caller), name: s.scamName, extra: s.scamExtra, gender: scamGender(s.scamGender, voice, maleVoices), disclose: s.scamDisclose === 'on' });
 }
 
 function createHandler(mode: string, params: Record<string, unknown>): AudioHandler {
@@ -259,7 +259,7 @@ ${input.context}` : input.task,
   bus.emit('message', { type: 'summary', text: '' });
 
   // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
-  const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice) : undefined;
+  const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice, provider.maleVoices) : undefined;
   const bridge = new RealtimeBridge({
     apiKey,
     createLive: (cfg, events) => provider.createLive(cfg, events),
@@ -313,7 +313,7 @@ ${input.context}` : input.task,
             bus.emit('message', { type: 'transcript', entries: transcript });
             const s = loadSettings();
             armSpamLimit(s);
-            return startScam(s, str('target'), voice);
+            return startScam(s, str('target'), voice, provider.maleVoices);
           }
         : undefined,
     onConnected: scam ? () => armSpamLimit(loadSettings()) : undefined,
@@ -406,13 +406,13 @@ manager.on('callEnded', (reason: string) => {
       log.info(`Protokoll gespeichert: ${record.id}`);
       bus.emit('message', { type: 'summary', text: summary });
       bus.emit('message', { type: 'transcripts', items: store.list() });
-      if (c.incoming) notifyAfterIncoming(record, c.incoming).catch((err) => log.error(`Benachrichtigung: ${(err as Error).message}`));
+      if (c.incoming) notifyAfterIncoming(record, c.incoming, c).catch((err) => log.error(`Benachrichtigung: ${(err as Error).message}`));
     })
     .catch((err) => {
       log.error((err as Error).message);
       bus.emit('message', { type: 'summary', text: `Keine Zusammenfassung: ${(err as Error).message}` });
       // Auch ohne Zusammenfassung (Anbieter gerade nicht erreichbar) soll der Inhaber vom Anruf erfahren
-      if (c.incoming) notifyAfterIncoming(record, c.incoming).catch((e) => log.error(`Benachrichtigung: ${(e as Error).message}`));
+      if (c.incoming) notifyAfterIncoming(record, c.incoming, c).catch((e) => log.error(`Benachrichtigung: ${(e as Error).message}`));
     });
 });
 
@@ -430,7 +430,7 @@ function trayNotice(title: string, body: string): void {
  * Nach einem angenommenen Anruf: Einschätzung (wichtig?), dann Tray-Hinweis, E-Mail und bei wichtigen
  * Anrufen ein Rückruf beim Inhaber – jedes davon in den Einstellungen abschaltbar.
  */
-async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; called: string; principal: string }): Promise<void> {
+async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; called: string; principal: string }, call: { ask: TextModel }): Promise<void> {
   const s = loadSettings();
   // Je eigener Nummer kann das Profil die Kanäle überstimmen (aus / nur wichtige / alle)
   const profile = profileFor(inc.called, parseProfiles(s.incomingProfiles, s.incomingIdentities));
@@ -447,7 +447,8 @@ async function notifyAfterIncoming(record: CallRecord, inc: { caller: string; ca
     // Spam-Abwehr: nie wichtig, kein Rückruf; Hinweis und Mail nur zur Information
     assessment = { important: false, reason: 'Spam-Abwehr war aktiv', headline: `Spam-Anruf von ${who || 'anonym'} abgewehrt` };
   } else try {
-    assessment = await assessCall(ai().ask, { caller: inc.caller, callerName: contact?.name, summary: record.summary ?? '', task: record.task });
+    // Mit der Verbindung des Gesprächs, nicht mit der inzwischen vielleicht umgeschalteten: Der Inhalt bleibt bei einem Anbieter
+    assessment = await assessCall(call.ask, { caller: inc.caller, callerName: contact?.name, summary: record.summary ?? '', task: record.task });
     assessed = true;
     log.info(`Einschätzung: ${assessment.important ? 'wichtig' : 'unwichtig'} – ${assessment.reason}`);
   } catch (err) {
@@ -780,11 +781,11 @@ function catalogFor(c: AiConnection): ModelCatalog {
 // ---- Monatsverbrauch: eigener Zähler je Anbieter; die Kosten laut OpenAI nur mit hinterlegtem Admin-Schlüssel ----
 const usageCounter = new UsageCounter(join(dataDir, 'usage.json'));
 if (usageCounter.empty) {
-  // Erster Start mit Zähler: den laufenden Monat aus den noch vorhandenen Protokollen nachtragen (bisher nur OpenAI)
+  // Erster Start mit Zähler: den laufenden Monat aus den noch vorhandenen Protokollen nachtragen (ohne Angabe im Protokoll: OpenAI)
   const month = monthKey(new Date());
   for (const r of store.list()) {
     const at = new Date(r.startedAt);
-    if (typeof r.costUsd === 'number' && monthKey(at) === month) usageCounter.add('openai', r.durationSec, r.costUsd, at);
+    if (typeof r.costUsd === 'number' && monthKey(at) === month) usageCounter.add(store.read(r.id)?.provider ?? 'openai', r.durationSec, r.costUsd, at);
   }
 }
 const adminKey = () => process.env.OPENAI_ADMIN_KEY?.trim() || undefined;

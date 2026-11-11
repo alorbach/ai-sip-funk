@@ -31,9 +31,23 @@ export async function summarize(ask: TextModel, task: string | undefined, entrie
  * Mit `format` antwortet das Modell als JSON nach dem angegebenen Schema (der Aufrufer parst den Text).
  */
 export async function responsesText(apiKey: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }, fetchImpl: typeof fetch = fetch): Promise<string> {
+  // Zeitlimit für den ganzen Abruf samt Antwort: Ein stockender Abruf hielte sonst Zusammenfassung und Benachrichtigung für immer auf
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 90_000);
+  try {
+    return await run(ctl.signal);
+  } catch (err) {
+    if (ctl.signal.aborted) throw new Error('Textmodell fehlgeschlagen: keine Antwort innerhalb der Wartezeit');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  async function run(signal: AbortSignal): Promise<string> {
   const ask = (reasoning: boolean) =>
     fetchImpl('https://api.openai.com/v1/responses', {
       method: 'POST',
+      signal,
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       // Reasoning-Modelle denken vor der Antwort; das Budget muss Reasoning + Text decken
       body: JSON.stringify({
@@ -70,4 +84,5 @@ export async function responsesText(apiKey: string, model: string, prompt: strin
     throw new Error(`Antwort leer (Status ${data.status ?? '?'}${data.incomplete_details?.reason ? `, ${data.incomplete_details.reason}` : ''})`);
   }
   return text.trim();
+  }
 }

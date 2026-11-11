@@ -198,8 +198,10 @@ export class CallManager extends EventEmitter {
     try {
       this.handler = this.opts.createIncomingHandler!(inc.caller, inc.called);
     } catch (err) {
-      log.error(`Eingehender Anruf: kein Handler (${(err as Error).message})`);
-      inc.reject();
+      // Ohne Handler (z. B. fehlt der Schlüssel der KI-Verbindung) kann die KI nicht annehmen: Der Anruf klingelt nur
+      // weiter, statt den Anrufer mit „besetzt“ abzuweisen
+      log.error(`Eingehender Anruf: kein Handler (${(err as Error).message}) – klingelt nur`);
+      this.untrack(inc);
       return;
     }
     this.answerTimer = setTimeout(() => this.answerNow(inc), delay);
