@@ -26,7 +26,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
 - **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
 - **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone (OpenAI only).
-- **MCP interface** that lets an AI agent start calls and read results.
+- **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result. Off by default; in the web UI you set whom an agent may call, whether you confirm each call, and the limits.
 
 ## Requirements
 
@@ -95,13 +95,7 @@ The simulator lets you check conversation behaviour without a phone (it works wi
 npm run sim
 ```
 
-For AI agents there is an MCP server over stdio (the web UI has to be running):
-
-```bash
-npm run mcp
-```
-
-Client setup and all tools: [user guide, chapter 13](doc/user-guide.md#13-mcp-interface).
+AI agents reach SIPFunk through its MCP server, directly over HTTP on `http://127.0.0.1:8080/mcp` or as a stdio process (`npm run mcp`, or the installed `SIPFunk.exe`). The interface is off until you switch it on under "Einstellungen › MCP-Schnittstelle"; the same card shows the ready-made configuration for Codex, Claude Code and Claude Desktop. Setup, all tools and a worked example ("book a table"): [user guide, chapter 13](doc/user-guide.md#13-mcp-interface). An example skill for agents is in [`examples/skills/sipfunk-call`](examples/skills/sipfunk-call/SKILL.md).
 
 ## Cost
 

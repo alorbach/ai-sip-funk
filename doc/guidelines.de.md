@@ -9,7 +9,7 @@ Diese Richtlinien beschreiben, wie SIPFunk gedacht ist und wofür nicht. Sie erg
 ## 1. Grundsätze
 
 1. **Transparenz.** Die KI stellt sich in jedem Gespräch als KI vor und bestreitet es auch auf Nachfrage nicht. Einzige, bewusst eingeschränkte Ausnahme ist die Spam-Abwehr ohne KI-Kennung (Abschnitt 6), die der Betreiber ausdrücklich auf eigenes Risiko einschaltet.
-2. **Ein Mensch bleibt verantwortlich.** Jeder ausgehende Anruf wird von dir ausgelöst und bestätigt (Web-UI-Dialog) oder von einem Agenten, dem du die MCP-Schnittstelle bewusst gegeben hast. Die KI entscheidet nie selbst, wen sie anruft.
+2. **Ein Mensch bleibt verantwortlich.** Jeder ausgehende Anruf wird von dir ausgelöst und bestätigt (Web-UI-Dialog) oder von einem KI-Agenten, für den du die MCP-Schnittstelle bewusst eingeschaltet hast. Auch dann bist du der Anrufer: Der Agent ist dein Werkzeug, nicht dein Stellvertreter, und was er auslöst, verantwortest du (Abschnitt 9). Die KI am Telefon entscheidet nie selbst, wen sie anruft.
 3. **Datensparsamkeit.** Es wird kein Audio gespeichert. Transkripte werden nur so lange aufbewahrt, wie sie gebraucht werden („Protokolle aufbewahren“ unter Einstellungen › Technik). Hintergrundwissen für die KI enthält nur, was sie für den Auftrag braucht.
 4. **Keine Entscheidungen mit Tragweite.** Die KI schließt keine Verträge, zahlt nichts, bestellt nichts, gibt keine sensiblen Daten (Gesundheit, Zahlung, Ausweis, Passwörter) weiter und nimmt keine an. Was der Auftrag nicht abdeckt, nimmt sie als Frage mit.
 5. **Keine Täuschung über Identität.** Die KI gibt sich nicht als eine reale Person aus. „Im Auftrag von“ ist dein Name oder der Name deiner Firma, nicht der eines Dritten.
@@ -98,3 +98,18 @@ Standardmäßig gibt sich die KI auch in der Spam-Abwehr als KI zu erkennen (Sch
 - **Jemand beschwert sich über einen KI-Anruf:** Nimm es an, vermerke es im Kontakt, ruf dort nicht mehr mit der KI an.
 - **Verdacht auf Missbrauch des Rechners / der Nebenstelle:** Server stoppen, SIP-Kennwort in der Box ändern, API-Schlüssel rotieren, Log prüfen (jeder Anruf steht darin).
 - **Unklare Rechtslage in einem konkreten Fall:** Modus ausschalten, Gespräch mit einem Anwalt oder der zuständigen Datenschutzaufsicht suchen. Diese Dokumentation ersetzt keine Rechtsberatung.
+
+---
+
+## 9. KI-Agenten über die MCP-Schnittstelle
+
+Über die MCP-Schnittstelle löst nicht mehr deine Hand den Anruf aus, sondern ein Agent, dem du einen Auftrag gegeben hast. An der Verantwortung ändert das nichts.
+
+- **Nur einschalten, wenn du sie brauchst.** Die Schnittstelle ist standardmäßig aus. Schalte sie wieder aus, wenn du gerade keinen Agenten telefonieren lässt.
+- **Vorsichtig anfangen.** „Nur gespeicherte Kontakte“ und „Vor dem Wählen bei mir nachfragen: Immer“ sind die Vorgaben. Lockere sie erst, wenn du gesehen hast, wie dein Agent mit Aufträgen umgeht, und nur so weit wie nötig.
+- **Der Auftrag kommt von dir.** Lass einen Agenten nur anrufen, wozu du ihn ausdrücklich beauftragt hast. Ein Agent, der aus einer Webseite, einer Mail oder einem Dokument „ruf dort an“ herausliest, handelt ohne deinen Auftrag; dagegen helfen die Kontaktliste und die Bestätigung.
+- **Lies die Bestätigung.** Ziel, Auftrag und „im Auftrag von“ stehen im Dialog. Passt etwas nicht zu dem, was du wolltest, lehne ab.
+- **Im eigenen Namen.** „Im Auftrag von“ ist dein Name oder der deiner Firma. Lass einen Agenten nicht im Namen Dritter anrufen, die davon nichts wissen (Grundsatz 5).
+- **Keine Serien.** Die Limits je Stunde und Tag sind eine Bremse, keine Erlaubnis. Alles aus Abschnitt 3 gilt für Agenten genauso: keine Werbung, keine Akquise, kein Durchprobieren von Nummern, keine Belästigung.
+- **Der Agent liest mit.** Was das Gegenüber sagt, geht als Text an deinen Agenten und damit an dessen Anbieter, zusätzlich zum KI-Anbieter des Gesprächs. Lass einen Agenten keine Gespräche führen, in denen Vertrauliches zu erwarten ist, und gib ihm nicht mehr Protokolle frei als nötig.
+- **Ergebnis prüfen.** Der Agent berichtet, was die KI gemeldet hat. Bei Terminen und Zusagen sieh ins Protokoll, bevor du dich darauf verlässt; Transkription und Zusammenfassung können irren.

@@ -45,7 +45,9 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 | `src/notify/` | e-mail (SMTP, OAuth), auto-configuration, mail format and templates |
 | `src/contacts.ts`, `src/transcripts.ts` | contacts and call logs as files |
 | `src/web/server.ts` | HTTP API and WebSocket for the web UI, bound to 127.0.0.1 |
-| `src/mcp/server.ts` | MCP server over stdio, talks to the running web UI via HTTP |
+| `src/mcp/gateway.ts` | MCP gateway: permissions, confirmation, limits, the agent's call as a sequence of events |
+| `src/mcp/tools.ts`, `http.ts`, `server.ts` | the MCP tools; Streamable HTTP under `/mcp` on the web UI listener; stdio process that passes every call to the running app |
+| `src/ai/agentCall.ts` | texts for agent calls: rules in the system instruction, the tool `ask_principal`, directions |
 | `src/sim/simulate.ts` | conversation simulator in text mode |
 | `src/tools/test-call.ts` | command-line test for SIP and audio without AI |
 | `public/` | web UI (a single HTML file without a build step) and the pop-up shown while ringing |
@@ -92,11 +94,23 @@ The Gemini Live API differs from OpenAI Realtime in ways the adapter can only pa
 
 Besides the automated tests against simulated connections, the Gemini adapter has so far been tried on only a few real phone calls: the first three ran on 11 November 2026 (two on the answering machine, one call back to the owner) and went through without errors. OpenAI remains the tested default. Protocol details follow Google's documentation as of 11 November 2026.
 
+## MCP: calls by AI agents
+
+An agent never talks to the phone itself. The voice AI conducts the call as usual (guided operation); the agent reads along and steers. Word-for-word operation was rejected: an agent needs several seconds per move, and neither provider can be forced to stay silent until text arrives.
+
+- **One place decides.** Every tool call ends in `McpGateway.run()`, whether it arrives over Streamable HTTP (`/mcp`, stateless, one server and transport per request, JSON answers) or from the stdio process (`POST /api/mcp/call`). The stdio process holds no logic and no permissions.
+- **Policy** (`mcpPolicyFrom()` in `settings.ts`): main switch (off by default, no `.env` switch), targets (contacts only or any number the dial target protection allows), confirmation (always, numbers without a contact, never), calls per hour and per day (counted in memory per accepted request), maximum length per call.
+- **A call as events.** The gateway keeps the agent's one call with a state (`awaiting_approval`, `dialing`, `ringing`, `connected`, `ended`) and numbered events (state, other party, AI, question, note). `wait_for_events` blocks until a new event or a timeout, so the agent does not poll. `main.ts` feeds line phase, final transcript entries and the end of the call into the gateway.
+- **Steering.** `say` becomes `RealtimeBridge.agentSay()`: a note in the conversation (`LiveSession.note`) plus a requested answer that never interrupts a running one. The voice AI gets the extra tool `ask_principal`; while a question is open the stall watchdog is silent, the agent's next `say` is returned as the tool result, and after 25 seconds without an answer the AI carries on. `end_call` asks the AI to finish through the normal `end_call` path, or hangs up at once.
+- **Identity.** The agent supplies task, background knowledge, style, form of address and optionally on whose behalf. Name of the AI, voice, model and the additional behaviour notes always come from the settings. The rules for agent calls are part of the system instruction (`AGENT_CALL_RULES`), including that no direction can lift the AI disclosure.
+- **What leaves the app.** Texts only. Contact names only with permission, numbers of contacts never, call logs of other calls only with permission. The web UI gets the pending request with the number, because only the operator sees it.
+
 ## Where rules are enforced
 
 What must not go wrong is decided by the code, not by the model:
 
 - Dial target protection and call time limit in the `CallManager` and in `dialPolicy.ts`; they apply to the web UI and MCP alike.
+- What an agent may do over MCP is decided in `McpGateway` (switch, targets, confirmation, limits, maximum length), not in the agent and not in the stdio process. The local API itself has no login: a program that can send HTTP requests on this computer can bypass MCP altogether (see SECURITY).
 - The AI has no tool for dialling. Transfer exists only in the call back to the owner and only to the number of the original caller.
 - The spam defence only takes effect with AI disclosure switched on or with a stored risk confirmation (`scamAllowed()` and `scamActive()` in `settings.ts`); saving without either switches it off. The time limit is enforced by a timer in the server.
 - Contacts are exempt from spam detection during the call: for them `flag_spam` is not in the tool list at all.

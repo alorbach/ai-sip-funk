@@ -18,6 +18,8 @@ SIPFunk is software you run yourself. There is no service provider between you a
 
 The AI provider you select in the settings (OpenAI, or Google with Gemini) processes speech and text on your behalf but is not your contracting party towards the people called. It is a processor within the meaning of the GDPR only if you have concluded the agreement required for that (section 3.5). Call content only ever goes to the selected provider.
 
+**AI agents (MCP interface).** If an AI agent triggers the call through the MCP interface (user guide, chapter 13), these roles do not change: the agent is a tool that you switched on and instructed. The call is attributed to you as if you had clicked "Anrufen" yourself, even if the agent misunderstood the task or read it out of someone else's content. Three points are added: (1) The transparency obligation (section 2.1) is still met by the voice AI, which introduces itself as an AI; an agent cannot switch that off. (2) The agent reads along the call as text; the content thereby goes to a further recipient, the provider of your agent. The same applies to it as to the AI provider of the call (section 3.5), and it belongs in the information given to the data subjects where such information is owed (section 3.4). (3) An agent makes series of calls easy. The prohibitions in section 5.1 apply regardless of who or what triggers the call; the limits of the interface do not replace consent.
+
 ---
 
 ## 2. AI Act (Regulation (EU) 2024/1689)
@@ -126,7 +128,7 @@ Persons bound by professional secrecy (§ 203 StGB: doctors, lawyers, tax advise
 
 Advertising by phone is prohibited towards **consumers without prior express consent** and towards other market participants without presumed consent (§ 7(2) no. 1 of the Act against Unfair Competition, UWG). Also prohibited is advertising using an **automatic calling machine** without express consent (§ 7(2) no. 2) – SIPFunk is such a machine. Violations are administrative offences (§ 20 UWG, fine imposed by the Bundesnetzagentur) and give rise to claims for injunctive relief.
 
-Consequence: **no sales, no cold calling, no "interest surveys" with SIPFunk** without documented consent. Appointment requests, queries to existing contractual partners and private calls are not advertising.
+Consequence: **no sales, no cold calling, no "interest surveys" with SIPFunk** without documented consent. Appointment requests, queries to existing contractual partners and private calls are not advertising. The same holds when an AI agent triggers the calls through the MCP interface: a table reservation or an appointment request is permitted; an agent that phones through a list of numbers with an offer is not, without consent.
 
 ### 5.2 Caller ID
 

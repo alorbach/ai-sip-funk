@@ -136,7 +136,7 @@ Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungss
 - **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll.
 - **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“ und „Spam-Abwehr“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
-- **Einstellungen**: die Abschnitte KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr und Technik (nur in der Stufe „Erweitert“). Die Abschnittsliste links arbeitet wie Reiter: Rechts steht nur die Karte des gewählten Abschnitts, und die Auswahl wird gemerkt. „Speichern“ (oder Strg+S) unter der Liste speichert weiterhin alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. Ausnahme sind Änderungen an KI-Verbindungen: Sie gelten sofort, ohne „Speichern“ (Abschnitt 6.2). „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Im Abschnitt „Technik“ stehen außerdem zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
+- **Einstellungen**: die Abschnitte KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, MCP-Schnittstelle und Technik (nur in der Stufe „Erweitert“). Die Abschnittsliste links arbeitet wie Reiter: Rechts steht nur die Karte des gewählten Abschnitts, und die Auswahl wird gemerkt. „Speichern“ (oder Strg+S) unter der Liste speichert weiterhin alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. Ausnahme sind Änderungen an KI-Verbindungen: Sie gelten sofort, ohne „Speichern“ (Abschnitt 6.2). „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Im Abschnitt „Technik“ stehen außerdem zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
 
 Stil, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein; „Als Standard speichern“ merkt sie und die Art des Anrufs (und nur sie: Die beiden Speichern-Knöpfe fassen die Werte des jeweils anderen nicht an). Die Stimme merkt der Knopf nicht: Das Feld „Stimme“ auf dem Dashboard gilt nur für den nächsten Anruf von dort und steht sonst auf der Standardstimme der aktiven Verbindung (z. B. „– Standard: marin –“). Das Feld „KI-Verbindung“ auf dem Dashboard schaltet die aktive KI-Verbindung um; das gilt sofort und braucht keinen Speichern-Knopf. Modelle und Standardstimme gehören zur Verbindung und stehen unter „Einstellungen › KI-Verbindungen“ (Abschnitt 6.2).
 
@@ -154,6 +154,7 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 | Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
 | E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
 | Spam-Abwehr | an/aus, KI-Kennung an/aus (aus nur mit Bestätigung), Verhalten | Minuten, Name, Stimme, Geschlecht, Tempo und Anweisungen der Rolle, Nummernliste, tellows-Abfrage |
+| MCP-Schnittstelle | an/aus, erlaubte Ziele, Bestätigung vor dem Wählen, Limits, Konfiguration für Agenten zum Kopieren | Protokolle und Kontaktnamen für Agenten, Verbindung über HTTP oder als Prozess |
 | Technik | – | der ganze Abschnitt samt den `.env`-Angaben |
 
 Zwei Ausnahmen halten sichtbar, was gerade zählt: Steht die Art des Anrufs nicht auf „KI-Gespräch“, ist sie auch in „Einfach“ zu sehen, und wer per OAuth sendet, sieht den Versandweg.
@@ -250,7 +251,7 @@ Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standards
 **Standardstimme und Rangfolge der Stimme.** Jede Verbindung hat eine „Standardstimme“ aus den Stimmen ihres Anbieters. „Probe hören“ daneben spielt die Stimmen dieses Anbieters mit dem Schlüssel dieser Verbindung vor, auch wenn die Verbindung nicht aktiv ist. Welche Stimme ein Gespräch bekommt, entscheidet diese Rangfolge; jede Stufe zählt nur, wenn die Stimme zum Anbieter der aktiven Verbindung gehört:
 
 1. die „Stimme der Rolle“ der Spam-Abwehr, wenn die Spam-Rolle schon beim Abnehmen feststeht (Listentreffer oder „In die Spam-Falle“; Abschnitt 10.4),
-2. die Stimme, die für den Anruf gewählt ist: auf dem Dashboard das Feld „Stimme“, bei Anrufen über die API oder MCP die Angabe `voice`; ist dort nichts gewählt, bei ausgehenden Anrufen die Stimme des Kontakts und beim Anrufbeantworter die Stimme der eigenen Rufnummer (Profil unter „Anrufbeantworter › Eigene Rufnummern“, Abschnitt 7.3),
+2. die Stimme, die für den Anruf gewählt ist: auf dem Dashboard das Feld „Stimme“, bei Anrufen über die API die Angabe `voice`; ist dort nichts gewählt, bei ausgehenden Anrufen die Stimme des Kontakts und beim Anrufbeantworter die Stimme der eigenen Rufnummer (Profil unter „Anrufbeantworter › Eigene Rufnummern“, Abschnitt 7.3),
 3. die Standardstimme der aktiven Verbindung,
 4. ist an der Verbindung noch keine gewählt: die frühere allgemeine Stimme (aus älteren Versionen bzw. `AI_VOICE` in der `.env`), sonst die erste Stimme des Anbieters.
 
@@ -262,7 +263,7 @@ Das Feld „Stimme“ auf dem Dashboard steht standardmäßig auf der Standardst
 - **Textmodell**: schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna` bei OpenAI und `gemini-3.5-flash-lite` bei Gemini.
 - **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen OpenAI-Modells, für unbekannte Gemini-Modelle mit denen von `gemini-3.8-live`. Eine Modell-ID, die zum anderen Anbieter gehört, wird nicht angenommen.
 
-Eine Verbindung ohne eigenes Modell benutzt die Vorgabe ihres Anbieters: `OPENAI_MODEL` und `OPENAI_SUMMARY_MODEL` bzw. `GEMINI_MODEL` und `GEMINI_SUMMARY_MODEL` aus der `.env`, sonst die eingebaute Vorgabe aus der Tabelle oben. Ein Anruf über die API oder MCP (Kapitel 13) darf weiterhin ein Sprachmodell nennen; ein Modell eines anderen Anbieters wird ignoriert, und es gilt das Modell der aktiven Verbindung.
+Eine Verbindung ohne eigenes Modell benutzt die Vorgabe ihres Anbieters: `OPENAI_MODEL` und `OPENAI_SUMMARY_MODEL` bzw. `GEMINI_MODEL` und `GEMINI_SUMMARY_MODEL` aus der `.env`, sonst die eingebaute Vorgabe aus der Tabelle oben. Ein Anruf über die API (Kapitel 13) darf weiterhin ein Sprachmodell nennen; ein Modell eines anderen Anbieters wird ignoriert, und es gilt das Modell der aktiven Verbindung.
 
 Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgelehnt), steht der Grund neben dem Knopf. Die gespeicherte Auswahl bleibt in jedem Fall erhalten und sichtbar; steht sie nicht in der geladenen Liste, trägt sie den Zusatz „(nicht in der Liste)“. Das Laden der Liste ändert keine Einstellung.
 
@@ -542,49 +543,166 @@ Bei den Spam-Szenarien bewertet der Richter streng: Jede genannte Angabe, jedes 
 
 ## 13. MCP-Schnittstelle
 
-`npm run mcp` startet einen MCP-Server über stdio, der mit der laufenden Web-UI spricht (`npm start` oder die Tray-App muss laufen). Ein KI-Agent kann damit Anrufe starten und Ergebnisse lesen. Rufzielschutz, Gesprächslimit und „ein Gespräch gleichzeitig“ gelten auch hier; eine zusätzliche Bestätigung in der Web-UI gibt es nicht, die Freigabe geschieht im Client beim Tool-Aufruf. Verantwortlich bleibst du (siehe [Richtlinien](guidelines.de.md)).
+Über die MCP-Schnittstelle (Model Context Protocol) kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren. Du sagst dem Agenten zum Beispiel „Reservier mir bei Restaurant Sonne einen Tisch für Freitag, 19 Uhr, vier Personen“, und er erledigt das über SIPFunk: Er startet den Anruf, liest mit, was gesagt wird, gibt der KI am Telefon bei Bedarf Vorgaben und berichtet dir das Ergebnis.
 
-| Tool | Zweck |
-| --- | --- |
-| `get_status` | Registrierung und laufendes Gespräch |
-| `start_call` | Anruf starten: Nummer oder Kontaktname, Auftrag (`task`), optional `context` mit Hintergrundwissen für Rückfragen |
-| `wait_for_call` | auf das Gesprächsende warten (höchstens 50 s je Aufruf, bei Bedarf wiederholen); liefert Ergebnis, Zusammenfassung und Transkript |
-| `hangup` | auflegen |
-| `list_calls`, `get_call` | gespeicherte Protokolle |
-| `list_contacts`, `call_history` | Kontakte und Gespräche je Kontakt |
+Die Schnittstelle ist **standardmäßig ausgeschaltet**. Du schaltest sie unter „Einstellungen › MCP-Schnittstelle“ ein und legst dort fest, was ein Agent darf.
 
-Typischer Ablauf: `start_call` → `wait_for_call` → Ergebnis auswerten. Der `task` sollte sagen, wer vermutlich abnimmt, was gefragt oder ausgerichtet werden soll und was die KI dafür wissen muss.
+![Einstellungen › MCP-Schnittstelle: Schalter, erlaubte Ziele, Bestätigung, Limits und die Konfiguration zum Kopieren](images/settings-mcp.de.png)
 
-Einrichtung, jeweils mit dem absoluten Pfad zum Projektordner.
+### 13.1 Wie ein Agenten-Anruf abläuft
 
-**Claude Code:**
+Am Telefon spricht nicht der Agent, sondern die Sprach-KI von SIPFunk, über die aktive KI-Verbindung und mit der Stimme, die dort eingestellt ist. Sie führt das Gespräch selbstständig nach dem Auftrag, genau wie bei einem Anruf vom Dashboard. Der Agent sitzt daneben:
 
-```bash
-claude mcp add sipfunk -- npx tsx /pfad/zu/sipfunk/src/mcp/server.ts
-```
+- Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund).
+- Er **gibt Vorgaben**: „Sag, dass auch 19:30 Uhr passt.“ Die KI formuliert selbst und setzt die Vorgabe im nächsten passenden Moment um, ohne jemandem ins Wort zu fallen.
+- Die KI **fragt beim Agenten nach**, wenn ihr eine Entscheidung fehlt, von der das Ergebnis abhängt. Sie sagt dem Gegenüber „Einen Moment bitte, ich frage kurz nach“ und wartet bis zu 25 Sekunden auf die Antwort des Agenten. Kommt keine, sagt sie, dass du dich dazu meldest, und hält den Punkt als offen fest.
 
-**Codex** – in `~/.codex/config.toml`:
+Warum so und nicht Wort für Wort vom Agenten? Ein Agent braucht für jeden Zug mehrere Sekunden (Modellaufruf, Werkzeugaufruf, Übertragung). Müsste jeder Satz am Telefon erst von ihm kommen, entstünden nach jedem Satz Pausen, in denen Menschen auflegen. Im geführten Betrieb antwortet die Sprach-KI sofort, und der Agent greift nur dort ein, wo es etwas zu entscheiden gibt. Je genauer der Auftrag den Spielraum nennt („19:30 Uhr geht auch, später nicht“), desto seltener muss sie nachfragen.
+
+### 13.2 Einschalten und Erlaubnisse
+
+Unter „Einstellungen › MCP-Schnittstelle“:
+
+| Einstellung | Vorgabe | Bedeutung |
+| --- | --- | --- |
+| KI-Agenten dürfen über MCP telefonieren | aus | Hauptschalter. Ausgeschaltet lehnt SIPFunk jeden Tool-Aufruf mit einem Hinweis ab; der Agent sieht dann auch keinen Status, keine Kontakte und keine Protokolle. |
+| Wen ein Agent anrufen darf | Nur gespeicherte Kontakte | „Nur gespeicherte Kontakte“: Der Agent kann nur Nummern anrufen, die du als Kontakt angelegt hast. „Kontakte und jede erlaubte Nummer“: zusätzlich jede Nummer, die auch das Dashboard wählen darf. Notruf, Sonder-, Mehrwert- und Auslandsnummern und Call-by-Call bleiben in beiden Fällen gesperrt (Kapitel 6). |
+| Vor dem Wählen bei mir nachfragen | Immer | „Immer“: Jeder Anruf wartet auf dein Ja. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. |
+| Höchstens … Anrufe je Stunde / je Tag | 10 / 30 | Gezählt wird jede angenommene Anfrage, auch eine, die du abgelehnt hast oder bei der niemand abnahm. Der Zähler beginnt mit einem Neustart von SIPFunk neu. |
+| Höchstdauer je Anruf (Minuten) | 10 | Danach legt SIPFunk auf. Nie länger als das allgemeine Gesprächslimit (Einstellungen › Technik) und die Grenze des KI-Anbieters. |
+| Protokolle, die ein Agent lesen darf (Erweitert) | Nur Anrufe, die über MCP gestartet wurden | Mit „Alle Protokolle“ kann der Agent auch deine übrigen Gespräche und die des Anrufbeantworters lesen. |
+| Agent darf die Namen meiner Kontakte lesen (Erweitert) | aus | Eingeschaltet liefert `list_contacts` die Namen. Rufnummern und Notizen bekommt ein Agent nie; nennt er einen Kontakt beim Namen, wählt SIPFunk die Nummer, ohne sie ihm zu zeigen. |
+
+Änderungen gelten, sobald du gespeichert hast. Rechts oben in der Karte steht der Zustand: ausgeschaltet, eingeschaltet, und wann zuletzt ein Agent zugegriffen hat.
+
+**Bestätigen.** Fragt ein Agent einen Anruf an, zeigt die Web-UI einen Dialog mit Ziel, Auftrag und dem Namen, in dessen Auftrag angerufen wird; die Tray-App meldet die Anfrage als Hinweis. „Anrufen“ wählt, „Ablehnen“ oder die Escape-Taste nicht. Ohne Antwort verfällt die Anfrage nach zwei Minuten. Ist die Web-UI gerade nicht offen, öffnet ein Klick auf den Hinweis sie.
+
+![Bestätigungsdialog: Ein KI-Agent möchte anrufen](images/mcp-confirm.de.png)
+
+Jeder Agenten-Anruf steht wie jeder andere unter „Anrufe“, mit dem Kennzeichen „Von KI-Agent“.
+
+### 13.3 Agenten verbinden
+
+SIPFunk muss laufen (Tray-App oder `npm start`). Es gibt zwei Wege zum selben Server; beide sind nur von deinem Rechner aus erreichbar:
+
+- **Direkt über HTTP** (Streamable HTTP): Der Agent spricht mit `http://127.0.0.1:8080/mcp`, also mit der laufenden App selbst. Kein zusätzlicher Prozess, keine Pfade. Das ist der einfachste Weg für Codex und Claude Code.
+- **Als Prozess (stdio)**: Der Agent startet einen kleinen Prozess, der jeden Aufruf an die laufende App weiterreicht. Diesen Weg braucht Claude Desktop, das lokale Server nur als Prozess startet.
+
+Die Karte „MCP-Schnittstelle“ zeigt unter „Agenten verbinden“ die fertige Konfiguration für deinen Rechner, passend zum Port und dazu, ob SIPFunk installiert ist oder aus dem Projektordner läuft. Agent wählen, „Kopieren“, einfügen. Die Beispiele unten zeigen den Aufbau.
+
+**Codex** – in `~/.codex/config.toml` (unter Windows im Benutzerordner), dann Codex neu starten:
 
 ```toml
 [mcp_servers.sipfunk]
-command = "npx"
-args = ["tsx", "/pfad/zu/sipfunk/src/mcp/server.ts"]
+url = "http://127.0.0.1:8080/mcp"
+tool_timeout_sec = 120
 ```
 
-**Claude Desktop** – in `claude_desktop_config.json`:
+`tool_timeout_sec` ist wichtig: `wait_for_events` wartet bis zu 50 Sekunden, die Vorgabe von Codex liegt bei 60.
+
+**Claude Code** – im Terminal:
+
+```bash
+claude mcp add --transport http sipfunk http://127.0.0.1:8080/mcp
+```
+
+Mit `--scope user` gilt die Verbindung für alle Projekte.
+
+**Claude Desktop** – in `claude_desktop_config.json` (Einstellungen › Entwickler › Konfiguration bearbeiten; unter Windows `%APPDATA%\Claude\claude_desktop_config.json`), dann Claude Desktop neu starten. Für die installierte App:
 
 ```json
 {
   "mcpServers": {
     "sipfunk": {
-      "command": "npx",
-      "args": ["tsx", "/pfad/zu/sipfunk/src/mcp/server.ts"]
+      "command": "C:\\Users\\DEINNAME\\AppData\\Local\\Programs\\SIPFunk\\SIPFunk.exe",
+      "args": ["C:\\Users\\DEINNAME\\AppData\\Local\\Programs\\SIPFunk\\resources\\app.asar\\dist\\mcp\\server.js"],
+      "env": {
+        "ELECTRON_RUN_AS_NODE": "1",
+        "SIPFUNK_URL": "http://127.0.0.1:8080"
+      }
     }
   }
 }
 ```
 
-Läuft die Web-UI auf einem anderen Port, `SIPFUNK_URL=http://127.0.0.1:PORT` als Umgebungsvariable des MCP-Servers setzen.
+`ELECTRON_RUN_AS_NODE=1` lässt die installierte `SIPFunk.exe` das mitgelieferte MCP-Skript ausführen, statt die Tray-App ein zweites Mal zu starten; Node.js muss dafür nicht installiert sein. Die Pfade hängen vom Installationsort ab, deshalb am besten aus der Web-UI kopieren.
+
+Aus dem Projektordner (Entwicklung) lautet der Befehl für den stdio-Prozess `npx tsx /pfad/zu/sipfunk/src/mcp/server.ts`, oder kurz `npm run mcp`. Läuft die Web-UI auf einem anderen Port, gehört er in die Adresse (`/mcp`) bzw. in `SIPFUNK_URL`.
+
+Nach dem Verbinden zeigt der Agent die Tools von SIPFunk. Solange die Schnittstelle ausgeschaltet ist, beantwortet SIPFunk jeden Aufruf mit dem Hinweis, wo du sie einschaltest.
+
+### 13.4 Die Tools
+
+Alle Tools antworten mit Text. Fehler (gesperrtes Ziel, Limit erreicht, nicht erlaubt) kommen als Fehlertext mit dem Grund zurück. `call_id` ist überall optional; ohne Angabe ist der letzte Anruf des Agenten gemeint.
+
+| Tool | Parameter | Rückgabe |
+| --- | --- | --- |
+| `get_status` | – | Anmeldung an der Telefonanlage, freie Leitung, erlaubte Ziele, ob du bestätigen musst, verbleibende Anrufe je Stunde und Tag, Höchstdauer, laufender Anruf |
+| `list_contacts` | – | Namen der Kontakte, ohne Nummern. Nur mit der Freigabe „Agent darf die Namen meiner Kontakte lesen“ |
+| `start_call` | `target` (Kontaktname oder Rufnummer), `task` (Auftrag, höchstens 2000 Zeichen), optional `context` (Hintergrundwissen, höchstens 6000 Zeichen), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` | `call_id` und der Zustand: „angefragt“ (wartet auf deine Bestätigung) oder „wählt“ |
+| `wait_for_events` | `call_id`, `after` (Nummer des letzten bekannten Ereignisses), `timeout_sec` (1–50, Vorgabe 25) | Blockiert, bis es Neues gibt oder die Zeit abläuft. Liefert den Zustand, die neuen Ereignisse mit Nummer (`Gegenüber`, `KI`, `Zustand`, `Hinweis`, `RÜCKFRAGE der KI an dich`), eine offene Rückfrage und die Nummer für den nächsten Aufruf |
+| `say` | `call_id`, `text` (höchstens 600 Zeichen), `when` (`now` Vorgabe, `next`) | Übergibt eine Vorgabe an die Sprach-KI. Wartet sie auf die Antwort einer Rückfrage, ist `text` die Antwort. `now`: so bald wie möglich aussprechen; `next`: beim nächsten eigenen Redebeitrag berücksichtigen |
+| `end_call` | `call_id`, `mode` (`polite` Vorgabe, `now`) | `polite`: Die KI verabschiedet sich, meldet ihr Ergebnis und legt auf. `now`: sofort auflegen. Eine Anfrage, die noch auf Bestätigung wartet, wird zurückgezogen |
+| `get_call_result` | `call_id` oder `record_id` | Zustand und Grund des Endes, Ergebnis laut KI (erreicht, offen), Zusammenfassung, Transkript. Kam kein Gespräch zustande, steht das dort |
+| `list_calls` | – | Gespeicherte Protokolle mit Kurzfassung, je nach Einstellung nur die über MCP gestarteten oder alle |
+
+Hinweise zu einzelnen Parametern:
+
+- **`target`**: Ein Kontaktname muss eindeutig sein (genauer Name, sonst ein eindeutiger Teil davon). Rufnummern nimmt `start_call` nur an, wenn „Kontakte und jede erlaubte Nummer“ eingestellt ist oder die Nummer zu einem Kontakt gehört.
+- **`task`**: der Auftrag in normaler Sprache, so wie auf dem Dashboard. Er sollte sagen, wer vermutlich abnimmt, was erreicht werden soll, alle nötigen Angaben (Datum, Uhrzeit, Personenzahl, Name) und den Spielraum.
+- **`on_behalf_of`**: Ohne Angabe ruft die KI im Namen an, der unter „Einstellungen › KI-Assistent › Im Auftrag von“ steht. Der Bestätigungsdialog zeigt, was der Agent angegeben hat.
+- **Stil und Anrede**: Ohne Angabe gelten die des Kontakts, sonst die Vorgaben des Dashboards. Den Namen der KI, ihre Stimme, das Modell und die „Zusätzlichen Hinweise zum Verhalten“ kann ein Agent nicht setzen; sie kommen aus deinen Einstellungen.
+- **Zusammenfassung**: Sie entsteht einige Sekunden nach dem Auflegen. Steht in `get_call_result` „noch nicht fertig“, kurz darauf noch einmal abrufen. Das „Ergebnis laut KI“ ist sofort da.
+
+### 13.5 Beispiel: einen Tisch reservieren
+
+Voraussetzung: Die Schnittstelle ist eingeschaltet, „Restaurant Sonne“ ist ein Kontakt, der Agent ist verbunden. Du schreibst dem Agenten: „Reservier bei Restaurant Sonne einen Tisch für vier Personen am Freitag um 19 Uhr auf Mustermann. 19:30 Uhr geht auch, später nicht.“
+
+1. **Lage prüfen.** Der Agent ruft `get_status` auf und erfährt: Leitung frei, nur Kontakte erlaubt, du musst bestätigen, 10 Anrufe in dieser Stunde möglich.
+2. **Anruf starten.** `start_call` mit `target: "Restaurant Sonne"` und `task: "Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht."` Antwort: `Anruf c1 an Restaurant Sonne angefragt. Der Betreiber muss ihn in SIPFunk bestätigen …`
+3. **Du bestätigst** im Dialog der Web-UI. SIPFunk wählt.
+4. **Warten.** Der Agent ruft `wait_for_events` in einer Schleife auf, jeweils mit der zuletzt gemeldeten Nummer als `after`. Er sieht nacheinander:
+   ```text
+   [2] Zustand: Wählt
+   [3] Zustand: Klingelt
+   [4] Zustand: Verbunden – das Gegenüber hat abgenommen
+   [5] Gegenüber: Restaurant Sonne, guten Abend.
+   [6] KI: Guten Abend, hier ist Alex, der KI-Assistent von Max Mustermann. Ich möchte einen Tisch für vier Personen am Freitag um 19 Uhr reservieren.
+   [7] Gegenüber: Um 19 Uhr sind wir voll. Um 20 Uhr hätte ich noch etwas.
+   ```
+5. **Rückfrage.** 20 Uhr liegt außerhalb des Spielraums. Die KI sagt am Telefon „Einen Moment bitte, ich frage kurz nach“ und fragt den Agenten:
+   ```text
+   [9] RÜCKFRAGE der KI an dich: 19 Uhr ist voll, angeboten wird 20 Uhr. Passt das, oder soll ich nach einem anderen Tag fragen?
+   OFFENE RÜCKFRAGE der KI an dich: … → jetzt mit say beantworten (die KI wartet etwa 25 s).
+   ```
+   Der Agent antwortet sofort mit `say`: `text: "20 Uhr ist zu spät. Frag nach 19:30 Uhr, sonst nach Samstag um 19 Uhr."`
+6. **Weiter mitlesen.** Die KI gibt das weiter, das Restaurant bietet 19:30 Uhr an, die KI sagt zu (das deckt der Auftrag ab) und nennt den Namen.
+7. **Vorgabe nachschieben** (wenn nötig): `say` mit `text: "Frag noch, ob ein Kinderstuhl möglich ist."` Die KI stellt die Frage, sobald sie wieder dran ist.
+8. **Ende.** Ist alles erledigt, beendet die KI das Gespräch von selbst. Der Agent kann es auch mit `end_call` anstoßen; dann verabschiedet sie sich und legt auf. `wait_for_events` meldet `beendet (KI hat das Gespräch beendet)`.
+9. **Ergebnis.** `get_call_result` liefert das Ergebnis laut KI („Tisch für vier am Freitag um 19:30 Uhr auf Mustermann reserviert, Kinderstuhl steht bereit“), die Zusammenfassung und das Transkript. Der Agent berichtet dir.
+
+Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Repository unter [`examples/skills/sipfunk-anruf/SKILL.md`](../examples/skills/sipfunk-anruf/SKILL.md) (englisch: `examples/skills/sipfunk-call/`). Für Codex kopierst du den Ordner nach `~/.agents/skills/`, für Claude Code nach `~/.claude/skills/`.
+
+### 13.6 Grenzen und Latenz
+
+- **Ein Gespräch gleichzeitig.** Läuft schon ein Anruf (auch ein eingehender), lehnt `start_call` ab.
+- **Der Agent hört nichts.** Er bekommt Text: die Transkription des Gegenübers und den Wortlaut der KI, jeweils erst, wenn eine Äußerung fertig ist. Tonfall, Pausen und Hintergrundgeräusche erreichen ihn nicht, und die Transkription kann Namen und Zahlen falsch wiedergeben.
+- **Vorgaben wirken mit Verzögerung.** Zwischen einer Äußerung am Telefon und der Reaktion des Agenten liegen mehrere Sekunden. Die KI wartet darauf nicht, außer sie hat selbst nachgefragt. Eine Vorgabe kann deshalb zu spät kommen; schreib den Spielraum lieber in den Auftrag.
+- **Vorgaben sind Inhalte, kein Wortlaut.** Die KI formuliert selbst und bleibt bei ihren Grundregeln.
+- **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
+- **Mit Gemini** erreichen Vorgaben die KI als nachgereichte Anweisung im Gesprächsverlauf; das wirkt schwächer als bei OpenAI (Abschnitt 6.2).
+- **Wartezeit der Clients.** `wait_for_events` blockiert höchstens 50 Sekunden. Codex bricht Tool-Aufrufe ohne `tool_timeout_sec` nach 60 Sekunden ab.
+- **Bisher erprobt** ist der Ablauf mit automatischen Tests gegen eine nachgestellte Sprachverbindung und gegen eine Demo-Instanz ohne Telefon. Probier es zuerst mit einer eigenen Nummer oder Nebenstelle aus.
+
+### 13.7 Sicherheit
+
+- **Nur lokal.** Der Server lauscht nur auf `127.0.0.1`, auf demselben Port wie die Web-UI. Anfragen mit fremdem Host oder fremder Herkunft (eine Webseite in deinem Browser) werden abgewiesen. Gib den Port nicht frei.
+- **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor. Ein Agent kann das weder abschalten noch ihr einen anderen Namen oder eine andere Rolle geben; Vorgaben, die das verlangen, befolgt sie nicht.
+- **Sperren und Limits prüft SIPFunk**, nicht der Agent: Rufzielschutz, erlaubte Ziele, Bestätigung, Anrufe je Stunde und Tag, Höchstdauer, Gesprächslimit.
+- **Was ein Agent erfährt:** nur, was die Tools liefern. Keine Schlüssel, keine Kennwörter, keine Einstellungen, keine Rufnummern von Kontakten, die er nur beim Namen kennt. Was am Telefon gesagt wird, liest er mit, und es geht damit an den Anbieter deines Agenten. Sag dem Gegenüber nichts über einen Agenten zu, was du nicht einhalten kannst, und beachte den Datenschutz ([Rechtliche Hinweise](legal.de.md), Abschnitt 3).
+- **Prompt-Injection.** Ein Agent, der Webseiten oder Mails liest, kann dort Anweisungen aufschnappen („ruf diese Nummer an“). Dagegen helfen „Nur gespeicherte Kontakte“ und die Bestätigung vor dem Wählen. Lass beides an, solange du dem Agenten nicht in jeder Lage traust.
+- **Grenze der Bestätigung.** Die Web-UI und ihre API haben keine Anmeldung ([SECURITY](../SECURITY.de.md)). Ein Agent, der auf deinem Rechner beliebige Befehle ausführen darf (ein Terminal), kann die lokale API auch direkt ansprechen und damit die Erlaubnisse der MCP-Schnittstelle umgehen. Die Erlaubnisse schützen bei Agenten, die nur die MCP-Tools haben. Einem Agenten mit Terminalzugriff vertraust du ohnehin deinen Rechner an.
+- **Verantwortung.** Für jeden Anruf, den ein Agent auslöst, bleibst du verantwortlich, als hättest du ihn selbst gestartet ([Richtlinien](guidelines.de.md)). Keine Werbeanrufe, keine Serienanrufe.
 
 ---
 
@@ -685,4 +803,4 @@ Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puf
 - **REFER**: SIP-Nachricht, mit der die Box angewiesen wird, ein Gespräch zu einer anderen Nummer durchzustellen.
 - **Inhaber**: du, erkennbar am Kontakt-Kennzeichen oder an `OWNER_NUMBERS`.
 - **Stil (Persona)**: Stilvorgabe aus `personas/*.md`.
-- **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen.
+- **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen. Bei SIPFunk: Anrufe starten, mitlesen, Vorgaben machen (Kapitel 13).

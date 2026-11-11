@@ -16,6 +16,8 @@ SIPFunk ist eine Software, die du selbst betreibst. Es gibt keinen Dienstanbiete
 
 Der KI-Anbieter, den du in den Einstellungen wählst (OpenAI oder Google mit Gemini), verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertragspartner gegenüber den Angerufenen. Auftragsverarbeiter im Sinne der DSGVO ist er nur, wenn du den dafür nötigen Vertrag abgeschlossen hast (Abschnitt 3.5). Gesprächsinhalte gehen immer nur an den gewählten Anbieter.
 
+**KI-Agenten (MCP-Schnittstelle).** Löst ein KI-Agent den Anruf über die MCP-Schnittstelle aus (Handbuch, Kapitel 13), ändert das an diesen Rollen nichts: Der Agent ist ein Werkzeug, das du eingeschaltet und beauftragt hast. Der Anruf wird dir zugerechnet, als hättest du selbst auf „Anrufen“ geklickt, auch wenn der Agent den Auftrag falsch verstanden oder aus fremden Inhalten herausgelesen hat. Drei Punkte kommen hinzu: (1) Die Transparenzpflicht (Abschnitt 2.1) erfüllt weiterhin die Sprach-KI, die sich als KI vorstellt; ein Agent kann das nicht abschalten. (2) Der Agent liest das Gespräch als Text mit; die Inhalte gehen damit an einen weiteren Empfänger, den Anbieter deines Agenten. Für ihn gilt dasselbe wie für den KI-Anbieter des Gesprächs (Abschnitt 3.5), und er gehört in die Information der Betroffenen, wo eine geschuldet ist (Abschnitt 3.4). (3) Ein Agent macht Serien von Anrufen leicht. Die Verbote aus Abschnitt 5.1 gelten unabhängig davon, wer oder was den Anruf auslöst; die Limits der Schnittstelle ersetzen keine Einwilligung.
+
 ---
 
 ## 2. KI-Verordnung (Verordnung (EU) 2024/1689, „AI Act“)
@@ -124,7 +126,7 @@ Berufsgeheimnisträger (§ 203 StGB: Ärzte, Anwälte, Steuerberater u. a.) dür
 
 Verboten ist Werbung per Telefon gegenüber **Verbrauchern ohne vorherige ausdrückliche Einwilligung** und gegenüber sonstigen Marktteilnehmern ohne mutmaßliche Einwilligung (§ 7 Abs. 2 Nr. 1). Zusätzlich verboten ist Werbung mit einer **automatischen Anrufmaschine** ohne ausdrückliche Einwilligung (§ 7 Abs. 2 Nr. 2) – SIPFunk ist eine solche Maschine. Verstöße sind Ordnungswidrigkeiten (§ 20 UWG, Bußgeld durch die Bundesnetzagentur) und begründen Unterlassungsansprüche.
 
-Folge: **Kein Vertrieb, keine Akquise, keine „Interesse-Abfragen“ mit SIPFunk** ohne dokumentierte Einwilligung. Terminanfragen, Rückfragen bei bestehenden Vertragspartnern und private Anrufe sind keine Werbung.
+Folge: **Kein Vertrieb, keine Akquise, keine „Interesse-Abfragen“ mit SIPFunk** ohne dokumentierte Einwilligung. Terminanfragen, Rückfragen bei bestehenden Vertragspartnern und private Anrufe sind keine Werbung. Das gilt genauso, wenn ein KI-Agent die Anrufe über die MCP-Schnittstelle auslöst: Eine Tischreservierung oder eine Terminanfrage ist zulässig, ein Agent, der eine Liste von Nummern mit einem Angebot abtelefoniert, ist es ohne Einwilligung nicht.
 
 ### 5.2 Rufnummernanzeige
 

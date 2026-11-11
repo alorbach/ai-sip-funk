@@ -45,7 +45,9 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 | `src/notify/` | E-Mail (SMTP, OAuth), Autokonfiguration, Format und Vorlagen der Mail |
 | `src/contacts.ts`, `src/transcripts.ts` | Kontakte und Gesprächsprotokolle als Dateien |
 | `src/web/server.ts` | HTTP-API und WebSocket für die Web-UI, gebunden an 127.0.0.1 |
-| `src/mcp/server.ts` | MCP-Server über stdio, spricht per HTTP mit der laufenden Web-UI |
+| `src/mcp/gateway.ts` | MCP-Gateway: Erlaubnisse, Bestätigung, Limits, der Anruf des Agenten als Folge von Ereignissen |
+| `src/mcp/tools.ts`, `http.ts`, `server.ts` | die MCP-Tools; Streamable HTTP unter `/mcp` auf dem Listener der Web-UI; stdio-Prozess, der jeden Aufruf an die laufende App reicht |
+| `src/ai/agentCall.ts` | Texte für Agenten-Anrufe: Regeln in der Systemanweisung, das Tool `ask_principal`, Regieanweisungen |
 | `src/sim/simulate.ts` | Gesprächssimulator im Textmodus |
 | `src/tools/test-call.ts` | Kommandozeilentest für SIP und Audio ohne KI |
 | `public/` | Web-UI (eine HTML-Datei ohne Build-Schritt) und das Pop-up beim Klingeln |
@@ -92,11 +94,23 @@ Die Gemini Live API unterscheidet sich von OpenAI Realtime in Punkten, die der A
 
 Neben den automatischen Tests gegen nachgestellte Verbindungen ist der Gemini-Adapter erst in wenigen echten Telefonaten erprobt: Die ersten drei liefen am 11. November 2026 (zwei am Anrufbeantworter, ein Rückruf an den Inhaber) und gingen ohne Fehler durch. OpenAI bleibt der erprobte Standard. Die Einzelheiten des Protokolls folgen Googles Dokumentation mit Stand 11. November 2026.
 
+## MCP: Anrufe durch KI-Agenten
+
+Ein Agent spricht nie selbst mit dem Telefon. Die Sprach-KI führt das Gespräch wie sonst auch (geführter Betrieb); der Agent liest mit und lenkt. Ein wörtlicher Betrieb wurde verworfen: Ein Agent braucht mehrere Sekunden je Zug, und keiner der Anbieter lässt sich zwingen zu schweigen, bis Text kommt.
+
+- **Eine Stelle entscheidet.** Jeder Tool-Aufruf endet in `McpGateway.run()`, egal ob er über Streamable HTTP kommt (`/mcp`, zustandslos, je Anfrage ein Server samt Transport, Antworten als JSON) oder vom stdio-Prozess (`POST /api/mcp/call`). Der stdio-Prozess hat keine Logik und keine Rechte.
+- **Erlaubnisse** (`mcpPolicyFrom()` in `settings.ts`): Hauptschalter (standardmäßig aus, kein Schalter in der `.env`), Ziele (nur Kontakte oder jede Nummer, die der Rufzielschutz erlaubt), Bestätigung (immer, Nummern ohne Kontakt, nie), Anrufe je Stunde und Tag (im Speicher gezählt, je angenommener Anfrage), Höchstdauer je Anruf.
+- **Ein Anruf als Ereignisse.** Das Gateway führt den einen Anruf des Agenten mit einem Zustand (`awaiting_approval`, `dialing`, `ringing`, `connected`, `ended`) und nummerierten Ereignissen (Zustand, Gegenüber, KI, Rückfrage, Hinweis). `wait_for_events` blockiert bis zum nächsten Ereignis oder bis zum Ablauf der Wartezeit; der Agent muss nicht pollen. `main.ts` reicht Leitungszustand, fertige Transkript-Einträge und das Gesprächsende an das Gateway.
+- **Lenken.** `say` wird zu `RealtimeBridge.agentSay()`: ein Hinweis im Gesprächsverlauf (`LiveSession.note`) und eine angeforderte Antwort, die einer laufenden nie ins Wort fällt. Die Sprach-KI bekommt zusätzlich das Tool `ask_principal`; solange eine Rückfrage offen ist, schweigt der Stillstandswächter, das nächste `say` des Agenten geht als Tool-Ergebnis zurück, und nach 25 Sekunden ohne Antwort macht die KI ohne weiter. `end_call` lässt die KI über den normalen `end_call`-Weg abschließen oder legt sofort auf.
+- **Identität.** Der Agent liefert Auftrag, Hintergrundwissen, Stil, Anrede und wahlweise den Auftraggeber. Name der KI, Stimme, Modell und die zusätzlichen Hinweise zum Verhalten kommen immer aus den Einstellungen. Die Regeln für Agenten-Anrufe stehen in der Systemanweisung (`AGENT_CALL_RULES`), auch dass keine Regieanweisung die KI-Kennung aufheben kann.
+- **Was die App verlässt.** Nur Texte. Kontaktnamen nur mit Freigabe, Rufnummern von Kontakten nie, Protokolle anderer Gespräche nur mit Freigabe. Die Web-UI bekommt die offene Anfrage mit Nummer, denn die sieht nur der Betreiber.
+
 ## Wo Regeln durchgesetzt werden
 
 Was nicht schiefgehen darf, entscheidet der Code, nicht das Modell:
 
 - Rufzielschutz und Gesprächslimit im `CallManager` bzw. in `dialPolicy.ts`; sie gelten für Web-UI und MCP gleichermaßen.
+- Was ein Agent über MCP darf, entscheidet das `McpGateway` (Schalter, Ziele, Bestätigung, Limits, Höchstdauer), nicht der Agent und nicht der stdio-Prozess. Die lokale API selbst hat keine Anmeldung: Ein Programm, das auf diesem Rechner HTTP-Anfragen schicken kann, kann MCP ganz umgehen (siehe SECURITY).
 - Die KI hat kein Werkzeug zum Wählen. Durchstellen gibt es nur im Rückruf an den Inhaber und nur zur Nummer des ursprünglichen Anrufers.
 - Die Spam-Abwehr wirkt nur mit eingeschalteter KI-Kennung oder gespeicherter Risiko-Bestätigung (`scamAllowed()` und `scamActive()` in `settings.ts`); beim Speichern ohne beides wird sie ausgeschaltet. Das Zeitlimit setzt ein Timer im Server durch.
 - Kontakte sind von der Spam-Erkennung im Gespräch ausgenommen: Für sie steht `flag_spam` gar nicht in der Werkzeugliste.

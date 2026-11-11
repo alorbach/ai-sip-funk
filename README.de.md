@@ -24,7 +24,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
 - **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen; je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
 - **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen (nur mit OpenAI).
-- **MCP-Schnittstelle**, über die ein KI-Agent Anrufe starten und Ergebnisse lesen kann.
+- **MCP-Schnittstelle für KI-Agenten.** Ein Agent wie Codex, Claude Code oder Claude Desktop kann für dich telefonieren: Er startet den Anruf mit einem Auftrag, liest mit, was gesagt wird, gibt der KI am Telefon Vorgaben und holt das Ergebnis ab. Standardmäßig aus; in der Web-UI legst du fest, wen ein Agent anrufen darf, ob du jeden Anruf bestätigst, und die Limits.
 
 ## Voraussetzungen
 
@@ -93,13 +93,7 @@ Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen (er l
 npm run sim
 ```
 
-Für KI-Agenten gibt es einen MCP-Server über stdio (die Web-UI muss laufen):
-
-```bash
-npm run mcp
-```
-
-Einrichtung der Clients und alle Tools: [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle).
+KI-Agenten erreichen SIPFunk über den eingebauten MCP-Server, direkt über HTTP unter `http://127.0.0.1:8080/mcp` oder als stdio-Prozess (`npm run mcp` bzw. die installierte `SIPFunk.exe`). Die Schnittstelle ist aus, bis du sie unter „Einstellungen › MCP-Schnittstelle“ einschaltest; dieselbe Karte zeigt die fertige Konfiguration für Codex, Claude Code und Claude Desktop. Einrichtung, alle Tools und ein durchgespieltes Beispiel („Tisch reservieren“): [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle). Ein Beispiel-Skill für Agenten liegt unter [`examples/skills/sipfunk-anruf`](examples/skills/sipfunk-anruf/SKILL.md).
 
 ## Kosten
 

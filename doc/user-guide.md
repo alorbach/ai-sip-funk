@@ -138,7 +138,7 @@ The header is always visible: the four pages on the left, the connection status 
 - **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll").
 - **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you) and "Spam-Abwehr" (spam defence). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
-- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
+- **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence), MCP-Schnittstelle (MCP interface) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
 
 Style, form of address and task for outgoing calls are set on the dashboard; "Als Standard speichern" remembers them and the type of call (and only them: the two save buttons do not touch each other's values). The button does not remember the voice: the field "Stimme" (voice) on the dashboard applies only to the next call from there and otherwise shows the default voice of the active connection (e.g. "– Standard: marin –"). The field "KI-Verbindung" on the dashboard switches the active AI connection; that applies immediately and needs no save button. Models and default voice belong to the connection and are set under "Einstellungen › KI-Verbindungen" (section 6.2).
 
@@ -156,6 +156,7 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
 | Spam-Abwehr | on/off, AI disclosure on/off (off only with confirmation), behaviour | minutes, name, voice, gender, speed and instructions of the role, number list, tellows lookup |
+| MCP-Schnittstelle | on/off, permitted targets, confirmation before dialling, limits, configuration for agents to copy | call logs and contact names for agents, connection over HTTP or as a process |
 | Technik | – | the whole section including the `.env` information |
 
 Two exceptions keep things visible when they matter: if the type of call is not "KI-Gespräch", it is shown in "Einfach" too, and whoever sends mail via OAuth sees the delivery method.
@@ -252,7 +253,7 @@ Changes to connections – adding, renaming, default voice, choosing models, swi
 **Default voice and order of precedence.** Each connection has a "Standardstimme" (default voice) from the voices of its provider. "Probe hören" next to it plays the voices of that provider with the key of that connection, even if the connection is not active. Which voice a call gets is decided by this order of precedence; each level only counts if the voice belongs to the provider of the active connection:
 
 1. the "Stimme der Rolle" (voice of the role) of the spam defence, if the spam role is certain at pick-up (list match or "In die Spam-Falle"; section 10.4),
-2. the voice chosen for the call: on the dashboard the field "Stimme", for calls through the API or MCP the parameter `voice`; if nothing is chosen there, the contact's voice for outgoing calls and the voice of the own number for the answering machine (profile under "Anrufbeantworter › Eigene Rufnummern", section 7.3),
+2. the voice chosen for the call: on the dashboard the field "Stimme", for calls through the API the parameter `voice`; if nothing is chosen there, the contact's voice for outgoing calls and the voice of the own number for the answering machine (profile under "Anrufbeantworter › Eigene Rufnummern", section 7.3),
 3. the default voice of the active connection,
 4. if none has been chosen on the connection yet: the former general voice (from older versions or `AI_VOICE` in `.env`), otherwise the provider's first voice.
 
@@ -264,7 +265,7 @@ The field "Stimme" on the dashboard shows the default voice of the active connec
 - **Textmodell** (text model): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna` with OpenAI and `gemini-3.5-flash-lite` with Gemini.
 - **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large OpenAI model, for unknown Gemini models those of `gemini-3.8-live`. A model ID that belongs to the other provider is not accepted.
 
-A connection without a model of its own uses the default of its provider: `OPENAI_MODEL` and `OPENAI_SUMMARY_MODEL` or `GEMINI_MODEL` and `GEMINI_SUMMARY_MODEL` from `.env`, otherwise the built-in default from the table above. A call started through the API or MCP (chapter 13) may still name a voice model; a model of another provider is ignored and the model of the active connection is used.
+A connection without a model of its own uses the default of its provider: `OPENAI_MODEL` and `OPENAI_SUMMARY_MODEL` or `GEMINI_MODEL` and `GEMINI_SUMMARY_MODEL` from `.env`, otherwise the built-in default from the table above. A call started through the API may still name a voice model; a model of another provider is ignored and the model of the active connection is used.
 
 If the list cannot be loaded (no key, no network, key rejected), the reason is shown next to the button. Your saved choice is always kept and visible; if it is not in the loaded list, it carries the note "(nicht in der Liste)" (not in the list). Loading the list never changes a setting.
 
@@ -544,49 +545,166 @@ In the spam scenarios the judge is strict: any piece of data given, any "yes" an
 
 ## 13. MCP interface
 
-`npm run mcp` starts an MCP server over stdio that talks to the running web UI (`npm start` or the tray app has to be running). An AI agent can use it to start calls and read results. Dial target protection, call time limit and "one call at a time" apply here too; there is no additional confirmation in the web UI, approval happens in the client when the tool is called. You remain responsible (see the [guidelines](guidelines.md)).
+Through the MCP interface (Model Context Protocol) an AI agent such as Codex, Claude Code or Claude Desktop can make phone calls for you. You tell the agent, for example, "Book me a table at Restaurant Sonne for Friday at 7 pm, four people", and it gets that done through SIPFunk: it starts the call, reads along what is said, gives the AI on the phone directions where needed and reports the result to you.
 
-| Tool | Purpose |
-| --- | --- |
-| `get_status` | registration and running call |
-| `start_call` | start a call: number or contact name, task (`task`), optional `context` with background knowledge for questions |
-| `wait_for_call` | wait for the call to end (50 s at most per invocation, repeat if needed); returns result, summary and transcript |
-| `hangup` | hang up |
-| `list_calls`, `get_call` | stored logs |
-| `list_contacts`, `call_history` | contacts and calls per contact |
+The interface is **switched off by default**. You switch it on under "Einstellungen › MCP-Schnittstelle" (settings › MCP interface) and decide there what an agent may do.
 
-Typical flow: `start_call` → `wait_for_call` → evaluate the result. The `task` should say who will probably pick up, what should be asked or passed on, and what the AI needs to know.
+![Settings › MCP interface: switch, permitted targets, confirmation, limits and the configuration to copy](images/settings-mcp.en.png)
 
-Setup, each with the absolute path to the project folder.
+### 13.1 How an agent call works
 
-**Claude Code:**
+The agent does not speak on the phone. SIPFunk's voice AI does, over the active AI connection and with the voice set there. It conducts the call by itself according to the task, exactly as in a call from the dashboard. The agent sits next to it:
 
-```bash
-claude mcp add sipfunk -- npx tsx /path/to/sipfunk/src/mcp/server.ts
-```
+- It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason).
+- It **gives directions**: "Say that 7:30 pm is fine too." The AI words it itself and acts on the direction at the next suitable moment, without talking over anyone.
+- The AI **asks the agent** when it lacks a decision the result depends on. It tells the other party "Einen Moment bitte, ich frage kurz nach" (one moment please, I will just check) and waits up to 25 seconds for the agent's answer. If none comes, it says that you will get back about it and records the point as open.
 
-**Codex** – in `~/.codex/config.toml`:
+Why this way, and not word for word from the agent? An agent needs several seconds for every move (model call, tool call, transport). If every sentence on the phone had to come from it first, there would be a pause after each sentence, and people hang up during such pauses. In guided operation the voice AI answers immediately, and the agent steps in only where something has to be decided. The more precisely the task states the leeway ("7:30 pm is fine too, not later"), the less often it has to ask.
+
+### 13.2 Switching on and permissions
+
+Under "Einstellungen › MCP-Schnittstelle":
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| KI-Agenten dürfen über MCP telefonieren (AI agents may make calls through MCP) | off | Main switch. When off, SIPFunk refuses every tool call with a note; the agent then sees no status, no contacts and no call logs either. |
+| Wen ein Agent anrufen darf (who an agent may call) | Nur gespeicherte Kontakte (saved contacts only) | "Nur gespeicherte Kontakte": the agent can only call numbers you have saved as a contact. "Kontakte und jede erlaubte Nummer" (contacts and any permitted number): in addition any number the dashboard may dial. Emergency, special, premium-rate and foreign numbers and call-by-call prefixes stay blocked in both cases (chapter 6). |
+| Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (always) | "Immer": every call waits for your yes. "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. |
+| Höchstens … Anrufe je Stunde / je Tag (at most … calls per hour / per day) | 10 / 30 | Every accepted request counts, including one you declined or one nobody answered. The counter starts again when SIPFunk restarts. |
+| Höchstdauer je Anruf (Minuten) (maximum length per call, minutes) | 10 | After that SIPFunk hangs up. Never longer than the general call time limit (Einstellungen › Technik) and the limit of the AI provider. |
+| Protokolle, die ein Agent lesen darf (call logs an agent may read; advanced) | Nur Anrufe, die über MCP gestartet wurden (only calls started through MCP) | With "Alle Protokolle" (all call logs) the agent can also read your other calls and those of the answering machine. |
+| Agent darf die Namen meiner Kontakte lesen (agent may read the names of my contacts; advanced) | off | When on, `list_contacts` returns the names. An agent never gets phone numbers or notes; if it names a contact, SIPFunk dials the number without showing it. |
+
+Changes apply as soon as you have saved. The top right of the card shows the state: switched off, switched on, and when an agent last accessed the interface.
+
+**Confirming.** When an agent requests a call, the web UI shows a dialog with the target, the task and the name on whose behalf the call is made; the tray app reports the request as a notice. "Anrufen" (call) dials, "Ablehnen" (decline) or the Escape key does not. Without an answer the request expires after two minutes. If the web UI is not open, a click on the notice opens it.
+
+![Confirmation dialog: an AI agent wants to make a call](images/mcp-confirm.en.png)
+
+Every agent call is listed under "Anrufe" (calls) like any other, with the tag "Von KI-Agent" (by AI agent).
+
+### 13.3 Connecting agents
+
+SIPFunk has to be running (tray app or `npm start`). There are two ways to the same server; both can only be reached from your own computer:
+
+- **Directly over HTTP** (Streamable HTTP): the agent talks to `http://127.0.0.1:8080/mcp`, that is, to the running app itself. No extra process, no paths. This is the simplest way for Codex and Claude Code.
+- **As a process (stdio)**: the agent starts a small process that passes every call on to the running app. Claude Desktop needs this way, because it starts local servers only as a process.
+
+Under "Agenten verbinden" (connecting agents) the card "MCP-Schnittstelle" shows the finished configuration for your computer, matching the port and whether SIPFunk is installed or runs from the project folder. Choose the agent, "Kopieren" (copy), paste. The examples below show the structure.
+
+**Codex** – in `~/.codex/config.toml` (on Windows in your user folder), then restart Codex:
 
 ```toml
 [mcp_servers.sipfunk]
-command = "npx"
-args = ["tsx", "/path/to/sipfunk/src/mcp/server.ts"]
+url = "http://127.0.0.1:8080/mcp"
+tool_timeout_sec = 120
 ```
 
-**Claude Desktop** – in `claude_desktop_config.json`:
+`tool_timeout_sec` matters: `wait_for_events` waits up to 50 seconds, and Codex's default is 60.
+
+**Claude Code** – in a terminal:
+
+```bash
+claude mcp add --transport http sipfunk http://127.0.0.1:8080/mcp
+```
+
+With `--scope user` the connection applies to all projects.
+
+**Claude Desktop** – in `claude_desktop_config.json` (Settings › Developer › Edit Config; on Windows `%APPDATA%\Claude\claude_desktop_config.json`), then restart Claude Desktop. For the installed app:
 
 ```json
 {
   "mcpServers": {
     "sipfunk": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/sipfunk/src/mcp/server.ts"]
+      "command": "C:\\Users\\YOURNAME\\AppData\\Local\\Programs\\SIPFunk\\SIPFunk.exe",
+      "args": ["C:\\Users\\YOURNAME\\AppData\\Local\\Programs\\SIPFunk\\resources\\app.asar\\dist\\mcp\\server.js"],
+      "env": {
+        "ELECTRON_RUN_AS_NODE": "1",
+        "SIPFUNK_URL": "http://127.0.0.1:8080"
+      }
     }
   }
 }
 ```
 
-If the web UI runs on a different port, set `SIPFUNK_URL=http://127.0.0.1:PORT` as an environment variable of the MCP server.
+`ELECTRON_RUN_AS_NODE=1` makes the installed `SIPFunk.exe` run the bundled MCP script instead of starting the tray app a second time; Node.js does not have to be installed for this. The paths depend on where SIPFunk is installed, so it is best to copy them from the web UI.
+
+From the project folder (development) the command for the stdio process is `npx tsx /path/to/sipfunk/src/mcp/server.ts`, or `npm run mcp` for short. If the web UI runs on a different port, that port belongs in the address (`/mcp`) or in `SIPFUNK_URL`.
+
+After connecting, the agent shows SIPFunk's tools. As long as the interface is switched off, SIPFunk answers every call with a note saying where you switch it on.
+
+### 13.4 The tools
+
+All tools answer with text, in German (the voice AI speaks German too). Errors (blocked target, limit reached, not permitted) come back as an error text with the reason. `call_id` is optional everywhere; without it the agent's most recent call is meant.
+
+| Tool | Parameters | Returns |
+| --- | --- | --- |
+| `get_status` | – | Registration with the phone system, free line, permitted targets, whether you have to confirm, calls left per hour and per day, maximum length, current call |
+| `list_contacts` | – | Names of the contacts, without numbers. Only with the permission "Agent darf die Namen meiner Kontakte lesen" |
+| `start_call` | `target` (contact name or phone number), `task` (at most 2000 characters), optional `context` (background knowledge, at most 6000 characters), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` | `call_id` and the state: requested (waiting for your confirmation) or dialling |
+| `wait_for_events` | `call_id`, `after` (number of the last known event), `timeout_sec` (1–50, default 25) | Blocks until there is something new or the time is up. Returns the state, the new events with their number (`Gegenüber` = other party, `KI` = the AI, `Zustand` = state, `Hinweis` = note, `RÜCKFRAGE der KI an dich` = the AI's question to you), an open question and the number for the next call |
+| `say` | `call_id`, `text` (at most 600 characters), `when` (`now` default, `next`) | Hands a direction to the voice AI. If it is waiting for the answer to a question, `text` is that answer. `now`: say it as soon as possible; `next`: take it into account the next time the AI speaks |
+| `end_call` | `call_id`, `mode` (`polite` default, `now`) | `polite`: the AI says goodbye, reports its result and hangs up. `now`: hang up immediately. A request still waiting for confirmation is withdrawn |
+| `get_call_result` | `call_id` or `record_id` | State and reason of the end, result according to the AI (achieved, open), summary, transcript. If no call came about, it says so |
+| `list_calls` | – | Saved call logs with a short summary, depending on the setting only those started through MCP or all |
+
+Notes on individual parameters:
+
+- **`target`**: a contact name has to be unambiguous (the exact name, otherwise an unambiguous part of it). `start_call` accepts phone numbers only if "Kontakte und jede erlaubte Nummer" is set or the number belongs to a contact.
+- **`task`**: the task in plain language, as on the dashboard, best in German. It should say who will probably answer, what is to be achieved, all the details needed (date, time, number of people, name) and the leeway.
+- **`on_behalf_of`**: without it, the AI calls in the name entered under "Einstellungen › KI-Assistent › Im Auftrag von". The confirmation dialog shows what the agent stated.
+- **Style and form of address**: without them, those of the contact apply, otherwise the defaults of the dashboard. An agent cannot set the AI's name, its voice, the model or the "Zusätzliche Hinweise zum Verhalten" (additional behaviour notes); they come from your settings.
+- **Summary**: it is written a few seconds after hanging up. If `get_call_result` says it is not ready yet, fetch it again shortly afterwards. The result according to the AI is there immediately.
+
+### 13.5 Example: booking a table
+
+Prerequisites: the interface is switched on, "Restaurant Sonne" is a contact, the agent is connected. You write to the agent: "Book a table at Restaurant Sonne for four people on Friday at 7 pm in the name of Mustermann. 7:30 pm is fine too, not later."
+
+1. **Check the situation.** The agent calls `get_status` and learns: line free, contacts only, you have to confirm, 10 calls possible this hour.
+2. **Start the call.** `start_call` with `target: "Restaurant Sonne"` and `task: "Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht."` Answer: `Anruf c1 an Restaurant Sonne angefragt. Der Betreiber muss ihn in SIPFunk bestätigen …`
+3. **You confirm** in the dialog of the web UI. SIPFunk dials.
+4. **Wait.** The agent calls `wait_for_events` in a loop, each time with the last reported number as `after`. It sees, one after the other:
+   ```text
+   [2] Zustand: Wählt
+   [3] Zustand: Klingelt
+   [4] Zustand: Verbunden – das Gegenüber hat abgenommen
+   [5] Gegenüber: Restaurant Sonne, guten Abend.
+   [6] KI: Guten Abend, hier ist Alex, der KI-Assistent von Max Mustermann. Ich möchte einen Tisch für vier Personen am Freitag um 19 Uhr reservieren.
+   [7] Gegenüber: Um 19 Uhr sind wir voll. Um 20 Uhr hätte ich noch etwas.
+   ```
+5. **Question.** 8 pm is outside the leeway. On the phone the AI says "Einen Moment bitte, ich frage kurz nach" and asks the agent:
+   ```text
+   [9] RÜCKFRAGE der KI an dich: 19 Uhr ist voll, angeboten wird 20 Uhr. Passt das, oder soll ich nach einem anderen Tag fragen?
+   OFFENE RÜCKFRAGE der KI an dich: … → jetzt mit say beantworten (die KI wartet etwa 25 s).
+   ```
+   The agent answers at once with `say`: `text: "20 Uhr ist zu spät. Frag nach 19:30 Uhr, sonst nach Samstag um 19 Uhr."`
+6. **Keep reading along.** The AI passes that on, the restaurant offers 7:30 pm, the AI accepts (the task covers that) and gives the name.
+7. **Add a direction** (if needed): `say` with `text: "Frag noch, ob ein Kinderstuhl möglich ist."` The AI asks the question as soon as it is its turn again.
+8. **End.** When everything is done, the AI ends the call by itself. The agent can also trigger this with `end_call`; the AI then says goodbye and hangs up. `wait_for_events` reports `beendet (KI hat das Gespräch beendet)`.
+9. **Result.** `get_call_result` returns the result according to the AI (table for four on Friday at 7:30 pm in the name of Mustermann, a high chair will be ready), the summary and the transcript. The agent reports to you.
+
+An example skill that teaches an agent exactly this procedure is in the repository under [`examples/skills/sipfunk-call/SKILL.md`](../examples/skills/sipfunk-call/SKILL.md) (German: `examples/skills/sipfunk-anruf/`). For Codex, copy the folder to `~/.agents/skills/`, for Claude Code to `~/.claude/skills/`.
+
+### 13.6 Limits and latency
+
+- **One call at a time.** If a call is already running (including an incoming one), `start_call` refuses.
+- **The agent hears nothing.** It gets text: the transcription of the other party and the wording of the AI, each only once an utterance is finished. Tone of voice, pauses and background noise do not reach it, and the transcription can get names and numbers wrong.
+- **Directions take effect with a delay.** Several seconds pass between an utterance on the phone and the agent's reaction. The AI does not wait for that, unless it has asked a question itself. A direction can therefore arrive too late; rather put the leeway into the task.
+- **Directions are content, not wording.** The AI words things itself and keeps to its basic rules.
+- **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
+- **With Gemini**, directions reach the AI as an instruction added to the conversation; that has a weaker effect than with OpenAI (section 6.2).
+- **Client timeouts.** `wait_for_events` blocks for at most 50 seconds. Without `tool_timeout_sec`, Codex aborts tool calls after 60 seconds.
+- **Tried so far** only with automated tests against a simulated voice connection and against a demo instance without a phone. Try it with one of your own numbers or extensions first.
+
+### 13.7 Security
+
+- **Local only.** The server listens only on `127.0.0.1`, on the same port as the web UI. Requests with a foreign host or origin (a website in your browser) are refused. Do not expose the port.
+- **The AI stays an AI.** In every agent call it introduces itself as an AI assistant. An agent can neither switch that off nor give it another name or role; it does not follow directions that demand this.
+- **SIPFunk checks blocks and limits**, not the agent: dial target protection, permitted targets, confirmation, calls per hour and per day, maximum length, call time limit.
+- **What an agent learns:** only what the tools return. No keys, no passwords, no settings, no phone numbers of contacts it knows only by name. It reads along what is said on the phone, and with that it goes to the provider of your agent. Do not promise the other party anything about an agent that you cannot keep, and mind data protection ([legal notes](legal.md), section 3).
+- **Prompt injection.** An agent that reads websites or e-mails can pick up instructions there ("call this number"). "Nur gespeicherte Kontakte" and the confirmation before dialling help against that. Leave both on as long as you do not trust the agent in every situation.
+- **Limit of the confirmation.** The web UI and its API have no login ([SECURITY](../SECURITY.md)). An agent that may run arbitrary commands on your computer (a terminal) can also address the local API directly and so bypass the permissions of the MCP interface. The permissions protect with agents that have only the MCP tools. To an agent with terminal access you entrust your computer anyway.
+- **Responsibility.** You remain responsible for every call an agent triggers, as if you had started it yourself ([guidelines](guidelines.md)). No advertising calls, no serial calls.
 
 ---
 
@@ -688,4 +806,4 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 - **Inhaber (owner)**: you, recognised by the contact flag or by `OWNER_NUMBERS`.
 - **Stil (persona)**: style preset from `personas/*.md`.
 - **Anrufbeantworter**: answering machine. **Spam-Abwehr**: spam defence. **Auftrag**: the task you give the AI.
-- **MCP**: Model Context Protocol, an interface through which AI agents call tools.
+- **MCP**: Model Context Protocol, an interface through which AI agents call tools. In SIPFunk: start calls, read along, give directions (chapter 13).

@@ -9,7 +9,7 @@ These guidelines describe what SIPFunk is meant for and what it is not. They com
 ## 1. Principles
 
 1. **Transparency.** The AI introduces itself as an AI in every call and does not deny it when asked. The only, deliberately limited exception is the spam defence without AI disclosure (section 6), which the operator switches on explicitly and at their own risk.
-2. **A human remains responsible.** Every outgoing call is triggered and confirmed by you (dialog in the web UI) or by an agent you have deliberately given the MCP interface to. The AI never decides by itself whom to call.
+2. **A human remains responsible.** Every outgoing call is triggered and confirmed by you (dialog in the web UI) or by an AI agent for which you have deliberately switched on the MCP interface. Even then you are the caller: the agent is your tool, not your representative, and you answer for what it triggers (section 9). The AI on the phone never decides by itself whom to call.
 3. **Data minimisation.** No audio is stored. Transcripts are kept only as long as they are needed ("Protokolle aufbewahren" under Einstellungen › Technik). Background knowledge for the AI contains only what it needs for the task.
 4. **No decisions of consequence.** The AI concludes no contracts, pays nothing, orders nothing, passes on no sensitive data (health, payment, ID, passwords) and accepts none. What the task does not cover it takes back as a question.
 5. **No deception about identity.** The AI does not pose as a real person. "Im Auftrag von" (on behalf of) is your name or your company's name, not that of a third party.
@@ -98,3 +98,18 @@ By default the AI identifies itself as an AI in the spam defence as well (switch
 - **Someone complains about an AI call:** accept it, note it in the contact, do not call there with the AI again.
 - **Suspected misuse of the computer / the extension:** stop the server, change the SIP password in the box, rotate the API key, check the log (every call is in it).
 - **Unclear legal situation in a specific case:** switch the mode off, talk to a lawyer or the competent data protection authority. This documentation is no substitute for legal advice.
+
+---
+
+## 9. AI agents through the MCP interface
+
+Through the MCP interface it is no longer your hand that triggers the call but an agent you have given a task. That changes nothing about responsibility.
+
+- **Switch it on only when you need it.** The interface is off by default. Switch it off again when you are not having an agent make calls.
+- **Start cautiously.** "Nur gespeicherte Kontakte" (saved contacts only) and "Vor dem Wählen bei mir nachfragen: Immer" (ask me before dialling: always) are the defaults. Loosen them only once you have seen how your agent handles tasks, and only as far as needed.
+- **The task comes from you.** Let an agent call only for what you have explicitly asked it to do. An agent that reads "call this number" out of a website, an e-mail or a document acts without your task; the contact list and the confirmation help against that.
+- **Read the confirmation.** Target, task and "on behalf of" are in the dialog. If something does not match what you wanted, decline.
+- **In your own name.** "Im Auftrag von" (on behalf of) is your name or your company's. Do not let an agent call in the name of third parties who know nothing about it (principle 5).
+- **No series.** The limits per hour and per day are a brake, not a permission. Everything in section 3 applies to agents just the same: no advertising, no cold calling, no trying out numbers, no harassment.
+- **The agent reads along.** What the other party says goes to your agent as text and with that to its provider, in addition to the AI provider of the call. Do not let an agent conduct calls in which confidential matters are to be expected, and do not release more call logs to it than necessary.
+- **Check the result.** The agent reports what the AI reported. For appointments and commitments, look at the call log before you rely on it; transcription and summary can be wrong.
