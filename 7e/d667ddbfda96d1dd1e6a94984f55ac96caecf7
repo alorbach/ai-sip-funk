@@ -1,0 +1,34 @@
+CONTRIBUTING.md
+  s_f828863347c33d::t_8ab40c4ab44635 37
+CONTRIBUTING.de.md
+  s_f828863347c33d::t_8ab40c4ab44635 37
+scripts/install-local.mjs
+  s_f828863347c33d::t_8ab40c4ab44635 32-35,37,52-69,73,99-102,107,118-119,121-123,125,129,131,133-134,157-169,171,173,176-177,182
+  s_f828863347c33d::t_d43a41639b6496 103,130,132
+README.md
+  s_f828863347c33d::t_8ab40c4ab44635 60
+README.de.md
+  s_f828863347c33d::t_8ab40c4ab44635 58
+doc/user-guide.de.md
+  s_f828863347c33d::t_8ab40c4ab44635 108
+doc/user-guide.md
+  s_f828863347c33d::t_8ab40c4ab44635 110
+electron/main.cjs
+  s_f828863347c33d::t_8ab40c4ab44635 296-298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ed667ddbfda96d1dd1e6a94984f55ac96caecf7",
+  "prompts": {},
+  "sessions": {
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
