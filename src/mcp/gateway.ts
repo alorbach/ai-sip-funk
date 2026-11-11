@@ -228,8 +228,12 @@ export class McpGateway {
       const partial = p.contacts ? all.filter((c) => c.name.toLowerCase().includes(q)) : [];
       const hit = exact.length === 1 ? exact[0] : exact.length === 0 && partial.length === 1 ? partial[0] : undefined;
       if (!hit) throw new Error(`Kein eindeutiger Kontakt „${raw}“. ${p.contacts ? 'list_contacts zeigt die vorhandenen Namen.' : 'Bitte den Betreiber um den genauen Namen des Kontakts.'}`);
-      // Auch die Nummer eines Kontakts geht durch den Rufzielschutz
-      number = this.deps.prepare(hit.number);
+      // Auch die Nummer eines Kontakts geht durch den Rufzielschutz; der Grund einer Sperre verriete etwas über die Nummer
+      try {
+        number = this.deps.prepare(hit.number);
+      } catch {
+        throw new Error(`Der Kontakt „${hit.name}“ hat keine Rufnummer, die SIPFunk anrufen darf.`);
+      }
       contactName = hit.name;
       named = true;
     }

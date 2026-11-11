@@ -254,7 +254,7 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
-  // Das Modell gehört zur Verbindung; nur ein Anruf, der ausdrücklich eines nennt (API, MCP), weicht davon ab
+  // Das Modell gehört zur Verbindung; nur ein Anruf über die API, der ausdrücklich eines nennt, weicht davon ab
   const model = active.realtimeModel(typeof params.model === 'string' ? params.model : undefined);
   log.info(`KI: ${provider.label}, Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 

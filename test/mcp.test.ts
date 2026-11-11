@@ -162,7 +162,10 @@ test('Ziele: Ein Kontakt mit nicht wählbarer Nummer macht eine ziffernggleiche 
     const r = await h.call('4312345678');
     assert.equal(r.isError, true);
     assert.match(r.text, /nur gespeicherte Kontakte/);
-    assert.match((await h.call('Hotel Ausland')).text, /Ausland/);
+    // beim Namen genannt: abgelehnt, ohne zu verraten, warum die Nummer gesperrt ist
+    const named = await h.call('Hotel Ausland');
+    assert.match(named.text, /keine Rufnummer, die SIPFunk anrufen darf/);
+    assert.doesNotMatch(named.text, /Gesperrt|\+43|\d{4}/);
     assert.equal(h.state.dialed.length, 0);
   } finally {
     CONTACTS.pop();

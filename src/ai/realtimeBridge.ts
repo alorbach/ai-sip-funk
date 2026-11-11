@@ -429,8 +429,6 @@ export class RealtimeBridge implements AudioHandler {
   // ---- intern ----
 
   private onResponseStarted(id?: string): void {
-    // Nach einer Unterbrechung antwortet der Anbieter von selbst: Diese Antwort kennt die vorgemerkte Vorgabe schon
-    if (this.lastResponseStatus === 'cancelled' && this.live.answersAfterInterrupt) this.pendingRespond = false;
     this.activeResponse = true;
     clearTimeout(this.stallTimer);
     this.stallTimer = undefined;
