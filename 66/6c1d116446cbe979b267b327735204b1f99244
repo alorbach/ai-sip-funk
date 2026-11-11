@@ -1,0 +1,19 @@
+scripts/capture-screenshots.cjs
+  s_ee2ffaf82016ce::t_12fc513c5d4cda 387-391
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "666c1d116446cbe979b267b327735204b1f99244",
+  "prompts": {},
+  "sessions": {
+    "s_ee2ffaf82016ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64b67fd3-3584-41e0-bb0e-b4105102dbfc",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
