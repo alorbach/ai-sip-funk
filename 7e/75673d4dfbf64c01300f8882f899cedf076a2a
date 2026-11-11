@@ -1,0 +1,54 @@
+doc/architecture.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 48-50,97-107,113
+doc/user-guide.md
+  s_095fa5b0e499bb::t_150fee6e75705b 159,256,268,548,550,552,554,556,558-588,590-595,599-608,611-613,619-624,630-707,809
+  s_095fa5b0e499bb::t_75a3af87be772c 141
+doc/guidelines.md
+  s_095fa5b0e499bb::t_150fee6e75705b 12,101-115
+doc/test-checklist.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 109-114
+doc/test-checklist.md
+  s_095fa5b0e499bb::t_150fee6e75705b 109-114
+SECURITY.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 11
+doc/legal.md
+  s_095fa5b0e499bb::t_150fee6e75705b 21-22,131
+doc/guidelines.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 12,101-115
+README.md
+  s_095fa5b0e499bb::t_150fee6e75705b 29,98
+CHANGELOG.md
+  s_095fa5b0e499bb::t_150fee6e75705b 9-13
+README.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 27,96
+examples/skills/sipfunk-anruf/SKILL.md
+  s_095fa5b0e499bb::t_826194f7f0bf9d 1-120
+examples/skills/sipfunk-call/SKILL.md
+  s_095fa5b0e499bb::t_cce7b6c5d4afde 1-122
+doc/architecture.md
+  s_095fa5b0e499bb::t_150fee6e75705b 48-50,97-107,113
+SECURITY.md
+  s_095fa5b0e499bb::t_150fee6e75705b 11
+CHANGELOG.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 9-13
+doc/legal.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 19-20,129
+doc/user-guide.de.md
+  s_095fa5b0e499bb::t_150fee6e75705b 139,157,254,266,546,548,550,552,554,556-586,588-593,597-606,609-611,617-622,628-705,806
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e75673d4dfbf64c01300f8882f899cedf076a2a",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
