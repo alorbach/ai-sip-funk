@@ -1,0 +1,69 @@
+doc/architecture.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 106
+  s_095fa5b0e499bb::t_41f2bd9c9d6631 105
+src/mcp/tools.ts
+  s_095fa5b0e499bb::t_ff56b61a0752d6 40,100
+  s_095fa5b0e499bb::t_a98bf8c71d3572 33,39
+src/mcp/gateway.ts
+  s_095fa5b0e499bb::t_88048d986ffa93 519-520
+  s_095fa5b0e499bb::t_ff56b61a0752d6 4,49,51,64,102-103,215,220-221,239,241-244,250,260,301,308-309,323-324,377-394,401,420-421,442,471-476,479,488,490-491,505,508,517,521-530,542
+  s_095fa5b0e499bb::t_c61128e2a03ab7 506-507,509,512-514
+public/i18n-en.js
+  s_095fa5b0e499bb::t_ff56b61a0752d6 652-653
+src/ai/agentCall.ts
+  s_095fa5b0e499bb::t_84427a523b1982 32,37
+SECURITY.de.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 15
+doc/user-guide.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 576,580,644,653,655-657,676,700,707-708
+  s_095fa5b0e499bb::t_2c543e62031f38 570,572
+examples/skills/sipfunk-call/SKILL.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 10,45
+doc/user-guide.de.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 574,578,636,642,651,653-655,674,698,705-706
+  s_095fa5b0e499bb::t_b1dfc2af31e379 568,570
+examples/skills/sipfunk-anruf/SKILL.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 10-12,45
+SECURITY.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 15
+README.de.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 27
+public/index.html
+  s_095fa5b0e499bb::t_ff56b61a0752d6 2098-2099
+  s_095fa5b0e499bb::t_aea2d3a9267c61 690,2058-2059,2071,2077,2093-2094,2104-2105,2107,2109-2127
+src/ai/realtimeBridge.ts
+  s_095fa5b0e499bb::t_84427a523b1982 378-379,404-407,409-410,623-624,721-722,812-814,854
+doc/architecture.de.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 106
+  s_095fa5b0e499bb::t_d96de1591ef3f4 105
+src/main.ts
+  s_095fa5b0e499bb::t_37a767372024db 176-181,185,187-188,245
+  s_095fa5b0e499bb::t_ff56b61a0752d6 920
+  s_095fa5b0e499bb::t_84427a523b1982 420-427
+test/mcp.test.ts
+  s_095fa5b0e499bb::t_f4b4c7e7b73517 134-135,140-163,232-267,618,620,626-628,701-711
+  s_095fa5b0e499bb::t_84427a523b1982 268,579,581,629-682,712
+  s_095fa5b0e499bb::t_ad3e7eed201af9 269,713
+README.md
+  s_095fa5b0e499bb::t_a98bf8c71d3572 29
+src/settings.ts
+  s_095fa5b0e499bb::t_564401055e5df4 600-604
+src/web/server.ts
+  s_095fa5b0e499bb::t_364c78b2beae4d 65-66,166-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "07f666dbf0be150a5ee32aeba2bdfe066ac17625",
+  "prompts": {},
+  "sessions": {
+    "s_095fa5b0e499bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f018368-fbc7-40c8-8ede-eb5360356f6c",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
