@@ -1,0 +1,72 @@
+doc/legal.md
+  s_319bc174b0c320::t_49506153cac403 5,19,64,77,83-92,114,157-158,172,182,196,201,219
+README.md
+  s_319bc174b0c320::t_e6cfe97c1765cd 5,15,17,28,36,54,68-69,71,86,102-104,110-111,121,123
+doc/test-checklist.md
+  s_319bc174b0c320::t_14cd1be3178e8c 19-24,98-107
+.env.example
+  s_319bc174b0c320::t_14cd1be3178e8c 5,33,35-42,48-62,74,88-89,103,111-112
+scripts/capture-screenshots.cjs
+  s_319bc174b0c320::t_d5852e941fe4e1 24-27,126,135,225-229,232,234,236-238,241-247,254-256,300,330-331,348
+  s_319bc174b0c320::t_ba730afac29460 239-240,373-374
+doc/legal.de.md
+  s_319bc174b0c320::t_49506153cac403 3,17,62,75,81-90,112,155-156,170,180,194,199,217
+doc/guidelines.de.md
+  s_319bc174b0c320::t_95c7c268e9fa90 16,84-87
+CHANGELOG.de.md
+  s_319bc174b0c320::t_14cd1be3178e8c 9-12
+doc/architecture.md
+  s_319bc174b0c320::t_95c7c268e9fa90 15-17,20,28,34-40,65,71,75-89,98,102,120
+doc/user-guide.de.md
+  s_319bc174b0c320::t_366eb7209a4e67 15,22,24,29,42,74,78,84,93,106,133,145,172,176,207,209-211,215-227,230-252,255-261,268,422-423,446,456,462-463,472,555,562-563,576,580,583,586,588,594-598,600,616-618,621,635,637-638
+  s_319bc174b0c320::t_b6bd165f993268 228-229,253-254
+CONTRIBUTING.de.md
+  s_319bc174b0c320::t_14cd1be3178e8c 10
+doc/user-guide.md
+  s_319bc174b0c320::t_b72b54fb16090a 15,22,24,29,42,76,80,86,95,108,135,147,174,178,209,211-213,217-229,232-254,257-263,270,424-425,448,458,464-465,474,557,564-565,576,580,583,586,588,594-598,600,616-618,621,635,637-638
+  s_319bc174b0c320::t_63395a432fba38 230-231,255-256
+README.de.md
+  s_319bc174b0c320::t_e6cfe97c1765cd 5,13,15,26,34,52,66-67,69,84,100-102,108-109,119,121
+CONTRIBUTING.md
+  s_319bc174b0c320::t_14cd1be3178e8c 10
+doc/test-checklist.de.md
+  s_319bc174b0c320::t_14cd1be3178e8c 19-24,98-107
+src/mcp/server.ts
+  s_319bc174b0c320::t_4d9a0a2d384dbb 167
+package.json
+  s_319bc174b0c320::t_14cd1be3178e8c 4,14-15
+SECURITY.de.md
+  s_319bc174b0c320::t_b6bd165f993268 10,12-13,24
+src/callManager.ts
+  s_319bc174b0c320::t_4d9a0a2d384dbb 195,278
+CHANGELOG.md
+  s_319bc174b0c320::t_14cd1be3178e8c 9-12
+doc/guidelines.md
+  s_319bc174b0c320::t_95c7c268e9fa90 16,84-87
+.env.example.de
+  s_319bc174b0c320::t_14cd1be3178e8c 5,32,34-41,47-62,74,88-89,103,111-112
+SECURITY.md
+  s_319bc174b0c320::t_b6bd165f993268 10,12-13,24
+src/sim/simulate.ts
+  s_319bc174b0c320::t_4d9a0a2d384dbb 194-196
+doc/architecture.de.md
+  s_319bc174b0c320::t_95c7c268e9fa90 15-17,20,28,34-40,65,71,75-89,98,102,120
+public/index.html
+  s_319bc174b0c320::t_aec6003014a4c8 1396-1398,1418-1419
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3588e176d83e34a827c22252c2a229913a94bfb9",
+  "prompts": {},
+  "sessions": {
+    "s_319bc174b0c320": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62deeac4-aa32-48fb-9b58-ed6e0d447a42",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
