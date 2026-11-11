@@ -34,8 +34,8 @@ function installDir() {
   for (const hive of ['HKCU', 'HKLM']) {
     let out = '';
     try {
-      out = execFileSync('reg', ['query', `${hive}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall`, '/s'], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-    } catch { continue; }
+      out = execFileSync('reg', ['query', `${hive}\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall`, '/s', '/f', product, '/d'], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+    } catch { continue; } // kein Treffer
     for (const block of out.split(/\r?\n\r?\n/)) {
       if (!new RegExp(`^\\s+DisplayName\\s+REG_SZ\\s+${product}( |$)`, 'm').test(block)) continue;
       const m = /^\s+InstallLocation\s+REG_SZ\s+(.+)$/m.exec(block) || /^\s+DisplayIcon\s+REG_SZ\s+(.+?)\\[^\\]+\.exe/m.exec(block);
@@ -107,8 +107,8 @@ async function main() {
   if (args.includes('--setup')) return setupHooks(args.includes('--off'));
 
   if (args.includes('--hook')) {
-    // Nur auf main und nur, wenn es eine Installation gibt; dann im Hintergrund, damit Git nicht wartet
-    if (git('rev-parse', '--abbrev-ref', 'HEAD') !== 'main' || !installDir()) return;
+    // Nur auf main; alles Weitere im Hintergrund, damit Git nicht wartet
+    if (git('rev-parse', '--abbrev-ref', 'HEAD') !== 'main') return;
     mkdirSync(OUT, { recursive: true });
     const log = openSync(LOG, 'a');
     spawn(process.execPath, [fileURLToPath(import.meta.url)], { cwd: ROOT, detached: true, stdio: ['ignore', log, log], windowsHide: true }).unref();
