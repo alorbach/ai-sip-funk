@@ -96,6 +96,8 @@ export interface LiveEvents {
   /** Tool-Aufruf der KI; args als JSON-Text */
   toolCall(name: string, callId: string, args: string): void;
   responseDone(r: LiveResponseDone): void;
+  /** Verbrauch, den der Anbieter getrennt vom Ende einer Antwort meldet (wird aufsummiert) */
+  usage?(u: Usage): void;
   error(e: LiveError): void;
   /** Fehler der Verbindung selbst */
   socketError(message: string): void;

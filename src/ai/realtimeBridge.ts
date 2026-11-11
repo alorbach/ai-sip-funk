@@ -221,6 +221,7 @@ export class RealtimeBridge implements AudioHandler {
       speechStopped: () => this.onSpeechStopped(),
       toolCall: (name, callId, args) => this.onToolCall(name, callId, args),
       responseDone: (r) => this.onResponseDone(r),
+      usage: (u) => this.addUsage(u),
       error: (e) => this.onLiveError(e),
       socketError: (message) => {
         // Nach close() (z. B. Handler beim Umleiten ersetzt, Verbindung noch im Aufbau) geht der Fehler niemanden mehr an

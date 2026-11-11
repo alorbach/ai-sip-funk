@@ -1,8 +1,9 @@
 // Die KI-Anbieter, zwischen denen die Einstellungen wählen, und was aus Einstellungen und .env für ein Gespräch folgt.
+import { gemini } from './gemini.js';
 import { openai } from './openai.js';
 import type { AiProvider, ProviderId, TextModel } from './types.js';
 
-export const PROVIDERS: Record<ProviderId, AiProvider> = { openai } as Record<ProviderId, AiProvider>;
+export const PROVIDERS: Record<ProviderId, AiProvider> = { openai, gemini };
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS) as ProviderId[];
 
