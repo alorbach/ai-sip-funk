@@ -93,7 +93,8 @@ jobs:
       # The changelog is written by GitHub Copilot CLI from the commit subjects.
       # It needs a fine-grained PAT with the "Copilot Requests" permission in
       # the COPILOT_GITHUB_TOKEN secret; without it the release falls back to
-      # GitHub's generated notes.
+      # the section of this version in CHANGELOG.md, or to GitHub's generated
+      # notes if there is none.
       - name: Check Copilot token
         id: copilot_token
         shell: pwsh
@@ -102,7 +103,7 @@ jobs:
         run: |
           "available=$env:HAS_COPILOT_TOKEN" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           if ($env:HAS_COPILOT_TOKEN -ne 'true') {
-            Write-Host "::notice title=AI changelog skipped::COPILOT_GITHUB_TOKEN secret is not set; using GitHub auto-generated release notes."
+            Write-Host "::notice title=AI changelog skipped::COPILOT_GITHUB_TOKEN secret is not set; using the CHANGELOG.md section of this version, or GitHub auto-generated notes if there is none."
           }
 
       - name: Generate AI changelog
