@@ -1,0 +1,62 @@
+CHANGELOG.de.md
+  s_f828863347c33d::t_a8372325fa014d 9-13,23
+README.md
+  s_f828863347c33d::t_a8372325fa014d 58-64,70
+public/index.html
+  s_f828863347c33d::t_b3849360e1e553 483,2021
+doc/test-checklist.md
+  s_f828863347c33d::t_a8372325fa014d 105-108
+doc/user-guide.md
+  s_f828863347c33d::t_a8372325fa014d 102-103,108-112,114,506
+package.json
+  s_f828863347c33d::t_4e9d4344c72b28 3,80,94
+src/main.ts
+  s_f828863347c33d::t_cc9d3e5da1a9df 7,915
+CHANGELOG.md
+  s_f828863347c33d::t_a8372325fa014d 9-13,23
+doc/user-guide.de.md
+  s_f828863347c33d::t_a8372325fa014d 100-101,106-110,112,504
+doc/test-checklist.de.md
+  s_f828863347c33d::t_a8372325fa014d 105-108
+electron/main.cjs
+  s_f828863347c33d::t_f1e7fcaf5526fa 164
+  s_f828863347c33d::t_1adba45e939aae 61
+  s_f828863347c33d::t_a8298372f29172 123-151
+  s_f828863347c33d::t_19430b81d2d0e5 296
+build/installer.nsh
+  s_f828863347c33d::t_382e8624127072 1-21
+src/mcp/server.ts
+  s_f828863347c33d::t_cc9d3e5da1a9df 9,123
+CONTRIBUTING.de.md
+  s_f828863347c33d::t_09c1e78449253c 35
+  s_f828863347c33d::t_a8372325fa014d 37-38
+src/version.ts
+  s_f828863347c33d::t_afaca1970763b8 1-13
+CONTRIBUTING.md
+  s_f828863347c33d::t_a8372325fa014d 37-38
+  s_f828863347c33d::t_09c1e78449253c 35
+README.de.md
+  s_f828863347c33d::t_a8372325fa014d 56-62,68
+.github/workflows/ci.yml
+  s_f828863347c33d::t_40e9f8e8380854 17,20
+.github/workflows/release.yml
+  s_f828863347c33d::t_930658c050554c 20,72,128-130,177,199-208,214-216,242,246-247,249,294
+package-lock.json
+  s_f828863347c33d::t_21f8887ceb69b6 3,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ff4473a240c11ca7e65ba05f533af0d542abed9",
+  "prompts": {},
+  "sessions": {
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
