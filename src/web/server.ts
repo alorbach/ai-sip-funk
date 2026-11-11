@@ -59,6 +59,13 @@ export interface WebServerOptions {
     /** Vorschlag für SMTP-Server usw. aus der Adresse */
     autoconfig: (email: string) => Promise<unknown>;
   };
+  /** MCP-Schnittstelle für KI-Agenten: Zustand für die Oberfläche, Bestätigung einer Anfrage, Tool-Aufrufe (stdio-Prozess) und Streamable HTTP unter /mcp */
+  mcp?: {
+    info: () => Record<string, unknown>;
+    approve: (id: string, allow: boolean) => void;
+    run: (tool: string, args: Record<string, unknown>, client: string) => Promise<{ text: string; isError?: boolean }>;
+    http: (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void>;
+  };
   /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage) */
   bus: EventEmitter;
   store: TranscriptStore;
@@ -116,7 +123,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!localRequestAllowed(req.headers.host, req.headers.origin)) return sendJson(res, 403, { error: 'Nur lokal erreichbar' });
-    if (url.pathname.startsWith('/api/') && !apiFetchAllowed(req.headers['sec-fetch-site'] as string | undefined)) return sendJson(res, 403, { error: 'Nur von der eigenen Seite aufrufbar' });
+    if ((url.pathname.startsWith('/api/') || url.pathname === '/mcp') && !apiFetchAllowed(req.headers['sec-fetch-site'] as string | undefined)) return sendJson(res, 403, { error: 'Nur von der eigenen Seite aufrufbar' });
     try {
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         const html = await readFile(PUBLIC_DIR + 'index.html');
@@ -143,6 +150,27 @@ export function startWebServer(opts: WebServerOptions): () => void {
         if (!opts.ring) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const r = opts.ring.divert(rx[1] === 'trap' ? 'scam' : (rx[1] as 'answer' | 'skip'));
         return r.ok ? sendJson(res, 200, r) : sendJson(res, 409, { error: r.reason });
+      }
+      // MCP über Streamable HTTP: nur POST; ob die Schnittstelle eingeschaltet ist, prüft jedes Tool selbst
+      if (url.pathname === '/mcp') {
+        if (!opts.mcp) return sendJson(res, 404, { error: 'Nicht verfügbar' });
+        return await opts.mcp.http(req, res, req.method === 'POST' ? await readJson(req) : undefined);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/mcp') {
+        return sendJson(res, 200, opts.mcp ? opts.mcp.info() : { enabled: false });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/mcp/approve') {
+        if (!opts.mcp) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        const body = await readJson(req);
+        opts.mcp.approve(String(body.id ?? ''), body.allow === true);
+        return sendJson(res, 200, opts.mcp.info());
+      }
+      // Tool-Aufruf des stdio-Prozesses (mcp/server.ts); Erlaubnisse und Limits prüft das Gateway
+      if (req.method === 'POST' && url.pathname === '/api/mcp/call') {
+        if (!opts.mcp) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        const body = await readJson(req);
+        const args = body.args && typeof body.args === 'object' && !Array.isArray(body.args) ? (body.args as Record<string, unknown>) : {};
+        return sendJson(res, 200, await opts.mcp.run(String(body.tool ?? ''), args, typeof body.client === 'string' ? body.client : 'stdio'));
       }
       if (req.method === 'GET' && url.pathname === '/api/status') {
         return sendJson(res, 200, { status: manager.status(), modes: opts.modes, ...opts.uiData() });
@@ -295,8 +323,8 @@ export function startWebServer(opts: WebServerOptions): () => void {
         const mode = String(body.mode ?? 'tone');
         // Erst prüfen, dann den Handler erzeugen: Ein KI-Handler setzt das laufende Protokoll zurück und öffnet eine Verbindung
         manager.checkDial(String(body.target ?? ''));
-        // Interne Schalter (Anrufbeantworter, Spam-Rolle, Rückruf mit Vermittlung) sind über die API nicht setzbar
-        for (const k of ['incoming', 'scam', 'scamAllowed', 'notifyCall', 'transferTo', 'called', 'principalKind', 'familyMembers']) delete body[k];
+        // Interne Schalter (Anrufbeantworter, Spam-Rolle, Rückruf mit Vermittlung, Agenten-Anruf) sind über die API nicht setzbar
+        for (const k of ['incoming', 'scam', 'scamAllowed', 'notifyCall', 'transferTo', 'called', 'principalKind', 'familyMembers', 'mcp', 'maxSeconds']) delete body[k];
         const handler = opts.createHandler(mode, body);
         try {
           manager.dial(String(body.target ?? ''), mode, handler);
@@ -312,6 +340,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       sendJson(res, 404, { error: `Unbekannt: ${req.method} ${url.pathname}` });
     } catch (err) {
+      if (res.headersSent) return void res.end();
       sendJson(res, 400, { error: (err as Error).message });
     }
   });

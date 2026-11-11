@@ -9,6 +9,7 @@ import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
+import { AGENT_END_NOTE, ASK_NO_ANSWER, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
 import { EMPTY_USAGE, type LiveConfig, type LiveError, type LiveEvents, type LiveResponseDone, type LiveSession, type Usage } from './providers/types.js';
@@ -75,6 +76,8 @@ export interface RealtimeBridgeOptions {
   onTransfer?: () => Promise<{ ok: boolean; reason: string }>;
   /** Spam-Abwehr (Tool flag_spam): liefert die neuen Anweisungen, mit denen das Gespräch weitergeht */
   onFlagSpam?: (reason: string) => string;
+  /** Anruf eines KI-Agenten (MCP): Die KI darf per Tool ask_principal beim Agenten nachfragen; hier kommt die Frage an */
+  onAskAgent?: (question: string) => void;
   onError: (message: string) => void;
   /** Gespräch ist angenommen (z. B. Start des Spam-Zeitlimits) */
   onConnected?: () => void;
@@ -195,6 +198,10 @@ export class RealtimeBridge implements AudioHandler {
   private farewellItemId?: string;
   /** true ab transfer_call, bis die Vermittlung gescheitert ist: Der Stillstandswächter schweigt so lange */
   private transferring = false;
+  /** Offene Rückfrage an den Agenten (Tool ask_principal): Bis zur Antwort oder zum Ablauf der Frist schweigt der Stillstandswächter */
+  private ask?: { callId: string; timer: NodeJS.Timeout };
+  /** Eine Antwort ist gewünscht (Regieanweisung, beantwortete Rückfrage), aber die KI spricht gerade: nach ihrer Antwort anfordern */
+  private pendingRespond = false;
 
   constructor(private opts: RealtimeBridgeOptions) {
     const config: LiveConfig = {
@@ -202,7 +209,7 @@ export class RealtimeBridge implements AudioHandler {
       model: opts.model,
       instructions: opts.instructions,
       voice: opts.voice,
-      tools: [END_CALL_TOOL, ...(opts.onTransfer ? [TRANSFER_CALL_TOOL] : []), ...(opts.onFlagSpam ? [FLAG_SPAM_TOOL] : [])],
+      tools: [END_CALL_TOOL, ...(opts.onTransfer ? [TRANSFER_CALL_TOOL] : []), ...(opts.onFlagSpam ? [FLAG_SPAM_TOOL] : []), ...(opts.onAskAgent ? [ASK_PRINCIPAL_TOOL] : [])],
       allowInterrupt: opts.allowInterrupt,
       vadSilenceMs: opts.vadSilenceMs,
       vadThreshold: opts.vadThreshold ?? 0.6,
@@ -340,6 +347,65 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(this.stallTimer);
     if (this.hold) clearTimeout(this.hold.timer);
     this.hold = undefined;
+    if (this.ask) clearTimeout(this.ask.timer);
+    this.ask = undefined;
+  }
+
+  // ---- Steuerung durch einen KI-Agenten (MCP) ----
+
+  /**
+   * Der Agent gibt vor, was dem Gegenüber gesagt werden soll. Wartet die KI auf die Antwort einer Rückfrage, ist das
+   * die Antwort; sonst kommt der Text als Regieanweisung in den Gesprächsverlauf. `now` fordert sofort eine Antwort an
+   * (bzw. gleich nach der laufenden); ohne `now` setzt die KI die Anweisung um, wenn sie das nächste Mal spricht.
+   */
+  agentSay(text: string, now = false): 'answered' | 'now' | 'next' | 'ending' | 'closed' {
+    if (this.closed) return 'closed';
+    if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
+    if (this.ask) {
+      this.resolveAsk(askAnswer(text));
+      return 'answered';
+    }
+    this.live.note(agentNote(text));
+    if (!now) return 'next';
+    this.requestRespond('Regieanweisung des Agenten');
+    return 'now';
+  }
+
+  /** Der Agent möchte das Gespräch höflich beenden: Die KI ruft end_call auf und verabschiedet sich wie sonst auch. */
+  agentEnd(): 'ending' | 'closed' {
+    if (this.closed) return 'closed';
+    if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
+    if (this.ask) this.resolveAsk(AGENT_END_NOTE);
+    else {
+      this.live.note(AGENT_END_NOTE);
+      this.requestRespond('Beenden durch den Agenten');
+    }
+    return 'ending';
+  }
+
+  /** Rückfrage abschließen: Das Ergebnis geht an das Modell, das danach weiterspricht. */
+  private resolveAsk(output: string): void {
+    const ask = this.ask;
+    if (!ask) return;
+    clearTimeout(ask.timer);
+    this.ask = undefined;
+    this.live.toolOutput(ask.callId, ASK_PRINCIPAL_TOOL.name, output);
+    this.requestRespond('Antwort auf die Rückfrage');
+  }
+
+  /**
+   * Antwort anfordern, ohne einer laufenden ins Wort zu fallen: Spricht die KI gerade, folgt die Anforderung nach ihrer
+   * Antwort; spricht das Gegenüber, erzeugt der Anbieter nach dessen Satzende ohnehin eine.
+   */
+  private requestRespond(label: string): void {
+    if (this.closed || this.endRequested !== undefined || this.goodbye !== 'none') return;
+    if (this.partnerSpeaking) return;
+    if (this.activeResponse) {
+      this.pendingRespond = true;
+      return;
+    }
+    this.live.respond();
+    this.audioExpected(true, label);
   }
 
   close(): void {
@@ -428,6 +494,8 @@ export class RealtimeBridge implements AudioHandler {
 
   private onSpeechStarted(itemId?: string): void {
     this.partnerSpeaking = true;
+    // Das Gegenüber redet: Die Antwort darauf entsteht von selbst und kennt die Regieanweisung schon
+    this.pendingRespond = false;
     this.muteNoiseResponse = false;
     this.muteReplyUntil = 0;
     clearTimeout(this.rejectTimer);
@@ -543,6 +611,10 @@ export class RealtimeBridge implements AudioHandler {
       this.live.deleteItem(id);
     }
     this.droppedItems = [];
+    if (this.pendingRespond) {
+      this.pendingRespond = false;
+      this.requestRespond('Regieanweisung des Agenten');
+    }
     if (!this.playing && this.outQueue.length === 0) this.armStall();
     if (r.status === 'failed') {
       log.error('Realtime-Antwort fehlgeschlagen:', JSON.stringify(r.statusDetails));
@@ -579,11 +651,11 @@ export class RealtimeBridge implements AudioHandler {
   private armStall(): void {
     if (!this.opts.stallMs || this.closed || !this.connected) return;
     if (this.activeResponse || this.partnerSpeaking || this.goodbye !== 'none' || this.endRequested !== undefined) return;
-    if (this.greetingResponse || this.followUpTimer || this.rejectTimer || this.awaitingAudioSince || this.transferring) return;
+    if (this.greetingResponse || this.followUpTimer || this.rejectTimer || this.awaitingAudioSince || this.transferring || this.ask) return;
     if (this.stallTimer) return;
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;
-      if (this.closed || this.activeResponse || this.partnerSpeaking || this.transferring || this.goodbye !== 'none' || this.endRequested !== undefined) return;
+      if (this.closed || this.activeResponse || this.partnerSpeaking || this.transferring || this.ask || this.goodbye !== 'none' || this.endRequested !== undefined) return;
       if (this.stallNudges >= STALL_MAX_NUDGES) {
         log.warn(`Realtime: Stillstand hält an (${this.stallNudges}x angestoßen, Gegenüber schweigt) – kein weiterer Anstoß`);
         return;
@@ -708,6 +780,37 @@ export class RealtimeBridge implements AudioHandler {
       this.transferCall(callId).catch((err) => log.error(`Vermittlung: ${(err as Error).message}`));
       return;
     }
+    if (name === ASK_PRINCIPAL_TOOL.name && this.opts.onAskAgent) {
+      let question = '';
+      try {
+        question = String((JSON.parse(args) as { frage?: string }).frage ?? '').trim();
+      } catch {
+        // ohne lesbare Frage gibt es nichts zu fragen
+      }
+      if (!question) {
+        this.live.toolOutput(callId, name, 'Die Frage fehlt. Stell sie in einem Satz oder mach ohne Rückfrage weiter.');
+        this.requestRespond('leere Rückfrage');
+        return;
+      }
+      // Eine neue Rückfrage ersetzt die offene (ein Anbieter, der auf Tool-Ergebnisse wartet, braucht für jede eine Antwort)
+      if (this.ask) {
+        clearTimeout(this.ask.timer);
+        this.live.toolOutput(this.ask.callId, name, ASK_REPLACED);
+      }
+      log.info('Realtime: ask_principal – Rückfrage an den Agenten, warte auf die Antwort');
+      clearTimeout(this.stallTimer);
+      this.stallTimer = undefined;
+      const timer = setTimeout(() => {
+        log.warn(`Realtime: Rückfrage blieb ${ASK_TIMEOUT_MS} ms ohne Antwort des Agenten – KI macht ohne weiter`);
+        this.opts.onTranscript({ speaker: 'system', text: 'Rückfrage an den Agenten blieb ohne Antwort', final: true });
+        this.resolveAsk(ASK_NO_ANSWER);
+      }, ASK_TIMEOUT_MS);
+      timer.unref();
+      this.ask = { callId, timer };
+      this.opts.onTranscript({ speaker: 'system', text: `Rückfrage an den Agenten: ${question}`, final: true });
+      this.opts.onAskAgent(question);
+      return;
+    }
     if (name !== 'end_call') {
       this.live.toolOutput(callId, name, 'Unbekannte Funktion');
       return;
@@ -758,6 +861,12 @@ export class RealtimeBridge implements AudioHandler {
       this.live.toolOutput(callId, name, endCallCheckInstruction(this.planSteps));
       this.live.respond();
       return;
+    }
+    if (this.ask) {
+      // Das Gespräch endet: Die offene Rückfrage braucht keine Antwort mehr
+      clearTimeout(this.ask.timer);
+      if (this.live.toolCallsBlock) this.live.toolOutput(this.ask.callId, ASK_PRINCIPAL_TOOL.name, 'ok');
+      this.ask = undefined;
     }
     const reason = outcome.open ? 'KI hat beendet, Auftrag teilweise offen' : 'KI hat das Gespräch beendet';
     log.info(`Realtime: end_call – Ergebnis: ${outcome.result || '–'}${outcome.open ? ` · offen: ${outcome.open}` : ''}; fordere Verabschiedung an`);

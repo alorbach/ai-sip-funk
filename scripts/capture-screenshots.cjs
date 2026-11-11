@@ -158,6 +158,7 @@ function writeDemoData(webPort) {
     scamName: 'Robin',
     scamNumbers: 'anonym\n030 23125 9',
     retentionDays: '7',
+    mcpEnabled: 'on',
   }, null, 2) + '\n');
 
   const now = new Date().toISOString();
@@ -168,6 +169,7 @@ function writeDemoData(webPort) {
     contact('demo03', 'Erika Mustermann', '0171 3920034', { address: 'du', persona: 'herzlich' }),
     contact('demo04', 'Schornsteinfeger Beispiel', '030 23125 455', { address: 'sie', notes: 'Termin im Frühjahr' }),
     contact('demo05', 'Autowerkstatt Muster GmbH', '030 23125 620', { address: 'sie', persona: 'locker' }),
+    contact('demo06', 'Restaurant Sonne', '030 23125 410', { address: 'sie' }),
   ], null, 2) + '\n');
 
   const records = [
@@ -337,6 +339,9 @@ const SHOTS = [
   { name: 'settings-provider-gemini', hash: 'settings', mode: 'easy', height: 1100, section: 'settings-provider', connection: 'gemini', bottom: true },
   { name: 'settings-incoming', hash: 'settings', mode: 'easy', height: 900, section: 'settings-incoming' },
   { name: 'settings-scam', hash: 'settings', mode: 'advanced', height: 900, section: 'settings-scam' },
+  { name: 'settings-mcp', hash: 'settings', mode: 'easy', height: 980, section: 'settings-mcp' },
+  // Anfrage eines Agenten, wie sie der Bestätigungsdialog zeigt (erfundene Daten, es wird nichts gewählt)
+  { name: 'mcp-confirm', hash: 'dashboard', mode: 'easy', height: 760, after: `renderMcp({ pending: { id: 'demo', number: '03023125410', contact: 'Restaurant Sonne', principal: 'Max Mustermann', task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.' } })` },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },
 ];
 

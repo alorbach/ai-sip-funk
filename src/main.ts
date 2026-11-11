@@ -12,7 +12,10 @@ import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
-import { incomingFrom, incomingOverride, loadSettings, saveSettings, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { McpGateway, type AgentCallControl } from './mcp/gateway.js';
+import { handleMcpHttp } from './mcp/http.js';
+import { existsSync } from 'node:fs';
+import { mcpPolicyFrom, incomingFrom, incomingOverride, loadSettings, saveSettings, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -117,7 +120,7 @@ const modes = [
 /** Laufendes KI-Gespräch: Transkript, Usage und Metadaten fürs Protokoll. */
 let transcript: TranscriptEntry[] = [];
 let current:
-  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; provider: ProviderId; ask: TextModel; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean }
+  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; provider: ProviderId; ask: TextModel; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean; origin?: 'mcp' }
   | undefined;
 /** Zeitlimit der Spam-Abwehr (läuft ab Umschalten bzw. Annahme) */
 let spamTimer: NodeJS.Timeout | undefined;
@@ -185,7 +188,7 @@ ${last.summary}`);
   return parts.join('\n\n');
 }
 
-function createAiHandler(params: Record<string, unknown>): AudioHandler {
+function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
   const active = ai();
   const { provider } = active;
   const apiKey = needKey('Das KI-Gespräch');
@@ -199,9 +202,15 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
       if (!str(k) && contact[k]) params[k] = contact[k];
     }
   }
+  const incoming = params.incoming === true;
+  // Anruf eines KI-Agenten (MCP): Stil und Anrede kommen vom Agenten, sonst vom Kontakt, sonst aus den Einstellungen
+  const mcp = params.mcp === true && !incoming;
+  if (mcp) {
+    const base = loadSettings();
+    for (const k of ['persona', 'address'] as const) if (!str(k)) params[k] = base[k];
+  }
   const persona = personas.find((p) => p.id === str('persona')) ?? personas[0];
   if (!persona) throw new Error('Keine Persona-Dateien in personas/ gefunden');
-  const incoming = params.incoming === true;
   const scam = incoming && params.scam === true;
   // Modell und Verhalten: Nennt der Aufrufer nichts (z. B. ein Anruf über MCP), gelten die gespeicherten Einstellungen
   const saved = loadSettings();
@@ -233,7 +242,9 @@ function createAiHandler(params: Record<string, unknown>): AudioHandler {
     owner,
     // Rückrufnummer: der Inhaber-Kontakt, sofern wir nicht gerade ihn selbst anrufen
     callbackNumber: isOwnerNumber(str('target')) ? undefined : (contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0]),
-    maxCallSeconds: t.maxCallSeconds,
+    agent: mcp,
+    // Ein Agenten-Anruf kann kürzer begrenzt sein als das allgemeine Gesprächslimit
+    maxCallSeconds: mcp && typeof params.maxSeconds === 'number' ? Math.min(t.maxCallSeconds, params.maxSeconds) : t.maxCallSeconds,
   };
   const instructions = buildInstructions(input);
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
@@ -258,6 +269,7 @@ ${input.context}` : input.task,
     persona: { stil: persona.label, stimme: voice, anrede: input.formal ? 'Sie' : 'Du', name: input.aiName, auftraggeber: input.principalName },
     incoming: incoming ? { caller: str('target'), called: str('called'), principal: input.principalName } : undefined,
     notify: params.notifyCall === true || undefined,
+    origin: mcp ? 'mcp' : undefined,
   };
   bus.emit('message', { type: 'transcript', entries: transcript });
   bus.emit('message', { type: 'summary', text: '' });
@@ -298,6 +310,7 @@ ${input.context}` : input.task,
       if (last && !last.final && last.speaker === entry.speaker) transcript[transcript.length - 1] = entry;
       else transcript.push(entry);
       bus.emit('message', { type: 'transcript', entries: transcript });
+      if (mcp) gateway.transcript(entry);
     },
     onUsage: (usage: Usage) => {
       if (current) current.usage = usage;
@@ -320,6 +333,8 @@ ${input.context}` : input.task,
             return startScam(s, str('target'), voice, provider.maleVoices);
           }
         : undefined,
+    // Agenten-Anruf: Die KI darf beim Agenten nachfragen (Tool ask_principal)
+    onAskAgent: mcp ? (question) => gateway.question(question) : undefined,
     onConnected: scam ? () => armSpamLimit(loadSettings()) : undefined,
     onError: (message) => {
       bus.emit('message', { type: 'aiError', message });
@@ -371,6 +386,7 @@ manager.on('callEnded', (reason: string) => {
     // Nie verbunden (nicht abgenommen, besetzt, abgelehnt): kein leeres Protokoll anlegen
     log.info(`Kein Protokoll: Gespräch kam nicht zustande (${reason})`);
     bus.emit('message', { type: 'summary', text: '' });
+    if (c.origin === 'mcp') gateway.callEnded(reason);
     return;
   }
   const record: CallRecord = {
@@ -394,8 +410,10 @@ manager.on('callEnded', (reason: string) => {
     spam: c.spam || undefined,
     called: c.incoming?.called || undefined,
     notify: c.notify,
+    origin: c.origin,
   };
   store.save(record);
+  if (c.origin === 'mcp') gateway.callEnded(reason, record.id);
   try {
     usageCounter.add(c.provider, record.durationSec, record.costUsd ?? 0, c.startedAt);
   } catch (err) {
@@ -419,6 +437,54 @@ manager.on('callEnded', (reason: string) => {
       if (c.incoming) notifyAfterIncoming(record, c.incoming, c).catch((e) => log.error(`Benachrichtigung: ${(e as Error).message}`));
     });
 });
+
+// ---- MCP-Schnittstelle: Ein KI-Agent löst Anrufe aus, liest mit und gibt Vorgaben (Erlaubnisse siehe mcp/gateway.ts) ----
+const gateway: McpGateway = new McpGateway({
+  policy: () => mcpPolicyFrom(loadSettings()),
+  principal: () => loadSettings().principal,
+  contacts: () => contacts.list().map((c) => ({ name: c.name, number: c.number })),
+  findContact: (number) => contacts.findByNumber(number),
+  prepare: (target) => manager.prepare(target),
+  line: () => {
+    const st = manager.status();
+    return { phase: st.phase, registered: st.registered, maxCallSeconds: st.maxCallSeconds };
+  },
+  dial: (number, p): AgentCallControl => {
+    // Erst prüfen, dann den Handler erzeugen: createAiHandler setzt Protokoll und Transkript zurück und öffnet die Verbindung
+    manager.checkDial(number);
+    const s = loadSettings();
+    // Name der KI und zusätzliche Hinweise kommen immer aus den Einstellungen des Betreibers, nie vom Agenten
+    const bridge = createAiHandler({ target: number, task: p.task, context: p.context, principal: p.principal, address: p.address ?? '', persona: p.persona ?? '', aiName: s.aiName, personaExtra: s.personaExtra, mcp: true, maxSeconds: p.maxSeconds });
+    try {
+      manager.dial(number, 'ai', bridge);
+    } catch (err) {
+      bridge.close();
+      throw err;
+    }
+    return { say: (text, now) => bridge.agentSay(text, now), end: () => bridge.agentEnd() };
+  },
+  hangup: (reason) => manager.hangup(reason),
+  records: store,
+  publish: (info) => bus.emit('message', info),
+  notify: (title, body) => trayNotice(title, body),
+});
+manager.on('status', (s: { phase: string }) => gateway.linePhase(s.phase));
+
+/** Wie ein Agent den MCP-Server erreicht: Adresse für Streamable HTTP und der Befehl für den stdio-Prozess (für die Schnipsel der Oberfläche). */
+function mcpConnect(): Record<string, unknown> {
+  const url = `http://127.0.0.1:${config.webPort}`;
+  const built = fileURLToPath(new URL('./mcp/server.js', import.meta.url));
+  const source = fileURLToPath(new URL('./mcp/server.ts', import.meta.url));
+  // Aus dem Quelltext gestartet (npm start): über tsx; gebaut oder installiert: mit dem eigenen Programm als Node
+  const fromSource = !existsSync(built) && existsSync(source);
+  const env: Record<string, string> = { SIPFUNK_URL: url };
+  if (!fromSource && process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1';
+  return {
+    httpUrl: `${url}/mcp`,
+    stdio: fromSource ? { command: 'npx', args: ['tsx', source], env } : { command: process.execPath, args: [built], env },
+    packaged: Boolean(process.versions.electron) && !fromSource,
+  };
+}
 
 /** Tray-Hinweis an die Tray-App (electron/main.cjs), falls wir als Kindprozess laufen. */
 function trayNotice(title: string, body: string): void {
@@ -894,6 +960,12 @@ const stopWeb = startWebServer({
     return state as unknown as Record<string, unknown>;
   },
   setup: { status: setupStatus, saveSip, saveAiKey },
+  mcp: {
+    info: () => ({ ...gateway.info(), connect: mcpConnect() }),
+    approve: (id, allow) => gateway.approve(id, allow),
+    run: (tool, args, client) => gateway.run(tool, args, client),
+    http: (req, res, body) => handleMcpHttp(req, res, body, (tool, args) => gateway.run(tool, args, String(req.headers['user-agent'] ?? 'http'))),
+  },
   ai: {
     test: async (id) => {
       const connection = connectionById(id);

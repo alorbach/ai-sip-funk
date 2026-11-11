@@ -280,6 +280,10 @@
   dialog h3 { margin: 0 0 4px; font-size: 17px; }
   dialog .body { padding: 14px 20px; display: grid; gap: 12px; }
   dialog .foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .snippet { position: relative; margin-top: 8px; }
+  .snippet pre { margin: 0; padding: 12px 14px; padding-right: 96px; border-radius: var(--radius-s); background: var(--surface-2); border: 1px solid var(--line); font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); min-height: 44px; }
+  .snippet .btn { position: absolute; top: 8px; right: 8px; }
+  .mcp-task { margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-s); background: var(--surface-2); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }
   .confirm-num { font-size: 30px; font-weight: 700; letter-spacing: .03em; margin: 6px 0 2px; overflow-wrap: anywhere; }
   .field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 500; color: var(--text-2); }
   .linkish { border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; padding: 0 2px; min-height: 20px; }
@@ -490,6 +494,7 @@
         <button type="button" data-section="settings-notify">Benachrichtigungen</button>
         <button type="button" data-section="settings-mail">E-Mail-Versand</button>
         <button type="button" data-section="settings-scam">Spam-Abwehr</button>
+        <button type="button" data-section="settings-mcp">MCP-Schnittstelle</button>
         <button type="button" data-section="settings-tech" class="adv">Technik</button>
         <div class="save">
           <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
@@ -663,6 +668,31 @@
           </div>
         </section>
 
+        <section class="card" id="settings-mcp">
+          <div class="head"><h2>MCP-Schnittstelle</h2><span class="hint" id="mcp-status" role="status"></span></div>
+          <div class="body">
+            <p class="hint" style="margin:0 0 12px">Über die MCP-Schnittstelle kann ein KI-Agent wie Codex, Claude Code oder Claude Desktop für dich telefonieren: Er startet einen Anruf mit einem Auftrag, liest mit, was gesagt wird, und kann der KI am Telefon Vorgaben machen. Die KI stellt sich dabei immer als KI vor.</p>
+            <div class="grid c2">
+              <label class="switch span"><span>KI-Agenten dürfen über MCP telefonieren<small>Ausgeschaltet lehnt SIPFunk jeden Zugriff eines Agenten ab.</small></span><input type="checkbox" id="p-mcp" role="switch"></label>
+              <label class="field"><span>Wen ein Agent anrufen darf</span><select id="p-mcp-targets"><option value="contacts">Nur gespeicherte Kontakte</option><option value="any">Kontakte und jede erlaubte Nummer</option></select><small>Notruf, Sonder- und Auslandsnummern bleiben immer gesperrt.</small></label>
+              <label class="field"><span>Vor dem Wählen bei mir nachfragen</span><select id="p-mcp-confirm"><option value="always">Immer</option><option value="unknown">Nur bei Nummern ohne Kontakt</option><option value="never">Nie</option></select><small>Die Anfrage erscheint hier und als Hinweis der Tray-App; ohne Antwort verfällt sie nach zwei Minuten.</small></label>
+              <label class="field"><span>Höchstens … Anrufe je Stunde</span><input id="p-mcp-hour" type="number" min="1" max="60" value="10"></label>
+              <label class="field"><span>Höchstens … Anrufe je Tag</span><input id="p-mcp-day" type="number" min="1" max="500" value="30"></label>
+              <label class="field"><span>Höchstdauer je Anruf (Minuten)</span><input id="p-mcp-minutes" type="number" min="1" max="60" value="10"><small>Nie länger als das allgemeine Gesprächslimit.</small></label>
+              <label class="field adv"><span>Protokolle, die ein Agent lesen darf</span><select id="p-mcp-history"><option value="own">Nur Anrufe, die über MCP gestartet wurden</option><option value="all">Alle Protokolle</option></select></label>
+              <label class="switch span adv"><span>Agent darf die Namen meiner Kontakte lesen<small>Rufnummern und Notizen bekommt er nie. Einen Kontakt anrufen kann er auch ohne diese Liste, wenn er den Namen kennt.</small></span><input type="checkbox" id="p-mcp-contacts" role="switch"></label>
+            </div>
+            <div class="subhead" style="margin-top:18px">Agenten verbinden</div>
+            <div class="actions" style="margin-top:8px">
+              <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Agent</span><select id="mcp-agent" style="width:auto" data-no-i18n><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="claude-desktop">Claude Desktop</option></select></label>
+              <label class="field adv" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Verbindung</span><select id="mcp-transport" style="width:auto"><option value="http">Direkt über HTTP</option><option value="stdio">Als Prozess (stdio)</option></select></label>
+            </div>
+            <div class="snippet"><pre id="mcp-snippet" data-no-i18n tabindex="0" aria-label="Konfiguration"></pre><button type="button" id="mcp-copy" class="btn small">Kopieren</button></div>
+            <p class="hint" id="mcp-where" style="margin-top:8px"></p>
+            <p class="hint" style="margin-top:12px">SIPFunk muss laufen, damit der Agent es erreicht. Die Schnittstelle ist nur von diesem Rechner aus erreichbar. Für jeden Anruf, den ein Agent auslöst, bleibst du verantwortlich: Lass ihn nur Menschen anrufen, die damit einverstanden sind, und keine Werbeanrufe führen. Mehr dazu im Handbuch, Kapitel „MCP-Schnittstelle“.</p>
+          </div>
+        </section>
+
         <section class="card adv" id="settings-tech">
           <div class="head"><h2>Technik</h2></div>
           <div class="body">
@@ -787,6 +817,19 @@
   </div>
 </dialog>
 
+<dialog id="mcp-confirm" aria-labelledby="mcp-confirm-title">
+  <div class="head"><h3 id="mcp-confirm-title">Ein KI-Agent möchte anrufen</h3></div>
+  <div class="body">
+    <div class="confirm-num" id="mcp-confirm-who" data-no-i18n></div>
+    <div class="hint" id="mcp-confirm-meta"></div>
+    <p class="mcp-task" id="mcp-confirm-task" data-no-i18n></p>
+  </div>
+  <div class="foot">
+    <button id="mcp-confirm-no" class="btn quiet">Ablehnen</button>
+    <button id="mcp-confirm-yes" class="btn primary">Anrufen</button>
+  </div>
+</dialog>
+
 <dialog id="ask" aria-labelledby="ask-title">
   <div class="head"><h3 id="ask-title"></h3></div>
   <div class="body"><p class="hint" id="ask-text" style="font-size:14px;color:var(--text)"></p></div>
@@ -867,6 +910,7 @@ const FORM_FIELDS = {
   notifyTray: 'p-notify-tray', notifyEmail: 'p-notify-email', notifyCall: 'p-notify-call',
   scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
+  mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history',
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
@@ -1039,7 +1083,7 @@ function callRow(c, compact) {
   const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0; d.setAttribute('role', 'button');
   if (c.id === selectedCallId && !compact) d.setAttribute('aria-current', 'true');
   const sum = ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
-  const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
+  const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${c.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
   d.innerHTML = `<div class="t">${nameHtml(contact, c.target)}${pills}</div>
     <div class="m">${esc(when(c.startedAt))} · ${fmt(c.durationSec)}</div>
     <div class="s" data-no-i18n>${esc(sum || c.endReason)}</div>`;
@@ -1080,7 +1124,7 @@ async function showCall(id) {
   const r = await api('/api/transcripts/' + encodeURIComponent(id));
   selectedCallId = id;
   const contact = contactFor(r.target);
-  const pills = `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}`;
+  const pills = `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${r.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
   $('call-detail-head').innerHTML = `<div class="t">${nameHtml(contact, r.target)}${contact ? ` <span class="hint" data-no-i18n>${esc(r.target)}</span>` : ''}${pills}</div>
     <div class="m" data-no-i18n>${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.endReason)}${r.called ? ' · ' + esc(r.called) : ''}</div>
     ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> <span data-no-i18n>${esc(r.outcome.result)}${r.outcome.open ? ' · ' + esc(r.outcome.open) : ''}</span></div>` : ''}`;
@@ -1361,7 +1405,7 @@ function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`); ws.binaryType = 'arraybuffer';
   ws.onopen = () => {
     // Nach einer Unterbrechung (Server neu gestartet) kann sich alles geändert haben
-    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); }
+    if (wsWasDown) { refreshCalls().catch(() => {}); refreshContacts().catch(() => {}); loadMcp(); }
     wsWasDown = false;
   };
   ws.onmessage = (ev) => {
@@ -1374,6 +1418,7 @@ function connect() {
     else if (msg.type === 'summary') renderSummary(msg.text);
     else if (msg.type === 'transcripts') { refreshCalls().catch(() => {}); loadMonthUsage(false); }
     else if (msg.type === 'ring') { ringState = msg.ring; render(); }
+    else if (msg.type === 'mcp') renderMcp(msg);
     else if (msg.type === 'aiError') addLog({ time: '', level: 'error', text: 'KI: ' + msg.message });
   };
   ws.onclose = () => { wsWasDown = true; $('regtext').textContent = 'SIPFunk läuft nicht – neuer Versuch …'; $('regdot').className = 'dot off'; $('brand').classList.remove('on'); setTimeout(connect, 2000); };
@@ -1401,6 +1446,7 @@ async function saveKeys(keys) {
   const hadPass = Boolean(loaded.smtpPass);
   const saved = await api('/api/settings', changedFields(keys));
   applySettings(saved, keys);
+  if (keys.includes('mcpEnabled')) loadMcp();
   // Der Server verwirft das gespeicherte Mail-Passwort, wenn nur die Serveradresse geändert wurde
   if (hadPass && !saved.smtpPass && keys.includes('smtpHost')) toast('Der Mailserver wurde geändert. Bitte das Passwort des Postfachs neu eingeben und speichern.', 'warn');
   return saved;
@@ -2005,6 +2051,69 @@ $('su-test').onclick = async () => {
   $('prepare').click();
 };
 
+// ---- MCP-Schnittstelle: Zustand, Anfrage eines Agenten bestätigen, Konfiguration zum Kopieren ----
+let mcp = { enabled: false, lastAccess: null, pending: null, call: null, connect: null };
+/** TOML-Text ohne Maskierung (Windows-Pfade enthalten Backslashes) */
+const tomlStr = (v) => (v.includes("'") ? JSON.stringify(v) : `'${v}'`);
+const shellArg = (v) => (/[\s"]/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
+function mcpSnippet() {
+  const c = mcp.connect;
+  if (!c) return { text: '', where: '' };
+  const agent = $('mcp-agent').value;
+  // Claude Desktop startet lokale Server nur als Prozess
+  const http = agent !== 'claude-desktop' && $('mcp-transport').value === 'http';
+  $('mcp-transport').disabled = agent === 'claude-desktop';
+  const env = Object.entries(c.stdio.env);
+  if (agent === 'codex') {
+    const text = http
+      ? `[mcp_servers.sipfunk]\nurl = "${c.httpUrl}"\ntool_timeout_sec = 120`
+      : `[mcp_servers.sipfunk]\ncommand = ${tomlStr(c.stdio.command)}\nargs = [${c.stdio.args.map(tomlStr).join(', ')}]\ntool_timeout_sec = 120\n\n[mcp_servers.sipfunk.env]\n${env.map(([k, v]) => `${k} = "${v}"`).join('\n')}`;
+    return { text, where: 'In die Datei ~/.codex/config.toml einfügen (unter Windows im Benutzerordner) und Codex neu starten.' };
+  }
+  if (agent === 'claude-code') {
+    const text = http
+      ? `claude mcp add --transport http sipfunk ${c.httpUrl}`
+      : `claude mcp add ${env.map(([k, v]) => `--env ${k}=${v}`).join(' ')} --transport stdio sipfunk -- ${[c.stdio.command, ...c.stdio.args].map(shellArg).join(' ')}`;
+    return { text, where: 'Im Terminal ausführen. Mit „--scope user“ gilt die Verbindung für alle Projekte.' };
+  }
+  return {
+    text: JSON.stringify({ mcpServers: { sipfunk: { command: c.stdio.command, args: c.stdio.args, env: c.stdio.env } } }, null, 2),
+    where: 'In die Datei claude_desktop_config.json eintragen (Claude Desktop: Einstellungen › Entwickler › Konfiguration bearbeiten) und Claude Desktop neu starten. Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.',
+  };
+}
+function renderMcp(info) {
+  mcp = { ...mcp, ...info };
+  const last = mcp.lastAccess;
+  $('mcp-status').textContent = !mcp.enabled ? 'Ausgeschaltet' : last ? I18N.t('Eingeschaltet · letzter Zugriff {0}', when(last.at)) : 'Eingeschaltet · noch kein Zugriff';
+  const snip = mcpSnippet();
+  $('mcp-snippet').textContent = snip.text;
+  $('mcp-where').textContent = snip.where;
+  const p = mcp.pending, dlg = $('mcp-confirm');
+  if (!p) { if (dlg.open) dlg.close(); return; }
+  if (dlg.open && dlg.dataset.id === p.id) return;
+  dlg.dataset.id = p.id;
+  $('mcp-confirm-who').textContent = p.contact || p.number;
+  $('mcp-confirm-meta').textContent = (p.contact ? p.number + ' · ' : I18N.t('Kein gespeicherter Kontakt') + ' · ') + I18N.t('im Auftrag von {0}', p.principal || '–');
+  $('mcp-confirm-task').textContent = p.task;
+  if (!dlg.open) dlg.showModal();
+  $('mcp-confirm-no').focus();
+}
+async function loadMcp() { try { renderMcp(await api('/api/mcp')); } catch {} }
+async function answerMcp(allow) {
+  const id = $('mcp-confirm').dataset.id;
+  $('mcp-confirm').close();
+  try { renderMcp(await api('/api/mcp/approve', { id, allow })); } catch (err) { toast(err.message); }
+}
+$('mcp-confirm-yes').onclick = () => answerMcp(true);
+$('mcp-confirm-no').onclick = () => answerMcp(false);
+// Escape lehnt ab: Der sichere Ausweg ist, nicht zu wählen
+$('mcp-confirm').oncancel = (ev) => { ev.preventDefault(); answerMcp(false); };
+$('mcp-agent').onchange = $('mcp-transport').onchange = () => renderMcp({});
+$('mcp-copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('mcp-snippet').textContent); $('mcp-copy').textContent = 'Kopiert ✓'; setTimeout(() => { $('mcp-copy').textContent = 'Kopieren'; }, 2000); }
+  catch { toast('Kopieren nicht möglich – bitte den Text markieren und von Hand kopieren.'); }
+};
+
 // ---- Start ----
 (async () => {
   try {
@@ -2027,6 +2136,7 @@ $('su-test').onclick = async () => {
     setUiMode(settings.uiMode);
     showSection(storedSection(), false);
     loadMonthUsage(false);
+    loadMcp();
     loadOpenModels(); // läuft nebenher; bis dahin zeigt die Auswahl die bekannten Modelle und den gespeicherten Wert
     $('ui-lang').value = settings.uiLang || 'auto';
     // Die Sprache steht für den schnellen Start auch im Browser; weicht sie von den Einstellungen ab, einmal neu laden

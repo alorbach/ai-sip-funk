@@ -34,6 +34,8 @@ export interface CallRecord {
   called?: string;
   /** true = Rückruf der KI an den Inhaber nach einem angenommenen Anruf */
   notify?: boolean;
+  /** 'mcp' = ein KI-Agent hat den Anruf über die MCP-Schnittstelle ausgelöst */
+  origin?: 'mcp';
 }
 
 export interface CallRecordSummary {
@@ -49,6 +51,7 @@ export interface CallRecordSummary {
   spam?: boolean;
   called?: string;
   notify?: boolean;
+  origin?: 'mcp';
 }
 
 export class TranscriptStore {
@@ -76,8 +79,8 @@ export class TranscriptStore {
       .flatMap((f) => {
         const r = this.read(f.slice(0, -5));
         if (!r) return [];
-        const { id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify } = r;
-        return [{ id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify }];
+        const { id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin } = r;
+        return [{ id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin }];
       });
   }
 
