@@ -1,0 +1,29 @@
+package-lock.json
+  s_f828863347c33d::t_70274a54636d79 3,9
+package.json
+  s_16c1807d78e501::t_a354af9d1073f9 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c5af84bcc8a53bfd93739cfc9b4362b6b5045f0",
+  "prompts": {},
+  "sessions": {
+    "s_16c1807d78e501": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1107e-8bf9-7a40-aa28-825496c64d4a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    },
+    "s_f828863347c33d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fbaa6a55-c614-48d1-9ae4-0a1af698fffd",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
