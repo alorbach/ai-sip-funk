@@ -241,6 +241,8 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 test('Gemini: Schlüssel – Form, Prüfung bei Google, keine Schlüssel in Meldungen', async () => {
   assert.equal(cleanGeminiKey(`  ${KEY} `), KEY);
   assert.throws(() => cleanGeminiKey('kurz'), /Google AI Studio/);
+  assert.throws(() => cleanGeminiKey('sk-proj-0123456789abcdefghij'), /Schlüssel von OpenAI/);
+  assert.throws(() => openai.cleanKey(KEY), /Schlüssel von Google/);
   assert.throws(() => cleanGeminiKey('AIza mit leerzeichen 0123456789'), /Google AI Studio/);
   const ok = fake(() => json({ models: [] }));
   assert.deepEqual(await checkGeminiKey(KEY, ok.impl), { ok: true });

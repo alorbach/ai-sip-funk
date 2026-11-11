@@ -12,6 +12,8 @@ const TTS_MODEL = 'gpt-4o-mini-tts';
 export function cleanOpenAiKey(input: unknown): string {
   const key = String(input ?? '').trim();
   if (!key) throw new Error('Schlüssel fehlt');
+  // Ein Schlüssel des anderen Anbieters ginge sonst zur Prüfung an den falschen
+  if (/^AIza/.test(key)) throw new Error('Das ist ein Schlüssel von Google, kein OpenAI-Schlüssel. Er gehört in eine Verbindung mit Google Gemini.');
   if (/\s/.test(key) || key.length < 20 || key.length > 400) throw new Error('Das sieht nicht nach einem OpenAI-Schlüssel aus (beginnt meist mit „sk-“, ohne Leerzeichen)');
   return key;
 }

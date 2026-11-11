@@ -573,6 +573,8 @@
     'Die Hörprobe braucht den Schlüssel der KI-Verbindung (Einstellungen › KI-Verbindungen).': 'The sample needs the key of the AI connection (Settings › AI connections).',
     'Stil, Stimme, Anrede und Auftrag für ausgehende Anrufe stellst du auf dem Dashboard ein und speicherst sie dort als Standard. Die Modelle gehören zur KI-Verbindung und stehen unter „KI-Verbindungen“.': 'Style, voice, form of address and task for outgoing calls are set on the dashboard and saved as default there. The models belong to the AI connection and are found under "AI connections".',
     'Unbekannte KI-Verbindung': 'Unknown AI connection',
+    'Das ist ein Schlüssel von Google, kein OpenAI-Schlüssel. Er gehört in eine Verbindung mit Google Gemini.': 'This is a Google key, not an OpenAI key. It belongs in a connection with Google Gemini.',
+    'Das ist ein Schlüssel von OpenAI, kein Schlüssel aus Google AI Studio. Er gehört in eine Verbindung mit OpenAI.': 'This is an OpenAI key, not a key from Google AI Studio. It belongs in a connection with OpenAI.',
     'Die Datei settings.json ist nicht lesbar: Es gelten die Vorgaben, auch für die KI-Verbindung. Beim nächsten Speichern bleibt der alte Inhalt als settings.json.defekt erhalten.': 'The file settings.json cannot be read: the defaults apply, including for the AI connection. On the next save the old content is kept as settings.json.defekt.',
     'Fehler des Anbieters': 'Provider error',
     'Ungültige Verbindung': 'Invalid connection',

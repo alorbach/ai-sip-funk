@@ -22,6 +22,8 @@ const MALE_VOICES = ['Puck', 'Charon', 'Fenrir', 'Orus', 'Enceladus', 'Iapetus',
 export function cleanGeminiKey(input: unknown): string {
   const key = String(input ?? '').trim();
   if (!key) throw new Error('Schlüssel fehlt');
+  // Ein Schlüssel des anderen Anbieters ginge sonst zur Prüfung an den falschen
+  if (/^sk-/.test(key)) throw new Error('Das ist ein Schlüssel von OpenAI, kein Schlüssel aus Google AI Studio. Er gehört in eine Verbindung mit OpenAI.');
   if (/\s/.test(key) || key.length < 20 || key.length > 400) throw new Error('Das sieht nicht nach einem Schlüssel aus Google AI Studio aus (beginnt meist mit „AIza“, ohne Leerzeichen)');
   return key;
 }
