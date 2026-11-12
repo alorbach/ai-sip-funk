@@ -712,3 +712,24 @@ test('Nebenstelle mit Text davor behält die Sterne; andere Sternchen-Angaben si
   assert.equal(normalizeImportNumber('*610'), undefined);
   assert.equal(normalizeImportNumber('*31#'), undefined);
 });
+
+// ---------------------------------------------------------------- Review-Runde 13
+
+test('Stern und Raute: Nebenstellen bleiben intern, Dienstcodes fallen weg, Nummern mit Stern dahinter bleiben', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('030 7654321 *'), '0307654321');
+  assert.equal(n('0301234567*'), '0301234567');
+  assert.equal(n('0171 5550100 (*nur Mo-Fr)'), '01715550100');
+  assert.equal(n('#31#0171 5550100'), undefined);
+  assert.equal(n('##21#0301234567'), undefined);
+  assert.equal(n('*21*0171 5550100#'), undefined);
+  assert.equal(n('\uFF0A\uFF0A610'), '**610');
+  assert.equal(n('\u2217\u2217611'), '**611');
+  assert.equal(n('Intern 610'), undefined);
+  assert.equal(n('610'), undefined);
+  assert.equal(n('5550100'), '5550100');
+  assert.deepEqual(splitNumbers('030 1234567 **610'), ['030 1234567', '**610']);
+  assert.deepEqual(splitNumbers('030 1234567 (Durchwahl **610)'), ['030 1234567 (Durchwahl', '**610)']);
+  const [c] = fromVcard('BEGIN:VCARD\nFN:Büro Probe\nTEL;TYPE=WORK:030 1234567 **610\nEND:VCARD');
+  assert.deepEqual(c.numbers.map((x) => x.number), ['0301234567', '**610']);
+});

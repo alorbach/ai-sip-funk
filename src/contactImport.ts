@@ -43,19 +43,20 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
  */
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
-  let s = String(raw ?? '').slice(0, 80).replace(/\s+/g, ' ').trim();
-  // FRITZ!Box-Nebenstelle, auch mit Text davor oder danach („Büro **610“, „**610 (Büro)“); ohne die Sterne ginge der
-  // Anruf ins öffentliche Netz. Andere Sternchen-Angaben („*610“, Dienstcodes) sind keine Rufnummer.
-  if (s.includes('*')) {
-    const internal = /\*\*\s*(\d+)/.exec(s);
-    return internal ? '**' + internal[1] : undefined;
-  }
-  // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“) weg: ab dem ersten +, ( oder Ziffer
-  const start = s.search(/[+(\d]/);
+  // Stern-Doppelgänger (Vollbreite, Rechenzeichen) zählen wie *
+  let s = String(raw ?? '').slice(0, 80).replace(/[＊∗✱⁎]/g, '*').replace(/\s+/g, ' ').trim();
+  // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „Büro **610“) weg: ab dem ersten +, (, Ziffer, * oder #
+  const start = s.search(/[+(\d*#]/);
   if (start < 0) return undefined;
   s = s.slice(start);
-  // Hinter der Nummer: Wahlpausen (, ;), Durchwahl-Zusätze („ext. 12“, „x12“, „p123“) und sonstiger Text fallen weg
-  const end = s.search(/[,;a-z]/i);
+  // FRITZ!Box-Nebenstelle („**610“, „**610 (Büro)“): ohne die Sterne ginge der Anruf ins öffentliche Netz.
+  // Andere Stern- oder Rauten-Codes am Anfang („*610“, „#31#…“, „*21*…“) sind Dienstcodes, keine Rufnummer.
+  const internal = /^\*\*\s*(\d+)/.exec(s);
+  if (internal) return '**' + internal[1];
+  if (/^[*#]/.test(s)) return undefined;
+  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Durchwahl-Zusätze („ext. 12“, „x12“, „p123“) und
+  // sonstiger Text fallen weg
+  const end = s.search(/[,;*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
   s = s.replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1'); // „+49 (0)30 …“, „(+49) 171 …“
   const plus = s.startsWith('+');
@@ -67,6 +68,9 @@ export function normalizeImportNumber(raw: string): string | undefined {
   else if (plus) digits = '+' + digits;
   if (digits.startsWith('+49')) digits = '0' + digits.slice(3).replace(/^0/, '');
   const count = digits.replace(/\D/g, '').length;
+  // Ohne 0 oder + nur Ortsnummern ab fünf Ziffern: eine kurze Nebenstelle ohne Sterne („Intern 610“) würde sonst
+  // öffentlich gewählt
+  if (!/^[0+]/.test(digits) && count < 5) return undefined;
   return count >= 3 && count <= 20 ? digits : undefined;
 }
 
@@ -92,7 +96,8 @@ export function decodeImportFile(buf: Buffer): string {
 export function splitNumbers(value: string): string[] {
   const parts = String(value ?? '')
     .slice(0, 400)
-    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n/i)
+    // Eine Nebenstelle hinter einer Nummer („030 1234567 **610“) wird eine eigene Nummer
+    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)/i)
     // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
     // Eine ganze Nummer beginnt mit +, 0, ( oder *; eine Teilnehmernummer nie mit 0.
     .flatMap((p) => {
@@ -102,7 +107,7 @@ export function splitNumbers(value: string): string[] {
     })
     .map((x) => x.trim())
     .filter(Boolean);
-  return parts.filter((p, i) => i === 0 || p.replace(/\D/g, '').length >= 6);
+  return parts.filter((p, i) => i === 0 || p.replace(/\D/g, '').length >= 6 || /^\*\*\s*\d/.test(p));
 }
 
 /** Bezeichnung einer Nummer aus Typ-Angaben wie „CELL“, „mobile“, „Business Phone“, „Telefon privat“; Fax und Pager = undefined. */
