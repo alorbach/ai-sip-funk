@@ -605,3 +605,42 @@ test('Viele neue Karten bleiben schnell', () => {
     assert.ok(Date.now() - started < 3000);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 8
+
+test('Doppelkarte vor der ergänzenden Karte landet trotzdem beim vorhandenen Kontakt', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552400' });
+    const cands = [
+      { name: 'Erika Beispiel', numbers: [{ number: '0405552402', label: 'geschäftlich' as const }] },
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552400', label: 'mobil' as const }, { number: '0305552401', label: 'privat' as const }] },
+    ];
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.combined], [0, 1, 1]);
+    assert.equal(store.list().length, 1);
+    assert.deepEqual(store.findByName('Erika Beispiel')!.numbers, ['0305552401', '0405552402']);
+  });
+});
+
+test('Zwei ergänzende Karten desselben Namens zählen als ein ergänzter Kontakt', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552500' });
+    const cands = [
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552500', label: 'mobil' as const }, { number: '0305552501', label: 'privat' as const }] },
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552500', label: 'mobil' as const }, { number: '0405552502', label: 'privat' as const }] },
+    ];
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.combined], [0, 1, 1]);
+  });
+});
+
+test('Namen ohne Buchstaben werden nicht zusammengeführt; zerlegte Umlaute zählen wie zusammengesetzte', () => {
+  withStore((store) => {
+    const cands = [{ name: '🚑', numbers: [{ number: '01715552600', label: 'mobil' as const }] }, { name: '🚕', numbers: [{ number: '01715552601', label: 'mobil' as const }] }];
+    assert.deepEqual(buildPreview(cands, store).map((i) => i.twin), [undefined, undefined]);
+    assert.equal(applyImport(cands, ['0', '1'], store).created, 2);
+    store.create({ name: 'Jörg Probe', number: '030 5552602', owner: true });
+    const [own] = buildPreview([{ name: 'Jo\u0308rg Probe', numbers: [{ number: '01715552603', label: 'mobil' as const }] }], store);
+    assert.equal(own.ownCard, true);
+  });
+});

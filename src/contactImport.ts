@@ -390,9 +390,10 @@ function isOwnCard(c: ImportCandidate, ownerContacts: Contact[]): boolean {
   return n !== '' && ownerContacts.some((o) => nameKey(o.name) === n);
 }
 
-const nameParts = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const nameParts = (s: string) => s.normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 /** Name ohne Groß/Klein, Satzzeichen und doppelte Leerzeichen */
-const nameKey = (s: string) => nameParts(s).join(' ');
+// Namen ganz ohne Buchstaben und Ziffern („🚑“, „???“) behalten ihren Text, sonst fielen sie alle zusammen
+const nameKey = (s: string) => nameParts(s).join(' ') || s.normalize('NFC').trim().toLowerCase();
 
 /**
  * Derselbe Name? Vorname gleich und Nachname gleich oder auf den Anfangsbuchstaben abgekürzt („Erika B.“ / „Erika
@@ -451,36 +452,53 @@ export function applyImport(
   /** Karten, deren Nummern zu einer anderen gewählten Karte mit genau demselben Namen kamen */
   let combined = 0;
   /** Genau gleicher Name -> Ziel in diesem Durchgang (neuer Kontakt oder Ergänzung), damit Doppelkarten ein Kontakt werden */
-  const byName = new Map<string, { numbers?: string[] }>();
+  const byName = new Map<string, { id?: string; numbers?: string[] }>();
   /** Nummern, die in diesem Durchgang schon einem Eintrag zugeteilt sind (gemeinsames Festnetz: der erste bekommt sie) */
   const taken = new Set<string>();
   const shared = sharedKeys(candidates);
   const ownerContacts = store.list().filter((x) => x.owner);
-  const order = [...new Set(ids)].filter((id) => /^\d+$/.test(id) && candidates[Number(id)]).sort((a, b) => Number(a) - Number(b));
-  for (const id of order) {
-    const c = candidates[Number(id)];
-    const owners = c.numbers.map((n) => store.findByNumber(n.number));
+  // Erst die Karten, die einen vorhandenen Kontakt ergänzen, dann die übrigen in Listenreihenfolge: So landet eine
+  // gleichnamige Doppelkarte beim vorhandenen Kontakt, egal in welcher Reihenfolge die Karten im Adressbuch stehen
+  const cards = [...new Set(ids)]
+    .filter((id) => /^\d+$/.test(id) && candidates[Number(id)])
+    .map((id) => {
+      const c = candidates[Number(id)];
+      const owners = c.numbers.map((n) => store.findByNumber(n.number));
+      const existing = owners.find((o): o is Contact => !!o);
+      const mergeable = Boolean(existing && canMerge(c, owners, shared));
+      return { index: Number(id), c, owners, existing, mergeable };
+    })
+    .sort((a, b) => Number(b.mergeable && !!opts.addToExisting) - Number(a.mergeable && !!opts.addToExisting) || a.index - b.index);
+  for (const { c, owners, existing, mergeable } of cards) {
     const fresh = c.numbers.filter((n, i) => !owners[i] && !taken.has(numberKey(n.number))).map((n) => n.number);
-    const existing = owners.find((o): o is Contact => !!o);
-    const mergeable = existing && canMerge(c, owners, shared);
-    const createNew = !existing || !mergeable;
     const own = isOwnCard(c, ownerContacts);
     // Eine weitere Karte mit genau demselben Namen in diesem Durchgang: Nummern zu deren Ziel (neu oder ergänzt)
-    const sibling = createNew ? byName.get(nameKey(c.name)) : undefined;
-    if (!fresh.length || own) unchanged++;
-    else if (sibling) {
-      sibling.numbers = [...(sibling.numbers ?? []), ...fresh];
+    const target = byName.get(nameKey(c.name));
+    let used = true;
+    if (!fresh.length || own) {
+      unchanged++;
+      used = false;
+    } else if (mergeable && existing) {
+      if (!opts.addToExisting) {
+        unchanged++;
+        used = false;
+      } else if (target?.id === existing.id) {
+        target.numbers = [...(target.numbers ?? []), ...fresh];
+        combined++;
+      } else {
+        const entry = { id: existing.id, numbers: fresh };
+        add.push(entry);
+        if (!target) byName.set(nameKey(c.name), entry);
+      }
+    } else if (target) {
+      target.numbers = [...(target.numbers ?? []), ...fresh];
       combined++;
-    } else if (createNew) {
+    } else {
       const input: ContactInput = { name: c.name, number: fresh[0], numbers: fresh.slice(1) };
       create.push(input);
       byName.set(nameKey(c.name), input);
-    } else if (opts.addToExisting) {
-      const entry = { id: existing.id, numbers: fresh };
-      add.push(entry);
-      if (!byName.has(nameKey(c.name))) byName.set(nameKey(c.name), entry);
-    } else unchanged++;
-    if (fresh.length && !own && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
+    }
+    if (used) for (const n of fresh) taken.add(numberKey(n));
   }
   const r = store.importMany(create, add);
   return { ...r, combined, unchanged };

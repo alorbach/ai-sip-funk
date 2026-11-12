@@ -781,7 +781,7 @@
     [/^Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen\. Weiterleitung: (\S+)\. Anleitung im Handbuch\.$/, 'Create your own OAuth client of type "Desktop app" in the Google Cloud Console, enable the People API and enter client ID and secret here. Redirect: $1. Instructions in the user guide.'],
     [/^(\d+) Einträge mit Telefonnummer: (\d+) neu, (\d+) teilweise vorhanden, (\d+) schon vorhanden\.$/, '$1 entries with a phone number: $2 new, $3 partly there, $4 already there.'],
     [/^(\d+) weitere – bitte die Suche eingrenzen$/, '$1 more – please narrow the search'],
-    [/^(\d+) Kontakte? angelegt(, (\d+) um Nummern ergänzt)?(, (\d+) Doppelkarten zusammengeführt)?(, (\d+) übersprungen)?\.$/, (m, a, b, c, d, e, f, g) => `${a} ${a === '1' ? 'contact' : 'contacts'} created${c ? `, ${c} given extra numbers` : ''}${e ? `, ${e} duplicate cards combined` : ''}${g ? `, ${g} skipped` : ''}.`],
+    [/^(\d+) Kontakte? angelegt(, (\d+) um Nummern ergänzt)?(, (\d+) Doppelkarten? zusammengeführt)?(, (\d+) übersprungen)?\.$/, (m, a, b, c, d, e, f, g) => `${a} ${a === '1' ? 'contact' : 'contacts'} created${c ? `, ${c} given extra numbers` : ''}${e ? `, ${e} duplicate ${e === '1' ? 'card' : 'cards'} combined` : ''}${g ? `, ${g} skipped` : ''}.`],
     [/^Kontakt: (.+) \(Inhaber\)$/, 'Contact: $1 (owner)'],
     [/^Kontakt: (.+)$/, 'Contact: $1'],
     [/^Kontakt „(.+)“ löschen\?$/, 'Delete contact "$1"?'],

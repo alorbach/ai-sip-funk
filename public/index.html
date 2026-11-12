@@ -1471,7 +1471,8 @@ $('imp-merge').onchange = renderImport;
 $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
 // Wählt nur, was die Suche gerade zeigt
 // Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
-$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard) impSel.add(it.id); renderImport(); };
+// Ohne „Name mehrfach“: zwei Karten gleichen Namens können zwei Menschen sein, die wählt man bewusst einzeln
+$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin) impSel.add(it.id); renderImport(); };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
@@ -1483,7 +1484,7 @@ $('imp-apply').onclick = async () => {
     contacts = r.items; renderContacts(); renderCalls();
     $('import-dialog').close();
     delete $('imp-apply').dataset.busy;
-    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.combined ? `, ${r.combined} Doppelkarten zusammengeführt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
+    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.combined ? `, ${r.combined === 1 ? '1 Doppelkarte' : `${r.combined} Doppelkarten`} zusammengeführt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
   } catch (err) { delete $('imp-apply').dataset.busy; impCount(); toast(err.message); }
 };
 
