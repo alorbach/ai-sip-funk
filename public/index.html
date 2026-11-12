@@ -948,8 +948,8 @@
       <button type="button" class="btn small quiet" id="imp-none">Auswahl aufheben</button>
     </div>
     <div id="imp-list" role="group" aria-label="Einträge im Adressbuch"></div>
-    <p class="hint" style="margin:0">✓ = Nummer schon gespeichert · ⇄ = Nummer steht auch bei einem anderen Eintrag; sie bekommt nur der erste ausgewählte.</p>
-    <label class="check"><input type="checkbox" id="imp-merge"> Bei vorhandenen Kontakten fehlende Nummern als weitere Nummern ergänzen (Name und Einstellungen bleiben unverändert)</label>
+    <p class="hint" style="margin:0">✓ = Nummer schon gespeichert · ⇄ = Nummer steht auch bei einem anderen Eintrag; sie bekommt nur der erste ausgewählte. „Name schon vorhanden“: Es gibt bereits einen Kontakt mit diesem Namen und anderer Nummer – vor dem Import prüfen, sonst gibt es den Namen zweimal.</p>
+    <label class="check"><input type="checkbox" id="imp-merge"> Bei vorhandenen Kontakten fehlende Nummern als weitere Nummern ergänzen (Name und Einstellungen bleiben unverändert; nur bei ähnlichem Namen)</label>
   </div>
   <div class="foot">
     <button type="button" id="imp-back" class="btn quiet" hidden>Andere Quelle</button>
@@ -1362,7 +1362,7 @@ $('contact-form').onsubmit = async (ev) => {
 
 // ---- Kontakt-Import ----
 // Das Adressbuch liegt nur im Server-Speicher; hier stehen nur die Vorschau-Einträge und die Auswahl
-let impItems = [], impSel = new Set(), impToken = null;
+let impItems = [], impSel = new Set(), impToken = null, impHits = [];
 const IMP_LABEL = { mobil: 'Mobil', privat: 'Privat', 'geschäftlich': 'Geschäftlich', sonstige: 'Sonstige' };
 async function refreshImport() {
   try {
@@ -1388,19 +1388,25 @@ function impShow(result) {
   renderImport();
 }
 function impSelectable(it) { return it.status === 'new' || (it.status === 'partial' && it.mergeable && $('imp-merge').checked); }
-function renderImport() {
-  const q = $('imp-search').value.trim().toLowerCase(), qd = key(q);
-  const hits = impItems.filter((it) => !q || it.name.toLowerCase().includes(q) || (qd && it.numbers.some((n) => key(n.number).includes(qd))));
-  const shown = hits.slice(0, 500);
-  $('imp-list').innerHTML = shown.map((it) => {
-    const ok = impSelectable(it);
-    const badge = it.status === 'exists' ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : '';
-    const nums = it.numbers.map((n) => `${esc(n.number)} (${esc(I18N.t(IMP_LABEL[n.label] || n.label))})${n.known ? ' ✓' : ''}${n.shared ? ' ⇄' : ''}`).join(' · ');
-    return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
-  }).join('') + (hits.length > shown.length ? `<div class="empty">${hits.length - shown.length} weitere – bitte die Suche eingrenzen</div>` : '') + (!hits.length && impItems.length ? '<div class="empty">Kein Treffer</div>' : '');
+/** Zahl der gewählten Einträge im Knopf; ohne die Liste neu zu zeichnen (sonst ginge der Tastaturfokus verloren) */
+function impCount() {
   const n = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); }).length;
   $('imp-apply').disabled = n === 0;
   $('imp-apply').textContent = n === 1 ? '1 Kontakt importieren' : `${n} Kontakte importieren`;
+}
+function renderImport() {
+  const q = $('imp-search').value.trim().toLowerCase();
+  // Ziffernsuche nur, wenn die Eingabe nach einer Nummer aussieht (sonst fände „Müller 2“ jede Nummer mit einer 2)
+  const qd = /^[\d\s+\-/()]+$/.test(q) ? key(q) : '';
+  const hits = impHits = impItems.filter((it) => !q || it.name.toLowerCase().includes(q) || (qd && it.numbers.some((n) => key(n.number).includes(qd))));
+  const shown = hits.slice(0, 500);
+  $('imp-list').innerHTML = shown.map((it) => {
+    const ok = impSelectable(it);
+    const badge = it.status === 'exists' ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : it.sameName ? '<span class="badge">Name schon vorhanden</span>' : '';
+    const nums = it.numbers.map((n) => `${esc(n.number)} (${esc(I18N.t(IMP_LABEL[n.label] || n.label))})${n.known ? ' ✓' : ''}${n.shared ? ' ⇄' : ''}`).join(' · ');
+    return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
+  }).join('') + (hits.length > shown.length ? `<div class="empty">${hits.length - shown.length} weitere – bitte die Suche eingrenzen</div>` : '') + (!hits.length && impItems.length ? '<div class="empty">Kein Treffer</div>' : '');
+  impCount();
 }
 $('contact-import').onclick = async () => { impShow(null); $('import-dialog').showModal(); await refreshImport(); };
 $('imp-close').onclick = () => $('import-dialog').close();
@@ -1446,19 +1452,22 @@ $('imp-file').onchange = async () => {
 };
 $('imp-search').oninput = renderImport;
 $('imp-merge').onchange = renderImport;
-$('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); renderImport(); };
-$('imp-all').onclick = () => { for (const it of impItems) if (impSelectable(it)) impSel.add(it.id); renderImport(); };
+$('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
+// Wählt nur, was die Suche gerade zeigt
+$('imp-all').onclick = () => { for (const it of impHits) if (impSelectable(it)) impSel.add(it.id); renderImport(); };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
-  if (!ids.length) return;
+  if (!ids.length || $('imp-apply').dataset.busy) return;
+  $('imp-apply').dataset.busy = '1'; $('imp-apply').disabled = true;
   try {
     const r = await api('/api/contacts/import/apply', { token: impToken, ids, addToExisting: $('imp-merge').checked });
     impToken = null;
     contacts = r.items; renderContacts(); renderCalls();
     $('import-dialog').close();
+    delete $('imp-apply').dataset.busy;
     toast(`${r.created} Kontakte angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
-  } catch (err) { toast(err.message); }
+  } catch (err) { delete $('imp-apply').dataset.busy; impCount(); toast(err.message); }
 };
 
 // ---- E-Mail-Versand ----

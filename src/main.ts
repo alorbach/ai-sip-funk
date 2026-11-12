@@ -998,6 +998,7 @@ const mailLogin = new OAuthLogin(() => oauthFrom(mailConfig()), `http://127.0.0.
 
 // Kontakt-Import: abgerufene Adressbuchdaten liegen nur hier im Arbeitsspeicher, bis übernommen oder verworfen wird
 const importSession = new ImportSession();
+setInterval(() => importSession.sweep(), 60_000).unref();
 const contactSources = new ContactSources(
   () => {
     const s = loadSettings();

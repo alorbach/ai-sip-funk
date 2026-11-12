@@ -21,8 +21,10 @@ export interface PreviewItem {
   status: 'new' | 'partial' | 'exists';
   /** Vorhandener Kontakt, zu dem bekannte Nummern gehören */
   existing?: string;
-  /** partial: fehlende Nummern lassen sich ergänzen (alle bekannten gehören zu einem Kontakt, nicht zum Inhaber) */
+  /** partial: fehlende Nummern lassen sich ergänzen (siehe canMerge) */
   mergeable?: boolean;
+  /** new: es gibt schon einen Kontakt mit genau diesem Namen (andere Nummer) */
+  sameName?: boolean;
 }
 
 const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige'];
@@ -45,7 +47,8 @@ export function normalizeImportNumber(raw: string): string | undefined {
   s = s.replace(/\(0\)/g, ''); // „+49 (0)30 …“
   const plus = s.startsWith('+');
   // „+43 0664 …“: eine nach der Landesvorwahl irrtümlich mitgeschriebene 0 entfällt
-  if (plus) s = s.replace(/^\+(\d{1,3})[ \-/]+0(?=\d)/, '+$1 ');
+  // (nicht in Italien, San Marino und dem Vatikan: dort gehört die 0 zur Nummer, „+39 06 …“)
+  if (plus) s = s.replace(/^\+(\d{1,3})[ \-/]+0(?=\d)/, (m, cc: string) => (/^(39|378|379)$/.test(cc) ? m : `+${cc} `));
   let digits = s.replace(/\D/g, '');
   if (!plus && digits.startsWith('00')) digits = '+' + digits.slice(2);
   else if (plus) digits = '+' + digits;
@@ -68,6 +71,16 @@ export function decodeImportFile(buf: Buffer): string {
   }
 }
 
+/**
+ * Ein Feld mit mehreren Nummern („0171 … / 0221 …“, „… , …“, „… oder …“, Google „ ::: “) aufteilen. Teile mit
+ * weniger als sechs Ziffern hinter der ersten Nummer sind Wahlpausen oder Durchwahlen („,,1234“) und fallen weg.
+ * Ein Schrägstrich ohne Leerzeichen bleibt Teil der Nummer („0171/5550100“).
+ */
+export function splitNumbers(value: string): string[] {
+  const parts = String(value ?? '').slice(0, 400).split(/\s+\/\s+|[,;]|:::|\s+oder\s+|\s+or\s+|\n/i).map((x) => x.trim()).filter(Boolean);
+  return parts.filter((p, i) => i === 0 || p.replace(/\D/g, '').length >= 6);
+}
+
 /** Bezeichnung einer Nummer aus Typ-Angaben wie „CELL“, „mobile“, „Business Phone“, „Telefon privat“; Fax und Pager = undefined. */
 export function phoneLabel(type: string): PhoneLabel | undefined {
   const t = type.toLowerCase();
@@ -88,7 +101,7 @@ export function cleanCandidates(raw: { name: string; numbers: { value: string; t
   for (const r of raw) {
     const seen = new Set<string>();
     const numbers: ImportCandidate['numbers'] = [];
-    for (const n of r.numbers) {
+    for (const n of r.numbers.flatMap((x) => splitNumbers(x.value).map((value) => ({ value, type: x.type })))) {
       const label = phoneLabel(n.type);
       const number = label ? normalizeImportNumber(n.value) : undefined;
       if (!label || !number) continue;
@@ -245,7 +258,7 @@ export function parseCsv(text: string): string[][] {
       if (ch === '"' && src[i + 1] === '"') { field += '"'; i++; }
       else if (ch === '"') quoted = false;
       else field += ch;
-    } else if (ch === '"') quoted = true;
+    } else if (ch === '"' && field === '') quoted = true; // ein " mitten im Feld ist ein Zeichen, kein Feldbeginn
     else if (ch === sep) { row.push(field); field = ''; }
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && src[i + 1] === '\n') i++;
@@ -277,7 +290,7 @@ export function fromCsv(text: string): ImportCandidate[] {
   // Outlook und allgemein: jede Spalte, deren Kopf nach Telefon aussieht (Fax/Pager filtert phoneLabel)
   const otherPhones = googlePhones.length
     ? []
-    : h.flatMap((x, i) => (/phone|telefon|mobil|handy|^tel\b|rufnummer|nummer/i.test(x) && !/ - (type|label)$/i.test(x) ? [{ value: i, header: x }] : []));
+    : h.flatMap((x, i) => (/phone|telefon|mobil|handy|^tel\b|rufnummer|cell/i.test(x) && !/ - (type|label)$|assist|company main|zentrale|callback|rückruf/i.test(x) ? [{ value: i, header: x }] : []));
   return cleanCandidates(
     rows.map((r) => {
       const get = (i: number) => (i >= 0 ? (r[i] ?? '').trim() : '');
@@ -301,17 +314,41 @@ export function fromFile(name: string, text: string): ImportCandidate[] {
 // ---------------------------------------------------------------- Abgleich und Übernahme
 
 /** Vorschau: Kandidaten mit den gespeicherten Kontakten abgleichen (über alle Nummern eines Kontakts). */
-export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber'>): PreviewItem[] {
-  const uses = new Map<string, number>();
-  for (const c of candidates) for (const n of c.numbers) uses.set(numberKey(n.number), (uses.get(numberKey(n.number)) ?? 0) + 1);
+export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber' | 'list'>): PreviewItem[] {
+  const shared = sharedKeys(candidates);
+  const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
   return candidates.map((c, i) => {
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
-    const numbers = c.numbers.map((n, j) => ({ ...n, known: owners[j]?.name, shared: (uses.get(numberKey(n.number)) ?? 0) > 1 || undefined }));
+    const numbers = c.numbers.map((n, j) => ({ ...n, known: owners[j]?.name, shared: shared.has(numberKey(n.number)) || undefined }));
     const known = owners.filter((o): o is Contact => !!o);
     const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
-    const mergeable = status === 'partial' && !known[0].owner && known.every((o) => o.id === known[0].id);
-    return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined };
+    const mergeable = status === 'partial' && canMerge(c, owners, shared);
+    const sameName = status === 'new' && names.has(c.name.trim().toLowerCase()) ? true : undefined;
+    return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, sameName };
   });
+}
+
+/** Nummern, die bei mehr als einem Eintrag des Adressbuchs stehen */
+function sharedKeys(candidates: ImportCandidate[]): Set<string> {
+  const uses = new Map<string, number>();
+  for (const c of candidates) for (const n of c.numbers) uses.set(numberKey(n.number), (uses.get(numberKey(n.number)) ?? 0) + 1);
+  return new Set([...uses].filter(([, n]) => n > 1).map(([k]) => k));
+}
+
+const nameWords = (s: string) => new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 2));
+
+/**
+ * Darf ein teilweise bekannter Eintrag seine übrigen Nummern beim vorhandenen Kontakt ergänzen? Nur wenn alle bekannten
+ * Nummern zu genau einem Kontakt gehören, das nicht der Inhaber ist, keine davon bei einem anderen Eintrag des
+ * Adressbuchs steht (gemeinsames Festnetz) und die Namen mindestens ein Wort teilen („Erika B.“ / „Erika Beispiel“).
+ * Sonst landete etwa das Handy der Oma beim Vater, nur weil beide dieselbe Festnetznummer haben.
+ */
+function canMerge(c: ImportCandidate, owners: (Contact | undefined)[], shared: Set<string>): boolean {
+  const known = owners.filter((o): o is Contact => !!o);
+  if (!known.length || known[0].owner || !known.every((o) => o.id === known[0].id)) return false;
+  if (c.numbers.some((n, i) => owners[i] && shared.has(numberKey(n.number)))) return false;
+  const a = nameWords(c.name);
+  return [...nameWords(known[0].name)].some((w) => a.has(w));
 }
 
 export function previewCounts(items: PreviewItem[]): { total: number; new: number; partial: number; exists: number } {
@@ -339,14 +376,14 @@ export function applyImport(
   let unchanged = 0;
   /** Nummern, die in diesem Durchgang schon einem Eintrag zugeteilt sind (gemeinsames Festnetz: der erste bekommt sie) */
   const taken = new Set<string>();
+  const shared = sharedKeys(candidates);
   const order = [...new Set(ids)].filter((id) => /^\d+$/.test(id) && candidates[Number(id)]).sort((a, b) => Number(a) - Number(b));
   for (const id of order) {
     const c = candidates[Number(id)];
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
     const fresh = c.numbers.filter((n, i) => !owners[i] && !taken.has(numberKey(n.number))).map((n) => n.number);
     const existing = owners.find((o): o is Contact => !!o);
-    // Ergänzt wird nur, wenn alle bekannten Nummern zu genau einem Kontakt gehören und es nicht der Inhaber ist
-    const mergeable = existing && !existing.owner && owners.every((o) => !o || o.id === existing.id);
+    const mergeable = existing && canMerge(c, owners, shared);
     if (!fresh.length) unchanged++;
     else if (!existing) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
     else if (opts.addToExisting && mergeable) add.push({ id: existing.id, numbers: fresh });
@@ -362,27 +399,39 @@ export function applyImport(
  * gerade gültigen Vorschau, damit ein älterer Browser-Tab nicht die Einträge einer neueren Liste importiert.
  */
 export class ImportSession {
-  private current?: { token: string; source: string; candidates: ImportCandidate[] };
+  private current?: { token: string; source: string; candidates: ImportCandidate[]; at: number };
 
-  show(source: string, candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber'>) {
+  /** Nach dieser Zeit verfällt eine Vorschau, auch wenn der Tab ohne Schließen des Dialogs verschwunden ist */
+  constructor(private ttlMs = 30 * 60_000, private now: () => number = Date.now) {}
+
+  private valid(): typeof this.current {
+    if (this.current && this.now() - this.current.at > this.ttlMs) this.current = undefined;
+    return this.current;
+  }
+
+  show(source: string, candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber' | 'list'>) {
     const token = randomBytes(8).toString('hex');
-    this.current = { token, source, candidates };
+    this.current = { token, source, candidates, at: this.now() };
     const items = buildPreview(candidates, store);
     return { token, items, counts: previewCounts(items) };
   }
 
   apply(token: unknown, ids: string[], store: ContactStore, opts: { addToExisting?: boolean } = {}) {
-    if (!this.current || token !== this.current.token) throw new Error('Diese Vorschau ist nicht mehr aktuell – bitte das Adressbuch neu laden');
-    const { candidates } = this.current;
+    const cur = this.valid();
+    if (!cur || token !== cur.token) throw new Error('Diese Vorschau ist nicht mehr aktuell – bitte das Adressbuch neu laden');
+    const r = applyImport(cur.candidates, ids, store, opts); // scheitert das Speichern, bleibt die Vorschau
     this.current = undefined;
-    return applyImport(candidates, ids, store, opts);
+    return r;
   }
 
-  /** Vorschau verwerfen: ohne Angabe jede, sonst nur die mit dieser Kennung bzw. aus dieser Quelle */
-  discard(match?: { token?: unknown; source?: string }): void {
+  /** Läuft eine Vorschau ab, ohne dass jemand fragt, soll sie trotzdem nicht im Speicher bleiben */
+  sweep(): void {
+    this.valid();
+  }
+
+  /** Vorschau verwerfen: die mit dieser Kennung bzw. alle aus dieser Quelle */
+  discard(match: { token: unknown } | { source: string }): void {
     if (!this.current) return;
-    if (match?.token !== undefined && match.token !== this.current.token) return;
-    if (match?.source !== undefined && match.source !== this.current.source) return;
-    this.current = undefined;
+    if ('token' in match ? match.token === this.current.token : match.source === this.current.source) this.current = undefined;
   }
 }

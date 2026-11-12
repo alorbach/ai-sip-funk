@@ -52,6 +52,11 @@ export class ContactStore {
   private contacts: Contact[] = [];
   /** contacts.json war beim Laden defekt und ist noch nicht gesichert */
   private broken = false;
+  /**
+   * Nachschlagetabelle Nummer -> Kontakt-ID (erster Treffer gewinnt, wie bisher) und ID -> Kontakt; wird bei Bedarf
+   * neu gebildet. Ohne sie bräuchte ein Import mit Tausenden Einträgen gegen Tausende Kontakte viele Sekunden.
+   */
+  private index?: { byKey: Map<string, string>; byId: Map<string, Contact> };
 
   constructor(private file: string) {
     this.load();
@@ -86,13 +91,34 @@ export class ContactStore {
     return [...this.contacts].sort((a, b) => Number(b.owner ?? false) - Number(a.owner ?? false) || a.name.localeCompare(b.name, 'de'));
   }
 
+  private lookup(): { byKey: Map<string, string>; byId: Map<string, Contact> } {
+    if (!this.index) {
+      this.index = { byKey: new Map(), byId: new Map() };
+      for (const c of this.contacts) this.indexAdd(c);
+    }
+    return this.index;
+  }
+
+  /** Kontakt in die Nachschlagetabelle aufnehmen (nur, wenn sie schon gebildet ist) */
+  private indexAdd(c: Contact): void {
+    if (!this.index) return;
+    this.index.byId.set(c.id, c);
+    for (const n of allNumbers(c)) {
+      const key = numberKey(n);
+      if (key && !this.index.byKey.has(key)) this.index.byKey.set(key, c.id);
+    }
+  }
+
   get(id: string): Contact | undefined {
-    return this.contacts.find((c) => c.id === id);
+    return this.lookup().byId.get(id);
   }
 
   findByNumber(raw: string): Contact | undefined {
     const key = numberKey(raw);
-    return key ? this.contacts.find((c) => allNumbers(c).some((n) => numberKey(n) === key)) : undefined;
+    if (!key) return undefined;
+    const t = this.lookup();
+    const id = t.byKey.get(key);
+    return id === undefined ? undefined : t.byId.get(id);
   }
 
   /** Name exakt (ohne Groß/Klein) oder eindeutiger Teilstring. */
@@ -114,6 +140,7 @@ export class ContactStore {
     const now = new Date().toISOString();
     const contact: Contact = { id: randomBytes(5).toString('hex'), ...clean, createdAt: now, updatedAt: now };
     this.contacts.push(contact);
+    this.indexAdd(contact);
     this.persist();
     return contact;
   }
@@ -124,6 +151,7 @@ export class ContactStore {
     const clean = this.validate({ ...existing, ...input }, id);
     const updated: Contact = { ...existing, ...clean, updatedAt: new Date().toISOString() };
     this.contacts = this.contacts.map((c) => (c.id === id ? updated : c));
+    this.index = undefined;
     this.persist();
     return updated;
   }
@@ -148,7 +176,9 @@ export class ContactStore {
         if (!fresh.length) continue;
         try {
           const clean = this.validate({ ...existing, numbers: [...(existing.numbers ?? []), ...fresh] }, existing.id);
-          this.contacts = this.contacts.map((c) => (c.id === existing.id ? { ...existing, numbers: clean.numbers, updatedAt: now } : c));
+          const updated: Contact = { ...existing, numbers: clean.numbers, updatedAt: now };
+          this.contacts = this.contacts.map((c) => (c.id === existing.id ? updated : c));
+          this.indexAdd(updated);
           merged++;
         } catch (err) {
           skipped.push(`${existing.name}: ${(err as Error).message}`);
@@ -157,7 +187,9 @@ export class ContactStore {
       for (const input of create) {
         try {
           const clean = this.validate(input);
-          this.contacts.push({ id: randomBytes(5).toString('hex'), ...clean, createdAt: now, updatedAt: now });
+          const contact: Contact = { id: randomBytes(5).toString('hex'), ...clean, createdAt: now, updatedAt: now };
+          this.contacts.push(contact);
+          this.indexAdd(contact);
           created++;
         } catch (err) {
           skipped.push(`${String(input.name ?? '')}: ${(err as Error).message}`);
@@ -166,6 +198,7 @@ export class ContactStore {
       if (created || merged) this.persist();
     } catch (err) {
       this.contacts = before;
+      this.index = undefined;
       throw err;
     }
     return { created, merged, skipped };
@@ -174,6 +207,7 @@ export class ContactStore {
   delete(id: string): boolean {
     const before = this.contacts.length;
     this.contacts = this.contacts.filter((c) => c.id !== id);
+    this.index = undefined;
     if (this.contacts.length === before) return false;
     this.persist();
     return true;

@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactStore, numberKey, sameMainNumber } from '../src/contacts.js';
-import { applyImport, buildPreview, decodeImportFile, fromCsv, fromFile, fromGoogle, fromGraph, fromVcard, ImportSession, normalizeImportNumber, previewCounts } from '../src/contactImport.js';
+import { applyImport, buildPreview, decodeImportFile, splitNumbers, fromCsv, fromFile, fromGoogle, fromGraph, fromVcard, ImportSession, normalizeImportNumber, previewCounts } from '../src/contactImport.js';
 import { ContactSources } from '../src/contactSources.js';
 
 function withStore(fn: (store: ContactStore, file: string) => void): void {
@@ -111,7 +111,7 @@ test('Auswahl-Import: nur gewählte, vorhandene nie überschrieben, Ergänzen nu
     const cands = [
       { name: 'Eins', numbers: [{ number: '01605550701', label: 'mobil' as const }, { number: '0305550702', label: 'privat' as const }] },
       { name: 'Zwei', numbers: [{ number: '01605550703', label: 'mobil' as const }] },
-      { name: 'Anders benannt', numbers: [{ number: '01715550700', label: 'mobil' as const }, { number: '0405550704', label: 'geschäftlich' as const }] },
+      { name: 'Vorhanden Büro', numbers: [{ number: '01715550700', label: 'mobil' as const }, { number: '0405550704', label: 'geschäftlich' as const }] },
     ];
     // Ohne Bestätigung: der teilweise vorhandene Eintrag bleibt unverändert, Unbekanntes ignoriert
     let r = applyImport(cands, ['0', '2', '99', 'x'], store);
@@ -366,4 +366,72 @@ test('MCP-Freigabe „nur Kontakte“ gilt nur für die Hauptnummer', () => {
   const c = { number: '0171 5550800', numbers: ['030 5550801'] };
   assert.equal(sameMainNumber(c, '+49 171 5550800'), true);
   assert.equal(sameMainNumber(c, '030 5550801'), false);
+});
+
+// ---------------------------------------------------------------- Review-Runde 1
+
+test('Nummern: Italien behält die 0, mehrere Nummern in einem Feld', () => {
+  assert.equal(normalizeImportNumber('+39 06 12345678'), '+390612345678');
+  assert.equal(normalizeImportNumber('+39 0612345678'), '+390612345678');
+  assert.deepEqual(splitNumbers('0171 5550100 / 0221 5550101'), ['0171 5550100', '0221 5550101']);
+  assert.deepEqual(splitNumbers('0171 5550100, 0221 5550101'), ['0171 5550100', '0221 5550101']);
+  assert.deepEqual(splitNumbers('0171 5550100 oder 0221 5550101'), ['0171 5550100', '0221 5550101']);
+  assert.deepEqual(splitNumbers('0171 5550100,,1234'), ['0171 5550100']);
+  assert.deepEqual(splitNumbers('0171/5550100'), ['0171/5550100']);
+  const [c] = fromVcard('BEGIN:VCARD\nFN:Zwei Nummern\nTEL;TYPE=CELL:+49 171 5550100 / 0221 5550101\nEND:VCARD');
+  assert.deepEqual(c.numbers.map((n) => n.number), ['01715550100', '02215550101']);
+});
+
+test('CSV: keine Kunden- oder Assistenznummern, Thunderbird „Cell Number“, " mitten im Feld', () => {
+  const c = fromCsv('First Name,Last Name,Kundennummer,Assistant\'s Phone,Cell Number\nJo "Joe",Probe,4711,030 5550900,0171 5550901\nEva,Probe,100234,,0171 5550902\n');
+  assert.deepEqual(c.map((x) => [x.name, x.numbers.map((n) => n.number)]), [['Eva Probe', ['01715550902']], ['Jo "Joe" Probe', ['01715550901']]]);
+});
+
+test('Ergänzen nur bei ähnlichem Namen und nicht geteilter Nummer; gleicher Name wird markiert', () => {
+  withStore((store) => {
+    store.create({ name: 'Papa', number: '0171 5551000', numbers: ['0221 5551001'] });
+    store.create({ name: 'Mama', number: '0171 5551002' });
+    const cands = [
+      { name: 'Oma', numbers: [{ number: '01715551003', label: 'mobil' as const }, { number: '02215551001', label: 'privat' as const }] },
+      { name: 'Papa Mobil', numbers: [{ number: '01715551000', label: 'mobil' as const }, { number: '01605551004', label: 'mobil' as const }] },
+      { name: 'Mama', numbers: [{ number: '01605551005', label: 'mobil' as const }] },
+    ];
+    const items = buildPreview(cands, store);
+    assert.deepEqual(items.map((i) => [i.status, i.mergeable, i.sameName]), [['partial', undefined, undefined], ['partial', true, undefined], ['new', undefined, true]]);
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.unchanged], [0, 1, 1]);
+    assert.equal(store.findByNumber('0171 5551003'), undefined);
+    assert.equal(store.findByNumber('0160 5551004')?.name, 'Papa');
+  });
+});
+
+test('Vorschau verfällt nach der Frist und bleibt bei einem Fehler erhalten', () => {
+  withStore((store) => {
+    let now = 0;
+    const session = new ImportSession(1000, () => now);
+    const a = session.show('file', [{ name: 'Frist', numbers: [{ number: '0405551100', label: 'mobil' }] }], store);
+    now = 2000;
+    assert.throws(() => session.apply(a.token, ['0'], store), /nicht mehr aktuell/);
+    const b = session.show('file', [{ name: 'Fehler', numbers: [{ number: '0405551101', label: 'mobil' }] }], store);
+    const broken = { importMany: () => { throw new Error('Platte voll'); }, findByNumber: () => undefined } as unknown as ContactStore;
+    assert.throws(() => session.apply(b.token, ['0'], broken), /Platte voll/);
+    assert.equal(session.apply(b.token, ['0'], store).created, 1);
+  });
+});
+
+test('Kontaktspeicher: Nachschlagen bleibt bei großen Importen schnell und richtig', () => {
+  withStore((store) => {
+    const many = Array.from({ length: 4000 }, (_, i) => ({ name: 'P' + i, numbers: [{ number: '030' + String(5000000 + i), label: 'privat' as const }, { number: '0171' + String(5000000 + i), label: 'mobil' as const }] }));
+    const started = Date.now();
+    const r = applyImport(many, many.map((_, i) => String(i)), store);
+    const items = buildPreview(many, store);
+    assert.equal(r.created, 4000);
+    assert.ok(items.every((i) => i.status === 'exists'));
+    assert.ok(Date.now() - started < 3000, 'zu langsam');
+    const p = store.findByNumber('+49 30 5000123')!;
+    store.update(p.id, { numbers: [] });
+    assert.equal(store.findByNumber('0305000123')?.name, 'P123');
+    store.delete(p.id);
+    assert.equal(store.findByNumber('0305000123'), undefined);
+  });
 });
