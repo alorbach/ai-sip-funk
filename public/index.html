@@ -1415,7 +1415,7 @@ function renderImport() {
   const shown = hits.slice(0, 500);
   $('imp-list').innerHTML = shown.map((it) => {
     const ok = impSelectable(it);
-    const badge = it.status === 'exists' ? (it.existing ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : '<span class="badge">nur Nummern deiner Karte</span>') : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span> <span class="hint">${it.ownCard ? '– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen' : it.mergeable ? ($('imp-merge').checked ? '– wird dort ergänzt' : '– nur mit Haken „ergänzen“ unten') : '– wird neu angelegt, ohne die schon gespeicherten Nummern'}</span>` : '';
+    const badge = it.ownCard ? '<span class="badge">schon vorhanden</span>' : it.status === 'exists' ? (it.existing ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : '<span class="badge">nur Nummern deiner Karte</span>') : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span> <span class="hint">${it.ownCard ? '– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen' : it.mergeable ? ($('imp-merge').checked ? '– wird dort ergänzt' : '– nur mit Haken „ergänzen“ unten') : '– wird neu angelegt, ohne die schon gespeicherten Nummern'}</span>` : '';
     const nameBadge = (it.twin ? ' <span class="badge">Name mehrfach</span>' : '') + (it.sameName ? ' <span class="badge">Name schon vorhanden</span>' : it.ownCard && it.status === 'new' ? ' <span class="hint">– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen</span>' : '');
     const nums = it.numbers.map((n) => `${esc(n.number)} (${esc(I18N.t(IMP_LABEL[n.label] || n.label))})${n.known ? ' ✓' : n.ownNumber ? ` (${esc(I18N.t('deine Karte'))})` : ''}${n.shared ? ` ⇄ ${esc((n.sharedWith || []).join(', '))}` : ''}`).join(' · ');
     return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}${nameBadge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
@@ -1471,9 +1471,18 @@ $('imp-merge').onchange = renderImport;
 $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
 // Wählt nur, was die Suche gerade zeigt
 // Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
-// Ohne „Name mehrfach“, „Name schon vorhanden“ und Einträge, deren Nummern alle geteilt sind (⇄): die wählt man bewusst
-// einzeln, weil zwei Karten zwei Menschen sein können bzw. die Nummer nur einer bekommt
-$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin && !it.sameName && !it.numbers.every((x) => x.shared)) impSel.add(it.id); renderImport(); };
+// Ohne „Name mehrfach“ und „Name schon vorhanden“ (zwei Karten können zwei Menschen sein) und ohne Einträge, deren
+// Nummern alle schon ein anderer gewählter Eintrag bekommt (in derselben Reihenfolge wie beim Import)
+$('imp-all').onclick = () => {
+  const claimed = new Set();
+  for (const it of impItems) {
+    const keys = it.numbers.filter((x) => !x.known && !x.ownNumber).map((x) => key(x.number));
+    const candidate = impHits.includes(it) && it.status === 'new' && !it.ownCard && !it.twin && !it.sameName;
+    if (impSel.has(it.id) && impSelectable(it)) keys.forEach((k) => claimed.add(k));
+    else if (candidate && !keys.every((k) => claimed.has(k))) { impSel.add(it.id); keys.forEach((k) => claimed.add(k)); }
+  }
+  renderImport();
+};
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
