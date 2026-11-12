@@ -581,6 +581,9 @@ export function applyImport(
   const taken = new Set<string>();
   const shared = sharedKeys(candidates);
   const ownerContacts = store.list().filter((x) => x.owner);
+  // Nummern der eigenen Karte bekommt niemand sonst: sonst würde etwa das eigene Festnetz einer Mitbewohnerin
+  // zugeordnet und Anrufe von dort nicht mehr als Inhaber erkannt
+  for (const c of candidates) if (isOwnCard(c, ownerContacts)) for (const x of c.numbers) taken.add(numberKey(x.number));
   // Erst die Karten, die einen vorhandenen Kontakt ergänzen, dann die übrigen in Listenreihenfolge: So landet eine
   // gleichnamige Doppelkarte beim vorhandenen Kontakt, egal in welcher Reihenfolge die Karten im Adressbuch stehen
   // „01“ und „1“ sind dieselbe Karte

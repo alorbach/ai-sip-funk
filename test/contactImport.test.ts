@@ -215,6 +215,8 @@ test('Microsoft: öffentlicher Client ohne Secret, Ordner, Folgeseiten nur bei G
     if (c.url.includes('/oauth2/v2.0/token')) return { body: { access_token: 'tok-m', expires_in: 3600 } };
     if (c.url.endsWith('skip=1')) return { body: { value: [{ id: '2', displayName: 'Seite Zwei', mobilePhone: '0152 5551001' }], '@odata.nextLink': 'https://example.invalid/stehlen' } };
     if (c.url.includes('/me/contactFolders?')) return { body: { value: [{ id: 'f1' }] } };
+    if (c.url.includes('/childFolders/c1/contacts')) return { body: { value: [{ id: '4', displayName: 'Im Unterordner', mobilePhone: '0152 5551003' }] } };
+    if (c.url.includes('/childFolders?')) return { body: { value: [{ id: 'c1' }] } };
     if (c.url.includes('/me/contactFolders/f1/contacts')) return { body: { value: [{ id: '1', displayName: 'Doppelt' }, { id: '3', displayName: 'Im Ordner', businessPhones: ['069 5551002'] }] } };
     return { body: { value: [{ id: '1', displayName: 'Seite Eins', homePhones: ['030 5551000'] }], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/me/contacts?skip=1' } };
   });
@@ -227,7 +229,7 @@ test('Microsoft: öffentlicher Client ohne Secret, Ordner, Folgeseiten nur bei G
   assert.equal(calls[0].init!.body!.get('client_secret'), null);
 
   const cands = await src.load('microsoft');
-  assert.deepEqual(cands.map((c) => c.name), ['Im Ordner', 'Seite Eins', 'Seite Zwei']);
+  assert.deepEqual(cands.map((c) => c.name), ['Im Ordner', 'Im Unterordner', 'Seite Eins', 'Seite Zwei']);
   assert.equal(calls.some((c) => c.url.includes('example.invalid')), false);
   await assert.rejects(Promise.resolve().then(() => src.authUrl('google')), /Client-ID/);
 });
@@ -979,4 +981,20 @@ test('Zentrale mit „-0“ und Durchwahlbereich nach „ / “', () => {
   assert.equal(n('030 123456 / 10-12'), '030123456');
   assert.equal(n('030 1234 / 5678'), '03012345678');
   assert.equal(n('035022 / 12345'), '03502212345');
+});
+
+// ---------------------------------------------------------------- Review-Runde 24
+
+test('Nummern der eigenen Karte gehen an niemand anderen', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '0171 5553100', owner: true });
+    const cands = [
+      { name: 'Sam Beispiel', numbers: [{ number: '01715553100', label: 'mobil' as const }, { number: '0305553101', label: 'privat' as const }] },
+      { name: 'Paula Beispiel', numbers: [{ number: '0305553101', label: 'privat' as const }, { number: '01605553102', label: 'mobil' as const }] },
+    ];
+    applyImport(cands, ['0', '1'], store);
+    const paula = store.findByName('Paula Beispiel')!;
+    assert.deepEqual([paula.number, paula.numbers], ['01605553102', undefined]);
+    assert.equal(store.findByNumber('030 5553101'), undefined);
+  });
 });

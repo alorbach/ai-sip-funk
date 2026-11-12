@@ -537,7 +537,7 @@ After loading, SIPFunk shows a list with a search field and a summary ("… neu,
 2. Redirect URI: platform **"Public client/native (mobile & desktop)"**, address `http://localhost/oauth/callback` – without a port. Microsoft ignores the port for `localhost`, so a port change of the web UI needs no change here.
 3. "API permissions": Microsoft Graph › Delegated permissions › **Contacts.Read**. In a company tenant the administrator may have to consent.
 4. No client secret is needed. Enter the "Application (client) ID" in the import dialog; tenant `common` (default), `consumers` for personal accounts only, or your tenant ID.
-5. "Verbinden", sign in, "Adressbuch laden". SIPFunk reads the default contacts folder and the folders directly below it.
+5. "Verbinden", sign in, "Adressbuch laden". SIPFunk reads the default contacts folder, the other contact folders and their subfolders (one level).
 
 *Apple iCloud and file exports:*
 

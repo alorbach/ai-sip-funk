@@ -190,10 +190,18 @@ export class ContactSources {
     };
     // Standardordner und die Ordner darunter (Unterordner zweiter Ebene werden nicht durchsucht)
     await collect(`${GRAPH}/me/contacts?${GRAPH_SELECT}`);
+    // Ordner und ihre Unterordner (eine Ebene tiefer; noch tiefere werden nicht durchsucht)
     const folders = await all<{ id?: string }>(`${GRAPH}/me/contactFolders?$select=id&$top=100`, 1000);
     for (const f of folders) {
       if (out.length >= MAX_ENTRIES) break;
-      if (f.id) await collect(`${GRAPH}/me/contactFolders/${encodeURIComponent(f.id)}/contacts?${GRAPH_SELECT}`);
+      if (!f.id) continue;
+      const id = encodeURIComponent(f.id);
+      await collect(`${GRAPH}/me/contactFolders/${id}/contacts?${GRAPH_SELECT}`);
+      const children = await all<{ id?: string }>(`${GRAPH}/me/contactFolders/${id}/childFolders?$select=id&$top=100`, 200);
+      for (const ch of children) {
+        if (out.length >= MAX_ENTRIES) break;
+        if (ch.id) await collect(`${GRAPH}/me/contactFolders/${id}/childFolders/${encodeURIComponent(ch.id)}/contacts?${GRAPH_SELECT}`);
+      }
     }
     return out;
   }

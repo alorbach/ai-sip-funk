@@ -535,7 +535,7 @@ Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („…
 2. Umleitungs-URI: Plattform **„Öffentlicher Client/nativ (mobil und Desktop)“**, Adresse `http://localhost/oauth/callback` – ohne Port. Microsoft ignoriert bei `localhost` den Port, eine Portänderung der Web-UI braucht hier also keine Änderung.
 3. „API-Berechtigungen“: Microsoft Graph › Delegierte Berechtigungen › **Contacts.Read**. In einem Firmen-Mandanten muss eventuell der Administrator zustimmen.
 4. Ein Client-Geheimnis ist nicht nötig. Die „Anwendungs-ID (Client)“ im Import-Dialog eintragen; Mandant `common` (Standard), `consumers` nur für private Konten oder die Mandanten-ID.
-5. „Verbinden“, anmelden, „Adressbuch laden“. SIPFunk liest den Standard-Kontaktordner und die Ordner direkt darunter.
+5. „Verbinden“, anmelden, „Adressbuch laden“. SIPFunk liest den Standard-Kontaktordner, die weiteren Kontaktordner und deren Unterordner (eine Ebene).
 
 *Apple iCloud und Datei-Exporte:*
 
