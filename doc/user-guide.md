@@ -306,7 +306,7 @@ The test does not check an actual phone call.
 
 ### 6.3 Text model during the call
 
-The voice AI conducts the conversation. It speaks well, but it is weak at planning and keeping count. So at a few points the text model of the active AI connection helps decide. Each time it gets the task, the call plan and the whole transcript so far; the director additionally gets the voice AI's complete instructions (basic rules, background knowledge). The transcript includes the app's events (interruptions, silence, hints).
+The voice AI conducts the conversation. It speaks well, but it is weak at planning and keeping count. So at a few points the text model of the active AI connection helps decide. Each time it gets the task, the call plan (except in agent calls, where the plan is withheld from it) and the whole transcript so far; the director additionally gets the voice AI's complete instructions (basic rules, background knowledge). The transcript includes the app's events (interruptions, silence, hints).
 
 | Point | What the text model does | If it does not answer in time |
 | --- | --- | --- |
@@ -316,7 +316,7 @@ The voice AI conducts the conversation. It speaks well, but it is weak at planni
 
 **What stays fixed.** The introduction as an AI and its check, call limits and maximum duration, the permissions of the MCP interface and the switches of the spam defence are never decided by a model. Everything there is no time for stays fixed as well: the greeting, interruptions in mid-sentence, echo and silence. A text model is too slow for that; in mid-sentence every second would be audible as a pause. In the spam defence the text model does not take part. In agent calls the agent is the director (chapter 13); there the text model only checks on hanging up and after the goodbye.
 
-**Delay and cost.** A text model needs two to four seconds for an answer. So nothing audible waits for it: the check on hanging up runs alongside the goodbye and the listening period after it, and a hint from the director takes effect only at the AI's next turn. If the conversation has moved on by a turn by then, the hint is dropped. The director costs one short text-model request per turn of the AI, at most 40 per call. For this the transcript goes to your provider's text model during the call already, not only afterwards for the summary.
+**Delay and cost.** A text model needs mostly three to four seconds for an answer, occasionally up to eight. So nothing audible waits for it: the check on hanging up runs alongside the goodbye and the listening period after it, and a hint from the director takes effect only at the AI's next turn. If the conversation has moved on by a turn by then, the hint is dropped. The director costs one short text-model request per turn of the AI, at most 40 per call. For this the transcript goes to your provider's text model during the call already, not only afterwards for the summary.
 
 **Switching it off.** The switch "Textmodell entscheidet im Gespräch mit" (text model helps decide during the call) is under "Einstellungen › Technik" and is on. Switched off, SIPFunk behaves as before: word lists, and with a call plan the voice AI's self-check before the goodbye.
 

@@ -24,7 +24,7 @@ import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type Sca
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
 import { formatPlan, planCall } from './ai/plan.js';
-import { createDirector, createJudge, type JudgeContext } from './ai/judge.js';
+import { createDirector, createJudge, type Director, type JudgeContext } from './ai/judge.js';
 import { summarize } from './ai/summary.js';
 import { assessCall } from './ai/assess.js';
 import { Mailer, oauthFrom } from './notify/email.js';
@@ -141,7 +141,7 @@ const modes = [
 /** Laufendes KI-Gespräch: Transkript, Usage und Metadaten fürs Protokoll. */
 let transcript: TranscriptEntry[] = [];
 let current:
-  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; provider: ProviderId; ask: TextModel; usage?: Usage; plan?: string; outcome?: CallOutcome; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean; origin?: 'mcp' }
+  | { startedAt: Date; task: string; persona: Record<string, string>; model: string; provider: ProviderId; ask: TextModel; usage?: Usage; plan?: string; outcome?: CallOutcome; director?: Director; incoming?: { caller: string; called: string; principal: string }; spam?: boolean; notify?: boolean; origin?: 'mcp' }
   | undefined;
 /** Zeitlimit der Spam-Abwehr (läuft ab Umschalten bzw. Annahme) */
 let spamTimer: NodeJS.Timeout | undefined;
@@ -305,7 +305,7 @@ ${mcp ? str('context') : input.context}` : input.task,
 
   // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
   const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice, provider.maleVoices) : undefined;
-  // Das Textmodell entscheidet mit und führt Regie (Einstellungen › Technik); es kennt dafür Auftrag, Plan und das ganze Transkript.
+  // Das Textmodell entscheidet mit und führt Regie (Einstellungen › Technik); es kennt dafür Auftrag, Plan (außer bei Agenten-Anrufen) und das ganze Transkript.
   // Nicht in der Spam-Abwehr. Bei Agenten-Anrufen führt der Agent Regie, das Textmodell entscheidet nur an den Regelstellen mit
   const started = current;
   // Die vollständige Anweisung der Sprach-KI gehört zum Kontext (mit Plan, sobald er da ist)
@@ -317,6 +317,8 @@ ${mcp ? str('context') : input.context}` : input.task,
     liveJudge && !mcp
       ? createDirector(active.ask, judgeContext, (hint) => current === started && bridge.directorHint(hint), (message) => log.warn(`Regie: Textmodell fehlgeschlagen (${message.slice(0, 120)})`))
       : undefined;
+  // (Am Ende des Gesprächs hält callEnded sie an: Sie liest sonst das Transkript des nächsten Gesprächs)
+  started.director = director;
   const bridge: RealtimeBridge = new RealtimeBridge({
     judge: liveJudge ? createJudge(active.ask, judgeContext) : undefined,
     apiKey,
@@ -433,6 +435,7 @@ manager.on('callEnded', (reason: string) => {
   if (!current || st.mode !== 'ai') return;
   const c = current;
   current = undefined;
+  c.director?.stop();
   clearTimeout(spamTimer);
   spamTimer = undefined;
   if (!st.connectedAt) {

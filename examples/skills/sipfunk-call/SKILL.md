@@ -70,7 +70,7 @@ What you see and what you do:
 | `RÜCKFRAGE der KI an dich: …` and `OFFENE RÜCKFRAGE` | The AI is waiting for you on the phone, about 25 seconds at most | Answer **immediately** with `say`, briefly and unambiguously |
 | `Hinweis: Gesprächsplan der KI: …` | How the AI intends to work through the task | Read along; step in only if a point of the task is missing |
 | `Hinweis: Stille …` / `KI unterbrochen …` / `Das Gegenüber war zu hören, aber ohne Worte …` | What happened between the sentences (silence, interruption, a sound without words); SIPFunk deals with it itself | Do nothing |
-| `Hinweis: Prüfung vor dem Auflegen: noch offen – …` | SIPFunk noticed that something from the task is missing and took back the hang-up; the AI will raise it | Keep waiting |
+| `Hinweis: Prüfung vor dem Auflegen: noch offen – …` | SIPFunk noticed that something from the task is missing; the AI will raise it (if it was already hanging up, the hang-up is taken back) | Keep waiting |
 | `Hinweis: Ergebnis laut KI: …` | The AI is saying goodbye and about to hang up | If the result is wrong or something important is missing: `say` **immediately** – that takes back the hang-up as long as the call has not ended. Otherwise do nothing |
 | `Zustand: Beendet: …` | The call is over | Go on to step 6 |
 

@@ -70,7 +70,7 @@ Was du siehst und was du tust:
 | `RÜCKFRAGE der KI an dich: …` und `OFFENE RÜCKFRAGE` | Die KI wartet am Telefon auf dich, höchstens etwa 25 Sekunden | **Sofort** mit `say` antworten, kurz und eindeutig |
 | `Hinweis: Gesprächsplan der KI: …` | So will die KI den Auftrag abarbeiten | Mitlesen; nur eingreifen, wenn ein Punkt des Auftrags fehlt |
 | `Hinweis: Stille …` / `KI unterbrochen …` / `Das Gegenüber war zu hören, aber ohne Worte …` | Was zwischen den Sätzen geschah; SIPFunk kümmert sich selbst darum | Nichts tun |
-| `Hinweis: Prüfung vor dem Auflegen: noch offen – …` | SIPFunk hat bemerkt, dass vom Auftrag etwas fehlt, und das Auflegen zurückgenommen; die KI spricht es noch an | Weiter warten |
+| `Hinweis: Prüfung vor dem Auflegen: noch offen – …` | SIPFunk hat bemerkt, dass vom Auftrag etwas fehlt; die KI spricht es noch an (wollte sie gerade auflegen, ist das Auflegen zurückgenommen) | Weiter warten |
 | `Hinweis: Ergebnis laut KI: …` | Die KI verabschiedet sich gerade und legt gleich auf | Stimmt das Ergebnis nicht oder fehlt etwas Wichtiges: **sofort** `say` – das nimmt das Auflegen zurück, solange nicht aufgelegt ist. Sonst nichts tun |
 | `Zustand: Beendet: …` | Das Gespräch ist vorbei | Weiter mit Schritt 6 |
 

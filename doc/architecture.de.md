@@ -40,7 +40,7 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 | `src/ai/connectionTest.ts` | „Verbindung testen“ für eine Verbindung: Schlüssel, Sprachmodell, Live-Verbindung |
 | `src/usageCounter.ts` | Monatsverbrauch je Anbieter in `usage.json`; optionaler Abruf der tatsächlichen Kosten der OpenAI-Organisation |
 | `src/ai/personas.ts`, `scam.ts`, `plan.ts` | Systemanweisungen: Assistent, Spam-Rolle, Gesprächsplan |
-| `src/ai/judge.ts` | Textmodell im laufenden Gespräch: die Fragen ans Textmodell (Auftrag erledigt beim Auflegen, Abschied oder Anliegen nach der Verabschiedung) und die Regie im Hintergrund, jeweils mit Auftrag, Plan und ganzem Transkript. Fristen und der Rückfall auf die feste Regel stecken in der Brücke; Schutzgrenzen entscheidet es nicht |
+| `src/ai/judge.ts` | Textmodell im laufenden Gespräch: die Fragen ans Textmodell (Auftrag erledigt beim Auflegen, Abschied oder Anliegen nach der Verabschiedung) und die Regie im Hintergrund, jeweils mit Auftrag, Plan (außer bei Agenten-Anrufen) und ganzem Transkript. Fristen und der Rückfall auf die feste Regel stecken in der Brücke; Schutzgrenzen entscheidet es nicht |
 | `src/ai/summary.ts`, `assess.ts`, `complaint.ts`, `farewell.ts`, `pricing.ts`, `voiceSample.ts` | Zusammenfassung, Einschätzung, Beschwerde-Entwurf, Verabschiedungserkennung, Kostenschätzung, Stimmproben |
 | `src/spamCheck.ts` | Einschätzung der Anrufernummer beim Klingeln, optionale tellows-Abfrage |
 | `src/notify/` | E-Mail (SMTP, OAuth), Autokonfiguration, Format und Vorlagen der Mail |

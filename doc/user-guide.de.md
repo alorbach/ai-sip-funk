@@ -304,7 +304,7 @@ Ein Telefonat ist damit nicht geprüft.
 
 ### 6.3 Textmodell im Gespräch
 
-Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schlecht mit. Deshalb entscheidet an einigen Stellen das Textmodell der aktiven KI-Verbindung mit. Es bekommt dafür jedes Mal den Auftrag, den Gesprächsplan und das ganze bisherige Transkript; die Regie bekommt zusätzlich die vollständigen Anweisungen der Sprach-KI (Grundregeln, Hintergrundwissen). Das Transkript kommt samt den Ereignissen der App (Unterbrechungen, Stille, Hinweise).
+Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schlecht mit. Deshalb entscheidet an einigen Stellen das Textmodell der aktiven KI-Verbindung mit. Es bekommt dafür jedes Mal den Auftrag, den Gesprächsplan (außer bei Agenten-Anrufen: Dort bleibt ihm der Plan vorenthalten) und das ganze bisherige Transkript; die Regie bekommt zusätzlich die vollständigen Anweisungen der Sprach-KI (Grundregeln, Hintergrundwissen). Das Transkript kommt samt den Ereignissen der App (Unterbrechungen, Stille, Hinweise).
 
 | Stelle | Was das Textmodell tut | Antwortet es nicht rechtzeitig |
 | --- | --- | --- |
@@ -314,7 +314,7 @@ Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schle
 
 **Was fest bleibt.** Die Vorstellung als KI samt Nachprüfung, Anruflimits und Höchstdauer, die Freigaben der MCP-Schnittstelle und die Schalter der Spam-Abwehr entscheidet nie ein Modell. Fest bleibt auch alles, wofür keine Zeit ist: Begrüßung, Unterbrechungen mitten im Satz, Echo und Stille. Ein Textmodell ist dafür zu langsam; mitten im Satz wäre jede Sekunde als Pause zu hören. In der Spam-Abwehr entscheidet das Textmodell nicht mit. Bei Agenten-Anrufen führt der Agent die Regie (Kapitel 13); das Textmodell prüft dort nur beim Auflegen und nach der Verabschiedung.
 
-**Verzögerung und Kosten.** Ein Textmodell braucht für eine Antwort zwei bis vier Sekunden. Deshalb wartet nichts Hörbares darauf: Die Prüfung beim Auflegen läuft neben dem Abschiedssatz und der Nachhörphase her, und ein Hinweis der Regie wirkt erst beim nächsten Redebeitrag der KI. Ist das Gespräch dann schon einen Redebeitrag weiter, verfällt der Hinweis. Die Regie kostet einen kurzen Textmodell-Aufruf je Redebeitrag der KI, höchstens 40 je Gespräch. Das Transkript geht dafür schon während des Gesprächs an das Textmodell deines Anbieters und nicht erst danach für die Zusammenfassung.
+**Verzögerung und Kosten.** Ein Textmodell braucht für eine Antwort meist drei bis vier Sekunden, vereinzelt bis zu acht. Deshalb wartet nichts Hörbares darauf: Die Prüfung beim Auflegen läuft neben dem Abschiedssatz und der Nachhörphase her, und ein Hinweis der Regie wirkt erst beim nächsten Redebeitrag der KI. Ist das Gespräch dann schon einen Redebeitrag weiter, verfällt der Hinweis. Die Regie kostet einen kurzen Textmodell-Aufruf je Redebeitrag der KI, höchstens 40 je Gespräch. Das Transkript geht dafür schon während des Gesprächs an das Textmodell deines Anbieters und nicht erst danach für die Zusammenfassung.
 
 **Ausschalten.** Der Schalter „Textmodell entscheidet im Gespräch mit“ steht unter „Einstellungen › Technik“ und ist eingeschaltet. Ausgeschaltet verhält sich SIPFunk wie bisher: Wortlisten, und mit Gesprächsplan die Selbstprüfung der Sprach-KI vor dem Abschied.
 

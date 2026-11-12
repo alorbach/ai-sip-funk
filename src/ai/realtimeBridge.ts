@@ -298,8 +298,11 @@ export class RealtimeBridge implements AudioHandler {
   private muteReplyUntil = 0;
   /** Wie die letzte Antwort endete ('cancelled' = das Gegenüber hat sie unterbrochen) */
   private lastResponseStatus?: string;
-  /** Äußerung (Item), deren Transkription über das Auflegen nach der Verabschiedung entscheidet */
-  private farewellItemId?: string;
+  /**
+   * Äußerungen des Gegenübers (Items), die nach der Verabschiedung begannen und deren Mitschrift noch fehlt, in der Reihenfolge ihres
+   * Beginns (undefined = Anbieter nennt keine Kennung). Solange eine fehlt, wird nicht aufgelegt: Sie könnte der Anlass sein, weiterzureden.
+   */
+  private farewellOpen: (string | undefined)[] = [];
   /** true ab transfer_call, bis die Vermittlung gescheitert ist: Der Stillstandswächter schweigt so lange */
   private transferring = false;
   /** Offene Rückfrage an den Agenten (Tool ask_principal): Bis zur Antwort oder zum Ablauf der Frist schweigt der Stillstandswächter */
@@ -312,14 +315,18 @@ export class RealtimeBridge implements AudioHandler {
   private speechStartedAt = 0;
   /** Die Prüfung beim end_call läuft noch (Textmodell, neben der Verabschiedung her): Das Auflegen wartet auf ihr Urteil */
   private endCheck?: NodeJS.Timeout;
-  /** Die Prüfung beim end_call hat offene Punkte gemeldet */
-  private endOpenFound = false;
+  /** Die Prüfung nebenher (end_call mit Sprache) hat offene Punkte gemeldet; turns = Stand der Äußerungen des Gegenübers, auf dem das beruht */
+  private endOpenFound?: { open: string[]; turns: number };
   /** Prüfung, die nach einem end_call mit Sprache nebenher läuft; ein neuer end_call ersetzt sie durch eine frische */
   private endCheckLater?: NodeJS.Timeout;
+  /** Wie oft das Gegenüber angesetzt bzw. etwas Fertiges gesagt hat: Eine Prüfung, die davor begann, kennt die Antwort nicht */
+  private partnerTurns = 0;
+  /** Der Agent hat das Beenden verlangt: Das Textmodell prüft es nicht und nimmt es nicht zurück */
+  private endByAgent = false;
   /** Worte nach der Verabschiedung, über die das Textmodell gerade urteilt (undefined = es urteilt nicht) */
   private farewellJudging?: string;
-  /** Worte nach der Verabschiedung, auf die das Gegenüber gleich weitergeredet hat: zählen mit der nächsten Äußerung zusammen */
-  private farewellPrior = '';
+  /** Worte nach der Verabschiedung, die noch nicht entschieden sind, weil das Gegenüber weiterredet: zählen mit der nächsten Äußerung zusammen ('' = ein Geräusch) */
+  private farewellPrior?: string;
   private lastPartnerAt = 0;
 
   constructor(private opts: RealtimeBridgeOptions) {
@@ -654,8 +661,13 @@ export class RealtimeBridge implements AudioHandler {
   agentEnd(): 'ending' | 'closed' {
     if (this.closed) return 'closed';
     if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
-    // Der Auftraggeber beendet: Die Selbstprüfung gegen den Gesprächsplan („sprich fehlende Schritte jetzt aus“) entfällt
+    // Der Auftraggeber beendet: Die Selbstprüfung gegen den Gesprächsplan („sprich fehlende Schritte jetzt aus“) entfällt,
+    // und das Textmodell prüft nicht nach (auch keine Prüfung, die nebenher noch läuft: Ihr Urteil verfällt)
     this.endCallChecked = true;
+    this.endByAgent = true;
+    clearTimeout(this.endCheckLater);
+    this.endCheckLater = undefined;
+    this.endOpenFound = undefined;
     if (this.ask) this.resolveAsk(AGENT_END_NOTE);
     else {
       this.live.note(AGENT_END_NOTE);
@@ -808,6 +820,7 @@ export class RealtimeBridge implements AudioHandler {
 
   private onPartnerText(itemId: string | undefined, text: string): void {
     if (text) {
+      this.partnerTurns++;
       this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
       // Das Gegenüber hat doch etwas gesagt (die Mitschrift kam ohne „Sprache beginnt“, z. B. als Nachtrag):
       // Was die KI darauf antwortet, ist kein Nachschub nach dem abgelehnten end_call
@@ -827,13 +840,11 @@ export class RealtimeBridge implements AudioHandler {
     // Nur die Äußerung zählt, die die Prüfung ausgelöst hat – nicht die verspätete Transkription des Satzes davor
     const fits = (expected?: string) => !expected || !itemId || expected === itemId;
     if (this.farewellDecisionTimer) {
-      if (!fits(this.farewellItemId)) return;
-      if (this.partnerSpeaking && isFarewell(text)) {
-        // „Ja …" und das Gegenüber redet schon weiter: erst die nächste Äußerung entscheidet
-        this.farewellItemId = undefined;
-        clearTimeout(this.farewellDecisionTimer);
-        this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
-      } else this.decideAfterGoodbye(text);
+      // Nur Äußerungen zählen, die nach der Verabschiedung begannen – nicht die verspätete Transkription des Satzes davor
+      if (!this.takeFarewellItem(itemId)) return;
+      // Kommt die Mitschrift einer weiteren Äußerung, während das Textmodell noch über die Worte davor urteilt, ist das Urteil überholt
+      if (this.farewellJudging !== undefined) this.awaitMoreAfterGoodbye(this.farewellJudging);
+      this.decideAfterGoodbye(text);
     } else if (this.hold && fits(this.hold.itemId)) {
       if (this.partnerSpeaking && isBackchannel(text)) this.hold.itemId = undefined;
       else this.resolveHold(text);
@@ -842,6 +853,7 @@ export class RealtimeBridge implements AudioHandler {
 
   private onSpeechStarted(itemId?: string): void {
     this.partnerSpeaking = true;
+    this.partnerTurns++;
     this.speechStartedAt = Date.now();
     clearTimeout(this.openingTimer);
     // Das Gegenüber redet: Die Antwort darauf entsteht von selbst und kennt die Regieanweisung schon
@@ -1265,12 +1277,17 @@ export class RealtimeBridge implements AudioHandler {
       if (this.live.toolCallsBlock) this.live.toolOutput(callId, name, 'ok');
       return;
     }
-    // Das Textmodell prüft einmal je Gespräch am ganzen Transkript, ob vom Auftrag noch etwas fehlt (nicht in der Spam-Abwehr)
+    // Punkte, die die Prüfung nebenher beim letzten end_call gemeldet hat, gelten nur für diesen end_call: danach nicht mehr
+    // („Fehlt der eben genannte Punkt …" nach dem Schweigen wäre sonst falsch, wenn er längst beantwortet ist)
+    const found = this.endOpenFound;
+    this.endOpenFound = undefined;
+    // Das Textmodell prüft einmal je Gespräch am ganzen Transkript, ob vom Auftrag noch etwas fehlt (nicht in der Spam-Abwehr,
+    // nicht beim Beenden durch den Agenten).
     // Läuft die Prüfung vom end_call mit Sprache noch, ist sie überholt (das Gegenüber hat inzwischen geantwortet): neu prüfen
     const overtaken = this.endCheckLater !== undefined;
     clearTimeout(this.endCheckLater);
     this.endCheckLater = undefined;
-    const judge = !this.opts.scam && (!this.endCallChecked || overtaken) ? this.opts.judge : undefined;
+    const judge = !this.opts.scam && !this.endByAgent && (!this.endCallChecked || overtaken) ? this.opts.judge : undefined;
     if (this.stats.deltas > 0) {
       // Gesprochen und im selben Atemzug beendet („ich richte das jetzt aus" + end_call):
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
@@ -1280,11 +1297,23 @@ export class RealtimeBridge implements AudioHandler {
       if (check || judge) this.endCallChecked = true;
       if (judge) {
         // Das Gegenüber ist ohnehin erst dran: Die Prüfung läuft nebenher, Fehlendes kommt als Hinweis nach
-        this.endOpenFound = false;
+        const turns = this.partnerTurns;
         this.endCheckLater = this.askJudge('Auflegen, nebenher', judge.endCall(), JUDGE_END_LATER_MS, (t) => this.endCheckLater === t, (open) => {
           this.endCheckLater = undefined;
-          if (!open?.length || this.endRequested !== undefined || this.goodbye !== 'none') return;
-          this.endOpenFound = true;
+          // Das Gegenüber hat seit Beginn der Prüfung etwas gesagt: Sie kannte die Antwort nicht, das Urteil gilt nicht.
+          // Der nächste end_call wird frisch geprüft
+          if (this.partnerTurns !== turns) {
+            this.endCallChecked = false;
+            return;
+          }
+          if (!open?.length) return;
+          // Die KI beendet schon (etwa auf den Anstoß nach dem Schweigen hin): Das Auflegen zurücknehmen, sonst geht der Punkt verloren
+          if (this.endRequested !== undefined) {
+            this.resumeForOpen(open);
+            return;
+          }
+          if (this.goodbye !== 'none') return;
+          this.endOpenFound = { open, turns };
           this.event(`Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')}`);
           this.live.note(endCallOpenNote(open));
         });
@@ -1360,6 +1389,9 @@ export class RealtimeBridge implements AudioHandler {
       }
     }, 30_000);
     this.endSafetyTimer.unref();
+    // Die Prüfung nebenher hatte Punkte gemeldet, und die KI beendet, ohne dass das Gegenüber seitdem etwas gesagt hat (ihre Antwort war schon
+    // unterwegs, als der Hinweis kam): so, als hätte die Prüfung beim end_call selbst sie gefunden. Einmal – found ist verbraucht
+    if (found && found.turns === this.partnerTurns) this.resumeForOpen(found.open);
   }
 
   /**
@@ -1498,42 +1530,75 @@ export class RealtimeBridge implements AudioHandler {
   /**
    * Gegenüber spricht nach dem end_call noch. Auflegen pausieren und auf die Transkription warten:
    * reine Verabschiedung/Bestätigung („Okay, tschüss") -> sofort auflegen; Inhalt -> Gespräch geht weiter.
+   * Jede Äußerung, die nach der Verabschiedung beginnt, zählt – auch eine, die ansetzt, bevor die Mitschrift der vorigen da ist.
    */
   private onSpeechAfterGoodbye(itemId?: string): void {
     if (this.endRequested === undefined) return;
+    if (!itemId || !this.farewellOpen.includes(itemId)) this.farewellOpen.push(itemId);
     if (this.farewellDecisionTimer) {
-      // Das Gegenüber redet weiter, während das Textmodell über die Worte davor urteilt: Das Urteil ist überholt,
-      // beide Äußerungen zählen zusammen (sonst würde mitten in den neuen Satz aufgelegt)
-      if (this.farewellJudging !== undefined) this.awaitMoreAfterGoodbye(this.farewellJudging, itemId);
+      // Das Gegenüber redet weiter, während die Mitschrift davor aussteht oder das Textmodell über die Worte davor urteilt:
+      // Das Urteil ist überholt, beide Äußerungen zählen zusammen (sonst würde mitten in den neuen Satz aufgelegt)
+      if (this.farewellJudging !== undefined) this.awaitMoreAfterGoodbye(this.farewellJudging);
+      else this.armFarewellTimer();
       return;
     }
     clearTimeout(this.hangupTimer);
     this.hangupTimer = undefined;
     // Neue Äußerung, neue Entscheidung: Nach einem früheren Geräusch darf die Antwort auf echte Sprache nicht stumm bleiben
     this.muteAfterGoodbye = false;
-    this.farewellItemId = itemId;
     log.info('Realtime: Gegenüber spricht nach der Verabschiedung – warte auf Transkription');
-    // Kommt keine Transkription, im Zweifel weitermachen statt jemandem ins Wort aufzulegen
-    this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
+    this.armFarewellTimer();
   }
 
-  /** Auf die nächste Mitschrift warten; `prior` sind die Worte davor, die dann mitzählen. */
-  private awaitMoreAfterGoodbye(prior: string, itemId?: string): void {
-    log.info('Realtime: Gegenüber redet nach der Verabschiedung weiter – die nächste Äußerung entscheidet mit');
-    this.farewellJudging = undefined;
-    this.farewellPrior = prior;
-    this.farewellItemId = itemId;
+  /** Frist für die Mitschrift (je Äußerung neu): Kommt keine, im Zweifel weitermachen statt jemandem ins Wort aufzulegen */
+  private armFarewellTimer(): void {
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
   }
 
+  /** Das Gegenüber redet noch oder hat neu angesetzt, und die Mitschrift davon fehlt: Es kommt gleich mehr. */
+  private moreAfterGoodbye(): boolean {
+    return this.partnerSpeaking || this.farewellOpen.length > 0;
+  }
+
+  /**
+   * Die Mitschrift einer Äußerung nach der Verabschiedung ist da: Sie ist nicht mehr offen. false = die verspätete Mitschrift des
+   * Satzes davor (oder ein Nachtrag), die hier nichts entscheidet.
+   */
+  private takeFarewellItem(itemId?: string): boolean {
+    let i = itemId ? this.farewellOpen.indexOf(itemId) : 0;
+    if (i < 0) i = this.farewellOpen.indexOf(undefined);
+    if (i < 0) return false;
+    this.farewellOpen.splice(i, 1);
+    return true;
+  }
+
+  /** Auf die nächste Mitschrift warten; `words` sind die Worte davor, die dann mitzählen. */
+  private awaitMoreAfterGoodbye(words: string): void {
+    log.info('Realtime: Gegenüber redet nach der Verabschiedung weiter – die nächste Äußerung entscheidet mit');
+    this.farewellJudging = undefined;
+    this.farewellPrior = this.farewellPrior === undefined ? words : `${this.farewellPrior} ${words}`.trim();
+    this.armFarewellTimer();
+  }
+
+  /** text = Mitschrift der Äußerung; undefined = die Frist ist abgelaufen, ohne dass eine kam. */
   private decideAfterGoodbye(text: string | undefined): void {
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = undefined;
     this.farewellJudging = undefined;
-    if (text !== undefined && this.farewellPrior) text = `${this.farewellPrior} ${text}`.trim();
-    this.farewellPrior = '';
+    const prior = this.farewellPrior;
+    this.farewellPrior = undefined;
+    if (text === undefined) {
+      // Keine Mitschrift mehr zu erwarten. Was das Gegenüber vorher gesagt hat, gilt trotzdem: Es wird nicht verworfen
+      this.farewellOpen = [];
+      text = prior;
+    } else if (prior !== undefined) text = `${prior} ${text}`.trim();
     if (this.endRequested === undefined || this.closed) return;
+    // Nur ein Abschied, aber das Gegenüber redet schon weiter: erst die nächste Äußerung entscheidet, das Textmodell muss nicht fragen
+    if (text !== undefined && this.moreAfterGoodbye() && isFarewell(text)) {
+      this.awaitMoreAfterGoodbye(text);
+      return;
+    }
     const judge = this.opts.scam ? undefined : this.opts.judge;
     if (judge && text?.trim()) {
       const words = text;
@@ -1545,8 +1610,8 @@ export class RealtimeBridge implements AudioHandler {
         this.farewellDecisionTimer = undefined;
         this.farewellJudging = undefined;
         const farewell = verdict ? verdict === 'farewell' : isFarewell(words);
-        // Es spricht gerade wieder: nicht mitten hinein auflegen, die nächste Mitschrift entscheidet mit
-        if (farewell && this.partnerSpeaking) this.awaitMoreAfterGoodbye(words);
+        // Es spricht gerade wieder oder hat neu angesetzt: nicht mitten hinein auflegen, die nächste Mitschrift entscheidet mit
+        if (farewell && this.moreAfterGoodbye()) this.awaitMoreAfterGoodbye(words);
         else this.applyAfterGoodbye(words, farewell);
       });
       return;
@@ -1577,8 +1642,10 @@ export class RealtimeBridge implements AudioHandler {
    */
   private cancelHangup(why: 'partner' | 'agent' | 'check' = 'partner'): void {
     if (this.endRequested === undefined) return;
-    // Läuft die Prüfung beim end_call noch, ist sie mit dem Weitergehen hinfällig; beim nächsten end_call wird neu geprüft
-    if (this.endCheck && why !== 'check') this.endCallChecked = false;
+    // Läuft die Prüfung beim end_call noch, ist sie mit dem Weitergehen hinfällig; beim nächsten end_call wird neu geprüft.
+    // Geht das Gespräch weiter, weil das Gegenüber etwas sagt, gilt das auch nach einem Urteil „nichts offen“: Es kam Neues dazu.
+    // (Ohne Textmodell bleibt die Selbstprüfung gegen den Plan einmal je Gespräch; ein Beenden durch den Agenten wird nie geprüft)
+    if (!this.endByAgent && ((why === 'partner' && this.opts.judge) || (this.endCheck && why !== 'check'))) this.endCallChecked = false;
     clearTimeout(this.endCheck);
     this.endCheck = undefined;
     clearTimeout(this.hangupTimer);
@@ -1586,7 +1653,8 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = undefined;
     this.farewellJudging = undefined;
-    this.farewellPrior = '';
+    this.farewellPrior = undefined;
+    this.farewellOpen = [];
     clearTimeout(this.endSafetyTimer);
     this.endSafetyTimer = undefined;
     this.endRequested = undefined;

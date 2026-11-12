@@ -1,7 +1,7 @@
 // Das Textmodell entscheidet im laufenden Gespräch mit: an Stellen, an denen sonst Wortlisten und starre Regeln entscheiden
 // und an denen das Gespräch nicht hörbar auf die Antwort warten muss (Auflegen oder weiter nach der Verabschiedung; Auftrag
 // erledigt beim end_call, neben der Verabschiedung her), und als Regie im Hintergrund, die nach jedem Redebeitrag der KI
-// mitliest und ihr bei Bedarf einen Hinweis gibt. Es kennt dafür immer Auftrag, Plan und das ganze bisherige Transkript,
+// mitliest und ihr bei Bedarf einen Hinweis gibt. Es kennt dafür immer Auftrag, Plan (außer bei Agenten-Anrufen) und das ganze bisherige Transkript,
 // die Regie zusätzlich die vollständigen Anweisungen der Sprach-KI (Grundregeln, Hintergrundwissen).
 //
 // Hier stehen die Fragen ans Textmodell. Die Fristen stecken in der Brücke (realtimeBridge.ts): Kein Gespräch hängt an
@@ -46,11 +46,13 @@ export interface CallJudge {
 }
 
 /**
- * Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist. Die Prüfung beim Auflegen und die
- * Regie lesen mehr und brauchen länger (gemessen meist drei bis vier Sekunden, vereinzelt acht).
+ * Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist (4 s bzw. 8 s). Die Prüfung beim Auflegen
+ * und die Regie lesen mehr und brauchen länger (gemessen meist drei bis vier Sekunden, vereinzelt acht). Beide etwas unter der
+ * Frist der Brücke: Liefen sie gleichzeitig ab, hinge es vom Zufall ab, ob der Anbieter (und danach ein Ausweichmodell, dessen
+ * Urteil zu spät käme) oder die Brücke zuerst aufgibt.
  */
-const MODEL_TIMEOUT_MS = 4000;
-const MODEL_TIMEOUT_LONG_MS = 8000;
+const MODEL_TIMEOUT_MS = 3500;
+const MODEL_TIMEOUT_LONG_MS = 7500;
 /** So beginnt die Zeile, mit der die Brücke das Ergebnis laut KI ins Transkript schreibt (siehe CallJudge.endCall) */
 export const OUTCOME_PREFIX = 'Ergebnis laut KI:';
 const MAX_HINT = 300;
@@ -191,10 +193,13 @@ export interface Director {
 /** Höchstens so viele Fragen an die Regie je Gespräch (Kostenbremse für sehr lange Gespräche) */
 const DIRECTOR_MAX_RUNS = 40;
 
+/** Wie viele fertige Äußerungen des Gegenübers im Transkript stehen */
+const partnerTurns = (ctx: JudgeContext): number => ctx.entries.filter((e) => e.final && e.speaker === 'partner' && e.text.trim()).length;
+
 /**
  * Regie im Hintergrund für ein Gespräch: fragt nach jedem Redebeitrag der KI das Textmodell (immer nur eine Frage
- * gleichzeitig) und reicht einen Hinweis über `deliver` weiter. Ist das Gespräch inzwischen einen Redebeitrag weiter,
- * verfällt der Hinweis, und die Regie sieht sich den neuen Stand an.
+ * gleichzeitig) und reicht einen Hinweis über `deliver` weiter. Ist das Gespräch inzwischen einen Redebeitrag weiter
+ * (auch: hat das Gegenüber inzwischen etwas gesagt), verfällt der Hinweis, und die Regie sieht sich den neuen Stand an.
  */
 export function createDirector(ask: TextModel, context: () => JudgeContext, deliver: (hint: string) => boolean, onError: (message: string) => void = () => undefined): Director {
   let running = false;
@@ -208,10 +213,12 @@ export function createDirector(ask: TextModel, context: () => JudgeContext, deli
     try {
       const ctx = context();
       // Vor der ersten Äußerung des Gegenübers gibt es nichts zu beurteilen
-      if (!ctx.entries.some((e) => e.final && e.speaker === 'partner' && e.text.trim())) return;
+      const heard = partnerTurns(ctx);
+      if (!heard) return;
       runs++;
       const hint = await directCall(ask, ctx);
-      if (hint && !stopped && !again) deliver(hint);
+      // Das Gegenüber hat während der Frage etwas gesagt (die KI muss dazu nicht gesprochen haben): Der Hinweis kennt das nicht
+      if (hint && !stopped && !again && partnerTurns(context()) === heard) deliver(hint);
     } catch (err) {
       onError(String((err as Error)?.message ?? err));
     } finally {
