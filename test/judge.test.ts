@@ -1026,7 +1026,7 @@ test('Das Gegenüber setzte schon vor dem end_call an und redet noch: Es wird ni
 
 // ---- Review-Runde 4 ----
 
-test('Nach der Verabschiedung: Hängt die Spracherkennung, entscheidet nach einer Minute, was schon gesagt war – ein Abschied legt auf, ohne Worte geht das Gespräch weiter', async (t) => {
+test('Nach der Verabschiedung: Hängt die Spracherkennung, entscheidet nach einer Minute, was schon gesagt war – ein Abschied legt auf, ohne Worte gilt es als Geräusch und der Abschied zählt', async (t) => {
   // Mit Worten davor: Das Gegenüber „spricht“ weiter, ein Sprachende kommt nie
   // (einzeln getickt: Die Frist stellt sich selbst neu, in der nachgestellten Uhr läuft sie sonst erst am Ende des Sprungs)
   const h = setup(t, { judge: undefined });
@@ -1062,16 +1062,20 @@ test('Nach der Verabschiedung: Hängt die Spracherkennung, entscheidet nach eine
   assert.deepEqual(g.ended, ['KI hat das Gespräch beendet']);
   g.bridge.close();
 
-  // Ohne Worte davor: Das Gespräch geht weiter, statt jemandem ins Wort aufzulegen
+  // Ohne Worte davor (eine Minute Sprache ohne Mitschrift): ein Geräusch, der Abschied gilt – das Gespräch bleibt nicht stumm stehen
   const k = setup(t, { judge: undefined });
   k.toolEnd();
   farewell(k);
   speechStarted(k, 'u1');
   for (let i = 0; i < 14; i++) k.tick(4000);
-  assert.ok(!k.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'), 'bis zur Minute wird gewartet');
+  assert.deepEqual(k.ended, [], 'bis zur Minute wird gewartet');
+  assert.ok(!k.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
   for (let i = 0; i < 2; i++) k.tick(4000);
-  assert.ok(k.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
-  assert.deepEqual(k.ended, []);
+  k.bridge.nextFrame();
+  k.tick(1000);
+  assert.deepEqual(k.ended, ['KI hat das Gespräch beendet']);
+  assert.ok(!k.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  assert.ok(!k.notes().some((n) => /nach deiner Verabschiedung noch etwas gesagt/.test(n)), 'die KI erfährt nicht, das Gegenüber habe etwas gesagt');
   k.bridge.close();
 });
 
@@ -1165,4 +1169,125 @@ test('end_call durch den Agenten: Nimmt der Agent das Beenden mit einer Vorgabe 
   h.toolEnd();
   assert.deepEqual(h.asked.map((a) => a.kind), ['endCall'], 'der Agent beendet nicht mehr: geprüft');
   h.bridge.close();
+});
+
+// ---- Review-Runde 5 ----
+
+test('Nach der Verabschiedung: Die Obergrenze von einer Minute bindet das Warten insgesamt – flattert die Spracherkennung ohne Mitschrift, gilt der Abschied, und die zurückgehaltene Antwort bleibt stumm', (t) => {
+  const h = setup(t, { judge: undefined });
+  h.toolEnd();
+  farewell(h);
+  let n = 0;
+  const flap = (s: number) => {
+    if (s % 2 === 0) speechStarted(h, `f${n}`);
+    else {
+      speechStopped(h, `f${n}`);
+      n++;
+    }
+    if (s === 1) h.say('auto', 'iauto', 800, 'Ja?'); // die KI antwortet auf die vermeintliche Äußerung: zurückgehalten
+    h.tick(1000);
+  };
+  for (let s = 0; s < 58; s++) flap(s);
+  assert.deepEqual(h.ended, [], 'bis zur Minute wird gewartet');
+  assert.ok(!h.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  for (let s = 58; s < 70 && h.ended.length === 0; s++) flap(s);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet'], 'jede neue Äußerung stellte die Frist neu: ohne Obergrenze hinge das Gespräch ewig');
+  assert.ok(!h.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  assert.equal(h.drain(), 0, 'die Antwort auf das Flattern wurde nicht gesprochen');
+  h.bridge.close();
+
+  // Mit einem Abschied davor, und das Gegenüber „redet“ gerade, wenn die Minute um ist: Der Abschied gilt, die laufende Sprache hält nicht mehr auf
+  const g = setup(t, { judge: undefined });
+  g.toolEnd();
+  farewell(g);
+  speechStarted(g, 'u1');
+  speechStopped(g, 'u1');
+  speechStarted(g, 'u2');
+  transcribed(g, 'u1', 'Tschüss!');
+  speechStopped(g, 'u2');
+  let m = 0;
+  for (let s = 1; s < 70 && g.ended.length === 0; s++) {
+    if (s % 2 === 1) speechStarted(g, `f${m}`);
+    else {
+      speechStopped(g, `f${m}`);
+      m++;
+    }
+    g.tick(1000);
+  }
+  assert.deepEqual(g.ended, ['KI hat das Gespräch beendet']);
+  assert.ok(!g.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  g.bridge.close();
+});
+
+test('Nach der Verabschiedung: Hat die Obergrenze entschieden, hält weiteres Flattern das Auflegen nicht auf', (t) => {
+  const h = setup(t, { judge: undefined });
+  h.toolEnd();
+  farewell(h);
+  speechStarted(h, 'u1'); // hängt: ein Sprachende kommt nie
+  for (let i = 0; i < 15; i++) h.tick(4000);
+  speechStarted(h, 'u2'); // setzt in der Nachhörphase noch einmal an, ohne Mitschrift
+  h.tick(1000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  h.bridge.close();
+});
+
+test('end_call: Redet das Gegenüber seit vor dem end_call und kommt nie eine Mitschrift, gilt nach einer Minute der Abschied – die Äußerung wird beim end_call eingetragen, nicht erst beim Auflegen', (t) => {
+  const h = setup(t, { judge: undefined });
+  speechStarted(h, 'u1');
+  h.toolEnd();
+  farewell(h);
+  for (let i = 0; i < 14; i++) h.tick(4000);
+  assert.deepEqual(h.ended, []);
+  for (let i = 0; i < 2; i++) h.tick(4000);
+  h.bridge.nextFrame();
+  h.tick(1000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  h.bridge.close();
+});
+
+test('end_call durch den Agenten: Nimmt der Agent das Beenden mit einer Vorgabe zurück, bevor die KI end_call aufruft, erfährt auch die KI davon', (t) => {
+  const withdrawn = /Wunsch, das Gespräch zu beenden, mit einer neuen Nachricht zurückgenommen/;
+  const h = setup(t);
+  assert.equal(h.bridge.agentEnd(), 'ending');
+  assert.equal(h.bridge.agentSay('Sag noch, dass wir zu fünft kommen.'), 'next');
+  const notes = h.notes();
+  const i = notes.findIndex((n) => withdrawn.test(n));
+  assert.ok(i > 0 && /Dein Auftraggeber möchte das Gespräch jetzt beenden/.test(notes[i - 1]), 'der Widerruf steht hinter der Aufforderung zu beenden');
+  assert.match(notes[i + 1] ?? '', /Regieanweisung deines Auftraggebers[\s\S]*zu fünft/, 'und vor der neuen Vorgabe');
+  h.bridge.close();
+
+  // Ohne vorheriges Beenden gibt es nichts zu widerrufen
+  const g = setup(t);
+  assert.equal(g.bridge.agentSay('Sag noch, dass wir zu fünft kommen.'), 'next');
+  assert.ok(!g.notes().some((n) => withdrawn.test(n)));
+  g.bridge.close();
+
+  // Wartet die KI gerade auf die Antwort einer Rückfrage, geht der Widerruf mit der Antwort (Tool-Ergebnis) mit
+  const k = setup(t, { onAskAgent: () => undefined });
+  assert.equal(k.bridge.agentEnd(), 'ending');
+  k.server({ type: 'response.created', response: { id: 'rq' } });
+  k.server({ type: 'response.function_call_arguments.done', name: 'ask_principal', call_id: 'ask1', arguments: JSON.stringify({ frage: 'Passt auch 20 Uhr?' }) });
+  k.server({ type: 'response.done', response: { id: 'rq', status: 'completed' } });
+  assert.equal(k.bridge.agentSay('Ja, 20 Uhr passt.'), 'answered');
+  assert.match(k.outputs().at(-1) ?? '', /zurückgenommen[\s\S]*Antwort deines Auftraggebers: Ja, 20 Uhr passt/);
+  k.bridge.close();
+});
+
+test('end_call zusammen mit Sprache: Redet das Gegenüber, wenn die Schweigefrist abläuft, bekommt die KI keinen Anstoß „sagt nichts mehr“', (t) => {
+  // speech_started kam vor dem Tool-Ereignis: Die Frist läuft trotzdem, aber mitten in den Satz des Gegenübers gehört kein Anstoß
+  const h = setup(t, { judge: undefined });
+  speechStarted(h, 'u1');
+  endWithSpeech(h, 'r1', 'i1', 'c1');
+  h.drain();
+  for (let i = 0; i < 10; i++) h.tick(1000);
+  assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'das Gegenüber redet noch');
+  h.bridge.close();
+
+  // Schweigt es dagegen, kommt der Anstoß
+  const g = setup(t, { judge: undefined });
+  endWithSpeech(g, 'r1', 'i1', 'c1');
+  g.drain();
+  g.tick(3500);
+  assert.ok(g.creates().some((c) => /sagt nichts mehr/.test(c)));
+  g.bridge.close();
 });

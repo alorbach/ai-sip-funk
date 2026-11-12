@@ -53,6 +53,10 @@ export const RESUME_FOR_DIRECTIVE =
 export const AGENT_END_NOTE =
   'Dein Auftraggeber möchte das Gespräch jetzt beenden. Stell keine neuen Fragen mehr. Rufe end_call auf und gib darin an, was bis hierher erreicht ist und was offen bleibt – ohne dich vorher zu verabschieden.';
 
+/** Der Agent hat sein Beenden mit einer neuen Nachricht zurückgenommen, bevor die KI end_call aufgerufen hat. */
+export const AGENT_END_WITHDRAWN =
+  'Dein Auftraggeber hat seinen Wunsch, das Gespräch zu beenden, mit einer neuen Nachricht zurückgenommen. Beende das Gespräch nicht seinetwegen; rufe end_call erst auf, wenn danach alles geklärt ist (ohne dich vorher zu verabschieden).';
+
 /** Bekannte Agenten, erkannt an dem Namen, mit dem sich ihr MCP-Client meldet (Client-Name bzw. User-Agent). */
 const KNOWN_AGENTS: [RegExp, string][] = [
   [/codex/i, 'Codex'],

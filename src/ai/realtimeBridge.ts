@@ -10,7 +10,7 @@ import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isEcho, isFarewell } from './farewell.js';
 import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, OUTCOME_PREFIX, type CallJudge } from './judge.js';
 import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { AGENT_END_NOTE, AGENT_END_WITHDRAWN, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
@@ -136,7 +136,10 @@ const NOISE_REPLY_MS = 3000;
 const REJECT_SILENCE_MS = 2500;
 /** Sprache nach der Verabschiedung: so lange nach dem Ende der Äußerung wird auf die Transkription gewartet (solange das Gegenüber spricht, läuft die Frist nicht ab) */
 const FAREWELL_DECISION_MS = 4000;
-/** So lange wartet die Frist nach der Verabschiedung höchstens auf das Sprachende, wenn das Gegenüber am Stück weiterredet */
+/**
+ * So lange wartet die Entscheidung nach der Verabschiedung insgesamt höchstens auf weitere Sprache und Mitschriften – ab der ersten Äußerung danach,
+ * auch wenn das Gegenüber am Stück weiterredet oder die Spracherkennung flattert (Sprache, deren Mitschrift ausbleibt)
+ */
 const FAREWELL_SPEAKING_MAX_MS = 60_000;
 /** end_call ohne Sprache: so lange wartet die Prüfung auf die Mitschrift einer Äußerung des Gegenübers, die schon begann (OpenAI liefert sie oft erst, wenn die KI schon antwortet) */
 const TRANSCRIPT_WAIT_MS = 1500;
@@ -307,6 +310,8 @@ export class RealtimeBridge implements AudioHandler {
    * in der Reihenfolge ihres Beginns (undefined = Anbieter nennt keine Kennung). Solange eine fehlt, wird nicht aufgelegt: Sie könnte der Anlass sein, weiterzureden.
    */
   private farewellOpen: (string | undefined)[] = [];
+  /** Beginn des Wartens nach der Verabschiedung (erste Äußerung des Gegenübers danach); undefined = es wartet niemand. Davon läuft FAREWELL_SPEAKING_MAX_MS */
+  private farewellWaitSince?: number;
   /** Kennung der Äußerung, die das Gegenüber gerade spricht (gilt, solange partnerSpeaking gesetzt ist; undefined = Anbieter nennt keine) */
   private partnerItem?: string;
   /** Äußerungen des Gegenübers (zu jeder Zeit), die begonnen haben und deren Mitschrift noch fehlt; Objekte, weil der Anbieter keine Kennung nennen muss */
@@ -658,15 +663,19 @@ export class RealtimeBridge implements AudioHandler {
     }
     if (this.goodbye !== 'none') return 'ending';
     // Der Agent hat das Beenden verlangt, die KI aber noch nicht end_call aufgerufen, und gibt jetzt etwas anderes vor: Das Beenden gilt nicht mehr,
-    // der nächste end_call der KI wird wie jeder andere geprüft (wie bei einer Vorgabe während des Beendens, siehe cancelHangup)
-    if (this.endByAgent) {
+    // der nächste end_call der KI wird wie jeder andere geprüft (wie bei einer Vorgabe während des Beendens, siehe cancelHangup).
+    // Die KI erfährt es auch: Sonst beendet sie nur wegen der alten Aufforderung (AGENT_END_NOTE steht noch in ihrem Verlauf)
+    const withdrawn = this.endByAgent;
+    if (withdrawn) {
       this.endByAgent = false;
       this.endCallChecked = false;
     }
     if (this.ask) {
-      this.resolveAsk(askAnswer(text));
+      // (Eine offene Rückfrage hat ein Tool-Ergebnis zu bekommen, kein Hinweis dazwischen: Der Widerruf geht mit der Antwort)
+      this.resolveAsk(withdrawn ? `${AGENT_END_WITHDRAWN}\n${askAnswer(text)}` : askAnswer(text));
       return 'answered';
     }
+    if (withdrawn) this.live.note(AGENT_END_WITHDRAWN);
     this.live.note(agentNote(text));
     if (!now) return 'next';
     this.requestRespond(CAUSE_AGENT_SAY);
@@ -1353,7 +1362,9 @@ export class RealtimeBridge implements AudioHandler {
       let retries = 0;
       const onSilence = (): void => {
         this.rejectTimer = undefined;
-        if (this.endRequested !== undefined || this.closed || this.ask) return;
+        // Das Gegenüber redet (sein speech_started kam vor dem Tool-Ereignis, rejectTimer wurde also nicht abgeräumt): Der Anstoß wäre
+        // ein „sagt nichts mehr“ mitten in seinen Satz – die Antwort auf seinen Beitrag entsteht von selbst
+        if (this.endRequested !== undefined || this.closed || this.ask || this.partnerSpeaking) return;
         // Die KI spricht gerade selbst (ein Anbieter lässt sie nach dem Tool-Ergebnis von sich aus weiterreden):
         // nicht hineinreden, sondern nach ihrem Satz noch einmal nachsehen
         if (this.activeResponse && retries++ < 10) {
@@ -1568,13 +1579,7 @@ export class RealtimeBridge implements AudioHandler {
   private finishEndCall(): void {
     if (this.endRequested === undefined || this.closed || this.hangupTimer || this.farewellDecisionTimer) return;
     if (this.outQueue.length > 0) return; // noch Audio unterwegs – nextFrame ruft später erneut auf
-    // Das Gegenüber setzte schon vor dem end_call an und redet noch (speech_started kam vor dem Beenden, also hat ihn onSpeechAfterGoodbye nie gesehen):
-    // Es zählt wie Sprache nach der Verabschiedung. Die Mitschrift entscheidet, statt dass mitten in den Satz aufgelegt wird.
-    // (Setzt es später an, hebt speech_started die Nachhörphase ohnehin auf; im Auflege-Timer selbst kann es daher nicht mehr reden)
-    if (this.partnerTalking()) {
-      this.onSpeechAfterGoodbye(this.partnerItem);
-      return;
-    }
+    // (Eine Äußerung, die noch läuft, ist hier längst eingetragen: der end_call-Handler und speech_started tragen jede ein – siehe onSpeechAfterGoodbye)
     clearTimeout(this.endSafetyTimer);
     this.endSafetyTimer = undefined;
     const reason = this.endRequested;
@@ -1600,6 +1605,9 @@ export class RealtimeBridge implements AudioHandler {
    */
   private onSpeechAfterGoodbye(itemId?: string): void {
     if (this.endRequested === undefined) return;
+    // Die Obergrenze ist erreicht und das Auflegen entschieden: Weiteres Flattern der Spracherkennung hält es nicht mehr auf
+    if (!this.farewellDecisionTimer && this.farewellExpired()) return;
+    if (this.farewellWaitSince === undefined) this.farewellWaitSince = Date.now();
     if (!itemId || !this.farewellOpen.includes(itemId)) this.farewellOpen.push(itemId);
     if (this.farewellDecisionTimer) {
       // Das Gegenüber redet weiter, während die Mitschrift davor aussteht oder das Textmodell über die Worte davor urteilt:
@@ -1624,26 +1632,34 @@ export class RealtimeBridge implements AudioHandler {
    */
   private armFarewellTimer(): void {
     clearTimeout(this.farewellDecisionTimer);
+    // Spätestens zur Obergrenze: Jede neue Äußerung stellt die Frist neu, flattert die Spracherkennung, käme sie sonst nie
+    const left = this.farewellWaitSince === undefined ? FAREWELL_DECISION_MS : FAREWELL_SPEAKING_MAX_MS - (Date.now() - this.farewellWaitSince);
     this.farewellDecisionTimer = setTimeout(() => {
       if (this.partnerTalking() && !this.closed) {
         this.armFarewellTimer();
         return;
       }
       this.decideAfterGoodbye(undefined);
-    }, FAREWELL_DECISION_MS);
+    }, Math.max(0, Math.min(FAREWELL_DECISION_MS, left)));
   }
 
   /**
-   * Das Gegenüber redet, höchstens aber FAREWELL_SPEAKING_MAX_MS am Stück: Bleibt die Spracherkennung hängen (kein Sprachende), soll das Auflegen
-   * nicht auf Dauer blockiert sein. Danach entscheidet, was bekannt ist (die Worte davor, sonst weiter), als spräche es nicht mehr.
+   * Das Gegenüber redet, höchstens aber FAREWELL_SPEAKING_MAX_MS am Stück und, seit nach der Verabschiedung gewartet wird, insgesamt: Bleibt die
+   * Spracherkennung hängen (kein Sprachende) oder flattert sie, soll das Auflegen nicht auf Dauer blockiert sein. Danach entscheidet, was bekannt ist
+   * (die Worte davor; gab es keine, zählt es als Geräusch und der Abschied gilt), als spräche es nicht mehr.
    */
   private partnerTalking(): boolean {
-    return this.partnerSpeaking && Date.now() - this.speechStartedAt < FAREWELL_SPEAKING_MAX_MS;
+    return this.partnerSpeaking && Date.now() - this.speechStartedAt < FAREWELL_SPEAKING_MAX_MS && !this.farewellExpired();
   }
 
-  /** Das Gegenüber redet noch oder hat neu angesetzt, und die Mitschrift davon fehlt: Es kommt gleich mehr. */
+  /** Das Warten nach der Verabschiedung hat FAREWELL_SPEAKING_MAX_MS ausgeschöpft: Es wird nicht länger auf mehr gewartet. */
+  private farewellExpired(): boolean {
+    return this.farewellWaitSince !== undefined && Date.now() - this.farewellWaitSince >= FAREWELL_SPEAKING_MAX_MS;
+  }
+
+  /** Das Gegenüber redet noch oder hat neu angesetzt, und die Mitschrift davon fehlt: Es kommt gleich mehr (außer die Obergrenze ist erreicht). */
   private moreAfterGoodbye(): boolean {
-    return this.partnerTalking() || this.farewellOpen.length > 0;
+    return !this.farewellExpired() && (this.partnerTalking() || this.farewellOpen.length > 0);
   }
 
   /**
@@ -1678,6 +1694,9 @@ export class RealtimeBridge implements AudioHandler {
       // Keine Mitschrift mehr zu erwarten. Was das Gegenüber vorher gesagt hat, gilt trotzdem: Es wird nicht verworfen
       this.farewellOpen = [];
       text = prior;
+      // Obergrenze erreicht, und es gab keine Worte (nur Sprache ohne Mitschrift, eine Minute lang): wie ein Geräusch, der Abschied gilt.
+      // (Sonst bliebe das Gespräch stumm stehen: Niemand sagt etwas, und nichts stößt die KI an.)
+      if (text === undefined && this.farewellExpired()) text = '';
     } else if (prior !== undefined) text = `${prior} ${text}`.trim();
     if (this.endRequested === undefined || this.closed) return;
     // Nur ein Abschied, aber das Gegenüber redet schon weiter: erst die nächste Äußerung entscheidet, das Textmodell muss nicht fragen
@@ -1708,6 +1727,8 @@ export class RealtimeBridge implements AudioHandler {
   /** farewell = nur Geräusch, Abschied oder Bestätigung: auflegen; sonst geht das Gespräch weiter. */
   private applyAfterGoodbye(text: string | undefined, farewell: boolean): void {
     if (this.endRequested === undefined || this.closed) return;
+    // Entschieden, das Warten ist vorbei: Eine spätere Äußerung beginnt ein neues. Nach der Obergrenze bleibt sie ausgeschöpft (siehe onSpeechAfterGoodbye)
+    if (!this.farewellExpired()) this.farewellWaitSince = undefined;
     if (text !== undefined && farewell) {
       // Geräusch (leere Transkription) oder reine Verabschiedung: Der Abschiedssatz wird zu Ende gesprochen, dann wird aufgelegt
       log.info(text.trim() ? `Realtime: Gegenüber verabschiedet sich („${text}") – lege nach dem Abschiedssatz auf` : 'Realtime: nur ein Geräusch, keine Sprache – Verabschiedung läuft weiter');
@@ -1742,6 +1763,7 @@ export class RealtimeBridge implements AudioHandler {
     this.farewellJudging = undefined;
     this.farewellPrior = undefined;
     this.farewellOpen = [];
+    this.farewellWaitSince = undefined;
     clearTimeout(this.endSafetyTimer);
     this.endSafetyTimer = undefined;
     this.endRequested = undefined;
