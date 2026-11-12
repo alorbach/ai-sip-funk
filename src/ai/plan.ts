@@ -55,7 +55,8 @@ export async function planCall(ask: TextModel, p: PlanInput): Promise<CallPlan> 
     ...(p.context?.trim() ? ['', `Hintergrundwissen (nur für Rückfragen, nicht als Schritte): ${p.context.trim()}`] : []),
   ].join('\n');
 
-  const text = await ask(prompt, 1500, { name: 'gespraechsplan', schema: SCHEMA });
+  // Der Plan nützt nur, solange es klingelt: je Modell höchstens acht Sekunden, dann ist das nächste Ausweichmodell dran
+  const text = await ask(prompt, 1500, { name: 'gespraechsplan', schema: SCHEMA }, 8000);
   const plan = JSON.parse(text) as CallPlan;
   plan.schritte = plan.schritte.map((s) => s.trim()).filter(Boolean);
   return plan;

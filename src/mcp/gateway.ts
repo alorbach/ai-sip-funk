@@ -18,7 +18,7 @@ export interface AgentEvent {
 
 /** Steuerung des laufenden Gesprächs (die Brücke zur Sprach-KI). */
 export interface AgentCallControl {
-  say(text: string, now: boolean): 'answered' | 'now' | 'next' | 'ending' | 'closed';
+  say(text: string, now: boolean): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed';
   end(): 'ending' | 'closed';
 }
 
@@ -332,12 +332,18 @@ export class McpGateway {
     const text = str(args.text);
     if (!text) throw new Error('text fehlt: was dem Gegenüber gesagt oder was es gefragt werden soll.');
     if (text.length > MAX_SAY) throw new Error(`text ist zu lang (höchstens ${MAX_SAY} Zeichen); kurze Anweisungen wirken am Telefon besser.`);
-    if (call.state !== 'connected' || !call.control) throw new Error(`Das geht nur im laufenden Gespräch (Zustand: ${STATE_TEXT[call.state]}).`);
+    // Ins Log kommen Zeitpunkt und Länge, nicht der Wortlaut (er steht als Ereignis beim Anruf)
+    if (call.state !== 'connected' || !call.control) {
+      log.info(`MCP: Vorgabe des Agenten für ${call.id} abgelehnt (Zustand: ${STATE_TEXT[call.state]})`);
+      throw new Error(`Das geht nur im laufenden Gespräch (Zustand: ${STATE_TEXT[call.state]}).`);
+    }
     const mode = call.control.say(text, args.when !== 'next');
+    log.info(`MCP: Vorgabe des Agenten für ${call.id} (${text.length} Zeichen): ${mode}`);
     if (mode === 'closed' || mode === 'ending') throw new Error('Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an.');
     // Ob als Antwort oder als Vorgabe angekommen: Eine Rückfrage ist danach nicht mehr offen
     call.question = undefined;
     this.push(call, 'note', `Vorgabe des Agenten: ${text}`);
+    if (mode === 'resumed') return 'Übergeben. Die KI war schon dabei, das Gespräch zu beenden; das Auflegen ist zurückgenommen, sie sagt es jetzt noch.';
     return mode === 'answered'
       ? 'Als Antwort auf die Rückfrage übergeben; die KI gibt es jetzt weiter.'
       : mode === 'now'

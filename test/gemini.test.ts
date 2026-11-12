@@ -194,7 +194,9 @@ test('Gemini: Wird die Umsetzung einer Vorgabe des Agenten abgeschnitten, steht 
   assert.equal(h.drain(500), 500);
   h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
   assert.equal(h.bridge.nextFrame(), undefined, 'der Rest ist verworfen');
-  assert.ok(h.texts.some((x) => /^system: KI unterbrochen: etwa 3,5 s/.test(x)), h.texts.join(' | '));
+  assert.equal(h.texts.some((x) => /KI unterbrochen/.test(x)), false, 'der Hinweis wartet auf den Text der Antwort');
+  h.server({ serverContent: { interrupted: true } });
+  assert.deepEqual(h.texts.slice(-2), ['ki: Der Termin ist um 19 Uhr.', 'system: KI unterbrochen: etwa 3,5 s ihrer letzten Antwort wurden nicht mehr gesprochen']);
   const last = h.regie().at(-1)!;
   assert.match(last.text, /unterbrochen und ist bei ihm nicht angekommen/);
   assert.equal(last.go, false, 'nur ein Hinweis, keine zusätzliche Antwort');
@@ -389,6 +391,33 @@ test('Gemini: Nach einem abgelehnten end_call ist die Antwort auf das Gegenüber
   h.say(600, 'Klar, welche?');
   assert.equal(h.drain(), 600);
   h.bridge.close();
+});
+
+test('Gemini: Eine Vorgabe des Agenten während der Verabschiedung nimmt das Auflegen zurück', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  h.say(800, 'Bis dann!');
+  assert.equal(h.drain(), 800);
+  // Abschied ist ausgespielt, in einer Sekunde würde aufgelegt
+  assert.equal(h.bridge.agentSay('Stell richtig: Der Termin ist am Freitag.', true), 'resumed');
+  h.tick(5000);
+  assert.deepEqual(h.ended, [], 'nicht aufgelegt');
+  assert.ok(h.texts.includes('system: Vorgabe des Agenten während des Beendens – Gespräch geht weiter'));
+  const sent = h.regie().map((r) => r.text);
+  assert.ok(sent.some((x) => /Beenden ist zurückgenommen/.test(x)));
+  assert.ok(sent.some((x) => /Stell richtig: Der Termin ist am Freitag\./.test(x)));
+  h.say(900, 'Eine Sache noch: Der Termin ist am Freitag.');
+  assert.equal(h.drain(), 900);
+  // Danach beendet die KI wie gewohnt
+  h.server({ toolCall: { functionCalls: [{ id: 'f2', name: 'end_call', args: { ergebnis: 'richtiggestellt' } }] } });
+  h.say(600, 'Tschüss!');
+  h.drain();
+  h.tick(1000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
 });
 
 test('Gemini: flag_spam reicht die neue Rolle mit dem Tool-Ergebnis nach', (t) => {

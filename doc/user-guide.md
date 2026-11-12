@@ -784,7 +784,7 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Stille bis Satzende (ms) – silence until end of turn | 900 | `AI_VAD_SILENCE_MS` | too short: the AI talks into thinking pauses |
 | Schwelle der Spracherkennung – voice detection threshold | 0.6 | `AI_VAD_THRESHOLD` | 0.3–0.9; higher: noises interrupt the AI less often, quiet speech is more easily missed. With Google Gemini the value only selects one of two levels: 0.5 and above low, below that high sensitivity |
 | Nachhören nach Verabschiedung (ms) – listening after goodbye | 2000 | `AI_HANGUP_GRACE_MS` | if the other party says something more, the call continues |
-| Warten nach Abnehmen (ms) – wait after pick-up | 2500 | `AI_GREETING_WAIT_MS` | outgoing: how long the other party may speak first |
+| Warten nach Abnehmen (ms) – wait after pick-up | 1500 | `AI_GREETING_WAIT_MS` | outgoing: how long the other party may speak first |
 | Sprechgeschwindigkeit – speaking rate | 1.05 | `AI_SPEECH_SPEED` | 0.25–1.5; with Google Gemini only a hint to the AI |
 | Lautstärke der KI – AI volume | 1.5 | `AI_OUTPUT_GAIN` | gain towards the phone, with a soft limiter |
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |

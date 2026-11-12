@@ -235,3 +235,20 @@ test('Ausweichmodelle: Bei einem Limit antwortet das nächste Textmodell, bei an
     gemini.text = original;
   }
 });
+
+test('Ausweichmodelle: Antwortet das Textmodell nicht in der gesetzten Zeit, ist das nächste dran', async () => {
+  const json = list([{ id: 'gemini', name: 'G', provider: 'gemini', model: '', textModel: 'gemini-3.5-flash-lite', textFallbacks: ['gemini-3.5-flash'] } as Partial<AiConnection>]);
+  const r = resolveAi({ aiConnections: json, aiConnection: 'gemini' }, { GEMINI_API_KEY: 'AIza-test-0123456789abcdefghijklmnop' });
+  const original = gemini.text;
+  const asked: string[] = [];
+  try {
+    gemini.text = (_key, model) => {
+      asked.push(model);
+      return model === 'gemini-3.5-flash-lite' ? new Promise<string>(() => undefined) : Promise.resolve('ok von ' + model);
+    };
+    assert.equal(await r.ask('Frage', 100, undefined, 20), 'ok von gemini-3.5-flash');
+    assert.deepEqual(asked, ['gemini-3.5-flash-lite', 'gemini-3.5-flash']);
+  } finally {
+    gemini.text = original;
+  }
+});

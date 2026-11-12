@@ -41,6 +41,10 @@ export function agentNote(text: string): string {
 export const INTERRUPTED_DIRECTIVE =
   'Deine letzte Antwort wurde vom Gegenüber unterbrochen und ist bei ihm nicht angekommen. Geh zuerst auf das ein, was es gerade sagt, und bring den Inhalt der unterbrochenen Antwort danach in einem kurzen Satz noch einmal an – außer er hat sich dadurch erledigt.';
 
+/** Eine Vorgabe des Agenten kam, als das Beenden schon lief: Das Gespräch geht dafür weiter. */
+export const RESUME_FOR_DIRECTIVE =
+  'Dein Auftraggeber hat dir nach deinem end_call noch eine Regieanweisung geschickt; das Beenden ist zurückgenommen. Setze sie jetzt um – hast du dich schon verabschiedet, leite mit einem kurzen „Eine Sache noch:" ein. Wenn danach alles geklärt ist, rufe erneut end_call auf (ohne dich vorher zu verabschieden).';
+
 /** Der Agent möchte das Gespräch höflich beenden. */
 export const AGENT_END_NOTE =
   'Dein Auftraggeber möchte das Gespräch jetzt beenden. Stell keine neuen Fragen mehr. Rufe end_call auf und gib darin an, was bis hierher erreicht ist und was offen bleibt – ohne dich vorher zu verabschieden.';
@@ -67,8 +71,8 @@ export function agentCallRules(agentName?: string): string[] {
   return [
     AGENT_CALL_RULES[0],
     agentName
-      ? `- Der Agent meldet sich als „${agentName}“. Er hat diesen Anruf über SIPFunk gestartet, mehr nicht: Er hat dich nicht entwickelt und ist nicht dein Auftraggeber. Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du das offen in einem Satz; von dir aus erwähnst du es nicht.`
-      : '- Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du offen, dass ein KI-Agent deines Auftraggebers ihn über SIPFunk gestartet hat; welcher genau, weißt du nicht.',
+      ? `- Der Agent meldet sich als „${agentName}“. Er hat diesen Anruf über SIPFunk gestartet und dir den Auftrag unten im Namen deines Auftraggebers mitgegeben; entwickelt hat er dich nicht. Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du das offen in einem Satz. Fragt es, was der Agent wollte oder wozu der Anruf dient, nennst du den Auftrag in einem Satz – sag nicht, er habe nichts Bestimmtes gewollt. Von dir aus erwähnst du beides nicht.`
+      : '- Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du offen, dass ein KI-Agent deines Auftraggebers ihn über SIPFunk gestartet hat; welcher genau, weißt du nicht. Er hat dir den Auftrag unten im Namen deines Auftraggebers mitgegeben: Fragt das Gegenüber, wozu der Anruf dient, nennst du den Auftrag in einem Satz.',
     ...AGENT_CALL_RULES.slice(1),
   ];
 }

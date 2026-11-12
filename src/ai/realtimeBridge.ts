@@ -9,7 +9,7 @@ import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
@@ -179,6 +179,8 @@ export class RealtimeBridge implements AudioHandler {
   private dupGuardUntil = 0;
   /** Zeitpunkt eines Unterlaufs mitten in einer Antwort, bis die Ausgabe wieder läuft */
   private underrunAt = 0;
+  /** Hinweis auf eine abgeschnittene Antwort, der erst nach ihrem Text ins Transkript kommt */
+  private interruptNote = '';
   private underrunPlayedMs = 0;
   // Messpunkte je Antwort: kam eine Mitschrift, und was hat die Antwort ausgelöst
   private responseHadText = false;
@@ -449,9 +451,17 @@ export class RealtimeBridge implements AudioHandler {
    * die Antwort; sonst kommt der Text als Regieanweisung in den Gesprächsverlauf. `now` fordert sofort eine Antwort an
    * (bzw. gleich nach der laufenden); ohne `now` setzt die KI die Anweisung um, wenn sie das nächste Mal spricht.
    */
-  agentSay(text: string, now = false): 'answered' | 'now' | 'next' | 'ending' | 'closed' {
+  agentSay(text: string, now = false): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed' {
     if (this.closed) return 'closed';
-    if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
+    if (this.endRequested !== undefined) {
+      // Das Beenden läuft schon (Verabschiedung angefordert, gesprochen oder ausgespielt), aufgelegt ist noch nicht:
+      // Eine Vorgabe des Agenten (meist eine Richtigstellung) geht vor
+      this.cancelHangup(true);
+      this.live.note(agentNote(text));
+      this.requestRespond(CAUSE_AGENT_SAY);
+      return 'resumed';
+    }
+    if (this.goodbye !== 'none') return 'ending';
     if (this.ask) {
       this.resolveAsk(askAnswer(text));
       return 'answered';
@@ -734,6 +744,10 @@ export class RealtimeBridge implements AudioHandler {
     }
     // Ohne neue Stücke kommt nichts mehr nach: Ein späterer Leerlauf ist das Satzende, kein Aussetzer
     this.underrunAt = 0;
+    if (this.interruptNote) {
+      this.opts.onTranscript({ speaker: 'system', text: this.interruptNote, final: true });
+      this.interruptNote = '';
+    }
     if (this.dupGuard === 'greeting' && this.dupGreetingStarted) {
       this.dupGuard = 'after';
       this.dupGuardUntil = Date.now() + DUP_AFTER_GREETING_MS;
@@ -1127,7 +1141,10 @@ export class RealtimeBridge implements AudioHandler {
     const lostMs = this.outQueue.length * 20;
     if (lostMs >= INTERRUPT_NOTE_MS) {
       // Die Mitschrift der KI nennt den ganzen Satz, auch wenn er abgeschnitten wurde: im Transkript und für den Agenten festhalten
-      this.opts.onTranscript({ speaker: 'system', text: `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer Antwort wurden nicht mehr gesprochen`, final: true });
+      const note = `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer letzten Antwort wurden nicht mehr gesprochen`;
+      // Der Text der Antwort kommt erst, wenn sie endet: Der Hinweis gehört dahinter, nicht davor
+      if (this.activeResponse) this.interruptNote = note;
+      else this.opts.onTranscript({ speaker: 'system', text: note, final: true });
       // Eine Vorgabe des Agenten, die so unterging, ist nicht erledigt
       if (this.responseCause === CAUSE_AGENT_SAY || this.responseCause === CAUSE_ASK_ANSWER) this.live.note(INTERRUPTED_DIRECTIVE);
     }
@@ -1230,7 +1247,7 @@ export class RealtimeBridge implements AudioHandler {
    * Gegenüber hat nach dem end_call noch etwas Inhaltliches gesagt: Beenden komplett zurücknehmen,
    * das Gespräch läuft weiter. Das Modell kann später erneut end_call aufrufen.
    */
-  private cancelHangup(): void {
+  private cancelHangup(byAgent = false): void {
     if (this.endRequested === undefined) return;
     clearTimeout(this.hangupTimer);
     this.hangupTimer = undefined;
@@ -1245,6 +1262,12 @@ export class RealtimeBridge implements AudioHandler {
     // Zurückgehaltene Antwort auf das Gesagte jetzt ausspielen
     for (const x of this.heldAudio) this.enqueueAudio(x.buf, x.itemId);
     this.heldAudio = [];
+    if (byAgent) {
+      log.info('Realtime: Vorgabe des Agenten während des Beendens – Auflegen abgebrochen, Gespräch geht weiter');
+      this.opts.onTranscript({ speaker: 'system', text: 'Vorgabe des Agenten während des Beendens – Gespräch geht weiter', final: true });
+      this.live.note(RESUME_FOR_DIRECTIVE);
+      return;
+    }
     log.info('Realtime: Gegenüber spricht noch – Auflegen abgebrochen, Gespräch geht weiter');
     this.opts.onTranscript({ speaker: 'system', text: 'Gegenüber hat noch etwas gesagt – Gespräch geht weiter', final: true });
     // Dem Modell den Zustandswechsel klar machen, sonst hängt es in der "ich beende jetzt"-Haltung fest

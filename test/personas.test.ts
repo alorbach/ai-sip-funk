@@ -42,7 +42,9 @@ test('Identitätsfrage: Name und Auftraggeber, keine erfundene Herkunft', () => 
   const base = { persona: personas[0], formal: true, aiName: 'Alex', principalName: 'Max', task: 'x', maxCallSeconds: 300 };
   assert.match(buildInstructions(base), /wer du bist oder wer dich gemacht hat: Du bist Alex, ein KI-Telefonassistent im Auftrag von Max\. Wer dich entwickelt hat .* erfinde dazu nichts/);
   assert.match(buildInstructions({ ...base, incoming: true }), /Du bist der KI-Telefonassistent von Max\./);
-  assert.match(buildInstructions({ ...base, agent: true, agentName: 'Codex' }), /Er hat diesen Anruf über SIPFunk gestartet, mehr nicht: Er hat dich nicht entwickelt/);
+  const agent = buildInstructions({ ...base, agent: true, agentName: 'Codex' });
+  assert.match(agent, /Er hat diesen Anruf über SIPFunk gestartet und dir den Auftrag unten im Namen deines Auftraggebers mitgegeben; entwickelt hat er dich nicht/);
+  assert.match(agent, /was der Agent wollte oder wozu der Anruf dient, nennst du den Auftrag in einem Satz/);
 });
 
 test('Inhabernummer: Vorstellung als Agent ohne KI-Erklärung', () => {

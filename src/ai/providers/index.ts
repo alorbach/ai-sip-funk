@@ -55,6 +55,17 @@ export function providerKey(provider: AiProvider, env: NodeJS.ProcessEnv = proce
   return env[provider.keyEnv]?.trim() || undefined;
 }
 
+/** Antwort abwarten, höchstens ms lang; danach zählt der Versuch als gescheitert (die Anfrage selbst läuft ins Leere). */
+function within<T>(p: Promise<T>, ms?: number): Promise<T> {
+  if (!ms) return p;
+  p.catch(() => undefined);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Zeitlimit von ${Math.round(ms / 1000)} s überschritten`)), ms);
+    timer.unref();
+    p.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 /**
  * Die aktive KI-Verbindung (oder die mit der genannten Kennung) samt Anbieter, Schlüssel und Modellen.
  * Modelle eines anderen Anbieters gelten nicht; dann greift die Vorgabe (.env bzw. Anbieter).
@@ -84,12 +95,12 @@ export function resolveAi(s: ConnectionSettings, env: NodeJS.ProcessEnv = proces
     textModel,
     realtimeFallbacks: (model) => others(connection.modelFallbacks, own(model, realtime)),
     textFallbacks,
-    ask: async (prompt, maxOutputTokens, format) => {
+    ask: async (prompt, maxOutputTokens, format, timeoutMs) => {
       if (!key) throw new Error(`Der ${provider.label}-Schlüssel fehlt noch (Einstellungen › KI-Verbindungen)`);
       const models = [textModel, ...textFallbacks];
       for (let i = 0; ; i++) {
         try {
-          const out = await provider.text(key, models[i], prompt, maxOutputTokens, format);
+          const out = await within(provider.text(key, models[i], prompt, maxOutputTokens, format), timeoutMs);
           if (i > 0) log.info(`Textmodell: ${models[i]} hat geantwortet (Ausweichmodell für ${textModel})`);
           return out;
         } catch (err) {

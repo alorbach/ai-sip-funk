@@ -344,7 +344,7 @@
     'Nachhören nach Verabschiedung (ms)': 'Listening after goodbye (ms)',
     'Sagt das Gegenüber noch etwas, geht es weiter. Standard 2000.': 'If the other party says something more, the call continues. Default 2000.',
     'Warten nach Abnehmen (ms)': 'Wait after pick-up (ms)',
-    'Ausgehend: so lange darf das Gegenüber zuerst sprechen. Standard 2500.': 'Outgoing: how long the other party may speak first. Default 2500.',
+    'Ausgehend: so lange darf das Gegenüber zuerst sprechen. Standard 1500.': 'Outgoing: how long the other party may speak first. Default 1500.',
     'Sprechgeschwindigkeit': 'Speaking rate',
     '0,25 bis 1,5. Standard 1,05.': '0.25 to 1.5. Default 1.05.',
     'Lautstärke der KI': 'Volume of the AI',

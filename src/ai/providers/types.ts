@@ -132,7 +132,8 @@ export interface LiveSession {
 }
 
 /** Textmodell des gewählten Anbieters, fertig gebunden an Schlüssel und Modell. */
-export type TextModel = (prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }) => Promise<string>;
+/** timeoutMs: so lange darf ein einzelnes Modell höchstens brauchen (danach gilt das als Überlastung, ein Ausweichmodell ist dran) */
+export type TextModel = (prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }, timeoutMs?: number) => Promise<string>;
 
 export interface VoiceSampleAudio {
   data: Buffer;
