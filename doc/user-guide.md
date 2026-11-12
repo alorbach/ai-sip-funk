@@ -306,7 +306,7 @@ The test does not check an actual phone call.
 
 ### 6.3 Text model during the call
 
-The voice AI conducts the conversation. It speaks well, but it is weak at planning and keeping count. So at a few points the text model of the active AI connection helps decide. Each time it gets the voice AI's complete instructions (basic rules, task, call plan, background knowledge) and the whole transcript so far, including the app's events (interruptions, silence, hints).
+The voice AI conducts the conversation. It speaks well, but it is weak at planning and keeping count. So at a few points the text model of the active AI connection helps decide. Each time it gets the task, the call plan and the whole transcript so far; the director additionally gets the voice AI's complete instructions (basic rules, background knowledge). The transcript includes the app's events (interruptions, silence, hints).
 
 | Point | What the text model does | If it does not answer in time |
 | --- | --- | --- |

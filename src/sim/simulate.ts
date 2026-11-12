@@ -518,8 +518,9 @@ let selected = SCENARIOS;
 if (flag('task')) {
   selected = [{ id: 'custom', title: 'Eigenes Szenario', task: flag('task')!, partner: flag('partner') ?? 'Ein freundlicher, kooperativer Mensch, der knapp antwortet.', opening: flag('opening') ?? 'Ja, hallo?', formal: args.includes('--sie'), persona: flag('persona') ?? 'professionell' }];
 } else {
-  // Der Wert hinter einem Schalter (--model xyz) ist keine Szenario-ID; --sie hat keinen Wert
-  const ids = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1]?.startsWith('--') && args[i - 1] !== '--sie'));
+  // Der Wert hinter einem Schalter (--model xyz) ist keine Szenario-ID; --sie und --no-judge haben keinen Wert
+  const bare = ['--sie', '--no-judge'];
+  const ids = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1]?.startsWith('--') && !bare.includes(args[i - 1])));
   if (ids.length) selected = SCENARIOS.filter((s) => ids.includes(s.id));
 }
 for (const s of selected) {

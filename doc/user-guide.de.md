@@ -304,7 +304,7 @@ Ein Telefonat ist damit nicht geprüft.
 
 ### 6.3 Textmodell im Gespräch
 
-Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schlecht mit. Deshalb entscheidet an einigen Stellen das Textmodell der aktiven KI-Verbindung mit. Es bekommt dafür jedes Mal die vollständigen Anweisungen der Sprach-KI (Grundregeln, Auftrag, Gesprächsplan, Hintergrundwissen) und das ganze bisherige Transkript, samt den Ereignissen der App (Unterbrechungen, Stille, Hinweise).
+Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schlecht mit. Deshalb entscheidet an einigen Stellen das Textmodell der aktiven KI-Verbindung mit. Es bekommt dafür jedes Mal den Auftrag, den Gesprächsplan und das ganze bisherige Transkript; die Regie bekommt zusätzlich die vollständigen Anweisungen der Sprach-KI (Grundregeln, Hintergrundwissen). Das Transkript kommt samt den Ereignissen der App (Unterbrechungen, Stille, Hinweise).
 
 | Stelle | Was das Textmodell tut | Antwortet es nicht rechtzeitig |
 | --- | --- | --- |

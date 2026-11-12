@@ -8,7 +8,7 @@ import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isEcho, isFarewell } from './farewell.js';
-import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, type CallJudge } from './judge.js';
+import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, OUTCOME_PREFIX, type CallJudge } from './judge.js';
 import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
@@ -314,6 +314,12 @@ export class RealtimeBridge implements AudioHandler {
   private endCheck?: NodeJS.Timeout;
   /** Die Prüfung beim end_call hat offene Punkte gemeldet */
   private endOpenFound = false;
+  /** Prüfung, die nach einem end_call mit Sprache nebenher läuft; ein neuer end_call ersetzt sie durch eine frische */
+  private endCheckLater?: NodeJS.Timeout;
+  /** Worte nach der Verabschiedung, über die das Textmodell gerade urteilt (undefined = es urteilt nicht) */
+  private farewellJudging?: string;
+  /** Worte nach der Verabschiedung, auf die das Gegenüber gleich weitergeredet hat: zählen mit der nächsten Äußerung zusammen */
+  private farewellPrior = '';
   private lastPartnerAt = 0;
 
   constructor(private opts: RealtimeBridgeOptions) {
@@ -551,6 +557,9 @@ export class RealtimeBridge implements AudioHandler {
     this.ask = undefined;
     clearTimeout(this.endCheck);
     this.endCheck = undefined;
+    clearTimeout(this.endCheckLater);
+    this.endCheckLater = undefined;
+    this.farewellJudging = undefined;
   }
 
   /** Ereignis der App ins Transkript: Das lesen der Betreiber, das Textmodell und bei Agenten-Anrufen der Agent mit. */
@@ -1257,7 +1266,11 @@ export class RealtimeBridge implements AudioHandler {
       return;
     }
     // Das Textmodell prüft einmal je Gespräch am ganzen Transkript, ob vom Auftrag noch etwas fehlt (nicht in der Spam-Abwehr)
-    const judge = !this.opts.scam && !this.endCallChecked ? this.opts.judge : undefined;
+    // Läuft die Prüfung vom end_call mit Sprache noch, ist sie überholt (das Gegenüber hat inzwischen geantwortet): neu prüfen
+    const overtaken = this.endCheckLater !== undefined;
+    clearTimeout(this.endCheckLater);
+    this.endCheckLater = undefined;
+    const judge = !this.opts.scam && (!this.endCallChecked || overtaken) ? this.opts.judge : undefined;
     if (this.stats.deltas > 0) {
       // Gesprochen und im selben Atemzug beendet („ich richte das jetzt aus" + end_call):
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
@@ -1267,7 +1280,9 @@ export class RealtimeBridge implements AudioHandler {
       if (check || judge) this.endCallChecked = true;
       if (judge) {
         // Das Gegenüber ist ohnehin erst dran: Die Prüfung läuft nebenher, Fehlendes kommt als Hinweis nach
-        this.askJudge('Auflegen, nebenher', judge.endCall(), JUDGE_END_LATER_MS, () => true, (open) => {
+        this.endOpenFound = false;
+        this.endCheckLater = this.askJudge('Auflegen, nebenher', judge.endCall(), JUDGE_END_LATER_MS, (t) => this.endCheckLater === t, (open) => {
+          this.endCheckLater = undefined;
           if (!open?.length || this.endRequested !== undefined || this.goodbye !== 'none') return;
           this.endOpenFound = true;
           this.event(`Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')}`);
@@ -1331,7 +1346,7 @@ export class RealtimeBridge implements AudioHandler {
     this.endRequested = reason;
     this.goodbye = 'pending';
     if (outcome.result) this.opts.onOutcome?.(outcome);
-    this.opts.onTranscript({ speaker: 'system', text: `Ergebnis laut KI: ${outcome.result || '–'}${outcome.open ? ` · Offen: ${outcome.open}` : ''}`, final: true });
+    this.opts.onTranscript({ speaker: 'system', text: `${OUTCOME_PREFIX} ${outcome.result || '–'}${outcome.open ? ` · Offen: ${outcome.open}` : ''}`, final: true });
     // Sicherheitsnetz, falls Abschluss oder Audio ausbleiben (wird bei Abbruch gelöscht)
     clearTimeout(this.endSafetyTimer);
     this.endSafetyTimer = setTimeout(() => {
@@ -1485,7 +1500,13 @@ export class RealtimeBridge implements AudioHandler {
    * reine Verabschiedung/Bestätigung („Okay, tschüss") -> sofort auflegen; Inhalt -> Gespräch geht weiter.
    */
   private onSpeechAfterGoodbye(itemId?: string): void {
-    if (this.endRequested === undefined || this.farewellDecisionTimer) return;
+    if (this.endRequested === undefined) return;
+    if (this.farewellDecisionTimer) {
+      // Das Gegenüber redet weiter, während das Textmodell über die Worte davor urteilt: Das Urteil ist überholt,
+      // beide Äußerungen zählen zusammen (sonst würde mitten in den neuen Satz aufgelegt)
+      if (this.farewellJudging !== undefined) this.awaitMoreAfterGoodbye(this.farewellJudging, itemId);
+      return;
+    }
     clearTimeout(this.hangupTimer);
     this.hangupTimer = undefined;
     // Neue Äußerung, neue Entscheidung: Nach einem früheren Geräusch darf die Antwort auf echte Sprache nicht stumm bleiben
@@ -1496,18 +1517,37 @@ export class RealtimeBridge implements AudioHandler {
     this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
   }
 
+  /** Auf die nächste Mitschrift warten; `prior` sind die Worte davor, die dann mitzählen. */
+  private awaitMoreAfterGoodbye(prior: string, itemId?: string): void {
+    log.info('Realtime: Gegenüber redet nach der Verabschiedung weiter – die nächste Äußerung entscheidet mit');
+    this.farewellJudging = undefined;
+    this.farewellPrior = prior;
+    this.farewellItemId = itemId;
+    clearTimeout(this.farewellDecisionTimer);
+    this.farewellDecisionTimer = setTimeout(() => this.decideAfterGoodbye(undefined), FAREWELL_DECISION_MS);
+  }
+
   private decideAfterGoodbye(text: string | undefined): void {
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = undefined;
+    this.farewellJudging = undefined;
+    if (text !== undefined && this.farewellPrior) text = `${this.farewellPrior} ${text}`.trim();
+    this.farewellPrior = '';
     if (this.endRequested === undefined || this.closed) return;
     const judge = this.opts.scam ? undefined : this.opts.judge;
     if (judge && text?.trim()) {
+      const words = text;
+      this.farewellJudging = words;
       // Worte nach der Verabschiedung: Das Textmodell kennt das ganze Gespräch und entscheidet, ob noch etwas kommt.
       // Solange der Timer läuft, bleibt alles wie während des Wartens auf die Mitschrift (Audio zurückgehalten, kein Auflegen)
-      this.farewellDecisionTimer = this.askJudge('nach der Verabschiedung', judge.afterGoodbye(text), JUDGE_FAREWELL_MS, (t) => this.farewellDecisionTimer === t, (verdict) => {
+      this.farewellDecisionTimer = this.askJudge('nach der Verabschiedung', judge.afterGoodbye(words), JUDGE_FAREWELL_MS, (t) => this.farewellDecisionTimer === t, (verdict) => {
         clearTimeout(this.farewellDecisionTimer);
         this.farewellDecisionTimer = undefined;
-        this.applyAfterGoodbye(text, verdict ? verdict === 'farewell' : isFarewell(text));
+        this.farewellJudging = undefined;
+        const farewell = verdict ? verdict === 'farewell' : isFarewell(words);
+        // Es spricht gerade wieder: nicht mitten hinein auflegen, die nächste Mitschrift entscheidet mit
+        if (farewell && this.partnerSpeaking) this.awaitMoreAfterGoodbye(words);
+        else this.applyAfterGoodbye(words, farewell);
       });
       return;
     }
@@ -1545,6 +1585,8 @@ export class RealtimeBridge implements AudioHandler {
     this.hangupTimer = undefined;
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = undefined;
+    this.farewellJudging = undefined;
+    this.farewellPrior = '';
     clearTimeout(this.endSafetyTimer);
     this.endSafetyTimer = undefined;
     this.endRequested = undefined;

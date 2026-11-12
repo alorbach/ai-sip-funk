@@ -1,8 +1,8 @@
 // Das Textmodell entscheidet im laufenden Gespräch mit: an Stellen, an denen sonst Wortlisten und starre Regeln entscheiden
 // und an denen das Gespräch nicht hörbar auf die Antwort warten muss (Auflegen oder weiter nach der Verabschiedung; Auftrag
 // erledigt beim end_call, neben der Verabschiedung her), und als Regie im Hintergrund, die nach jedem Redebeitrag der KI
-// mitliest und ihr bei Bedarf einen Hinweis gibt. Es kennt dafür immer die vollständigen Anweisungen der Sprach-KI
-// (Grundregeln, Auftrag, Plan, Hintergrundwissen) und das ganze bisherige Transkript.
+// mitliest und ihr bei Bedarf einen Hinweis gibt. Es kennt dafür immer Auftrag, Plan und das ganze bisherige Transkript,
+// die Regie zusätzlich die vollständigen Anweisungen der Sprach-KI (Grundregeln, Hintergrundwissen).
 //
 // Hier stehen die Fragen ans Textmodell. Die Fristen stecken in der Brücke (realtimeBridge.ts): Kein Gespräch hängt an
 // einer Antwort von hier. Schutzgrenzen (KI-Kennzeichnung, Limits, Freigaben) entscheidet das Textmodell nicht.
@@ -45,8 +45,14 @@ export interface CallJudge {
   endCall(): Promise<string[]>;
 }
 
-/** Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist. */
+/**
+ * Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist. Die Prüfung beim Auflegen und die
+ * Regie lesen mehr und brauchen länger (gemessen meist drei bis vier Sekunden, vereinzelt acht).
+ */
 const MODEL_TIMEOUT_MS = 4000;
+const MODEL_TIMEOUT_LONG_MS = 8000;
+/** So beginnt die Zeile, mit der die Brücke das Ergebnis laut KI ins Transkript schreibt (siehe CallJudge.endCall) */
+export const OUTCOME_PREFIX = 'Ergebnis laut KI:';
 const MAX_HINT = 300;
 
 const UNTRUSTED =
@@ -82,8 +88,8 @@ function frame(ctx: JudgeContext, full = false): string[] {
   ];
 }
 
-async function askJson<T>(ask: TextModel, name: string, prompt: string[], schema: object, maxTokens = 600): Promise<T> {
-  return JSON.parse(await ask(prompt.join('\n'), maxTokens, { name, schema }, MODEL_TIMEOUT_MS)) as T;
+async function askJson<T>(ask: TextModel, name: string, prompt: string[], schema: object, maxTokens = 600, timeoutMs = MODEL_TIMEOUT_MS): Promise<T> {
+  return JSON.parse(await ask(prompt.join('\n'), maxTokens, { name, schema }, timeoutMs)) as T;
 }
 
 const choice = (values: string[], extra: Record<string, object> = {}) => ({
@@ -113,7 +119,11 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
     },
 
     async endCall() {
-      const ctx = context();
+      const all = context();
+      // Ohne Auftrag (Testgespräch) gibt es nichts zu prüfen
+      if (!all.task.trim()) return [];
+      // Nach einem zurückgenommenen Auflegen steht die Ergebnismeldung der KI im Transkript: Auch dann zählt sie nicht mit
+      const ctx = { ...all, entries: all.entries.filter((e) => !(e.speaker === 'system' && e.text.startsWith(OUTCOME_PREFIX))) };
       const r = await askJson<{ punkte: { punkt: string; stand: string }[]; offen: string[] }>(
         ask,
         'auflegen_pruefen',
@@ -136,6 +146,7 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
           },
         },
         1500,
+        MODEL_TIMEOUT_LONG_MS,
       );
       return (r.offen ?? []).map((s) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_HINT)).filter(Boolean).slice(0, 3);
     },
@@ -164,6 +175,8 @@ export async function directCall(ask: TextModel, ctx: JudgeContext): Promise<str
       `Antworte als JSON: urteil „nichts“ oder „hinweis“; hinweis ist dann ein bis zwei kurze Sätze an die KI in der Du-Form (höchstens ${MAX_HINT} Zeichen): was sie übersehen hat und was sie als Nächstes tun soll – der Inhalt, nicht der Wortlaut. Sonst leer.`,
     ],
     choice(['nichts', 'hinweis'], { hinweis: { type: 'string' } }),
+    600,
+    MODEL_TIMEOUT_LONG_MS,
   );
   if (r.urteil !== 'hinweis') return '';
   return String(r.hinweis ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_HINT);
@@ -190,13 +203,13 @@ export function createDirector(ask: TextModel, context: () => JudgeContext, deli
   let runs = 0;
   const run = async (): Promise<void> => {
     if (stopped || runs >= DIRECTOR_MAX_RUNS) return;
-    const ctx = context();
-    // Vor der ersten Äußerung des Gegenübers gibt es nichts zu beurteilen
-    if (!ctx.entries.some((e) => e.final && e.speaker === 'partner' && e.text.trim())) return;
     running = true;
     again = false;
-    runs++;
     try {
+      const ctx = context();
+      // Vor der ersten Äußerung des Gegenübers gibt es nichts zu beurteilen
+      if (!ctx.entries.some((e) => e.final && e.speaker === 'partner' && e.text.trim())) return;
+      runs++;
       const hint = await directCall(ask, ctx);
       if (hint && !stopped && !again) deliver(hint);
     } catch (err) {

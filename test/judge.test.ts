@@ -415,3 +415,96 @@ test('Lage und Ereignisse: Stille, Anstoß und wer zuletzt sprach sind für Regi
   h.bridge.close();
   assert.equal(h.bridge.situation(), 'Gespräch beendet');
 });
+
+test('Fragen ans Textmodell: Die Prüfung beim Auflegen bekommt 8 s, sieht die Ergebnismeldung der KI nicht und entfällt ohne Auftrag', async () => {
+  const timeouts: (number | undefined)[] = [];
+  const prompts: string[] = [];
+  const ask: TextModel = async (prompt, _max, format, timeoutMs) => {
+    prompts.push(prompt);
+    timeouts.push(timeoutMs);
+    return JSON.stringify(format?.name === 'auflegen_pruefen' ? { punkte: [], offen: [] } : { urteil: 'abschied' });
+  };
+  const ctx: JudgeContext = { ...CTX, entries: [...CTX.entries, { speaker: 'system', text: 'Ergebnis laut KI: Gruß ausgerichtet', final: true }] };
+  const judge = createJudge(ask, () => ctx);
+  await judge.endCall();
+  await judge.afterGoodbye('Tschüss');
+  assert.deepEqual(timeouts, [8000, 4000], 'die Frist der Brücke (8 s) darf nicht schon am Modell-Zeitlimit enden');
+  assert.ok(!prompts[0].includes('Gruß ausgerichtet'), 'die Ergebnismeldung zählt auch nach einem zurückgenommenen Auflegen nicht mit');
+  assert.ok(prompts[0].includes('[App: KI unterbrochen]'));
+  assert.deepEqual(await createJudge(ask, () => ({ ...CTX, task: ' ' })).endCall(), []);
+  assert.equal(prompts.length, 2, 'ohne Auftrag keine Frage');
+});
+
+test('Nach der Verabschiedung: Redet das Gegenüber weiter, während das Textmodell urteilt, zählen beide Äußerungen zusammen', async (t) => {
+  const h = setup(t);
+  h.toolEnd();
+  h.asked[0].resolve([] as never);
+  await flush();
+  farewell(h);
+  h.partner('u1', 'Ja danke, Ihnen auch einen schönen Feierabend.');
+  assert.equal(h.asked[1].kind, 'afterGoodbye');
+  h.partner('u2', 'Ach, eine Frage noch zur Rechnung.');
+  // Das Urteil über die erste Äußerung allein ist überholt
+  h.asked[1].resolve('farewell' as never);
+  await flush();
+  h.bridge.nextFrame();
+  h.tick(2000);
+  assert.deepEqual(h.ended, [], 'nicht mitten in den neuen Satz aufgelegt');
+  assert.equal(h.asked[2].kind, 'afterGoodbye');
+  assert.match(h.asked[2].args[0], /schönen Feierabend\. Ach, eine Frage noch/);
+  h.asked[2].resolve('content' as never);
+  await flush();
+  h.tick(60_000);
+  assert.deepEqual(h.ended, []);
+  assert.ok(h.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  h.bridge.close();
+});
+
+test('Nach der Verabschiedung: Spricht das Gegenüber gerade wieder, wenn das Urteil „Abschied“ kommt, wird nicht aufgelegt', async (t) => {
+  const h = setup(t);
+  h.toolEnd();
+  h.asked[0].resolve([] as never);
+  await flush();
+  farewell(h);
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u1' });
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u1' });
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u2' });
+  h.server({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'u1', transcript: 'Ja danke, Ihnen auch einen schönen Feierabend.' });
+  assert.equal(h.asked[1].kind, 'afterGoodbye');
+  h.asked[1].resolve('farewell' as never);
+  await flush();
+  h.bridge.nextFrame();
+  h.tick(2000);
+  assert.deepEqual(h.ended, [], 'das Gegenüber spricht noch');
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u2' });
+  h.server({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'u2', transcript: 'Und grüßen Sie bitte Herrn Mustermann.' });
+  assert.match(h.asked[2].args[0], /Feierabend\. Und grüßen Sie/);
+  h.bridge.close();
+});
+
+test('end_call zusammen mit Sprache: Kommt der nächste end_call vor dem Urteil, wird frisch geprüft und das Auflegen wartet darauf', async (t) => {
+  const h = setup(t);
+  h.server({ type: 'response.created', response: { id: 'r1' } });
+  h.audio('i1', 1000);
+  h.server({ type: 'response.function_call_arguments.done', name: 'end_call', call_id: 'c1', arguments: '{"ergebnis":"reserviert"}' });
+  h.server({ type: 'response.done', response: { id: 'r1', status: 'completed' } });
+  h.drain();
+  h.tick(3500);
+  assert.match(h.creates().at(-1) ?? '', /Rufe jetzt end_call auf/, 'nichts gemeldet: kein „eben genannter Punkt“');
+  assert.doesNotMatch(h.creates().at(-1) ?? '', /eben genannte Punkt/);
+  h.toolEnd('c2');
+  assert.deepEqual(h.asked.map((a) => a.kind), ['endCall', 'endCall'], 'die erste Prüfung ist überholt');
+  assert.equal(h.outputs().at(-1), 'ok – verabschiede dich jetzt');
+  h.asked[0].resolve(['veraltet'] as never);
+  await flush();
+  assert.ok(!h.notes().some((n) => n.includes('veraltet')));
+  farewell(h);
+  h.tick(1000);
+  assert.deepEqual(h.ended, [], 'das Auflegen wartet auf die frische Prüfung');
+  h.asked[1].resolve(['Sag noch, dass es vier Personen sind.'] as never);
+  await flush();
+  assert.ok(h.notes().some((n) => /Das Beenden ist zurückgenommen[\s\S]*vier Personen/.test(n)));
+  h.tick(60_000);
+  assert.deepEqual(h.ended, []);
+  h.bridge.close();
+});

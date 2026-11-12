@@ -310,7 +310,8 @@ ${mcp ? str('context') : input.context}` : input.task,
   const started = current;
   // Die vollständige Anweisung der Sprach-KI gehört zum Kontext (mit Plan, sobald er da ist)
   let liveInstructions = instructions;
-  const judgeContext = (): JudgeContext => ({ task: input.task, plan: started.plan, instructions: liveInstructions, principal: input.principalName, incoming, entries: transcript, situation: bridge.situation() });
+  // Bei Agenten-Anrufen ohne den Plan: Er kann den Kontaktnamen nennen, und was die Prüfung als offen meldet, liest der Agent mit
+  const judgeContext = (): JudgeContext => ({ task: input.task, plan: mcp ? undefined : started.plan, instructions: liveInstructions, principal: input.principalName, incoming, entries: transcript, situation: bridge.situation() });
   const liveJudge = t.liveJudge && !scam;
   const director =
     liveJudge && !mcp
