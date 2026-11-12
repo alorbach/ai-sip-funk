@@ -811,8 +811,40 @@ test('Dienstcode hinter Satzzeichen bleibt Dienstcode; Uhrzeit und Datum nach �
   assert.equal(n('tel:*123456'), undefined);
   assert.equal(n('Mobil*0171 5550100'), '01715550100');
   assert.equal(n('Tel.*030 1234567'), '0301234567');
-  assert.deepEqual(splitNumbers('0171 5550100 / Mo-Fr 08:00-17:00').map(n), ['01715550100']);
-  assert.deepEqual(splitNumbers('030 1234567 / bis 01.01.2027').map(n), ['0301234567']);
-  assert.deepEqual(splitNumbers('030 1234567 / seit 01.2020').map(n), ['0301234567']);
+  assert.deepEqual(splitNumbers('0171 5550100 / Mo-Fr 08:00-17:00').map(n).filter(Boolean), ['01715550100']);
+  assert.deepEqual(splitNumbers('030 1234567 / bis 01.01.2027').map(n).filter(Boolean), ['0301234567']);
+  assert.deepEqual(splitNumbers('030 1234567 / seit 01.2020').map(n).filter(Boolean), ['0301234567']);
   assert.deepEqual(splitNumbers('Mobil: 0171 5550100 / Büro: 030 1234567').map(n), ['01715550100', '0301234567']);
+});
+
+// ---------------------------------------------------------------- Review-Runde 17
+
+test('Uhrzeiten und Daten werden keine Nummer; „(+49 30 …)“ behält das Plus', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('030 1234567 / 8-17 Uhr'), '0301234567');
+  assert.equal(n('030 1234567 / 08:00 Uhr'), '0301234567');
+  assert.deepEqual(splitNumbers('030 1234567 / 08:00-17:00').map(n).filter(Boolean), ['0301234567']);
+  assert.deepEqual(splitNumbers('Mo-Fr 08:00-17:00, 030 1234567').map(n), [undefined, '0301234567']);
+  assert.deepEqual(splitNumbers('030 1234567, bis 15.11.2026').map(n).filter(Boolean), ['0301234567']);
+  assert.equal(n('15.11.2026'), undefined);
+  assert.equal(n('(+49 30 1234567)'), '0301234567');
+  assert.equal(n('(+43 1 5550100)'), '+4315550100');
+  assert.equal(n('0171 / 5550100'), '01715550100');
+  assert.equal(n('+49 (0)221 / 1234567'), '02211234567');
+});
+
+test('Uhrzeiten und Daten in allen gängigen Schreibweisen', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.deepEqual(nums('030 1234567 / 08:00'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 / 31.12.2026'), ['0301234567']);
+  assert.deepEqual(nums('0171 5550100 / 17.30'), ['01715550100']);
+  assert.deepEqual(nums('030 1234567 / 01.01.2027'), ['0301234567']);
+  assert.deepEqual(nums('ab 08:00 / 030 1234567'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 / 08.00-17.00'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 / 01.01.-31.12.'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 / 2027-01-01'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 /01.01.2027'), ['0301234567']);
+  assert.deepEqual(nums('+49.30.1234567'), ['0301234567']);
+  assert.deepEqual(nums('030.12.34.56'), ['030123456']);
 });

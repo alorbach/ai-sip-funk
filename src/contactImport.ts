@@ -41,6 +41,9 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
  * Nummer aus dem Adressbuch in die SIPFunk-Schreibweise bringen: nur Ziffern, deutsche Nummern national mit 0,
  * ausländische mit +. Durchwahl-Zusätze („ext. 12“) und Fremdtext fallen weg; zu kurz oder leer = undefined.
  */
+/** Uhrzeit oder Datum in einem Telefonfeld (Öffnungszeiten, „gültig bis …“) */
+const TIME_OR_DATE = /(?<![\d.])(\d{1,2}[:.]\d{2}(?![\d.])|\d{1,2}:\d{2}|\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})?(?!\d)|\d{4}-\d{2}-\d{2})/;
+
 /** Vollbreite und andere Doppelgänger von Ziffern, * und # in die üblichen Zeichen bringen (NFKC plus Rechen-Sternchen) */
 const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*').replace(/♯/g, '#');
 
@@ -60,12 +63,26 @@ export function normalizeImportNumber(raw: string): string | undefined {
   const internal = /^\*\*\s*(\d+)/.exec(s);
   if (internal) return '**' + internal[1];
   if (/^[*#]/.test(s)) return undefined;
-  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Durchwahl-Zusätze („ext. 12“, „x12“, „p123“) und
-  // sonstiger Text fallen weg
-  const end = s.search(/[,;*#a-z]/i);
+  // Uhrzeiten und Daten („08:00“, „17.30“, „15.11.2026“, „01.01.-31.12.“, „2027-01-01“) sind keine Nummer: am Anfang
+  // verwerfen, dahinter abschneiden
+  const note = s.search(TIME_OR_DATE);
+  if (note === 0) return undefined;
+  if (note > 0) s = s.slice(0, note).replace(/[\s/-]+$/, '');
+  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Uhrzeiten (:), Durchwahl-Zusätze („ext. 12“, „x12“,
+  // „p123“) und sonstiger Text fallen weg
+  const end = s.search(/[,;:*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“
-  s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1');
+  // „ / “ verbindet nur Vorwahl und Rufnummer („0171 / 5550100“); was danach kein Nummernteil mit mindestens fünf
+  // Ziffern ist („/ 8-17 Uhr“, „/ 08“), fällt weg
+  const slashParts = s.split(/\s+\/\s+/);
+  s = slashParts[0];
+  for (const p of slashParts.slice(1)) {
+    if (!/^[\d\s()-]+$/.test(p) || p.replace(/\D/g, '').length < 5) break;
+    s += ' ' + p;
+  }
+  // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“ und
+  // „(+49 30 1234567)“ behalten das Plus
+  s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1').replace(/^\(\s*(?=\+)/, '');
   const plus = s.startsWith('+');
   // „+43 0664 …“: eine nach der Landesvorwahl irrtümlich mitgeschriebene 0 entfällt
   // (nicht in Italien, San Marino und dem Vatikan: dort gehört die 0 zur Nummer, „+39 06 …“)
@@ -120,7 +137,8 @@ export function splitNumbers(value: string): string[] {
       const out = [s[0]];
       for (const x of s.slice(1)) {
         const left = out[out.length - 1];
-        const separate = /^[+(0*]/.test(x.trim()) && complete(x) && (complete(left) || normalizeImportNumber(left) === undefined);
+        // Eine Uhrzeit oder ein Datum („/ 08:00“, „/ 01.01.2027“) wird ein eigener Teil, der keine Nummer ergibt
+        const separate = TIME_OR_DATE.test(x) || (/^[+(0*]/.test(x.trim()) && complete(x) && (complete(left) || normalizeImportNumber(left) === undefined));
         if (separate) out.push(x);
         else out[out.length - 1] = `${left} / ${x}`;
       }
