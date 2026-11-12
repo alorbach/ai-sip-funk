@@ -1402,8 +1402,30 @@ function impShow(result) {
 // Teilweise bekannt: derselbe Mensch nur mit Haken „ergänzen“; ein anderer Mensch wird neu angelegt (ohne die bekannten Nummern)
 function impSelectable(it) { return !it.ownCard && (it.status === 'new' || (it.status === 'partial' && (!it.mergeable || $('imp-merge').checked))); }
 /** Zahl der gewählten Einträge im Knopf; ohne die Liste neu zu zeichnen (sonst ginge der Tastaturfokus verloren) */
+/** Offene Nummern eines Eintrags (weder gespeichert noch auf der eigenen Karte) */
+const impOpen = (it) => it.numbers.filter((x) => !x.known && !x.ownNumber).map((x) => key(x.number));
+/**
+ * Den Import nachrechnen: gewählte Einträge in derselben Reihenfolge wie der Server (mit Haken „ergänzen“ die
+ * ergänzenden zuerst, sonst Listenreihenfolge); liefert die Einträge, die noch mindestens eine Nummer bekommen, und die
+ * dabei vergebenen Nummern
+ */
+function impSimulate(sel) {
+  const merge = $('imp-merge').checked;
+  const order = impItems.filter((it) => sel.has(it.id) && impSelectable(it))
+    .sort((a, b) => Number(merge && b.mergeable) - Number(merge && a.mergeable) || Number(a.id) - Number(b.id));
+  const claimed = new Set();
+  const receiving = [];
+  for (const it of order) {
+    const open = impOpen(it).filter((k) => !claimed.has(k));
+    if (!open.length) continue;
+    receiving.push(it);
+    open.forEach((k) => claimed.add(k));
+  }
+  return { receiving, claimed };
+}
 function impCount() {
-  const n = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); }).length;
+  // Gezählt wird, wer beim Import noch eine Nummer bekommt (eine geteilte Nummer bekommt nur einer)
+  const n = impSimulate(impSel).receiving.length;
   $('imp-apply').disabled = n === 0;
   $('imp-apply').textContent = n === 1 ? '1 Kontakt importieren' : `${n} Kontakte importieren`;
 }
@@ -1474,12 +1496,14 @@ $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === 
 // Ohne „Name mehrfach“ und „Name schon vorhanden“ (zwei Karten können zwei Menschen sein) und ohne Einträge, deren
 // Nummern alle schon ein anderer gewählter Eintrag bekommt (in derselben Reihenfolge wie beim Import)
 $('imp-all').onclick = () => {
-  const claimed = new Set();
-  for (const it of impItems) {
-    const keys = it.numbers.filter((x) => !x.known && !x.ownNumber).map((x) => key(x.number));
-    const candidate = impHits.includes(it) && it.status === 'new' && !it.ownCard && !it.twin && !it.sameName;
-    if (impSel.has(it.id) && impSelectable(it)) keys.forEach((k) => claimed.add(k));
-    else if (candidate && !keys.every((k) => claimed.has(k))) { impSel.add(it.id); keys.forEach((k) => claimed.add(k)); }
+  // Erst bekommen die schon gewählten Einträge ihre Nummern (wie beim Import), dann neue in Listenreihenfolge
+  const { claimed } = impSimulate(impSel);
+  for (const it of impHits) {
+    if (impSel.has(it.id) || it.status !== 'new' || it.ownCard || it.twin || it.sameName) continue;
+    const keys = impOpen(it);
+    if (keys.every((k) => claimed.has(k))) continue;
+    impSel.add(it.id);
+    keys.forEach((k) => claimed.add(k));
   }
   renderImport();
 };
