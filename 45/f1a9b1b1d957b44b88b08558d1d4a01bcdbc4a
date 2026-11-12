@@ -1,0 +1,32 @@
+test/judge.test.ts
+  s_3c75956bd77b21::t_5b919c0d173b13 1623-1691
+src/ai/realtimeBridge.ts
+  s_3c75956bd77b21::t_16a68f74d17fb6 1861-1864
+  s_3c75956bd77b21::t_09800c8d81af9f 1097-1099
+doc/user-guide.de.md
+  s_3c75956bd77b21::t_2068f9ba1eb5f5 312
+CHANGELOG.de.md
+  s_3c75956bd77b21::t_c4bfc830f25bc6 41
+  s_3c75956bd77b21::t_b5f4a5af3886a8 14
+doc/user-guide.md
+  s_3c75956bd77b21::t_8824510a5126cc 314
+CHANGELOG.md
+  s_3c75956bd77b21::t_888115a56c1992 14
+  s_3c75956bd77b21::t_8a312784625331 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45f1a9b1b1d957b44b88b08558d1d4a01bcdbc4a",
+  "prompts": {},
+  "sessions": {
+    "s_3c75956bd77b21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2b0f873-621e-469b-b95f-5668ff138577",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
