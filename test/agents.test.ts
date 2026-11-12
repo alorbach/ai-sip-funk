@@ -169,8 +169,15 @@ test('TOML: alter Eintrag als Prozess mit Unterabschnitt mitten in der Datei, CR
   assert.equal(tomlSet(commented, 'http://neu/mcp'), '# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n\n[mcp_servers.sipfunk]\nurl = "http://neu/mcp"\ntool_timeout_sec = 120\n');
   // Unser Abschnitt am Ende, ohne Leerzeile davor: Die Zeile davor behält ihren Zeilenumbruch
   assert.equal(tomlRemove('a = 1\n[mcp_servers.sipfunk]\nurl = "x"\n'), 'a = 1\n');
-  // Eine Zeile einer mehrzeiligen Liste ist kein Tabellenkopf
-  assert.equal(tomlRemove('[mcp_servers.sipfunk]\nargs = [\n  ["a"],\n  "b",\n]\n\n[x]\ny = 1\n'), '[x]\ny = 1\n');
+  // Mehrzeilige Liste in unserem Abschnitt: kein Tabellenkopf, der Abschnitt geht bis zur nächsten Tabelle
+  assert.equal(tomlRemove('[mcp_servers.sipfunk]\nargs = [\n  "a",\n  "b",\n]\n\n[x]\ny = 1\n'), '[x]\ny = 1\n');
+  // Tabellenname mit „]“ in Anführungszeichen nach unserem Abschnitt: bleibt samt Inhalt stehen
+  const bracket = '[mcp_servers.sipfunk]\nurl = "alt"\n\n[projects."C:/Kunde [2026]"]\ntrust_level = "trusted"\n';
+  assert.equal(tomlRemove(bracket), '[projects."C:/Kunde [2026]"]\ntrust_level = "trusted"\n');
+  assert.ok(tomlSet(bracket, 'http://neu/mcp').startsWith('[projects."C:/Kunde [2026]"]\ntrust_level = "trusted"\n'));
+  // Zeile mit „[“ in unserem Abschnitt, die kein lesbarer Tabellenkopf ist: Ende unklar, also nicht anfassen
+  assert.throws(() => tomlRemove('[mcp_servers.sipfunk]\nargs = [\n  ["a"],\n]\n[x]\ny = 1\n'), /von Hand/);
+  assert.throws(() => tomlSet('[mcp_servers.sipfunk]\nurl = "alt"\n[kaputt\ny = 1\n', 'http://neu/mcp'), /von Hand/);
   // Der Rest bleibt Zeichen für Zeichen: mehrere Leerzeilen und mehrzeilige Texte in anderen Abschnitten
   const rich = 'a = 1\n\n\n\n[profiles.x]\ninstructions = """\nzeile1\n\n\nzeile2\n"""\n\n\n[[liste]]\nn = 1\n';
   const withOurs = tomlSet(rich, 'http://x/mcp');
@@ -201,7 +208,9 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     assert.equal(state(s.env, 'claude-code'), 'stale');
     // Ohne Befehl: klare Meldung, nichts geschrieben
     await assert.rejects(installAgent('claude-code', s.env, T1, NOW), /nicht aufrufen/);
-    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /nicht gefunden/);
+    // Die Meldung nennt den Befehl zum Ausführen von Hand
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /nicht gefunden.*claude mcp add --transport http --scope user sipfunk http:\/\/127\.0\.0\.1:3865\/mcp$/);
+    await assert.rejects(removeAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: '' }) }, T1, NOW), /nicht gefunden.*claude mcp remove --scope user sipfunk$/);
     // Deutsches Windows: Die Shell meldet das fehlende Programm mit Code 1 und eigenem Text
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: 'Der Befehl "claude" ist entweder falsch geschrieben oder konnte nicht gefunden werden.' }) }, T1, NOW), /nicht gefunden/);
     assert.equal(readFileSync(file, 'utf8'), original);
@@ -231,6 +240,11 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     assert.equal(mixed.state, 'ok');
     assert.match(mixed.detail ?? '', /Projekt/);
     assert.equal(agentStatus(s.env, { ...T1, httpUrl: 'http://127.0.0.1:8080/mcp' }).find((a) => a.id === 'claude-code')!.state, 'stale');
+    // Nur in einem Projekt eingetragen (so stand es in der Anleitung zu 1.0.1), Adresse aktuell: nicht still „nicht eingetragen“
+    put(file, JSON.stringify({ projects: { 'C:/x': { mcpServers: { sipfunk: { type: 'http', url: T1.httpUrl } } } } }));
+    const local = agentStatus(s.env, T1).find((a) => a.id === 'claude-code')!;
+    assert.equal(local.state, 'missing');
+    assert.match(local.detail ?? '', /einzelnen Projekten/);
   } finally { s.done(); }
 });
 

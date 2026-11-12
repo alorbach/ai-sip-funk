@@ -1,5 +1,5 @@
 // Kleine Dateihelfer für die Daten im Datenordner (settings.json, contacts.json, .env).
-import { renameSync, writeFileSync } from 'node:fs';
+import { renameSync, rmSync, writeFileSync } from 'node:fs';
 
 /**
  * Schreibt erst in eine Nachbardatei und benennt dann um: Bricht der Prozess mitten im Schreiben ab,
@@ -13,6 +13,7 @@ export function writeFileAtomic(file: string, text: string): void {
   } catch {
     // Unter Windows scheitert das Umbenennen, wenn ein anderes Programm (Editor, Virenscanner) die Datei offen hält
     writeFileSync(file, text);
+    try { rmSync(tmp, { force: true }); } catch { /* bleibt liegen */ }
   }
 }
 

@@ -61,7 +61,7 @@ if (parsePort(process.env.WEB_PORT) && parsePort(process.env.WEB_PORT) !== wante
 const webPortMovedFrom = webPortChoice.moved ? wantedWebPort : undefined;
 if (webPortChoice.moved) {
   const kept = saveWebPort(webPortChoice.port);
-  log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ${kept ? 'ab jetzt' : 'für diesen Lauf'} Port ${webPortChoice.port}${kept ? ' (gespeichert)' : ' (nicht gespeichert: settings.json ist nicht lesbar)'}. Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
+  log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ${kept ? 'ab jetzt' : 'für diesen Lauf'} Port ${webPortChoice.port}${kept ? ' (gespeichert)' : ' (nicht gespeichert: settings.json ist nicht lesbar oder nicht beschreibbar)'}. Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
 }
 const personas = loadPersonas(join(projectRoot, 'personas'));
 const bus = new EventEmitter();

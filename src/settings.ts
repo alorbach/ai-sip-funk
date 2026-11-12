@@ -569,7 +569,11 @@ export function saveWebPort(port: number): boolean {
     if (settingsBroken()) return false;
     data = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8').replace(/^\uFEFF/, '')) as Record<string, unknown>;
   }
-  writeFileAtomic(SETTINGS_FILE, JSON.stringify({ ...data, webPort: String(port) }, null, 2) + '\n');
+  try {
+    writeFileAtomic(SETTINGS_FILE, JSON.stringify({ ...data, webPort: String(port) }, null, 2) + '\n');
+  } catch {
+    return false;
+  }
   return true;
 }
 

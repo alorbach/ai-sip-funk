@@ -167,26 +167,25 @@ function jsonText(doc: JsonDoc): string {
 
 const jsonEntry = (doc: JsonDoc): unknown => (doc.data.mcpServers as Record<string, unknown> | undefined)?.[SERVER_NAME];
 
-/** Claude Code legt Einträge ohne „--scope user“ je Projektordner ab (projects.<Ordner>.mcpServers). */
-function projectEntriesDiffer(doc: JsonDoc, expected: Entry): boolean {
+/** Claude Code legt Einträge ohne „--scope user“ je Projektordner ab (projects.<Ordner>.mcpServers); sie haben dort Vorrang. */
+function projectEntries(doc: JsonDoc, expected: Entry): 'none' | 'same' | 'differ' {
   const projects = doc.data.projects;
-  if (!projects || typeof projects !== 'object') return false;
-  return Object.values(projects as Record<string, unknown>).some((p) => {
-    const entry = ((p as Entry | null)?.mcpServers as Entry | undefined)?.[SERVER_NAME];
-    return entry !== undefined && !entryMatches(entry, expected);
-  });
+  if (!projects || typeof projects !== 'object') return 'none';
+  const entries = Object.values(projects as Record<string, unknown>).map((p) => ((p as Entry | null)?.mcpServers as Entry | undefined)?.[SERVER_NAME]).filter((e) => e !== undefined);
+  return entries.length === 0 ? 'none' : entries.every((e) => entryMatches(e, expected)) ? 'same' : 'differ';
 }
 
 // ---- TOML (Codex): Abschnitt [mcp_servers.sipfunk] samt Unterabschnitten, rein auf Textebene ----
 
 /** Kopfzeile einer Tabelle ([a.b] oder [[a.b]]) in ihre Namensteile zerlegen; undefined, wenn die Zeile keine ist. Anführungszeichen um einzelne Teile zählen nicht zum Namen. */
 function tomlHeader(line: string): string[] | undefined {
-  const m = /^\s*\[\[?([^\]]*)\]\]?\s*(?:#.*)?$/.exec(line);
+  const m = /^\s*\[\[?((?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\]"'#])*)\]\]?\s*(?:#.*)?$/.exec(line);
   if (!m) return undefined;
   const parts = m[1].match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^.]+/g) ?? [];
   return parts.map((p) => p.trim().replace(/^(["'])(.*)\1$/, '$2'));
 }
 const isOurs = (h: string[]): boolean => h[0] === 'mcp_servers' && h[1] === SERVER_NAME;
+const TOML_UNSAFE = '„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.';
 /** Beginnt hier eine Tabelle? Nur ganze Kopfzeilen zählen, keine Zeile einer mehrzeiligen Liste wie „["a"],“. */
 const TOML_TABLE = { test: (line: string): boolean => tomlHeader(line) !== undefined };
 
@@ -211,6 +210,9 @@ function tomlSplit(text: string): { ours: string[]; rest: string[] } {
     if (TOML_TABLE.test(line)) {
       if (isOurs(tomlHeader(line) ?? [])) { (block ??= []).push(line); continue; }
       flush();
+    } else if (block && /^\s*\[/.test(line)) {
+      // In unserem Abschnitt beginnt eine Zeile mit „[“, ist aber kein lesbarer Tabellenkopf: Wo der Abschnitt endet, ist dann nicht sicher
+      throw new Error(TOML_UNSAFE);
     }
     (block ?? rest).push(line);
   }
@@ -261,7 +263,7 @@ export function tomlSet(text: string, url: string): string {
   const block = [`[mcp_servers.${SERVER_NAME}]`, `url = ${JSON.stringify(url)}`, 'tool_timeout_sec = 120'].join(eol);
   const out = (base ? base + eol + eol : '') + block + eol;
   // Sicherheitsnetz: Stünde der Abschnitt jetzt doppelt in der Datei, könnte Codex sie gar nicht mehr laden
-  if (out.split(/\r?\n/).filter((l) => (tomlHeader(l) ?? []).join('.') === `mcp_servers.${SERVER_NAME}`).length !== 1) throw new Error('„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.');
+  if (out.split(/\r?\n/).filter((l) => (tomlHeader(l) ?? []).join('.') === `mcp_servers.${SERVER_NAME}`).length !== 1) throw new Error(TOML_UNSAFE);
   return out;
 }
 
@@ -277,14 +279,18 @@ function statusOf(def: AgentDef, env: AgentEnv, target: McpTarget): AgentInfo {
   try {
     if (def.kind === 'toml') {
       const { ours, rest } = tomlSplit(readText(file));
-      if (tomlUnsupported(rest)) throw new Error('„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.');
+      if (tomlUnsupported(rest)) throw new Error(TOML_UNSAFE);
       if (ours.length) info.state = tomlValue(ours, 'url') === target.httpUrl ? 'ok' : 'stale';
     } else {
       const doc = readJsonDoc(file);
       const entry = jsonEntry(doc);
       if (entry !== undefined) info.state = entryMatches(entry, def.entry(target)) ? 'ok' : 'stale';
       // Claude Code: Ein Eintrag in einem einzelnen Projekt hat dort Vorrang vor dem für alle Projekte
-      if (def.kind === 'claude-cli' && projectEntriesDiffer(doc, def.entry(target))) info.detail = 'In mindestens einem Projekt gibt es einen eigenen Eintrag „sipfunk“ mit anderer Adresse; er hat dort Vorrang. Im Ordner des Projekts mit „claude mcp remove sipfunk“ entfernen.';
+      if (def.kind === 'claude-cli') {
+        const inProjects = projectEntries(doc, def.entry(target));
+        if (inProjects === 'differ') info.detail = 'In mindestens einem Projekt gibt es einen eigenen Eintrag „sipfunk“ mit anderer Adresse; er hat dort Vorrang. Im Ordner des Projekts mit „claude mcp remove sipfunk“ entfernen.';
+        if (inProjects === 'same') info.detail = 'Zusätzlich in einzelnen Projekten eingetragen; diese Einträge ändert SIPFunk nicht (im Ordner des Projekts: „claude mcp remove sipfunk“).';
+      }
     }
   } catch (err) {
     info.state = 'unreadable';
@@ -324,19 +330,22 @@ export interface AgentResult {
   changed: boolean;
 }
 
-async function runClaude(env: AgentEnv, args: string[]): Promise<{ code: number; output: string }> {
+const claudeMissing = (todo: string[]): Error => new Error(`Der Befehl „claude“ wurde nicht gefunden. Bitte im Terminal ausführen: claude ${todo.join(' ')}`);
+
+/** `todo` ist der Befehl, um den es eigentlich geht: Fehlt das Programm, nennt ihn die Meldung zum Ausführen von Hand. */
+async function runClaude(env: AgentEnv, args: string[], todo = args): Promise<{ code: number; output: string }> {
   if (!env.run) throw new Error('Claude Code lässt sich von hier nicht aufrufen.');
   try {
     return await env.run('claude', args);
   } catch {
-    throw new Error('Der Befehl „claude“ wurde nicht gefunden. Bitte den Befehl unten kopieren und im Terminal ausführen.');
+    throw claudeMissing(todo);
   }
 }
 
 /** Gibt es den Befehl überhaupt? Vor der Sicherungskopie prüfen, damit ein fehlendes Programm keine Kopien hinterlässt. */
-async function findClaude(env: AgentEnv): Promise<void> {
+async function findClaude(env: AgentEnv, todo: string[]): Promise<void> {
   // Ein Fehlercode heißt hier: Das Programm gibt es nicht (die Shell meldet das je nach Sprache von Windows anders)
-  if ((await runClaude(env, ['--version'])).code !== 0) throw new Error('Der Befehl „claude“ wurde nicht gefunden. Bitte den Befehl unten kopieren und im Terminal ausführen.');
+  if ((await runClaude(env, ['--version'], todo)).code !== 0) throw claudeMissing(todo);
 }
 
 /** Eintrag anlegen oder auf den aktuellen Stand bringen. */
@@ -352,10 +361,11 @@ export async function installAgent(id: string, env: AgentEnv, target: McpTarget,
   let copy: string | undefined;
   if (def.kind === 'claude-cli') {
     // Ein vorhandener Eintrag (alter Port) muss erst weg: „claude mcp add“ überschreibt nicht
-    await findClaude(env);
+    const add = ['mcp', 'add', '--transport', 'http', '--scope', 'user', SERVER_NAME, target.httpUrl];
+    await findClaude(env, add);
     copy = backup(file, now);
     if (before.state === 'stale') await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
-    const r = await runClaude(env, ['mcp', 'add', '--transport', 'http', '--scope', 'user', SERVER_NAME, target.httpUrl]);
+    const r = await runClaude(env, add);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
     copy = write(file, tomlSet(existsSync(file) ? readText(file) : '', target.httpUrl), now);
@@ -377,9 +387,10 @@ export async function removeAgent(id: string, env: AgentEnv, target: McpTarget, 
   const file = def.file(env);
   let copy: string | undefined;
   if (def.kind === 'claude-cli') {
-    await findClaude(env);
+    const remove = ['mcp', 'remove', '--scope', 'user', SERVER_NAME];
+    await findClaude(env, remove);
     copy = backup(file, now);
-    const r = await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
+    const r = await runClaude(env, remove);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
     copy = write(file, tomlRemove(readText(file)), now);
@@ -399,10 +410,13 @@ export function runCommand(command: string, args: string[], cwd = homedir()): Pr
     if (args.some((a) => !/^[\w.:/-]+$/.test(a))) return reject(new Error('Unzulässiges Argument'));
     // Im Benutzerordner starten: Die Windows-Shell sucht ein Programm zuerst im aktuellen Ordner, und das wäre sonst der Datenordner
     // Unter Windows als eine Befehlszeile (Node warnt sonst bei Shell plus Argumentliste); die Argumente sind oben geprüft
-    const opts = { cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'] };
+    // Zugangsdaten aus der .env (SIP, KI-Schlüssel, Mail) gehen ein fremdes Programm nichts an
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(SIP_|SMTP_|MAIL_|OPENAI_|GEMINI_|ELECTRON_)|KEY|TOKEN|SECRET|PASS/i.test(k)));
+    const opts = { cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'] };
     const child = process.platform === 'win32' ? spawn([command, ...args].join(' '), { ...opts, shell: true }) : spawn(command, args, opts);
     let output = '';
-    const timer = setTimeout(() => child.kill(), 20_000);
+    // Hängt das Programm, nicht ewig warten: Unter Windows beendet kill() nur die Shell davor
+    const timer = setTimeout(() => { child.kill(); resolve({ code: 1, output: 'Keine Antwort innerhalb von 20 Sekunden.' }); }, 20_000);
     child.stdout.on('data', (d) => { output += String(d); });
     child.stderr.on('data', (d) => { output += String(d); });
     child.on('error', (err) => { clearTimeout(timer); reject(err); });
