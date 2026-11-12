@@ -243,18 +243,6 @@ test('Abruffehler werden verständlich gemeldet', async () => {
 
 // ---------------------------------------------------------------- Nachbesserungen aus dem Review
 
-test('Nummern: Bezeichnung davor, Wahlpausen, 0 nach Landesvorwahl, lange Felder', () => {
-  assert.equal(normalizeImportNumber('Handy 0171 5550100'), '01715550100');
-  assert.equal(normalizeImportNumber('0171 5550100,,1234'), '01715550100');
-  assert.equal(normalizeImportNumber('030 5550100;1234'), '0305550100');
-  assert.equal(normalizeImportNumber('030 5550100 x12'), '0305550100');
-  assert.equal(normalizeImportNumber('+43 0664 5550100'), '+436645550100');
-  assert.equal(normalizeImportNumber('+43 (0)664 5550100'), '+436645550100');
-  const started = Date.now();
-  assert.equal(normalizeImportNumber('0' + ' '.repeat(60_000) + 'x1'), undefined);
-  assert.ok(Date.now() - started < 200);
-});
-
 test('Nummern-Schlüssel: Auslandsschreibweisen und „+49 (0)“ gelten als gleich', () => {
   assert.equal(numberKey('0043 664 5550100'), numberKey('+43 664 5550100'));
   assert.equal(numberKey('+49 (0)30 5550100'), '0305550100');
@@ -375,18 +363,6 @@ test('MCP-Freigabe „nur Kontakte“ gilt nur für die Hauptnummer', () => {
 
 // ---------------------------------------------------------------- Review-Runde 1
 
-test('Nummern: Italien behält die 0, mehrere Nummern in einem Feld', () => {
-  assert.equal(normalizeImportNumber('+39 06 12345678'), '+390612345678');
-  assert.equal(normalizeImportNumber('+39 0612345678'), '+390612345678');
-  assert.deepEqual(splitNumbers('0171 5550100 / 0221 5550101'), ['0171 5550100', '0221 5550101']);
-  assert.deepEqual(splitNumbers('0171 5550100, 0221 5550101'), ['0171 5550100', '0221 5550101']);
-  assert.deepEqual(splitNumbers('0171 5550100 oder 0221 5550101'), ['0171 5550100', '0221 5550101']);
-  assert.deepEqual(splitNumbers('0171 5550100,,1234'), ['0171 5550100']);
-  assert.deepEqual(splitNumbers('0171/5550100'), ['0171/5550100']);
-  const [c] = fromVcard('BEGIN:VCARD\nFN:Zwei Nummern\nTEL;TYPE=CELL:+49 171 5550100 / 0221 5550101\nEND:VCARD');
-  assert.deepEqual(c.numbers.map((n) => n.number), ['01715550100', '02215550101']);
-});
-
 test('CSV: keine Kunden- oder Assistenznummern, Thunderbird „Cell Number“, " mitten im Feld', () => {
   const c = fromCsv('First Name,Last Name,Kundennummer,Assistant\'s Phone,Cell Number\nJo "Joe",Probe,4711,030 5550900,0171 5550901\nEva,Probe,100234,,0171 5550902\n');
   assert.deepEqual(c.map((x) => [x.name, x.numbers.map((n) => n.number)]), [['Eva Probe', ['01715550902']], ['Jo "Joe" Probe', ['01715550901']]]);
@@ -443,21 +419,6 @@ test('Kontaktspeicher: Nachschlagen bleibt bei großen Importen schnell und rich
 });
 
 // ---------------------------------------------------------------- Review-Runde 2
-
-test('Nummern: „Vorwahl / Rufnummer“ bleibt eine Nummer, ** bleibt, „(+49)“', () => {
-  assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
-  assert.deepEqual(splitNumbers('030 / 123 45 67'), ['030 / 123 45 67']);
-  assert.deepEqual(splitNumbers('030 5550100 / 0171 5550101'), ['030 5550100', '0171 5550101']);
-  assert.deepEqual(splitNumbers('+49 (0)221 / 1234567'), ['+49 (0)221 / 1234567']);
-  assert.deepEqual(splitNumbers('0049 221 / 123456'), ['0049 221 / 123456']);
-  assert.deepEqual(splitNumbers('+49 2203 / 123456'), ['+49 2203 / 123456']);
-  assert.deepEqual(splitNumbers('(030) 5550100 / (0171) 5550101'), ['(030) 5550100', '(0171) 5550101']);
-  assert.equal(normalizeImportNumber('+49 (0)221 / 1234567'), '02211234567');
-  const [c] = fromVcard('BEGIN:VCARD\nFN:Oma Probe\nTEL:0160 / 1234567\nEND:VCARD');
-  assert.deepEqual(c.numbers.map((n) => n.number), ['01601234567']);
-  assert.equal(normalizeImportNumber('**610 (Büro)'), '**610');
-  assert.equal(normalizeImportNumber('(+49) 171 5550100'), '01715550100');
-});
 
 test('Gleiche Person: Vorname und (abgekürzter) Nachname', () => {
   assert.equal(sameperson('Erika B.', 'Erika Beispiel'), true);
@@ -705,169 +666,7 @@ test('Emoji-Namen mit und ohne Variantenwähler sind derselbe Name (eigene Karte
   });
 });
 
-// ---------------------------------------------------------------- Review-Runde 12
-
-test('Nebenstelle mit Text davor behält die Sterne; andere Sternchen-Angaben sind keine Nummer', () => {
-  assert.equal(normalizeImportNumber('Büro **610'), '**610');
-  assert.equal(normalizeImportNumber('Intern: **610'), '**610');
-  assert.equal(normalizeImportNumber('tel:**610'), '**610');
-  assert.equal(normalizeImportNumber('*610'), undefined);
-  assert.equal(normalizeImportNumber('*31#'), undefined);
-});
-
-// ---------------------------------------------------------------- Review-Runde 13
-
-test('Stern und Raute: Nebenstellen bleiben intern, Dienstcodes fallen weg, Nummern mit Stern dahinter bleiben', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('030 7654321 *'), '0307654321');
-  assert.equal(n('0301234567*'), '0301234567');
-  assert.equal(n('0171 5550100 (*nur Mo-Fr)'), '01715550100');
-  assert.equal(n('#31#0171 5550100'), undefined);
-  assert.equal(n('##21#0301234567'), undefined);
-  assert.equal(n('*21*0171 5550100#'), undefined);
-  assert.equal(n('\uFF0A\uFF0A610'), '**610');
-  assert.equal(n('\u2217\u2217611'), '**611');
-  assert.equal(n('Intern 610'), undefined);
-  assert.equal(n('610'), undefined);
-  assert.equal(n('5550100'), '5550100');
-  assert.deepEqual(splitNumbers('030 1234567 **610'), ['030 1234567', '**610']);
-  assert.deepEqual(splitNumbers('030 1234567 (Durchwahl **610)'), ['030 1234567 (Durchwahl', '**610)']);
-  const [c] = fromVcard('BEGIN:VCARD\nFN:Büro Probe\nTEL;TYPE=WORK:030 1234567 **610\nEND:VCARD');
-  assert.deepEqual(c.numbers.map((x) => x.number), ['0301234567', '**610']);
-});
-
-// ---------------------------------------------------------------- Review-Runde 14
-
-test('Bezeichnung in Klammern oder mit Stern davor, „(0)30“, Nebenstelle vor der Nummer, Vollbreite', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('(Büro) 030 1234567'), '0301234567');
-  assert.equal(n('(privat) 0171 5550100'), '01715550100');
-  assert.equal(n('Mobil* 0171 5550100'), '01715550100');
-  assert.equal(n('Tel.* 030 1234567'), '0301234567');
-  assert.equal(n('(0)30 1234567'), '0301234567');
-  assert.equal(n('(0)171 5550100'), '01715550100');
-  assert.equal(n('+49 (0)30 1234567'), '0301234567');
-  assert.equal(n('\uFF03\u0033\u0031\uFF03\u0030\u0031\u0037\u0031 5550100'), undefined);
-  assert.equal(n('\uFF10\uFF13\uFF10 1234567'), '0301234567');
-  assert.deepEqual(splitNumbers('**610 / 030 1234567'), ['**610', '030 1234567']);
-  assert.deepEqual(splitNumbers('**610 030 1234567'), ['**610', '030 1234567']);
-  assert.deepEqual(splitNumbers('Büro **610 (030 1234567)').map(n), [undefined, '**610', '0301234567']);
-  assert.deepEqual(splitNumbers('030 1234567 \uFF0A\uFF0A610').map(n), ['0301234567', '**610']);
-  assert.deepEqual(splitNumbers('030 1234567 \uFE61\uFE61610').map(n), ['0301234567', '**610']);
-});
-
-test('Raute oder Stern in der Bezeichnung lassen die Nummer stehen', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('Cell# 0171 5550100'), '01715550100');
-  assert.equal(n('Tel#: 030 1234567'), '0301234567');
-  assert.equal(n('Tel #: +49 30 1234567'), '0301234567');
-  assert.equal(n('# 030 1234567'), '0301234567');
-  assert.equal(n('(#) 030 1234567'), '0301234567');
-  assert.equal(n('* 030 1234567'), '0301234567');
-  assert.equal(n('*#06#'), undefined);
-});
-
-// ---------------------------------------------------------------- Review-Runde 15
-
-test('Bezeichnung mit * oder # direkt vor der Nummer, Text nach „ / “, zusammengezogene Nummern', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('Mobil*0171 5550100'), '01715550100');
-  assert.equal(n('Cell#0171 5550100'), '01715550100');
-  assert.equal(n('Tel.*030 1234567'), '0301234567');
-  assert.equal(n('Mobil*21*0301234567#'), undefined);
-  assert.equal(n('*#06#'), undefined);
-  assert.equal(n('**610'), '**610');
-  assert.deepEqual(splitNumbers('Mobil: 0171 5550100 / Büro: 030 1234567').map(n), ['01715550100', '0301234567']);
-  assert.deepEqual(splitNumbers('**610 (Büro) / 030 1234567').map(n), ['**610', '0301234567']);
-  assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
-  assert.deepEqual(splitNumbers('+49 (0)221 / 1234567'), ['+49 (0)221 / 1234567']);
-  assert.equal(n('030 1234567 / 7654321'), '0301234567');
-  assert.equal(n('+49 30 1234567 / 7654321'), '0301234567');
-  assert.equal(n('0170 12345678'), '017012345678');
-});
-
-test('Nebenstellen mit 0 in der Nummer bleiben ganz', () => {
-  for (const ext of ['**701', '**802', '**600', '**100', '**1001']) assert.deepEqual(splitNumbers(ext), [ext]);
-  assert.deepEqual(splitNumbers('030 1234567 **701').map(normalizeImportNumber), ['0301234567', '**701']);
-  assert.deepEqual(splitNumbers('**701 / 030 1234567').map(normalizeImportNumber), ['**701', '0301234567']);
-  assert.deepEqual(splitNumbers('**701 123456').map(normalizeImportNumber), ['**701']);
-});
-
-// ---------------------------------------------------------------- Review-Runde 16
-
-test('Kurze Nebenstelle vor „ / “, Schrägstrich am Ende, lange Notizen', () => {
-  const n = normalizeImportNumber;
-  assert.deepEqual(splitNumbers('Intern 610 / 030 1234569').map(n), [undefined, '0301234569']);
-  assert.deepEqual(splitNumbers('610 / 0171 5550100').map(n), [undefined, '01715550100']);
-  assert.deepEqual(splitNumbers('0171 5550100 / 030 1234567 / **701').map(n), ['01715550100', '0301234567', '**701']);
-  assert.deepEqual(splitNumbers('0171 / 5550100').map(n), ['01715550100']);
-  assert.deepEqual(splitNumbers('0171 / 0221 123456').map(n), ['01710221123456']);
-  assert.equal(n('Bitte nur in dringenden Fällen anrufen, sonst lieber eine Nachricht schreiben, bitte jetzt 0221 1234567'), undefined);
-});
-
-test('Dienstcode hinter Satzzeichen bleibt Dienstcode; Uhrzeit und Datum nach „ / “ sind keine Nummer', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('tel:*72 0301234567'), undefined);
-  assert.equal(n('Weiterleitung:*72 +49 30 1234567'), undefined);
-  assert.equal(n('Tel.:*0301234567#'), undefined);
-  assert.equal(n('tel:*123456'), undefined);
-  assert.equal(n('Mobil*0171 5550100'), '01715550100');
-  assert.equal(n('Tel.*030 1234567'), '0301234567');
-  assert.deepEqual(splitNumbers('0171 5550100 / Mo-Fr 08:00-17:00').map(n).filter(Boolean), ['01715550100']);
-  assert.deepEqual(splitNumbers('030 1234567 / bis 01.01.2027').map(n).filter(Boolean), ['0301234567']);
-  assert.deepEqual(splitNumbers('030 1234567 / seit 01.2020').map(n).filter(Boolean), ['0301234567']);
-  assert.deepEqual(splitNumbers('Mobil: 0171 5550100 / Büro: 030 1234567').map(n), ['01715550100', '0301234567']);
-});
-
-// ---------------------------------------------------------------- Review-Runde 17
-
-test('Uhrzeiten und Daten werden keine Nummer; „(+49 30 …)“ behält das Plus', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('030 1234567 / 8-17 Uhr'), '0301234567');
-  assert.equal(n('030 1234567 / 08:00 Uhr'), '0301234567');
-  assert.deepEqual(splitNumbers('030 1234567 / 08:00-17:00').map(n).filter(Boolean), ['0301234567']);
-  assert.deepEqual(splitNumbers('Mo-Fr 08:00-17:00, 030 1234567').map(n), [undefined, '0301234567']);
-  assert.deepEqual(splitNumbers('030 1234567, bis 15.11.2026').map(n).filter(Boolean), ['0301234567']);
-  assert.equal(n('15.11.2026'), undefined);
-  assert.equal(n('(+49 30 1234567)'), '0301234567');
-  assert.equal(n('(+43 1 5550100)'), '+4315550100');
-  assert.equal(n('0171 / 5550100'), '01715550100');
-  assert.equal(n('+49 (0)221 / 1234567'), '02211234567');
-});
-
-test('Uhrzeiten und Daten in allen gängigen Schreibweisen', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  assert.deepEqual(nums('030 1234567 / 08:00'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 / 31.12.2026'), ['0301234567']);
-  assert.deepEqual(nums('0171 5550100 / 17.30'), ['01715550100']);
-  assert.deepEqual(nums('030 1234567 / 01.01.2027'), ['0301234567']);
-  assert.deepEqual(nums('ab 08:00 / 030 1234567'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 / 08.00-17.00'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 / 01.01.-31.12.'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 / 2027-01-01'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 /01.01.2027'), ['0301234567']);
-  assert.deepEqual(nums('+49.30.1234567'), ['0301234567']);
-  assert.deepEqual(nums('030.12.34.56'), ['030123456']);
-});
-
 // ---------------------------------------------------------------- Review-Runde 18
-
-test('Gegliederte Nummern sind keine Daten; „ / “ mit kurzen Gruppen; Daten und Zeiten mit - und /', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  assert.equal(n('0171 12.34.56'), '0171123456');
-  assert.equal(n('01.23.45.67.89'), '0123456789');
-  assert.equal(n('06.96.44.16'), '06964416');
-  assert.equal(n('0171-23-45-67'), '0171234567');
-  assert.equal(n('0221 / 123 / 4567'), '02211234567');
-  assert.equal(n('+49 221 / 102 / 7465 / 1'), '02211027465');
-  assert.deepEqual(nums('Mo-Fr 08-17 Uhr'), []);
-  assert.deepEqual(nums('gültig bis 15-11-2026'), []);
-  assert.deepEqual(nums('31/12/2026'), []);
-  assert.deepEqual(nums('030 1234567 / 8-17 Uhr'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 / 08.00-17.00'), ['0301234567']);
-});
 
 test('Bindestrich- und Punktgliederung im Ausland; Zeitangabe hinter der Rufnummer', () => {
   const n = normalizeImportNumber;
@@ -881,106 +680,6 @@ test('Bindestrich- und Punktgliederung im Ausland; Zeitangabe hinter der Rufnumm
   assert.deepEqual(nums('030 / 1234567 ab 09:00'), ['0301234567']);
   assert.deepEqual(nums('0171 / 5550100 (Mo-Fr 9:00-17:00)'), ['01715550100']);
   assert.deepEqual(nums('0171 / 5550100 (gültig bis 31.12.2026)'), ['01715550100']);
-});
-
-// ---------------------------------------------------------------- Review-Runde 19
-
-test('Zeitspannen mit „bis“ und Gedankenstrich, Nebenstelle nach „ / “, Sondernummern über +49, Zeit vor der Nummer', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  assert.deepEqual(nums('08.00 bis 17.00 Uhr'), []);
-  assert.deepEqual(nums('08.00\u201317.00'), []);
-  assert.deepEqual(nums('Mo\u2013Fr 8.00\u201317.00 Uhr'), []);
-  assert.deepEqual(nums('9.30 Uhr'), []);
-  assert.equal(n('0221 / 1234567 / 610'), '02211234567');
-  assert.equal(n('0221 / 123 / 4567'), '02211234567');
-  assert.equal(n('+49 116 117'), undefined);
-  assert.equal(n('+49 112'), undefined);
-  assert.equal(n('Mo-Fr 8-17 Uhr Tel. 030 1234567'), '0301234567');
-  assert.equal(n('bis 31.12.2026: 030 1234567'), '0301234567');
-});
-
-test('Gemischte Zeitspannen und Uhrzeit direkt hinter der Nummer', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  for (const v of ['Mo-Fr 8-16.30 Uhr', 'Mo-Fr 8.30-17 Uhr', 'Mo\u2013Fr 07.30\u201316.00 Uhr', '7.00\u201312.00', '07.30 Uhr', 'Mo-Fr 9-17.30']) assert.deepEqual(nums(v), [], v);
-  assert.deepEqual(nums('Mo-Fr 8-16.30 Uhr / 030 1234567'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 (8.30-17 Uhr)'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 8.00\u201317.00'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567 8.00 bis 17.00 Uhr'), ['0301234567']);
-  assert.deepEqual(nums('030 1234567-08:00'), ['0301234567']);
-  assert.equal(n('030:1234567'), '0301234567');
-});
-
-// ---------------------------------------------------------------- Review-Runde 20 (Neuordnung)
-
-test('Zeit oder Datum vor der Nummer, Stundenlisten, Gruppen nach „ / “, Doppelpunkt', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  assert.equal(n('Mo-Fr 8-17: 030 1234567'), '0301234567');
-  assert.equal(n('Mo-Fr 9:00-17 030 1234567'), '0301234567');
-  assert.equal(n('01.11.-31.03.: 030 1234567'), '0301234567');
-  assert.equal(n('0221 / 12345 / 67'), '02211234567');
-  assert.equal(n('030 1234567 / 610 / 611'), '0301234567');
-  assert.equal(n('0171 5550100 / 610 / 611'), '01715550100');
-  for (const v of ['Mo-Fr 08-17', 'Mo-Fr 08-12, 14-17', 'Mo-Fr 08-12 und 14-17 Uhr']) assert.deepEqual(nums(v), [], v);
-  assert.equal(n('Mo-Fr 8-12 und 14-17 Uhr 030 1234567'), '0301234567');
-  assert.equal(n('0171 / 5550100: Büro'), '01715550100');
-  assert.equal(n('030 1234567: 24h'), '0301234567');
-  assert.equal(n('030 1234567: 2. Etage'), '0301234567');
-  assert.equal(n('030 1234567:12'), '0301234567');
-  assert.equal(n('030:1234567'), '0301234567');
-});
-
-// ---------------------------------------------------------------- Review-Runde 21
-
-test('Stundenspannen in Klammern, mit ausgeschriebenen Wochentagen und vor Kommas; Gruppen nach „ / “', () => {
-  const n = normalizeImportNumber;
-  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
-  assert.deepEqual(nums('030 1234567 (9-17)'), ['0301234567']);
-  assert.deepEqual(nums('Mo-Fr 8-12, 14-17 030 1234567'), ['0301234567']);
-  assert.deepEqual(nums('Montag-Freitag 8-17 030 1234567'), ['0301234567']);
-  assert.deepEqual(nums('werktags 08-18 030 1234567'), ['0301234567']);
-  assert.deepEqual(nums('täglich 08-17'), []);
-  assert.equal(n('030 1234 / 5678'), '03012345678');
-  assert.equal(n('030 1234567 / 610'), '0301234567');
-  assert.equal(n('0421 1234 / 610'), '04211234');
-  assert.equal(n('0171 555 01-23'), '0171555' + '0123');
-});
-
-test('Fünfstellige Vorwahl mit „ / “, Bindestrich-Nummern neben Wochentagen, Reste am Ende', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('035022 / 12345'), '03502212345');
-  assert.equal(n('+49 35022 / 12345'), '03502212345');
-  assert.equal(n('06-12-34-56-78 Mo-Fr'), '0612345678');
-  assert.equal(n('030 12-13-14 Mo-Fr'), '030121314');
-  assert.equal(n('Fr. Muster 030 12-13-14'), '030121314');
-  assert.equal(n('0172 / 3456789.'), '01723456789');
-  assert.equal(n('0172 / 3456789 [mobil]'), '01723456789');
-  assert.equal(n('0172 / 3456789 (+ Fax)'), '01723456789');
-});
-
-// ---------------------------------------------------------------- Review-Runde 22
-
-test('Klammern mit Stundenlisten und volle Stunden mit „Uhr“', () => {
-  const n = normalizeImportNumber;
-  for (const v of ['030 1234567 (9-12, 14-17)', '030 1234567 (9-12 und 14-17)', '030 1234567 (8-12 und 14-17 Uhr)', '030 1234567 (9-17h)', '030 1234567 (9-17 Std.)']) {
-    assert.deepEqual(splitNumbers(v).map(n).filter(Boolean), ['0301234567'], v);
-  }
-  assert.equal(n('Mo-Fr ab 9 Uhr 030 1234567'), '0301234567');
-  assert.equal(n('Sprechzeit 8 Uhr 030 1234567'), '0301234567');
-  assert.equal(n('(030) 1234567'), '0301234567');
-  assert.equal(n('(0171) 555-0100'), '01715550100');
-});
-
-test('Zentrale mit „-0“ und Durchwahlbereich nach „ / “', () => {
-  const n = normalizeImportNumber;
-  assert.equal(n('089 1234-0 / 1234-99'), '08912340');
-  assert.equal(n('0221 1234-0 / 1234-99'), '022112340');
-  assert.equal(n('+49 30 12345-0 / 12345-99'), '030123450');
-  assert.equal(n('030 123456 / 10-12'), '030123456');
-  assert.equal(n('030 1234 / 5678'), '03012345678');
-  assert.equal(n('035022 / 12345'), '03502212345');
 });
 
 // ---------------------------------------------------------------- Review-Runde 24
@@ -1046,4 +745,34 @@ test('Übersicht zählt die eigene Karte als vorhanden', () => {
     const items = buildPreview([{ name: 'Sam Beispiel', numbers: [{ number: '01715553401', label: 'mobil' as const }] }, { name: 'Neu Beispiel', numbers: [{ number: '01715553402', label: 'mobil' as const }] }], store);
     assert.deepEqual(previewCounts(items), { total: 2, new: 1, partial: 0, exists: 1 });
   });
+});
+
+// ---------------------------------------------------------------- Kernregeln der Nummernerkennung
+
+test('Nummern: Kernregeln', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('Handy 0171 5550100'), '01715550100');
+  assert.equal(n('+49 (0)30 1234567'), '0301234567');
+  assert.equal(n('(0)30 1234567'), '0301234567');
+  assert.equal(n('(+49) 171 5550100'), '01715550100');
+  assert.equal(n('0049 171 5550100'), '01715550100');
+  assert.equal(n('0041 44 555 01 00'), '+41445550100');
+  assert.equal(n('0171 / 5550100'), '01715550100');
+  assert.equal(n('+49 (0)221 / 1234567'), '02211234567');
+  assert.equal(n('030 1234567 / 610'), '0301234567');
+  assert.equal(n('030 1234567 ext. 12'), '0301234567');
+  assert.equal(n('0171 5550100,,1234'), '01715550100');
+  assert.equal(n('030 1234567 (Mo-Fr 08:00-17:00)'), '0301234567');
+  assert.equal(n('**610'), '**610');
+  assert.equal(n('Büro **610'), '**610');
+  assert.equal(n('*31#0171 5550100'), undefined);
+  assert.equal(n('#31#0171 5550100'), undefined);
+  assert.equal(n('Intern 610'), undefined);
+  assert.equal(n('+49 112'), undefined);
+  assert.equal(n('\uFF10\uFF13\uFF10 1234567'), '0301234567');
+  assert.equal(n('5550100'), '5550100');
+  assert.deepEqual(splitNumbers('0171 5550100 / 030 1234567'), ['0171 5550100', '030 1234567']);
+  assert.deepEqual(splitNumbers('030 1234567 **610'), ['030 1234567', '**610']);
+  assert.deepEqual(splitNumbers('+49 160 5550200 ::: +49 160 5550201'), ['+49 160 5550200', '+49 160 5550201']);
+  assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
 });

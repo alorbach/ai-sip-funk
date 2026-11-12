@@ -1402,30 +1402,8 @@ function impShow(result) {
 // Teilweise bekannt: derselbe Mensch nur mit Haken „ergänzen“; ein anderer Mensch wird neu angelegt (ohne die bekannten Nummern)
 function impSelectable(it) { return !it.ownCard && (it.status === 'new' || (it.status === 'partial' && (!it.mergeable || $('imp-merge').checked))); }
 /** Zahl der gewählten Einträge im Knopf; ohne die Liste neu zu zeichnen (sonst ginge der Tastaturfokus verloren) */
-/** Offene Nummern eines Eintrags (weder gespeichert noch auf der eigenen Karte) */
-const impOpen = (it) => it.numbers.filter((x) => !x.known && !x.ownNumber).map((x) => key(x.number));
-/**
- * Den Import nachrechnen: gewählte Einträge in derselben Reihenfolge wie der Server (mit Haken „ergänzen“ die
- * ergänzenden zuerst, sonst Listenreihenfolge); liefert die Einträge, die noch mindestens eine Nummer bekommen, und die
- * dabei vergebenen Nummern
- */
-function impSimulate(sel) {
-  const merge = $('imp-merge').checked;
-  const order = impItems.filter((it) => sel.has(it.id) && impSelectable(it))
-    .sort((a, b) => Number(!!(merge && b.mergeable)) - Number(!!(merge && a.mergeable)) || Number(a.id) - Number(b.id));
-  const claimed = new Set();
-  const receiving = [];
-  for (const it of order) {
-    const open = impOpen(it).filter((k) => !claimed.has(k));
-    if (!open.length) continue;
-    receiving.push(it);
-    open.forEach((k) => claimed.add(k));
-  }
-  return { receiving, claimed };
-}
 function impCount() {
-  // Gezählt wird, wer beim Import noch eine Nummer bekommt (eine geteilte Nummer bekommt nur einer)
-  const n = impSimulate(impSel).receiving.length;
+  const n = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); }).length;
   $('imp-apply').disabled = n === 0;
   $('imp-apply').textContent = n === 1 ? '1 Kontakt importieren' : `${n} Kontakte importieren`;
 }
@@ -1492,38 +1470,8 @@ $('imp-search').oninput = renderImport;
 $('imp-merge').onchange = renderImport;
 $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
 // Wählt nur, was die Suche gerade zeigt
-// Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
-// Ohne „Name mehrfach“ und „Name schon vorhanden“ (zwei Karten können zwei Menschen sein) und ohne Einträge, deren
-// Nummern alle schon ein anderer gewählter Eintrag bekommt (Nachrechnung in derselben Reihenfolge wie beim Import)
-$('imp-all').onclick = () => {
-  // Ein neuer Eintrag kommt nur dazu, wenn er beim Import (gleiche Reihenfolge wie der Server) selbst eine Nummer bekommt
-  // und keinem schon gewählten Eintrag eine wegnimmt
-  let sel = new Set(impSel);
-  let sim = impSimulate(sel);
-  let receiving = new Set(sim.receiving.map((it) => it.id));
-  let claimed = sim.claimed;
-  for (const it of impHits) {
-    if (sel.has(it.id) || it.status !== 'new' || it.ownCard || it.twin || it.sameName) continue;
-    const keys = impOpen(it);
-    if (!keys.length) continue;
-    // Schneller Weg: keine seiner Nummern ist vergeben, also bekommt er sie und nimmt niemandem etwas weg
-    if (keys.every((k) => !claimed.has(k))) {
-      sel.add(it.id);
-      receiving.add(it.id);
-      keys.forEach((k) => claimed.add(k));
-      continue;
-    }
-    const trial = new Set(sel).add(it.id);
-    const next = impSimulate(trial);
-    const got = new Set(next.receiving.map((x) => x.id));
-    if (!got.has(it.id) || [...receiving].some((id) => !got.has(id))) continue;
-    sel = trial;
-    receiving = got;
-    claimed = next.claimed;
-  }
-  impSel = sel;
-  renderImport();
-};
+// Nur ganz neue Einträge; teilweise vorhandene, „Name mehrfach“ und „Name schon vorhanden“ wählt man bewusst einzeln
+$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin && !it.sameName) impSel.add(it.id); renderImport(); };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
