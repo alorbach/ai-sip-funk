@@ -1,0 +1,37 @@
+test/agents.test.ts
+  s_9e7cbef9751112::t_0efc0b2a16225b 172-180,211-213,243-247
+doc/user-guide.md
+  s_9e7cbef9751112::t_0efc0b2a16225b 619,799
+public/i18n-en.js
+  s_9e7cbef9751112::t_0efc0b2a16225b 701-702,759-760
+src/mcp/agents.ts
+  s_9e7cbef9751112::t_0efc0b2a16225b 170-171,173-175,182,188,213-215,266,282,289-293,333-336,341,346,348,364-365,368,390-391,393,413-415,418-419
+CHANGELOG.md
+  s_9e7cbef9751112::t_0efc0b2a16225b 9
+src/fsutil.ts
+  s_9e7cbef9751112::t_0efc0b2a16225b 2,16
+doc/user-guide.de.md
+  s_9e7cbef9751112::t_0efc0b2a16225b 617,797
+CHANGELOG.de.md
+  s_9e7cbef9751112::t_0efc0b2a16225b 9
+src/main.ts
+  s_9e7cbef9751112::t_0efc0b2a16225b 64
+src/settings.ts
+  s_9e7cbef9751112::t_0efc0b2a16225b 572-576
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a876ba1c03a155538717ce67b8136b0f169ca79",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
