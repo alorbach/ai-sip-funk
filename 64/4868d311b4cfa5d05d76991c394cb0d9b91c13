@@ -1,0 +1,37 @@
+CHANGELOG.md
+  s_6e62c686ceb639::t_390e8d1167cc0e 9
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_4c8bcd56defa12 503-506,666
+  s_6e62c686ceb639::t_dd8ede30835901 802-803
+  s_6e62c686ceb639::t_dc2b629ec16d6a 480,482-489
+  s_6e62c686ceb639::t_7c207daadace11 187,702
+  s_6e62c686ceb639::t_429c853c5a4f1f 667-671
+  s_6e62c686ceb639::t_06ac4fec7935dc 104-105
+  s_6e62c686ceb639::t_eea10ad18bafcf 595-596
+  s_6e62c686ceb639::t_d5bd2d72d93dbd 834-835
+  s_6e62c686ceb639::t_e60ee499a147fc 665
+  s_6e62c686ceb639::t_e33d3d09504748 156-166
+  s_6e62c686ceb639::t_5484215b4995be 314-317
+  s_6e62c686ceb639::t_da9c617cd519ba 328-332
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_5838fa059dbddf 9
+test/gemini.test.ts
+  s_6e62c686ceb639::t_9ec87753e352d2 205-206,208-241
+  s_6e62c686ceb639::t_dff1c1d6c478f3 207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "644868d311b4cfa5d05d76991c394cb0d9b91c13",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
