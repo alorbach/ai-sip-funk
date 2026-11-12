@@ -208,7 +208,7 @@ export class RealtimeBridge implements AudioHandler {
   private endCallChecked = false;
   // Nach einem abgelehnten end_call (Sprache + Tool): Schweigt das Gegenüber, muss die KI selbst wieder dran
   private rejectTimer?: NodeJS.Timeout;
-  /** Nach einem abgelehnten end_call soll die KI schweigen: Was sie von sich aus nachschiebt, bleibt stumm, bis das Gegenüber spricht, die Schweigefrist abläuft oder sie ein Tool aufruft */
+  /** Nach einem abgelehnten end_call soll die KI schweigen: Was sie von sich aus nachschiebt, bleibt stumm, bis das Gegenüber spricht, die Schweigefrist abläuft, sie ein Tool aufruft, der Agent etwas vorgibt (agentSay) oder das Beenden verlangt (agentEnd) oder ein end_call angenommen wird */
   private muteAfterReject = false;
   /** Die laufende Antwort ist so ein Nachschub; mutedBytes zählt ihr verworfenes Audio (PCM16 in der Rate des Anbieters) */
   private mutedResponse = false;
@@ -711,6 +711,8 @@ export class RealtimeBridge implements AudioHandler {
   /** Der Agent möchte das Gespräch höflich beenden: Die KI ruft end_call auf und verabschiedet sich wie sonst auch. */
   agentEnd(): 'ending' | 'closed' {
     if (this.closed) return 'closed';
+    // Das Beenden löst die Schweigefrist eines abgelehnten end_call ab (wie eine Vorgabe, siehe agentSay): Die Antwort der KI darauf bleibt nicht stumm
+    this.endRejectWindow();
     // Der Auftraggeber beendet: Die Selbstprüfung gegen den Gesprächsplan („sprich fehlende Schritte jetzt aus“) entfällt,
     // und das Textmodell prüft nicht nach (auch keine Prüfung, die nebenher oder neben der Verabschiedung noch läuft: Ihr Urteil verfällt).
     // Das gilt auch, wenn die KI sich schon von selbst verabschiedet: Der Wunsch des Agenten geht vor, die Prüfung nähme ihn sonst zurück
@@ -1129,6 +1131,8 @@ export class RealtimeBridge implements AudioHandler {
     if (!this.opts.stallMs || this.closed || !this.connected) return;
     if (this.activeResponse || this.partnerSpeaking || this.goodbye !== 'none' || this.endRequested !== undefined) return;
     if (this.greetingResponse || this.followUpTimer || this.rejectTimer || this.awaitingAudioSince || this.transferring || this.ask) return;
+    // Die KI spricht noch (ihr Audio liegt im Puffer): Die Frist zählt erst ab dem Ende der Ausgabe, nextFrame stellt sie dann
+    if (this.playing || this.outQueue.length > 0) return;
     if (this.stallTimer) return;
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;

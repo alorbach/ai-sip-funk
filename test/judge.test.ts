@@ -1549,3 +1549,74 @@ test('Auflegen räumt die Obergrenze der Endphase ab – nach dem Auflegen ist k
   assert.equal(h.ended.length, 1, 'genau einmal aufgelegt');
   h.bridge.close();
 });
+
+// ---- Review-Runde 8 ----
+
+/** Wiedergabe im 20-ms-Takt wie beim Senden der Sprachpakete; merkt sich (in ms ab Beginn), wann die KI ausgesprochen hat und wann der Stillstandsanstoß kam */
+function realtimePlayer(h: ReturnType<typeof setup>) {
+  const s = { elapsed: 0, heard: false, endedAt: -1, nudgeAt: -1 };
+  const play = (ms: number): void => {
+    for (const stop = s.elapsed + ms; s.elapsed < stop; s.elapsed += 20) {
+      h.tick(20);
+      if (h.bridge.nextFrame()) s.heard = true;
+      else if (s.heard && s.endedAt < 0) s.endedAt = s.elapsed + 20;
+      if (s.nudgeAt < 0 && h.creates().some((c) => /Es ist still geworden/.test(c))) s.nudgeAt = s.elapsed + 20;
+    }
+  };
+  return { s, play };
+}
+
+test('abgelehnter end_call: Der Stillstandswächter wird nicht scharf, solange die KI ihren Satz noch spricht – er zählt ab dem Ende der Ausgabe', (t) => {
+  const stallMs = 6000;
+  // Eine Vorgabe des Agenten (say, ohne jetzt) kommt, während die abgelehnte Antwort noch ausgespielt wird
+  const g = setup(t, { judge: undefined, stallMs });
+  g.tick(7000); // (der Wächter der Begrüßung ist abgelaufen)
+  g.say('rs', 'is', 400, 'Hallo?');
+  g.drain();
+  g.ws.sent.length = 0;
+  endWithSpeech(g, 'r1', 'i1', 'c1', 10_000); // gut 10 s Audio liegen im Puffer
+  const p = realtimePlayer(g);
+  p.play(1000);
+  assert.equal(g.bridge.agentSay('Frag noch nach dem Preis.'), 'next');
+  p.play(20_000);
+  assert.ok(p.s.endedAt >= 10_000 - 40, 'die KI hat ihren Satz ausgesprochen');
+  assert.ok(p.s.nudgeAt >= p.s.endedAt + stallMs - 40, `kein Anstoß, solange die KI spricht (Anstoß bei ${p.s.nudgeAt} ms, Ende der Ausgabe bei ${p.s.endedAt} ms)`);
+  assert.ok(p.s.nudgeAt <= p.s.endedAt + stallMs + 40, 'der Anstoß kommt stallMs nach dem Ende der Ausgabe – die Vorgabe bleibt nicht liegen');
+  g.bridge.close();
+
+  // Ebenso, wenn das Gegenüber in der Schweigefrist reagiert und die Antwort darauf noch im Puffer liegt, wenn die Frist abläuft
+  const k = setup(t, { judge: undefined, stallMs });
+  k.tick(7000);
+  k.say('rs', 'is', 400, 'Hallo?');
+  k.drain();
+  k.ws.sent.length = 0;
+  speechStarted(k, 'u1'); // setzte schon vor dem end_call an
+  endWithSpeech(k, 'r1', 'i1', 'c1');
+  k.drain();
+  for (let i = 0; i < 5; i++) k.tick(1000);
+  speechStopped(k, 'u1');
+  k.server({ type: 'response.created', response: { id: 'r2' } }); // der Anbieter antwortet auf das Satzende
+  k.audio('i2', 10_000);
+  transcribed(k, 'u1', 'Moment, noch eine Frage zur Rechnung.');
+  k.server({ type: 'response.output_audio_transcript.done', item_id: 'i2', transcript: 'Ja, gern. Und noch etwas dazu.' });
+  k.server({ type: 'response.done', response: { id: 'r2', status: 'completed' } });
+  const q = realtimePlayer(k);
+  q.play(20_000);
+  assert.ok(q.s.endedAt >= 10_000 - 40, 'die KI hat ihre Antwort ausgesprochen');
+  assert.ok(q.s.nudgeAt >= q.s.endedAt + stallMs - 40, `kein Anstoß, solange die KI spricht (Anstoß bei ${q.s.nudgeAt} ms, Ende der Ausgabe bei ${q.s.endedAt} ms)`);
+  assert.ok(q.s.nudgeAt <= q.s.endedAt + stallMs + 40, 'schweigt es danach, stößt der Wächter stallMs nach dem Ende der Ausgabe an');
+  k.bridge.close();
+});
+
+test('abgelehnter end_call: Verlangt der Agent das Beenden in der Schweigefrist, ist die Antwort der KI zu hören – und es kommt kein Anstoß „sagt nichts mehr“', (t) => {
+  const h = setup(t, { judge: undefined });
+  endWithSpeech(h, 'r1', 'i1', 'c1');
+  h.drain();
+  assert.equal(h.bridge.agentEnd(), 'ending');
+  h.say('r2', 'i2', 800, 'Eine Sache noch: Wie viele Personen sind es?');
+  assert.ok(h.drain() > 0, 'die Antwort der KI ist zu hören: Die Stummschaltung nach dem abgelehnten end_call ist aufgehoben');
+  assert.ok(h.transcripts.some((e) => e.speaker === 'ki' && /Wie viele Personen/.test(e.text)), 'und steht im Transkript');
+  h.tick(5000);
+  assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'die Schweigefrist des abgelehnten end_call ist vorbei');
+  h.bridge.close();
+});
