@@ -134,8 +134,9 @@ export function cleanCandidates(raw: { name: string; numbers: { value: string; t
     // erste wird die Nummer, die SIPFunk wählt
     const dialable = (n: string) => (checkDialTarget(n) === undefined ? 0 : 1);
     numbers.sort((a, b) => dialable(a.number) - dialable(b.number) || LABEL_ORDER.indexOf(a.label) - LABEL_ORDER.indexOf(b.label));
-    const name = r.name.replace(/\s+/g, ' ').trim() || numbers[0].number;
-    out.push({ name, numbers });
+    // Begrenzt: Namen und Nummernzahl einer Karte gehen in Vergleiche ein, die je Nummer laufen
+    const name = r.name.replace(/\s+/g, ' ').trim().slice(0, 120) || numbers[0].number;
+    out.push({ name, numbers: numbers.slice(0, 20) });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
@@ -342,6 +343,7 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
   // Für die Anzeige jede Nummer, die bei mehr als einem Eintrag steht (auch zwei Karten derselben Person): sie bekommt nur der erste gewählte
   candidates.forEach((c, i) => { for (const n of c.numbers) { const k = numberKey(n.number); const list = holders.get(k); if (list) list.push(i); else holders.set(k, [i]); } });
   const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
+  const ownerContacts = store.list().filter((c) => c.owner);
   return candidates.map((c, i) => {
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
     const numbers = c.numbers.map((n, j) => {
@@ -353,26 +355,32 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
     const known = owners.filter((o): o is Contact => !!o);
     const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
     const mergeable = status === 'partial' && canMerge(c, owners, shared);
-    const ownCard = status === 'partial' && isOwnCard(c, owners) ? true : undefined;
-    const sameName = (status === 'new' || (status === 'partial' && !mergeable)) && names.has(c.name.trim().toLowerCase()) ? true : undefined;
+    const ownCard = status !== 'exists' && isOwnCard(c, ownerContacts) ? true : undefined;
+    const sameName = !ownCard && (status === 'new' || (status === 'partial' && !mergeable)) && names.has(c.name.trim().toLowerCase()) ? true : undefined;
     return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, ownCard, sameName };
   });
 }
 
 /** Nummern, die bei mehr als einem Eintrag des Adressbuchs stehen */
 function sharedKeys(candidates: ImportCandidate[]): Set<string> {
-  // Zählt nur Einträge mit verschiedenen Namen: zwei Karten derselben Person sind kein gemeinsames Festnetz
-  const holders = new Map<string, Set<string>>();
+  // Zählt nur verschiedene Personen (sameperson): zwei Karten derselben Person, auch „Erika B.“ und „Erika Beispiel“,
+  // sind kein gemeinsames Festnetz. Je Nummer ein Name als Vertreter jeder Person
+  const people = new Map<string, string[]>();
   for (const c of candidates) for (const n of c.numbers) {
     const k = numberKey(n.number);
-    holders.set(k, (holders.get(k) ?? new Set()).add(nameParts(c.name).join(' ')));
+    const reps = people.get(k) ?? [];
+    if (reps.length < 2 && !reps.some((r) => sameperson(r, c.name))) reps.push(c.name);
+    people.set(k, reps);
   }
-  return new Set([...holders].filter(([, names]) => names.size > 1).map(([k]) => k));
+  return new Set([...people].filter(([, reps]) => reps.length > 1).map(([k]) => k));
 }
 
-/** Die eigene Karte des Inhabers: wird weder ergänzt (weitere Inhabernummern hätten Sonderrechte) noch doppelt angelegt */
-function isOwnCard(c: ImportCandidate, owners: (Contact | undefined)[]): boolean {
-  return owners.some((o) => o?.owner && sameperson(c.name, o.name));
+/**
+ * Die eigene Karte des Inhabers (gleiche Person wie ein Kontakt mit „Inhaber“): wird weder ergänzt (weitere
+ * Inhabernummern hätten Sonderrechte) noch als zweiter Kontakt angelegt – auch wenn keine Nummer übereinstimmt.
+ */
+function isOwnCard(c: ImportCandidate, ownerContacts: Contact[]): boolean {
+  return ownerContacts.some((o) => sameperson(c.name, o.name));
 }
 
 const nameParts = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -433,6 +441,7 @@ export function applyImport(
   /** Nummern, die in diesem Durchgang schon einem Eintrag zugeteilt sind (gemeinsames Festnetz: der erste bekommt sie) */
   const taken = new Set<string>();
   const shared = sharedKeys(candidates);
+  const ownerContacts = store.list().filter((x) => x.owner);
   const order = [...new Set(ids)].filter((id) => /^\d+$/.test(id) && candidates[Number(id)]).sort((a, b) => Number(a) - Number(b));
   for (const id of order) {
     const c = candidates[Number(id)];
@@ -441,11 +450,17 @@ export function applyImport(
     const existing = owners.find((o): o is Contact => !!o);
     const mergeable = existing && canMerge(c, owners, shared);
     const createNew = !existing || !mergeable;
-    if (!fresh.length || isOwnCard(c, owners)) unchanged++;
-    else if (createNew) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
+    const own = isOwnCard(c, ownerContacts);
+    // Eine weitere Karte derselben Person in diesem Durchgang: Nummern zum schon vorgemerkten neuen Kontakt
+    const sibling = createNew ? create.find((x) => sameperson(String(x.name), c.name)) : undefined;
+    if (!fresh.length || own) unchanged++;
+    else if (sibling) {
+      sibling.numbers = [...(sibling.numbers ?? []), ...fresh];
+      unchanged++;
+    } else if (createNew) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
     else if (opts.addToExisting) add.push({ id: existing.id, numbers: fresh });
     else unchanged++;
-    if (fresh.length && !isOwnCard(c, owners) && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
+    if (fresh.length && !own && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
   }
   const r = store.importMany(create, add);
   return { ...r, unchanged };

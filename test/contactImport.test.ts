@@ -417,7 +417,7 @@ test('Vorschau verfällt nach der Frist und bleibt bei einem Fehler erhalten', (
     now = 2000;
     assert.throws(() => session.apply(a.token, ['0'], store), /nicht mehr aktuell/);
     const b = session.show('file', [{ name: 'Fehler', numbers: [{ number: '0405551101', label: 'mobil' }] }], store);
-    const broken = { importMany: () => { throw new Error('Platte voll'); }, findByNumber: () => undefined } as unknown as ContactStore;
+    const broken = { importMany: () => { throw new Error('Platte voll'); }, findByNumber: () => undefined, list: () => [] } as unknown as ContactStore;
     assert.throws(() => session.apply(b.token, ['0'], broken), /Platte voll/);
     assert.equal(session.apply(b.token, ['0'], store).created, 1);
   });
@@ -523,6 +523,44 @@ test('Zwei Karten derselben Person sind kein gemeinsames Festnetz', () => {
     const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
     assert.deepEqual([r.created, r.merged], [0, 1]);
     assert.equal(store.findByNumber('030 5551801')?.name, 'Erika Muster');
+    assert.equal(store.list().length, 1);
+  });
+});
+
+// ---------------------------------------------------------------- Review-Runde 6
+
+test('Eigene Karte ohne gemeinsame Nummer wird nicht angelegt', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '030 5551900', owner: true });
+    const cands = [{ name: 'Sam Beispiel', numbers: [{ number: '01715551901', label: 'mobil' as const }] }];
+    const [item] = buildPreview(cands, store);
+    assert.deepEqual([item.status, item.ownCard, item.sameName], ['new', true, undefined]);
+    assert.equal(applyImport(cands, ['0'], store).created, 0);
+    assert.equal(store.list().length, 1);
+  });
+});
+
+test('Zwei neue Karten derselben Person werden ein Kontakt', () => {
+  withStore((store) => {
+    const cands = fromVcard('BEGIN:VCARD\nFN:Erika Muster\nTEL;TYPE=CELL:0171 5552000\nTEL;TYPE=HOME:030 5552001\nEND:VCARD\nBEGIN:VCARD\nFN:Erika Muster\nTEL;TYPE=CELL:0171 5552000\nTEL;TYPE=WORK:040 5552002\nEND:VCARD');
+    const r = applyImport(cands, ['0', '1'], store);
+    assert.equal(r.created, 1);
+    const e = store.findByName('Erika Muster')!;
+    assert.deepEqual([e.number, e.numbers], ['01715552000', ['0305552001', '0405552002']]);
+  });
+});
+
+test('Abgekürzte Doppelkarte verhindert das Ergänzen nicht', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552100' });
+    const cands = [
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552100', label: 'mobil' as const }, { number: '0305552101', label: 'privat' as const }] },
+      { name: 'Erika B.', numbers: [{ number: '01715552100', label: 'mobil' as const }] },
+    ];
+    const items = buildPreview(cands, store);
+    assert.equal(items[0].mergeable, true);
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged], [0, 1]);
     assert.equal(store.list().length, 1);
   });
 });
