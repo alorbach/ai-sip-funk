@@ -644,3 +644,27 @@ test('Namen ohne Buchstaben werden nicht zusammengeführt; zerlegte Umlaute zäh
     assert.equal(own.ownCard, true);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 9
+
+test('Zwei Karten (auch abgekürzt) für denselben vorhandenen Kontakt: ein ergänzter Kontakt', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552700' });
+    const cands = [
+      { name: 'Erika B.', numbers: [{ number: '01715552700', label: 'mobil' as const }, { number: '0305552701', label: 'privat' as const }] },
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552700', label: 'mobil' as const }, { number: '0405552702', label: 'privat' as const }] },
+    ];
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.combined], [0, 1, 1]);
+    assert.deepEqual(store.findByName('Erika Beispiel')!.numbers, ['0305552701', '0405552702']);
+  });
+});
+
+test('Kombinierende Zeichen gehören zum Wort; „Name schon vorhanden“ auch bei zerlegten Umlauten', () => {
+  assert.equal(sameperson('\u0938\u0941\u092E\u0928 \u0936\u0930\u094D\u092E\u093E', '\u0938\u0941\u0928\u0940\u0932 \u0936\u0930\u094D\u092E\u093E'), false);
+  withStore((store) => {
+    store.create({ name: 'Jörg Probe', number: '030 5552800' });
+    const [item] = buildPreview([{ name: 'Jo\u0308rg Probe', numbers: [{ number: '01715552801', label: 'mobil' as const }] }], store);
+    assert.equal(item.sameName, true);
+  });
+});

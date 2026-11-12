@@ -344,7 +344,7 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
   const holders = new Map<string, number[]>();
   // Für die Anzeige jede Nummer, die bei mehr als einem Eintrag steht (auch zwei Karten derselben Person): sie bekommt nur der erste gewählte
   candidates.forEach((c, i) => { for (const n of c.numbers) { const k = numberKey(n.number); const list = holders.get(k); if (list) list.push(i); else holders.set(k, [i]); } });
-  const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
+  const names = new Set(store.list().map((c) => nameKey(c.name)));
   const ownerContacts = store.list().filter((c) => c.owner);
   const nameCount = new Map<string, number>();
   for (const c of candidates) nameCount.set(nameKey(c.name), (nameCount.get(nameKey(c.name)) ?? 0) + 1);
@@ -360,7 +360,7 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
     const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
     const mergeable = status === 'partial' && canMerge(c, owners, shared);
     const ownCard = status !== 'exists' && isOwnCard(c, ownerContacts) ? true : undefined;
-    const sameName = !ownCard && (status === 'new' || (status === 'partial' && !mergeable)) && names.has(c.name.trim().toLowerCase()) ? true : undefined;
+    const sameName = !ownCard && (status === 'new' || (status === 'partial' && !mergeable)) && names.has(nameKey(c.name)) ? true : undefined;
     const twin = (nameCount.get(nameKey(c.name)) ?? 0) > 1 ? true : undefined;
     return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, ownCard, sameName, twin };
   });
@@ -390,7 +390,8 @@ function isOwnCard(c: ImportCandidate, ownerContacts: Contact[]): boolean {
   return n !== '' && ownerContacts.some((o) => nameKey(o.name) === n);
 }
 
-const nameParts = (s: string) => s.normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+// \p{M}: Vokalzeichen und andere kombinierende Zeichen gehören zum Wort (etwa in indischen Schriften)
+const nameParts = (s: string) => s.normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}\p{M}]+/u).filter(Boolean);
 /** Name ohne Groß/Klein, Satzzeichen und doppelte Leerzeichen */
 // Namen ganz ohne Buchstaben und Ziffern („🚑“, „???“) behalten ihren Text, sonst fielen sie alle zusammen
 const nameKey = (s: string) => nameParts(s).join(' ') || s.normalize('NFC').trim().toLowerCase();
@@ -459,8 +460,9 @@ export function applyImport(
   const ownerContacts = store.list().filter((x) => x.owner);
   // Erst die Karten, die einen vorhandenen Kontakt ergänzen, dann die übrigen in Listenreihenfolge: So landet eine
   // gleichnamige Doppelkarte beim vorhandenen Kontakt, egal in welcher Reihenfolge die Karten im Adressbuch stehen
-  const cards = [...new Set(ids)]
-    .filter((id) => /^\d+$/.test(id) && candidates[Number(id)])
+  // „01“ und „1“ sind dieselbe Karte
+  const cards = [...new Set(ids.filter((id) => /^\d+$/.test(id)).map((id) => String(Number(id))))]
+    .filter((id) => candidates[Number(id)])
     .map((id) => {
       const c = candidates[Number(id)];
       const owners = c.numbers.map((n) => store.findByNumber(n.number));
@@ -482,8 +484,11 @@ export function applyImport(
       if (!opts.addToExisting) {
         unchanged++;
         used = false;
-      } else if (target?.id === existing.id) {
-        target.numbers = [...(target.numbers ?? []), ...fresh];
+      } else if (add.some((x) => x.id === existing.id)) {
+        // Eine weitere Karte für denselben Kontakt (auch „Erika B.“ neben „Erika Beispiel“): ein Eintrag je Kontakt
+        const entry = add.find((x) => x.id === existing.id)!;
+        entry.numbers = [...entry.numbers, ...fresh];
+        if (!target) byName.set(nameKey(c.name), entry);
         combined++;
       } else {
         const entry = { id: existing.id, numbers: fresh };

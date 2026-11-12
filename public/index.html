@@ -1484,7 +1484,7 @@ $('imp-apply').onclick = async () => {
     contacts = r.items; renderContacts(); renderCalls();
     $('import-dialog').close();
     delete $('imp-apply').dataset.busy;
-    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.combined ? `, ${r.combined === 1 ? '1 Doppelkarte' : `${r.combined} Doppelkarten`} zusammengeführt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
+    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged === 1 ? '1 Kontakt' : `${r.merged} Kontakte`} um Nummern ergänzt` : ''}${r.combined ? `, ${r.combined === 1 ? '1 Doppelkarte' : `${r.combined} Doppelkarten`} zusammengeführt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
   } catch (err) { delete $('imp-apply').dataset.busy; impCount(); toast(err.message); }
 };
 
