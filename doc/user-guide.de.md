@@ -500,7 +500,7 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 
 Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer.
 
-Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber.
+Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber. Für die MCP-Freigabe „Nur gespeicherte Kontakte“ zählt nur diese Nummer; eine weitere Nummer kann ein Agent also nicht anrufen.
 
 #### Kontakte importieren
 
@@ -510,7 +510,7 @@ Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma get
 - **Microsoft** (Outlook.com, Microsoft 365; Microsoft Graph, nur lesend),
 - **eine Datei**: vCard (`.vcf`) oder CSV (UTF-8, UTF-16 oder der Windows-Zeichensatz deutscher Outlook- und Excel-Exporte). Das ist der Weg für **Apple iCloud**, das keine offene Schnittstelle für andere Programme anbietet, und für jedes andere Adressbuch oder Handy.
 
-Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („… neu, … mit weiteren Nummern zu vorhandenen Kontakten, … schon vorhanden“). Einzelne Einträge anhaken oder „Alle neuen auswählen“, dann „… Kontakte importieren“. Vor diesem Klick wird nichts geschrieben.
+Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („… neu, … teilweise vorhanden, … schon vorhanden“); jede teilweise bekannte Zeile sagt, ob sie beim vorhandenen Kontakt ergänzt oder neu angelegt wird. Einzelne Einträge anhaken oder „Alle neuen auswählen“ (teilweise bekannte Einträge nur einzeln), dann „… Kontakte importieren“. Vor diesem Klick wird nichts geschrieben.
 
 - Angeboten werden nur Einträge mit mindestens einer Telefonnummer; Fax- und Pagernummern fallen weg.
 - Nummern werden in die SIPFunk-Schreibweise gebracht: deutsche mit führender 0 (`+49 (0)30 …` wird `030…`), ausländische mit `+`; Durchwahl-Zusätze wie „ext. 12“ fallen weg.

@@ -502,7 +502,7 @@ Logs of such calls carry the tag "Spam-Abwehr". They never count as important; t
 
 Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked). The flag **"Inhaber"** marks your own number.
 
-A contact can have **further numbers** ("Weitere Nummern", separated by commas), for example a landline next to the mobile number. They count when a call comes in and for duplicates; the number above is always the one dialled.
+A contact can have **further numbers** ("Weitere Nummern", separated by commas), for example a landline next to the mobile number. They count when a call comes in and for duplicates; the number above is always the one dialled. For the MCP permission "Nur gespeicherte Kontakte" only that number counts, so an agent cannot call a further number.
 
 #### Importing contacts
 
@@ -512,7 +512,7 @@ A contact can have **further numbers** ("Weitere Nummern", separated by commas),
 - **Microsoft** (Outlook.com, Microsoft 365; Microsoft Graph, read-only),
 - **a file**: vCard (`.vcf`) or CSV (UTF-8, UTF-16 or the Windows character set of German Outlook and Excel exports). This is the way for **Apple iCloud**, which offers no open interface for other apps, and for any other address book or phone.
 
-After loading, SIPFunk shows a list with a search field and a summary ("… neu, … mit weiteren Nummern zu vorhandenen Kontakten, … schon vorhanden"). Tick single entries or "Alle neuen auswählen" (select all new), then click "… Kontakte importieren". Nothing is written before this click.
+After loading, SIPFunk shows a list with a search field and a summary ("… neu, … teilweise vorhanden, … schon vorhanden"); each partly known row says whether it will be added to the existing contact or created as a new one. Tick single entries or "Alle neuen auswählen" (select all new; partly known entries are only selected one by one), then click "… Kontakte importieren". Nothing is written before this click.
 
 - Only entries with at least one phone number are offered; fax and pager numbers are skipped.
 - Numbers are converted to the SIPFunk format: German numbers with a leading 0 (`+49 (0)30 …` becomes `030…`), foreign ones with `+`; extension suffixes such as "ext. 12" are dropped.

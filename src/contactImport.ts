@@ -85,10 +85,12 @@ export function splitNumbers(value: string): string[] {
   const parts = String(value ?? '')
     .slice(0, 400)
     .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n/i)
-    // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ ist Vorwahl und Rufnummer
+    // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
+    // Eine ganze Nummer beginnt mit +, 0, ( oder *; eine Teilnehmernummer nie mit 0.
     .flatMap((p) => {
       const s = p.split(/\s+\/\s+/);
-      return s.length > 1 && s.every((x) => x.replace(/\D/g, '').length >= 6) ? s : [p];
+      const whole = s.length > 1 && s.every((x) => x.replace(/\D/g, '').length >= 6) && s.slice(1).every((x) => /^[+(0*]/.test(x.trim()));
+      return whole ? s : [p];
     })
     .map((x) => x.trim())
     .filter(Boolean);

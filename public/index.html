@@ -965,7 +965,7 @@
       <div class="grid c2">
         <label class="field"><span>Name</span><input id="c-name" required></label>
         <label class="field"><span>Nummer</span><input id="c-number" required inputmode="tel" placeholder="0171 … oder **610"></label>
-        <label class="field" style="grid-column:1/-1"><span>Weitere Nummern</span><input id="c-numbers" inputmode="tel" placeholder="mit Komma getrennt, z. B. 030 … , 0171 …"><small>Werden beim Anruf erkannt; gewählt wird immer die Nummer oben.</small></label>
+        <label class="field" style="grid-column:1/-1"><span>Weitere Nummern</span><input id="c-numbers" inputmode="tel" placeholder="mit Komma getrennt, z. B. 030 … , 0171 …"><small>Werden beim Anruf erkannt; gewählt wird immer die Nummer oben. Für KI-Agenten mit „Nur gespeicherte Kontakte“ zählt nur die Nummer oben.</small></label>
         <label class="field"><span>Anrede</span><select id="c-address"><option value="">– Standard –</option><option value="sie">Sie</option><option value="du">Du</option></select></label>
         <label class="field"><span>Stil</span><select id="c-persona"><option value="">– Standard –</option></select></label>
         <label class="field"><span>Stimme</span><select id="c-voice"><option value="">– Standard –</option></select></label>
@@ -1396,7 +1396,7 @@ function impShow(result) {
   if (!result) { impItems = []; impSel = new Set(); impToken = null; return; }
   impItems = result.items; impSel = new Set(); impToken = result.token; $('imp-search').value = ''; $('imp-merge').checked = false;
   const c = result.counts;
-  $('imp-summary').textContent = c.total ? `${c.total} Einträge mit Telefonnummer: ${c.new} neu, ${c.partial} mit weiteren Nummern zu vorhandenen Kontakten, ${c.exists} schon vorhanden.` : 'Keine Einträge mit Telefonnummer gefunden.';
+  $('imp-summary').textContent = c.total ? `${c.total} Einträge mit Telefonnummer: ${c.new} neu, ${c.partial} teilweise vorhanden, ${c.exists} schon vorhanden.` : 'Keine Einträge mit Telefonnummer gefunden.';
   renderImport();
 }
 // Teilweise bekannt: derselbe Mensch nur mit Haken „ergänzen“; ein anderer Mensch wird neu angelegt (ohne die bekannten Nummern)
@@ -1467,7 +1467,8 @@ $('imp-search').oninput = renderImport;
 $('imp-merge').onchange = renderImport;
 $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
 // Wählt nur, was die Suche gerade zeigt
-$('imp-all').onclick = () => { for (const it of impHits) if (impSelectable(it)) impSel.add(it.id); renderImport(); };
+// Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
+$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new') impSel.add(it.id); renderImport(); };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
@@ -1479,7 +1480,7 @@ $('imp-apply').onclick = async () => {
     contacts = r.items; renderContacts(); renderCalls();
     $('import-dialog').close();
     delete $('imp-apply').dataset.busy;
-    toast(`${r.created} Kontakte angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
+    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged} um Nummern ergänzt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
   } catch (err) { delete $('imp-apply').dataset.busy; impCount(); toast(err.message); }
 };
 

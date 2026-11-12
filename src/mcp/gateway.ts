@@ -241,7 +241,7 @@ export class McpGateway {
       contactName = hit.name;
       named = true;
     }
-    if (p.targets === 'contacts' && !contactName) throw new Error('Nicht erlaubt: Agenten dürfen nur gespeicherte Kontakte anrufen (Einstellungen › MCP-Schnittstelle). Der Betreiber kann die Nummer als Kontakt anlegen.');
+    if (p.targets === 'contacts' && !contactName) throw new Error('Nicht erlaubt: Agenten dürfen nur gespeicherte Kontakte über deren Hauptnummer anrufen (Einstellungen › MCP-Schnittstelle); weitere Nummern eines Kontakts zählen nicht. Der Betreiber kann die Nummer als Kontakt anlegen oder zur Hauptnummer machen.');
 
     const line = this.deps.line();
     if (!line.registered) throw new Error('SIPFunk ist nicht an der Telefonanlage angemeldet.');

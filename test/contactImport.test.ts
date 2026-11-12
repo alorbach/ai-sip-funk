@@ -446,6 +446,11 @@ test('Nummern: „Vorwahl / Rufnummer“ bleibt eine Nummer, ** bleibt, „(+49)
   assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
   assert.deepEqual(splitNumbers('030 / 123 45 67'), ['030 / 123 45 67']);
   assert.deepEqual(splitNumbers('030 5550100 / 0171 5550101'), ['030 5550100', '0171 5550101']);
+  assert.deepEqual(splitNumbers('+49 (0)221 / 1234567'), ['+49 (0)221 / 1234567']);
+  assert.deepEqual(splitNumbers('0049 221 / 123456'), ['0049 221 / 123456']);
+  assert.deepEqual(splitNumbers('+49 2203 / 123456'), ['+49 2203 / 123456']);
+  assert.deepEqual(splitNumbers('(030) 5550100 / (0171) 5550101'), ['(030) 5550100', '(0171) 5550101']);
+  assert.equal(normalizeImportNumber('+49 (0)221 / 1234567'), '02211234567');
   const [c] = fromVcard('BEGIN:VCARD\nFN:Oma Probe\nTEL:0160 / 1234567\nEND:VCARD');
   assert.deepEqual(c.numbers.map((n) => n.number), ['01601234567']);
   assert.equal(normalizeImportNumber('**610 (Büro)'), '**610');
