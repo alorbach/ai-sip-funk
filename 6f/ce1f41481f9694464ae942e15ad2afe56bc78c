@@ -1,0 +1,42 @@
+src/main.ts
+  s_6e62c686ceb639::t_19a819765d1660 500-506
+src/web/server.ts
+  s_6e62c686ceb639::t_19a819765d1660 156-157
+doc/test-checklist.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 110
+test/i18n.test.ts
+  s_6e62c686ceb639::t_19a819765d1660 20
+CHANGELOG.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 9
+public/mcp-ask.html
+  s_6e62c686ceb639::t_94b36963bbef4c 1-106
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 9
+doc/user-guide.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 580
+public/i18n-en.js
+  s_6e62c686ceb639::t_19a819765d1660 451-457
+doc/user-guide.de.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 578
+doc/test-checklist.de.md
+  s_6e62c686ceb639::t_dbc298d8f4718d 110
+electron/main.cjs
+  s_6e62c686ceb639::t_19a819765d1660 49-70,83,280-281
+  s_6e62c686ceb639::t_dbc298d8f4718d 294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6fce1f41481f9694464ae942e15ad2afe56bc78c",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
