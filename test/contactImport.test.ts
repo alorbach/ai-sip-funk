@@ -733,3 +733,34 @@ test('Stern und Raute: Nebenstellen bleiben intern, Dienstcodes fallen weg, Numm
   const [c] = fromVcard('BEGIN:VCARD\nFN:Büro Probe\nTEL;TYPE=WORK:030 1234567 **610\nEND:VCARD');
   assert.deepEqual(c.numbers.map((x) => x.number), ['0301234567', '**610']);
 });
+
+// ---------------------------------------------------------------- Review-Runde 14
+
+test('Bezeichnung in Klammern oder mit Stern davor, „(0)30“, Nebenstelle vor der Nummer, Vollbreite', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('(Büro) 030 1234567'), '0301234567');
+  assert.equal(n('(privat) 0171 5550100'), '01715550100');
+  assert.equal(n('Mobil* 0171 5550100'), '01715550100');
+  assert.equal(n('Tel.* 030 1234567'), '0301234567');
+  assert.equal(n('(0)30 1234567'), '0301234567');
+  assert.equal(n('(0)171 5550100'), '01715550100');
+  assert.equal(n('+49 (0)30 1234567'), '0301234567');
+  assert.equal(n('\uFF03\u0033\u0031\uFF03\u0030\u0031\u0037\u0031 5550100'), undefined);
+  assert.equal(n('\uFF10\uFF13\uFF10 1234567'), '0301234567');
+  assert.deepEqual(splitNumbers('**610 / 030 1234567'), ['**610', '030 1234567']);
+  assert.deepEqual(splitNumbers('**610 030 1234567'), ['**610', '030 1234567']);
+  assert.deepEqual(splitNumbers('Büro **610 (030 1234567)').map(n), [undefined, '**610', '0301234567']);
+  assert.deepEqual(splitNumbers('030 1234567 \uFF0A\uFF0A610').map(n), ['0301234567', '**610']);
+  assert.deepEqual(splitNumbers('030 1234567 \uFE61\uFE61610').map(n), ['0301234567', '**610']);
+});
+
+test('Raute oder Stern in der Bezeichnung lassen die Nummer stehen', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('Cell# 0171 5550100'), '01715550100');
+  assert.equal(n('Tel#: 030 1234567'), '0301234567');
+  assert.equal(n('Tel #: +49 30 1234567'), '0301234567');
+  assert.equal(n('# 030 1234567'), '0301234567');
+  assert.equal(n('(#) 030 1234567'), '0301234567');
+  assert.equal(n('* 030 1234567'), '0301234567');
+  assert.equal(n('*#06#'), undefined);
+});

@@ -41,12 +41,15 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
  * Nummer aus dem Adressbuch in die SIPFunk-Schreibweise bringen: nur Ziffern, deutsche Nummern national mit 0,
  * ausländische mit +. Durchwahl-Zusätze („ext. 12“) und Fremdtext fallen weg; zu kurz oder leer = undefined.
  */
+/** Vollbreite und andere Doppelgänger von Ziffern, * und # in die üblichen Zeichen bringen (NFKC plus Rechen-Sternchen) */
+const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*').replace(/♯/g, '#');
+
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
-  // Stern-Doppelgänger (Vollbreite, Rechenzeichen) zählen wie *
-  let s = String(raw ?? '').slice(0, 80).replace(/[＊∗✱⁎]/g, '*').replace(/\s+/g, ' ').trim();
-  // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „Büro **610“) weg: ab dem ersten +, (, Ziffer, * oder #
-  const start = s.search(/[+(\d*#]/);
+  let s = phoneChars(String(raw ?? '').slice(0, 80)).replace(/\s+/g, ' ').trim();
+  // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „(Büro) 030 …“, „Mobil* 0171 …“, „Büro **610“) weg: ab dem
+  // ersten +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“) oder * bzw. # direkt vor Ziffer, * oder #
+  const start = s.search(/\+|\d|\((?=\s*[+\d])|[*#](?=[\d*#])/);
   if (start < 0) return undefined;
   s = s.slice(start);
   // FRITZ!Box-Nebenstelle („**610“, „**610 (Büro)“): ohne die Sterne ginge der Anruf ins öffentliche Netz.
@@ -58,7 +61,8 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // sonstiger Text fallen weg
   const end = s.search(/[,;*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  s = s.replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1'); // „+49 (0)30 …“, „(+49) 171 …“
+  // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“
+  s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1');
   const plus = s.startsWith('+');
   // „+43 0664 …“: eine nach der Landesvorwahl irrtümlich mitgeschriebene 0 entfällt
   // (nicht in Italien, San Marino und dem Vatikan: dort gehört die 0 zur Nummer, „+39 06 …“)
@@ -94,10 +98,9 @@ export function decodeImportFile(buf: Buffer): string {
  * Ein Schrägstrich zwischen Vorwahl und Rufnummer bleibt Teil der Nummer („0171/5550100“, „0171 / 5550100“).
  */
 export function splitNumbers(value: string): string[] {
-  const parts = String(value ?? '')
-    .slice(0, 400)
-    // Eine Nebenstelle hinter einer Nummer („030 1234567 **610“) wird eine eigene Nummer
-    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)/i)
+  const parts = phoneChars(String(value ?? '').slice(0, 400))
+    // Eine Nebenstelle vor oder hinter einer Nummer („030 1234567 **610“, „**610 / 030 1234567“) wird eine eigene Nummer
+    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)|(?<=\*\*\s*\d+)\s*[/(]?\s*(?=\+|0\d)/i)
     // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
     // Eine ganze Nummer beginnt mit +, 0, ( oder *; eine Teilnehmernummer nie mit 0.
     .flatMap((p) => {
