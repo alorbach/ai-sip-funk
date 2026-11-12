@@ -1452,3 +1452,100 @@ test('end_call durch den Agenten: Verabschiedete sich die KI schon, als der Agen
   assert.equal(g.notes().filter((n) => withdrawn.test(n)).length, 1, 'nicht noch einmal');
   g.bridge.close();
 });
+
+// ---- Review-Runde 7 ----
+// Nach einem abgelehnten end_call (Sprache + end_call) läuft eine Schweigefrist: Nachschub der KI bleibt stumm, danach kommt der Anstoß „sagt nichts mehr“.
+// Sie endet, sobald das Gespräch anders weitergeht (vom Agenten, durch einen angenommenen end_call, mit der Antwort auf eine Rückfrage).
+
+test('abgelehnter end_call: Eine Vorgabe des Agenten (say, jetzt) in der Schweigefrist wird gesprochen und steht im Transkript – sie bleibt nicht stumm', (t) => {
+  const h = setup(t, { judge: undefined });
+  endWithSpeech(h, 'r1', 'i1', 'c1');
+  h.drain();
+  assert.equal(h.bridge.agentSay('Frag noch nach dem Preis.', true), 'now');
+  h.say('r2', 'i2', 800, 'Was kostet das denn?');
+  assert.ok(h.drain() > 0, 'die Antwort auf die Vorgabe ist zu hören');
+  assert.ok(h.transcripts.some((e) => e.speaker === 'ki' && e.text === 'Was kostet das denn?'), 'und steht im Transkript');
+  h.tick(5000);
+  assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'danach kein Anstoß „sagt nichts mehr“');
+  h.bridge.close();
+});
+
+test('abgelehnter end_call: Eine Vorgabe des Agenten (say, ohne jetzt) in der Schweigefrist hebt den Anstoß „sagt nichts mehr, rufe end_call auf“ auf – die KI beendet nicht ohne sie', (t) => {
+  const h = setup(t, { judge: undefined });
+  endWithSpeech(h, 'r1', 'i1', 'c1');
+  h.drain();
+  assert.equal(h.bridge.agentSay('Frag noch nach dem Preis.'), 'next');
+  h.tick(5000);
+  assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'kein Anstoß, die Vorgabe steht noch aus');
+  assert.match(h.notes().at(-1) ?? '', /Regieanweisung deines Auftraggebers[\s\S]*Preis/);
+  h.bridge.close();
+
+  // Die Vorgabe bleibt nicht liegen: Der Stillstandswächter (in der Schweigefrist nicht scharf) übernimmt, wenn das Gegenüber schweigt
+  const g = setup(t, { judge: undefined, stallMs: 6000 });
+  g.tick(7000); // (der Wächter der Begrüßung ist abgelaufen)
+  g.say('rs', 'is', 400, 'Hallo?');
+  g.drain();
+  g.ws.sent.length = 0;
+  endWithSpeech(g, 'r1', 'i1', 'c1');
+  g.drain();
+  assert.equal(g.bridge.agentSay('Frag noch nach dem Preis.'), 'next');
+  for (let i = 0; i < 10; i++) g.tick(1000);
+  assert.ok(!g.creates().some((c) => /sagt nichts mehr/.test(c)), 'kein Anstoß „rufe end_call auf“');
+  assert.ok(g.creates().some((c) => /Es ist still geworden/.test(c)), 'der Stillstandswächter stößt die KI an, die Vorgabe umzusetzen');
+  g.bridge.close();
+});
+
+test('abgelehnter end_call: Nimmt die KI den end_call danach ohne Sprache an und die Prüfung meldet offene Punkte, kommt der alte Anstoß „sagt nichts mehr“ nicht mehr', async (t) => {
+  const h = setup(t);
+  endWithSpeech(h, 'r1', 'i1', 'c1'); // abgelehnt, die Prüfung läuft nebenher
+  h.drain();
+  h.asked[0].resolve(['Sag noch, dass es vier Personen sind.'] as never);
+  await flush();
+  h.toolEnd('c2'); // angenommen: die gemeldeten Punkte nehmen das Auflegen sofort zurück
+  await flush();
+  assert.ok(h.notes().some((n) => /Das Beenden ist zurückgenommen/.test(n)), 'das Auflegen ist zurückgenommen');
+  h.tick(5000);
+  assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'die Schweigefrist des abgelehnten end_call ist vorbei');
+  assert.deepEqual(h.ended, []);
+  h.bridge.close();
+
+  // Ebenso, wenn statt der Prüfung der Agent das angenommene Beenden mit einer Vorgabe zurücknimmt
+  const g = setup(t, { judge: undefined });
+  endWithSpeech(g, 'r1', 'i1', 'c1');
+  g.drain();
+  g.toolEnd('c2');
+  assert.equal(g.bridge.agentSay('Frag noch nach dem Preis.', true), 'resumed');
+  g.tick(5000);
+  assert.ok(!g.creates().some((c) => /sagt nichts mehr/.test(c)), 'kein Anstoß „rufe end_call auf“ nach der Vorgabe');
+  g.bridge.close();
+});
+
+test('abgelehnter end_call mit offener Rückfrage: Läuft sie ohne Antwort ab, ist die Antwort der KI danach zu hören', (t) => {
+  const h = setup(t, { judge: undefined, onAskAgent: () => undefined });
+  // Im selben Atemzug: Rückfrage an den Agenten, Sprache und end_call (der wird abgelehnt)
+  h.server({ type: 'response.created', response: { id: 'r1' } });
+  h.audio('i1', 1000);
+  h.server({ type: 'response.function_call_arguments.done', name: 'ask_principal', call_id: 'ask1', arguments: JSON.stringify({ frage: 'Wie viel darf es kosten?' }) });
+  h.server({ type: 'response.function_call_arguments.done', name: 'end_call', call_id: 'c1', arguments: '{"ergebnis":"reserviert"}' });
+  h.server({ type: 'response.done', response: { id: 'r1', status: 'completed' } });
+  h.drain();
+  h.tick(6000); // die Schweigefrist läuft ab, während die Rückfrage noch offen ist
+  h.tick(25_000); // die Rückfrage bleibt ohne Antwort: die KI macht ohne weiter
+  h.say('r2', 'i2', 800, 'Dann nehmen wir das Günstigere.');
+  assert.ok(h.drain() > 0, 'die Antwort ist zu hören');
+  assert.ok(h.transcripts.some((e) => e.speaker === 'ki' && e.text === 'Dann nehmen wir das Günstigere.'), 'und steht im Transkript');
+  h.bridge.close();
+});
+
+test('Auflegen räumt die Obergrenze der Endphase ab – nach dem Auflegen ist keine Frist mehr gestellt', (t) => {
+  const h = setup(t, { judge: undefined });
+  h.toolEnd();
+  farewell(h);
+  assert.equal((h.bridge as unknown as { endDeadline?: unknown }).endDeadline !== undefined, true, 'während der Endphase ist sie gestellt');
+  h.tick(3000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  assert.equal((h.bridge as unknown as { endDeadline?: unknown }).endDeadline, undefined, 'nach dem Auflegen nicht mehr');
+  h.tick(END_MAX_MS * 2);
+  assert.equal(h.ended.length, 1, 'genau einmal aufgelegt');
+  h.bridge.close();
+});

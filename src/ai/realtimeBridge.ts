@@ -139,7 +139,7 @@ const FAREWELL_DECISION_MS = 4000;
 /**
  * Harte Obergrenze der Endphase: So lange nach dem angenommenen end_call wird spätestens aufgelegt, was auch geschieht (Sprache ohne Ende,
  * flatternde Spracherkennung, ausbleibende Mitschriften, ein wartendes Textmodell, eine Nachhörphase, die immer wieder neu beginnt).
- * Nur das Zurücknehmen des Beendens stoppt sie (siehe armEndDeadline).
+ * Nur das Zurücknehmen des Beendens und das Auflegen selbst stoppen sie (siehe armEndDeadline).
  */
 const END_PHASE_MAX_MS = 60_000;
 /** end_call ohne Sprache: so lange wartet die Prüfung auf die Mitschrift einer Äußerung des Gegenübers, die schon begann (OpenAI liefert sie oft erst, wenn die KI schon antwortet) */
@@ -658,6 +658,10 @@ export class RealtimeBridge implements AudioHandler {
    */
   agentSay(text: string, now = false): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed' {
     if (this.closed) return 'closed';
+    // Die Vorgabe kommt in der Schweigefrist nach einem abgelehnten end_call: Die Frist gilt nicht mehr. Kein Anstoß „sagt nichts mehr, rufe end_call auf“
+    // (die KI beendete sonst ohne die Vorgabe), und was die KI auf die Vorgabe hin sagt, ist zu hören und steht im Transkript
+    const rejectOpen = this.rejectTimer !== undefined;
+    this.endRejectWindow();
     if (this.endRequested !== undefined) {
       // Das Beenden läuft schon (Verabschiedung angefordert, gesprochen oder ausgespielt), aufgelegt ist noch nicht:
       // Eine Vorgabe des Agenten (meist eine Richtigstellung) geht vor
@@ -685,9 +689,23 @@ export class RealtimeBridge implements AudioHandler {
     }
     if (tell) this.live.note(AGENT_END_WITHDRAWN);
     this.live.note(agentNote(text));
-    if (!now) return 'next';
+    if (!now) {
+      // (Der Stillstandswächter war wegen der Schweigefrist nicht scharf: Ohne ihn bliebe die Vorgabe liegen, bis das Gegenüber etwas sagt)
+      if (rejectOpen) this.armStall();
+      return 'next';
+    }
     this.requestRespond(CAUSE_AGENT_SAY);
     return 'now';
+  }
+
+  /**
+   * Die Schweigefrist nach einem abgelehnten end_call ist vorbei, weil das Gespräch anders weitergeht (Vorgabe des Agenten, angenommener end_call):
+   * kein Anstoß „sagt nichts mehr“ mehr, und die Antwort der KI bleibt nicht stumm.
+   */
+  private endRejectWindow(): void {
+    clearTimeout(this.rejectTimer);
+    this.rejectTimer = undefined;
+    this.muteAfterReject = false;
   }
 
   /** Der Agent möchte das Gespräch höflich beenden: Die KI ruft end_call auf und verabschiedet sich wie sonst auch. */
@@ -1375,7 +1393,12 @@ export class RealtimeBridge implements AudioHandler {
       const straddle = this.partnerSpeaking ? this.partnerTurns : undefined;
       const onSilence = (): void => {
         this.rejectTimer = undefined;
-        if (this.endRequested !== undefined || this.closed || this.ask) return;
+        if (this.endRequested !== undefined || this.closed) return;
+        // Die KI wartet auf die Antwort einer Rückfrage: kein Anstoß. Die Frist ist aber vorbei – die Antwort darauf (oder das Ausbleiben der Antwort) darf nicht stumm bleiben
+        if (this.ask) {
+          this.muteAfterReject = false;
+          return;
+        }
         // Nicht hineinreden, sondern nach dem Satz noch einmal nachsehen: wenn das Gegenüber redet (der Anstoß wäre ein „sagt nichts mehr“ mitten in
         // seinen Satz), wenn die KI selbst spricht (ein Anbieter lässt sie nach dem Tool-Ergebnis von sich aus weiterreden) und – wenn das Gegenüber schon
         // redete – kurz auf die Mitschrift seiner Äußerung (war es nur ein Geräusch, kommt der Anstoß, hatte es Inhalt, nicht)
@@ -1402,6 +1425,9 @@ export class RealtimeBridge implements AudioHandler {
       this.rejectTimer.unref();
       return;
     }
+    // Ein end_call ohne Sprache löst die Schweigefrist eines früheren, abgelehnten ab. Ihr Anstoß „sagt nichts mehr, rufe end_call auf“ käme sonst
+    // auch dann noch, wenn das Gespräch inzwischen weitergeht (die Prüfung meldet Offenes und nimmt das Auflegen zurück, siehe resumeForOpen)
+    this.endRejectWindow();
     if (judge) {
       // Erster end_call: Das Textmodell prüft den Auftrag gegen das ganze Transkript – neben der Verabschiedung her, damit
       // vor dem Abschied keine Pause entsteht. Fehlt etwas, nimmt das Urteil das Auflegen zurück (resumeForOpen).
@@ -1614,6 +1640,9 @@ export class RealtimeBridge implements AudioHandler {
         return;
       }
       this.hangupTimer = undefined;
+      // Aufgelegt: Die Obergrenze der Endphase hat nichts mehr zu tun
+      clearTimeout(this.endDeadline);
+      this.endDeadline = undefined;
       this.endRequested = undefined;
       this.opts.onEndCall(reason);
     };
@@ -1664,8 +1693,8 @@ export class RealtimeBridge implements AudioHandler {
   /**
    * Harte Obergrenze der Endphase, gestellt beim angenommenen end_call: Nach END_PHASE_MAX_MS wird aufgelegt, solange das Beenden gilt – ohne
    * Textmodell zu fragen oder auf Sprache und Mitschriften zu warten. Die Verabschiedung steht, zurückgehaltenes Audio der KI bleibt stumm.
-   * Gelöscht wird sie nur vom Zurücknehmen des Beendens (cancelHangup) und beim Schließen – nicht von Entscheidungen, Sprache oder dem
-   * Ausspielen der Verabschiedung. Der endSafetyTimer (Verabschiedung kommt nie zu Ende) läuft unabhängig davon und früher.
+   * Gelöscht wird sie nur vom Zurücknehmen des Beendens (cancelHangup), vom Auflegen selbst (hangUp in finishEndCall) und beim Schließen –
+   * nicht von Entscheidungen, Sprache oder dem Ausspielen der Verabschiedung. Der endSafetyTimer (Verabschiedung kommt nie zu Ende) läuft unabhängig davon und früher.
    */
   private armEndDeadline(): void {
     clearTimeout(this.endDeadline);
