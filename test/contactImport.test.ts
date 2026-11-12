@@ -859,7 +859,7 @@ test('Gegliederte Nummern sind keine Daten; „ / “ mit kurzen Gruppen; Daten 
   assert.equal(n('06.96.44.16'), '06964416');
   assert.equal(n('0171-23-45-67'), '0171234567');
   assert.equal(n('0221 / 123 / 4567'), '02211234567');
-  assert.equal(n('+49 221 / 102 / 7465 / 1'), '02211027465' + '1');
+  assert.equal(n('+49 221 / 102 / 7465 / 1'), '02211027465');
   assert.deepEqual(nums('Mo-Fr 08-17 Uhr'), []);
   assert.deepEqual(nums('gültig bis 15-11-2026'), []);
   assert.deepEqual(nums('31/12/2026'), []);
@@ -879,4 +879,33 @@ test('Bindestrich- und Punktgliederung im Ausland; Zeitangabe hinter der Rufnumm
   assert.deepEqual(nums('030 / 1234567 ab 09:00'), ['0301234567']);
   assert.deepEqual(nums('0171 / 5550100 (Mo-Fr 9:00-17:00)'), ['01715550100']);
   assert.deepEqual(nums('0171 / 5550100 (gültig bis 31.12.2026)'), ['01715550100']);
+});
+
+// ---------------------------------------------------------------- Review-Runde 19
+
+test('Zeitspannen mit „bis“ und Gedankenstrich, Nebenstelle nach „ / “, Sondernummern über +49, Zeit vor der Nummer', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.deepEqual(nums('08.00 bis 17.00 Uhr'), []);
+  assert.deepEqual(nums('08.00\u201317.00'), []);
+  assert.deepEqual(nums('Mo\u2013Fr 8.00\u201317.00 Uhr'), []);
+  assert.deepEqual(nums('9.30 Uhr'), []);
+  assert.equal(n('0221 / 1234567 / 610'), '02211234567');
+  assert.equal(n('0221 / 123 / 4567'), '02211234567');
+  assert.equal(n('+49 116 117'), undefined);
+  assert.equal(n('+49 112'), undefined);
+  assert.equal(n('Mo-Fr 8-17 Uhr Tel. 030 1234567'), '0301234567');
+  assert.equal(n('bis 31.12.2026: 030 1234567'), '0301234567');
+});
+
+test('Gemischte Zeitspannen und Uhrzeit direkt hinter der Nummer', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  for (const v of ['Mo-Fr 8-16.30 Uhr', 'Mo-Fr 8.30-17 Uhr', 'Mo\u2013Fr 07.30\u201316.00 Uhr', '7.00\u201312.00', '07.30 Uhr', 'Mo-Fr 9-17.30']) assert.deepEqual(nums(v), [], v);
+  assert.deepEqual(nums('Mo-Fr 8-16.30 Uhr / 030 1234567'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 (8.30-17 Uhr)'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 8.00\u201317.00'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 8.00 bis 17.00 Uhr'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567-08:00'), ['0301234567']);
+  assert.equal(n('030:1234567'), '0301234567');
 });

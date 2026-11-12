@@ -47,17 +47,22 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
 const DAY = '(0?[1-9]|[12]\\d|3[01])';
 const MONTH = '(0?[1-9]|1[0-2])';
 const YEAR = '(19|20)\\d{2}';
+const HOUR = '([01]?\\d|2[0-3])';
 const TIME_OR_DATE = new RegExp(
   [
     '\\d{1,2}:\\d{2}',
-    '\\d{1,2}(:\\d{2})?\\s*-\\s*\\d{1,2}(:\\d{2})?\\s*uhr',
-    // Zeitspanne mit Punkten („08.00-17.00“)
-    '([01]?\\d|2[0-3])\\.[0-5]\\d\\s*-\\s*([01]?\\d|2[0-3])\\.[0-5]\\d(?![.\\d])',
+    // Zeitspannen und Uhrzeiten mit „Uhr“, Bindestrich, Gedankenstrich oder „bis“ („8-17 Uhr“, „08.00 bis 17.00“, „8.00–17.00“)
+    `${HOUR}([.:][0-5]\\d)?\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}([.:][0-5]\\d)?\\s*uhr`,
+    // Spannen, bei denen eine Seite Minuten hat („8-16.30“, „8.30-17“, „07.30–16.00“)
+    `${HOUR}([.:][0-5]\\d)?\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}[.:][0-5]\\d(?![.\\d])`,
+    `${HOUR}[.:][0-5]\\d\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}([.:][0-5]\\d)?(?![.\\d])`,
+    `${HOUR}[.:][0-5]\\d\\s*(uhr|h\\b)`,
     `${DAY}\\.${MONTH}\\.(${YEAR}(?![.\\-/]?\\d)|(?=[\\s-]|$))`,
     `${DAY}[-/]${MONTH}[-/]${YEAR}(?![.\\-/]?\\d)`,
     `${YEAR}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])(?![.\\-/]?\\d)`,
   ]
-    .map((p) => `(?<![\\d.\\-])${p}`)
+    // (eine Uhrzeit mit Doppelpunkt darf direkt an der Nummer hängen: „030 1234567-08:00“)
+    .map((p, i) => (i === 0 ? `${HOUR}:[0-5]\\d(?!\\d)` : `(?<![\\d.\\-])${p}`))
     .join('|'),
   'i',
 );
@@ -84,11 +89,12 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // Uhrzeiten und Daten („08:00“, „17.30“, „15.11.2026“, „01.01.-31.12.“, „2027-01-01“) sind keine Nummer: am Anfang
   // verwerfen, dahinter abschneiden
   const note = s.search(TIME_OR_DATE);
-  if (note === 0) return undefined;
+  // Steht die Uhrzeit vorn („Mo-Fr 8-17 Uhr Tel. 030 …“), mit dem Rest weitermachen
+  if (note === 0) return normalizeImportNumber(s.slice(TIME_OR_DATE.exec(s)![0].length));
   if (note > 0) s = s.slice(0, note).replace(/[\s/-]+$/, '');
-  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Uhrzeiten (:), Durchwahl-Zusätze („ext. 12“, „x12“,
+  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Durchwahl-Zusätze („ext. 12“, „x12“,
   // „p123“) und sonstiger Text fallen weg
-  const end = s.search(/[,;:*#a-z]/i);
+  const end = s.search(/[,;*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
   // „ / “ verbindet nur Vorwahl und Rufnummer („0171 / 5550100“, auch gegliedert „0221 / 123 / 4567“); folgen danach
   // zusammen weniger als fünf Ziffern („/ 8-17“, „/ 08“), ist es keine Rufnummer und fällt weg
@@ -98,7 +104,16 @@ export function normalizeImportNumber(raw: string): string | undefined {
     if (!/^[\d\s()-]+$/.test(p)) break;
     tail.push(p);
   }
-  s = slashParts[0] + (tail.join('').replace(/\D/g, '').length >= 5 ? ' ' + tail.join(' ') : '');
+  // Hat die Rufnummer schon fünf Ziffern, ist eine kurze Gruppe danach eine Nebenstelle oder Notiz („/ 610“), kein Teil
+  let tailDigits = 0;
+  const kept: string[] = [];
+  for (const p of tail) {
+    const d = p.replace(/\D/g, '').length;
+    if (tailDigits >= 5 && d <= 3) break;
+    kept.push(p);
+    tailDigits += d;
+  }
+  s = slashParts[0] + (tailDigits >= 5 ? ' ' + kept.join(' ') : '');
   // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“ und
   // „(+49 30 1234567)“ behalten das Plus
   s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1').replace(/^\(\s*(?=\+)/, '');
@@ -110,6 +125,8 @@ export function normalizeImportNumber(raw: string): string | undefined {
   if (!plus && digits.startsWith('00')) digits = '+' + digits.slice(2);
   else if (plus) digits = '+' + digits;
   if (digits.startsWith('+49')) digits = '0' + digits.slice(3).replace(/^0/, '');
+  // Keine deutsche Vorwahl beginnt mit 011: „+49 112“ oder „+49 116 117“ wären Notruf- und Sondernummern
+  if (digits.startsWith('011')) return undefined;
   const count = digits.replace(/\D/g, '').length;
   // Ohne 0 oder + nur Ortsnummern ab fünf Ziffern: eine kurze Nebenstelle ohne Sterne („Intern 610“) würde sonst
   // öffentlich gewählt
