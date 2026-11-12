@@ -1,0 +1,46 @@
+src/mcp/agents.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 5,124-131,144-145,165,170-179,190-191,251-254,279,283-284,286-287,315-316,338-339,361,385,401-403
+test/webPort.test.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 64-67,73-90
+  s_9e7cbef9751112::t_f2552994de83f8 91-94
+doc/user-guide.md
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 617,619-620,668,670
+doc/user-guide.de.md
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 615,617-618,666,668
+test/agents.test.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 170-173,205-206,227-251
+src/webPort.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 80,82,84
+doc/architecture.md
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 121
+public/i18n-en.js
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 703-707
+public/index.html
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 1477-1479,1482-1485,2118,2164,2176-2178,2180
+src/main.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 21,63-64
+doc/architecture.de.md
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 121
+src/settings.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 561-575
+scripts/install-local.mjs
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 61-63,66-67,70-72,77-83,85
+src/web/server.ts
+  s_9e7cbef9751112::t_d6fe7ef2f72f28 250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10beb971c5556350621a9820ca0ae8bbdb845ddf",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
