@@ -1,0 +1,44 @@
+CHANGELOG.md
+  s_6e62c686ceb639::t_ee413a3cb538d3 9
+src/ai/limits.ts
+  s_6e62c686ceb639::t_7485e4b855d1b1 1-11
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_7485e4b855d1b1 13,89-92,136-138,267,301-315,320-337
+  s_6e62c686ceb639::t_3a70b97ba07e0c 338-339
+doc/user-guide.md
+  s_6e62c686ceb639::t_ee413a3cb538d3 266
+test/gemini.test.ts
+  s_6e62c686ceb639::t_ee413a3cb538d3 204-248
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_ee413a3cb538d3 9
+src/main.ts
+  s_6e62c686ceb639::t_7485e4b855d1b1 279,311-315
+public/index.html
+  s_6e62c686ceb639::t_22381954db1cf1 341-342,1545-1546,1577-1583,1651,1741,1770-1773
+src/ai/providers/index.ts
+  s_6e62c686ceb639::t_7485e4b855d1b1 6-7,44-47,75-76,85-100
+src/ai/connections.ts
+  s_6e62c686ceb639::t_7485e4b855d1b1 8,21-24,60-71,146-148
+test/connections.test.ts
+  s_6e62c686ceb639::t_ee413a3cb538d3 199-237
+public/i18n-en.js
+  s_6e62c686ceb639::t_22381954db1cf1 181-185
+doc/user-guide.de.md
+  s_6e62c686ceb639::t_ee413a3cb538d3 264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6240856bee9fc237146a3bccdd0a06f379c3677e",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
