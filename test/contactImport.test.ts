@@ -957,3 +957,26 @@ test('Fünfstellige Vorwahl mit „ / “, Bindestrich-Nummern neben Wochentagen
   assert.equal(n('0172 / 3456789 [mobil]'), '01723456789');
   assert.equal(n('0172 / 3456789 (+ Fax)'), '01723456789');
 });
+
+// ---------------------------------------------------------------- Review-Runde 22
+
+test('Klammern mit Stundenlisten und volle Stunden mit „Uhr“', () => {
+  const n = normalizeImportNumber;
+  for (const v of ['030 1234567 (9-12, 14-17)', '030 1234567 (9-12 und 14-17)', '030 1234567 (8-12 und 14-17 Uhr)', '030 1234567 (9-17h)', '030 1234567 (9-17 Std.)']) {
+    assert.deepEqual(splitNumbers(v).map(n).filter(Boolean), ['0301234567'], v);
+  }
+  assert.equal(n('Mo-Fr ab 9 Uhr 030 1234567'), '0301234567');
+  assert.equal(n('Sprechzeit 8 Uhr 030 1234567'), '0301234567');
+  assert.equal(n('(030) 1234567'), '0301234567');
+  assert.equal(n('(0171) 555-0100'), '01715550100');
+});
+
+test('Zentrale mit „-0“ und Durchwahlbereich nach „ / “', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('089 1234-0 / 1234-99'), '08912340');
+  assert.equal(n('0221 1234-0 / 1234-99'), '022112340');
+  assert.equal(n('+49 30 12345-0 / 12345-99'), '030123450');
+  assert.equal(n('030 123456 / 10-12'), '030123456');
+  assert.equal(n('030 1234 / 5678'), '03012345678');
+  assert.equal(n('035022 / 12345'), '03502212345');
+});

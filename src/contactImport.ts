@@ -56,6 +56,8 @@ const TIME_OR_DATE_SOURCE = [
   `${HOUR}${MIN}${TO}${HOUR}(${MIN})?(?![.\\d])`,
   // einzelne Uhrzeit: „7.30 Uhr“, „9h30“ nicht, „09:00“
   `${HOUR}${MIN}\\s*(uhr|h\\b)`,
+  // volle Stunde mit „Uhr“: „ab 9 Uhr“
+  `${HOUR}\\s*uhr`,
   `${DAY}\\.${MONTH}\\.(${YEAR}(?![.\\-/]?\\d)|(?![.\\d]))`,
   `${DAY}[-/]${MONTH}[-/]${YEAR}(?![.\\-/]?\\d)`,
   `${YEAR}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])(?![.\\-/]?\\d)`,
@@ -71,7 +73,9 @@ const WEEKDAY =
   /(?<![\p{L}])(mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun|montags?|dienstags?|mittwochs?|donnerstags?|freitags?|samstags?|sonntags?|werktags|wochentags|täglich|taeglich|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekdays|daily)\.?(?![\p{L}])/iu;
 const HOUR_RANGE_ALL = new RegExp(`${FREE}${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}(?![\\d.]|:\\d|[-–—]\\d)`, 'gi');
 /** Stundenspanne in Klammern („030 1234567 (9-17)“) */
-const HOUR_RANGE_PAREN_ALL = new RegExp(`\\(\\s*${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}\\s*(uhr\\s*)?\\)`, 'gi');
+// (jede Klammer mit einer Stundenspanne und ohne Ziffernfolge ab drei Stellen: „(9-12, 14-17)“, „(9-17h)“, „(8-12 und
+// 14-17 Uhr)“)
+const HOUR_RANGE_PAREN_ALL = new RegExp(`\\((?=[^()]*(?<![\\d.])${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}(?!\\d))(?![^()]*\\d{3})[^()]*\\)`, 'gi');
 
 /**
  * Nackte Stundenspannen ausblenden: in Klammern immer, sonst nur, wenn im Feld ein Wochentag, „werktags“ oder „täglich“
@@ -131,7 +135,7 @@ export function normalizeImportNumber(raw: string): string | undefined {
     if (count < 10) {
       for (const g of groups.slice(1)) {
         const d = g.replace(/\D/g, '').length;
-        if (!/^[\d\s()-]+$/.test(g) || (count >= 10 && d <= 3) || (headCount >= 7 && d <= 3)) break;
+        if (!/^[\d\s()-]+$/.test(g) || (count >= 10 && d <= 3) || (headCount >= 7 && (d <= 3 || /-/.test(g) || /-\d+$/.test(groups[0])))) break;
         joined += ' ' + g;
         count += d;
       }
