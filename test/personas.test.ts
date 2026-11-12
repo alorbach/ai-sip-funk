@@ -38,6 +38,11 @@ test('Systemanweisung enthält Grundregeln, Persona und Auftrag', () => {
   assert.match(greetingInstruction(input), /du heißt Alex.*im Auftrag von Max/);
 });
 
+test('Ausgewichene Frage: einmal erneut stellen, dann als offen festhalten', () => {
+  const text = buildInstructions({ persona: personas[0], formal: true, aiName: 'Alex', principalName: 'Max', task: 'x', maxCallSeconds: 300 });
+  assert.match(text, /Weicht das Gegenüber einer Frage aus dem Auftrag aus .* stell deine Frage danach einmal freundlich erneut – bevor du ans Beenden denkst\. Lehnt es ab oder weicht es noch einmal aus, lass es gut sein/);
+});
+
 test('Identitätsfrage: Name und Auftraggeber, keine erfundene Herkunft', () => {
   const base = { persona: personas[0], formal: true, aiName: 'Alex', principalName: 'Max', task: 'x', maxCallSeconds: 300 };
   assert.match(buildInstructions(base), /wer du bist oder wer dich gemacht hat: Du bist Alex, ein KI-Telefonassistent im Auftrag von Max\. Wer dich entwickelt hat .* erfinde dazu nichts/);

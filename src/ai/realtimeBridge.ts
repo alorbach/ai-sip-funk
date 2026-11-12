@@ -8,7 +8,7 @@ import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
-import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
+import { END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
@@ -1048,8 +1048,12 @@ export class RealtimeBridge implements AudioHandler {
     if (this.stats.deltas > 0) {
       // Gesprochen und im selben Atemzug beendet („ich richte das jetzt aus" + end_call):
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
-      log.info('Realtime: end_call zusammen mit Sprache – abgelehnt, Gegenüber darf erst antworten');
-      this.live.toolOutput(callId, name, END_CALL_WHILE_SPEAKING);
+      // Mit Gesprächsplan kommt die Prüfung der Schritte gleich mit: Sonst käme sie erst beim nächsten end_call,
+      // und eine vergessene Frage fiele der KI ein, nachdem sich beide schon verabschiedet haben
+      const check = this.planSteps.length > 0 && !this.endCallChecked;
+      if (check) this.endCallChecked = true;
+      log.info(`Realtime: end_call zusammen mit Sprache – abgelehnt, Gegenüber darf erst antworten${check ? `; Selbstprüfung gegen ${this.planSteps.length} Planschritte gleich mitgegeben` : ''}`);
+      this.live.toolOutput(callId, name, check ? endCallWhileSpeakingCheck(this.planSteps) : END_CALL_WHILE_SPEAKING);
       this.muteAfterReject = true;
       // Kommt nichts vom Gegenüber, darf das Gespräch nicht bis zum Limit hängen. Die Frist läuft erst,
       // wenn der Satz ausgespielt ist – er liegt hier noch fast vollständig im Puffer.
@@ -1066,10 +1070,10 @@ export class RealtimeBridge implements AudioHandler {
           this.rejectTimer.unref();
           return;
         }
-        log.info('Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll beenden');
+        log.info(`Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll ${check ? 'Fehlendes ansprechen oder beenden' : 'beenden'}`);
         this.muteAfterReject = false;
         this.lastCause = 'Schweigen nach abgelehntem end_call';
-        this.live.respond(END_CALL_AFTER_SILENCE);
+        this.live.respond(check ? END_CALL_AFTER_SILENCE_CHECK : END_CALL_AFTER_SILENCE);
       };
       this.rejectTimer = setTimeout(onSilence, rejectWait);
       this.rejectTimer.unref();

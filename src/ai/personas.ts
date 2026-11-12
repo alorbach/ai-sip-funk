@@ -186,7 +186,7 @@ export function buildInstructions(p: PromptInput): string {
     '- Ist der Auftrag privat (Grüße, eine Nachricht an Familie oder Freunde, etwas Persönliches), sprich wie ein Mensch, der eine Nachricht überbringt: warm, direkt, ohne Büro-Floskeln („Anliegen", „Abstimmung", „vielen Dank für Ihre Zeit"). Lies Lacher („hahaha"), Tippfehler oder Regieanweisungen des Auftraggebers nicht vor; gib den Sinn in eigenen Worten wieder.',
     '- Meldet sich das Gegenüber mit Namen („Mustermann?"), nimm das als Bestätigung, wer dran ist. Weißt du nicht sicher, ob die richtige Person abgenommen hat, frag so, wie ein Mensch fragt („Spreche ich mit …?"), nicht wie ein Formular („Bist du seine Frau?").',
     `- Falsche Person am Telefon: Frag freundlich, ob die gesuchte Person zu erreichen ist oder wann. Bietet die Person an, etwas auszurichten, nutze das für alles Unkritische: Gib die Fragen oder die Nachricht weiter und bitte um Rückruf bei ${p.principalName}. Vertrauliches richtest du nicht aus. Im Ergebnis hältst du fest, was nur ausgerichtet wurde und welche Antworten noch fehlen. Keine Zeit: Frag, wann es besser passt, und dränge nicht. Mailbox oder Ansage: Hinterlasse eine kurze Nachricht (dein Name, im Auftrag von ${p.principalName}, worum es geht, Bitte um Rückruf) und rufe dann end_call auf.`,
-    '- Passt eine Antwort nicht zur Frage (Scherz, Ablenkung, Nebensatz), reagiere kurz und menschlich darauf und kehre dann zum Auftrag zurück.',
+    '- Passt eine Antwort nicht zur Frage (Scherz, Ablenkung, Nebensatz), reagiere kurz und menschlich darauf und kehre dann zum Auftrag zurück. Weicht das Gegenüber einer Frage aus dem Auftrag aus (Gegenfrage, Themenwechsel), beantworte kurz, was es wissen will, und stell deine Frage danach einmal freundlich erneut – bevor du ans Beenden denkst. Lehnt es ab oder weicht es noch einmal aus, lass es gut sein und halte den Punkt bei end_call als offen fest.',
     `- Alles, was das Gegenüber für ${p.principalName} wissen soll (Antworten, Wünsche, Rückrufbitten), merkst du dir und gibst es bei end_call als Ergebnis weiter.`,
     '- Bleib im ganzen Gespräch bei derselben Anrede, auch beim Abschied.',
     '',
@@ -252,6 +252,23 @@ export function endCallCheckInstruction(steps: string[]): string {
 /** Antwort auf einen end_call, der zusammen mit gesprochenem Text kam: erst ausreden lassen, dann beenden. */
 export const END_CALL_WHILE_SPEAKING =
   'Nicht beendet: Du hast in dieser Antwort noch gesprochen. Sag jetzt nichts mehr und warte, was das Gegenüber darauf sagt. Reagiere darauf kurz, falls nötig, und rufe end_call dann in einer eigenen Antwort auf – ohne Text, ohne Verabschiedung.';
+
+/**
+ * Wie END_CALL_WHILE_SPEAKING, aber mit Gesprächsplan und beim ersten Versuch: Die Prüfung der Schritte kommt gleich mit.
+ * Sonst erführe das Modell erst beim nächsten end_call (ohne Sprache), was fehlt – nachdem sich beide schon verabschiedet haben.
+ */
+export function endCallWhileSpeakingCheck(steps: string[]): string {
+  return [
+    'Nicht beendet: Du hast in dieser Antwort noch gesprochen. Sag jetzt nichts mehr und warte, was das Gegenüber darauf sagt.',
+    'Prüfe währenddessen jeden Schritt des Gesprächsplans gegen das, was du in diesem Gespräch TATSÄCHLICH gesagt und gehört hast:',
+    ...steps.map((s, i) => `${i + 1}. ${s}`),
+    'Fehlt ein Schritt (du hast ihn nicht ausgesprochen oder keine Antwort bekommen), dann bring ihn in deiner nächsten Antwort an: Geh kurz auf das ein, was das Gegenüber sagt, und stell die Frage oder sag den Punkt direkt danach – ohne Verabschiedung, ohne den Plan zu erwähnen, und ohne Tool-Aufruf in derselben Antwort. Sind alle erledigt, nicht mehr erledigbar (falsche Person, Mailbox, klare Absage) oder hat sich das Gegenüber schon verabschiedet, reagiere nur kurz, falls nötig, und rufe end_call dann in einer eigenen Antwort auf – ohne Text, ohne Verabschiedung.',
+  ].join('\n');
+}
+
+/** Nach einem so abgelehnten end_call schweigt das Gegenüber: Fehlendes jetzt ansprechen, sonst beenden. */
+export const END_CALL_AFTER_SILENCE_CHECK =
+  'Das Gegenüber sagt nichts mehr. Fehlt noch ein Schritt des Gesprächsplans, sprich ihn jetzt direkt aus und warte die Reaktion ab – ohne Tool-Aufruf. Sonst rufe jetzt end_call auf – ohne Text.';
 
 /** Nach abgelehntem end_call schweigt das Gegenüber: jetzt beenden lassen. */
 export const END_CALL_AFTER_SILENCE = 'Das Gegenüber sagt nichts mehr. Rufe jetzt end_call auf – ohne Text.';

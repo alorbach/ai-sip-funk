@@ -420,6 +420,36 @@ test('Gemini: Eine Vorgabe des Agenten während der Verabschiedung nimmt das Auf
   assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
 });
 
+test('Gemini: end_call mit Sprache und Gesprächsplan – die Prüfung der Schritte kommt gleich mit, nicht erst nach dem Abschied', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.bridge.updateInstructions('ANWEISUNG MIT PLAN', ['Frag nach der Uhrzeit.', 'Bedanke dich.']);
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.ws.sent.length = 0;
+  h.audio(1000);
+  h.server({ serverContent: { outputTranscription: { text: 'Dann beende ich das jetzt.' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  const first = h.ws.sent.filter((m) => m.toolResponse)[0].toolResponse.functionResponses[0].response.result as string;
+  assert.match(first, /^Nicht beendet: Du hast in dieser Antwort noch gesprochen\./);
+  assert.match(first, /1\. Frag nach der Uhrzeit\.\n2\. Bedanke dich\./);
+  assert.match(first, /bring ihn in deiner nächsten Antwort an/);
+  assert.equal(h.drain(), 1000);
+  // Das Gegenüber schweigt: Fehlendes ansprechen oder beenden
+  h.tick(3000);
+  assert.match(h.regie().at(-1)!.text, /Fehlt noch ein Schritt des Gesprächsplans, sprich ihn jetzt direkt aus/);
+  // Die KI holt die Frage nach, bekommt die Antwort und beendet: Jetzt wird nicht noch einmal geprüft
+  h.say(900, 'Wie spät ist es gerade?');
+  assert.equal(h.drain(), 900);
+  h.server({ serverContent: { inputTranscription: { text: 'Kurz nach zwei.' } } });
+  h.tick(700);
+  h.ws.sent.length = 0;
+  h.server({ toolCall: { functionCalls: [{ id: 'f2', name: 'end_call', args: { ergebnis: 'Uhrzeit genannt' } }] } });
+  assert.match(h.ws.sent.filter((m) => m.toolResponse)[0].toolResponse.functionResponses[0].response.result, /^ok – verabschiede dich jetzt/);
+  h.bridge.close();
+});
+
 test('Gemini: flag_spam reicht die neue Rolle mit dem Tool-Ergebnis nach', (t) => {
   const h = setup(t, { onFlagSpam: () => 'SPAMROLLE' });
   h.start();
