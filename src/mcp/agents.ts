@@ -182,7 +182,7 @@ function tomlHeader(line: string): string[] | undefined {
   const m = /^\s*\[\[?((?:"(?:[^"\\]|\\.)*"|'[^']*'|[^\]"'#])*)\]\]?\s*(?:#.*)?$/.exec(line);
   if (!m) return undefined;
   const parts = m[1].match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^.]+/g) ?? [];
-  return parts.map((p) => p.trim().replace(/^(["'])(.*)\1$/, '$2'));
+  return parts.filter((p) => p.trim()).map((p) => p.trim().replace(/^(["'])(.*)\1$/, '$2'));
 }
 const isOurs = (h: string[]): boolean => h[0] === 'mcp_servers' && h[1] === SERVER_NAME;
 const TOML_UNSAFE = '„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.';
@@ -289,7 +289,7 @@ function statusOf(def: AgentDef, env: AgentEnv, target: McpTarget): AgentInfo {
       if (def.kind === 'claude-cli') {
         const inProjects = projectEntries(doc, def.entry(target));
         if (inProjects === 'differ') info.detail = 'In mindestens einem Projekt gibt es einen eigenen Eintrag „sipfunk“ mit anderer Adresse; er hat dort Vorrang. Im Ordner des Projekts mit „claude mcp remove sipfunk“ entfernen.';
-        if (inProjects === 'same') info.detail = 'Zusätzlich in einzelnen Projekten eingetragen; diese Einträge ändert SIPFunk nicht (im Ordner des Projekts: „claude mcp remove sipfunk“).';
+        if (inProjects === 'same') info.detail = 'In einzelnen Projekten gibt es eigene Einträge „sipfunk“; diese ändert SIPFunk nicht (im Ordner des Projekts: „claude mcp remove sipfunk“).';
       }
     }
   } catch (err) {
@@ -330,20 +330,22 @@ export interface AgentResult {
   changed: boolean;
 }
 
-const claudeMissing = (todo: string[]): Error => new Error(`Der Befehl „claude“ wurde nicht gefunden. Bitte im Terminal ausführen: claude ${todo.join(' ')}`);
+const claudeMissing = (todo: string[][]): Error => new Error(`Der Befehl „claude“ wurde nicht gefunden. Bitte im Terminal ausführen: ${todo.map((t) => `claude ${t.join(' ')}`).join(' und danach ')}`);
+export const COMMAND_TIMEOUT = 'Zeitüberschreitung';
 
-/** `todo` ist der Befehl, um den es eigentlich geht: Fehlt das Programm, nennt ihn die Meldung zum Ausführen von Hand. */
-async function runClaude(env: AgentEnv, args: string[], todo = args): Promise<{ code: number; output: string }> {
+/** `todo` sind die Befehle, um die es eigentlich geht: Fehlt das Programm, nennt sie die Meldung zum Ausführen von Hand. */
+async function runClaude(env: AgentEnv, args: string[], todo = [args]): Promise<{ code: number; output: string }> {
   if (!env.run) throw new Error('Claude Code lässt sich von hier nicht aufrufen.');
   try {
     return await env.run('claude', args);
-  } catch {
+  } catch (err) {
+    if ((err as Error).message === COMMAND_TIMEOUT) throw new Error('Claude Code hat nicht innerhalb von 20 Sekunden geantwortet. Bitte die Liste neu laden und prüfen, ob der Eintrag stimmt.');
     throw claudeMissing(todo);
   }
 }
 
 /** Gibt es den Befehl überhaupt? Vor der Sicherungskopie prüfen, damit ein fehlendes Programm keine Kopien hinterlässt. */
-async function findClaude(env: AgentEnv, todo: string[]): Promise<void> {
+async function findClaude(env: AgentEnv, todo: string[][]): Promise<void> {
   // Ein Fehlercode heißt hier: Das Programm gibt es nicht (die Shell meldet das je nach Sprache von Windows anders)
   if ((await runClaude(env, ['--version'], todo)).code !== 0) throw claudeMissing(todo);
 }
@@ -362,9 +364,10 @@ export async function installAgent(id: string, env: AgentEnv, target: McpTarget,
   if (def.kind === 'claude-cli') {
     // Ein vorhandener Eintrag (alter Port) muss erst weg: „claude mcp add“ überschreibt nicht
     const add = ['mcp', 'add', '--transport', 'http', '--scope', 'user', SERVER_NAME, target.httpUrl];
-    await findClaude(env, add);
+    const drop = ['mcp', 'remove', '--scope', 'user', SERVER_NAME];
+    await findClaude(env, before.state === 'stale' ? [drop, add] : [add]);
     copy = backup(file, now);
-    if (before.state === 'stale') await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
+    if (before.state === 'stale') await runClaude(env, drop);
     const r = await runClaude(env, add);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
@@ -388,7 +391,7 @@ export async function removeAgent(id: string, env: AgentEnv, target: McpTarget, 
   let copy: string | undefined;
   if (def.kind === 'claude-cli') {
     const remove = ['mcp', 'remove', '--scope', 'user', SERVER_NAME];
-    await findClaude(env, remove);
+    await findClaude(env, [remove]);
     copy = backup(file, now);
     const r = await runClaude(env, remove);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
@@ -416,7 +419,7 @@ export function runCommand(command: string, args: string[], cwd = homedir()): Pr
     const child = process.platform === 'win32' ? spawn([command, ...args].join(' '), { ...opts, shell: true }) : spawn(command, args, opts);
     let output = '';
     // Hängt das Programm, nicht ewig warten: Unter Windows beendet kill() nur die Shell davor
-    const timer = setTimeout(() => { child.kill(); resolve({ code: 1, output: 'Keine Antwort innerhalb von 20 Sekunden.' }); }, 20_000);
+    const timer = setTimeout(() => { child.kill(); reject(new Error(COMMAND_TIMEOUT)); }, 20_000);
     child.stdout.on('data', (d) => { output += String(d); });
     child.stderr.on('data', (d) => { output += String(d); });
     child.on('error', (err) => { clearTimeout(timer); reject(err); });

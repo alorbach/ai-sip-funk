@@ -160,7 +160,7 @@ test('TOML: alter Eintrag als Prozess mit Unterabschnitt mitten in der Datei, CR
   const other = '[mcp_servers.sipfunk2]\nurl = "x"\n';
   assert.equal(tomlRemove(other), other);
   // Anführungszeichen um die Namensteile sind dieselbe Tabelle: ersetzen, nicht ein zweites Mal anlegen
-  for (const header of ['["mcp_servers"."sipfunk"]', "[mcp_servers.'sipfunk']", '[ "mcp_servers" . sipfunk ] # alt']) {
+  for (const header of ['["mcp_servers"."sipfunk"]', "[mcp_servers.'sipfunk']", '[ "mcp_servers" . sipfunk ] # alt', '["mcp_servers" . "sipfunk"]', '[mcp_servers . sipfunk]']) {
     assert.equal(tomlSet(`x = 1\n\n${header}\nurl = "alt"\n`, 'http://neu/mcp'), 'x = 1\n\n[mcp_servers.sipfunk]\nurl = "http://neu/mcp"\ntool_timeout_sec = 120\n', header);
   }
   // Ein Kommentar vor der nächsten Tabelle gehört zu ihr und bleibt beim Ersetzen und Entfernen stehen
@@ -210,7 +210,15 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     await assert.rejects(installAgent('claude-code', s.env, T1, NOW), /nicht aufrufen/);
     // Die Meldung nennt den Befehl zum Ausführen von Hand
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /nicht gefunden.*claude mcp add --transport http --scope user sipfunk http:\/\/127\.0\.0\.1:3865\/mcp$/);
-    await assert.rejects(removeAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: '' }) }, T1, NOW), /nicht gefunden.*claude mcp remove --scope user sipfunk$/);
+    // Noch nicht eingetragen: nur der eine Befehl
+    put(file, '{"numStartups":7}');
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /ausführen: claude mcp add --transport http --scope user sipfunk http:\/\/127\.0\.0\.1:3865\/mcp$/);
+    put(file, original);
+    await assert.rejects(removeAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: '' }) }, T1, NOW), /nicht gefunden.*: claude mcp remove --scope user sipfunk$/);
+    // Der Eintrag hier ist veraltet: Der alte muss erst weg, also nennt die Meldung beide Befehle in der richtigen Reihenfolge
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /claude mcp remove --scope user sipfunk und danach claude mcp add /);
+    // Keine Antwort ist etwas anderes als ein fehlendes Programm
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('Zeitüberschreitung'); } }, T1, NOW), /nicht innerhalb von 20 Sekunden/);
     // Deutsches Windows: Die Shell meldet das fehlende Programm mit Code 1 und eigenem Text
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: 'Der Befehl "claude" ist entweder falsch geschrieben oder konnte nicht gefunden werden.' }) }, T1, NOW), /nicht gefunden/);
     assert.equal(readFileSync(file, 'utf8'), original);
@@ -244,7 +252,7 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     put(file, JSON.stringify({ projects: { 'C:/x': { mcpServers: { sipfunk: { type: 'http', url: T1.httpUrl } } } } }));
     const local = agentStatus(s.env, T1).find((a) => a.id === 'claude-code')!;
     assert.equal(local.state, 'missing');
-    assert.match(local.detail ?? '', /einzelnen Projekten/);
+    assert.match(local.detail ?? '', /einzelnen Projekten/i);
   } finally { s.done(); }
 });
 

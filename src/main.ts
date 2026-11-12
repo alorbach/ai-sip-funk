@@ -57,10 +57,13 @@ const webPortChoice = await chooseWebPort(wantedWebPort);
 config.webPort = webPortChoice.port;
 // Die .env liefert nur den Startwert: Wer dort später WEB_PORT ändert, soll erfahren, warum das nichts bewirkt
 if (parsePort(process.env.WEB_PORT) && parsePort(process.env.WEB_PORT) !== wantedWebPort) log.warn(`WEB_PORT=${process.env.WEB_PORT} aus der .env wird nicht verwendet: Es gilt Port ${wantedWebPort} aus den Einstellungen (Einstellungen › Technik).`);
+/** Ausgewichen, aber der neue Port ließ sich nicht speichern: Dann gilt für Anzeige und Agenten-Einträge der laufende Port */
+let webPortUnsaved = false;
 /** Gesetzt, wenn beim Start ausgewichen wurde: der Port, der belegt war */
 const webPortMovedFrom = webPortChoice.moved ? wantedWebPort : undefined;
 if (webPortChoice.moved) {
   const kept = saveWebPort(webPortChoice.port);
+  webPortUnsaved = !kept;
   log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ${kept ? 'ab jetzt' : 'für diesen Lauf'} Port ${webPortChoice.port}${kept ? ' (gespeichert)' : ' (nicht gespeichert: settings.json ist nicht lesbar oder nicht beschreibbar)'}. Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
 }
 const personas = loadPersonas(join(projectRoot, 'personas'));
@@ -502,7 +505,7 @@ manager.on('status', (s: { phase: string }) => gateway.linePhase(s.phase));
 /** Wie ein Agent den MCP-Server erreicht: Adresse für Streamable HTTP und der Befehl für den stdio-Prozess (für die Schnipsel der Oberfläche). */
 function mcpConnect(): McpTarget & { packaged: boolean; port: number; runningPort: number } {
   // Der eingestellte Port: Weicht er vom laufenden ab (gespeichert, aber noch nicht neu gestartet), gilt er ab dem Neustart
-  const port = parsePort(loadSettings().webPort) ?? config.webPort;
+  const port = webPortUnsaved ? config.webPort : parsePort(loadSettings().webPort) ?? config.webPort;
   const url = `http://127.0.0.1:${port}`;
   const built = fileURLToPath(new URL('./mcp/server.js', import.meta.url));
   const source = fileURLToPath(new URL('./mcp/server.ts', import.meta.url));
