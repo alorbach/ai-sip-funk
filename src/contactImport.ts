@@ -459,8 +459,13 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
   const ownerContacts = store.list().filter((c) => c.owner);
   const nameCount = new Map<string, number>();
   for (const c of candidates) nameCount.set(nameKey(c.name), (nameCount.get(nameKey(c.name)) ?? 0) + 1);
+  // Nummern der eigenen Karte bekommt kein anderer Eintrag (wie applyImport): in der Vorschau gelten sie als schon beim
+  // Inhaber vorhanden
+  const reserved = new Set<string>();
+  for (const c of candidates) if (isOwnCard(c, ownerContacts)) for (const n of c.numbers) reserved.add(numberKey(n.number));
   return candidates.map((c, i) => {
-    const owners = c.numbers.map((n) => store.findByNumber(n.number));
+    const own = isOwnCard(c, ownerContacts);
+    const owners = c.numbers.map((n) => store.findByNumber(n.number) ?? (!own && reserved.has(numberKey(n.number)) ? ownerContacts[0] : undefined));
     const numbers = c.numbers.map((n, j) => {
       const list = holders.get(numberKey(n.number)) ?? [];
       const others: string[] = [];

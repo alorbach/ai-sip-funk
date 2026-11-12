@@ -998,3 +998,21 @@ test('Nummern der eigenen Karte gehen an niemand anderen', () => {
     assert.equal(store.findByNumber('030 5553101'), undefined);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 25
+
+test('Vorschau rechnet die Nummern der eigenen Karte wie der Import', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '0171 5553200', owner: true });
+    const cands = [
+      { name: 'Sam Beispiel', numbers: [{ number: '01715553200', label: 'mobil' as const }, { number: '0305553201', label: 'privat' as const }] },
+      { name: 'Paula Beispiel', numbers: [{ number: '0305553201', label: 'privat' as const }, { number: '01605553202', label: 'mobil' as const }] },
+    ];
+    let [, paula] = buildPreview(cands, store);
+    assert.deepEqual([paula.status, paula.mergeable], ['partial', undefined]);
+    assert.equal(applyImport(cands, ['1'], store, { addToExisting: true }).created, 1);
+    [, paula] = buildPreview(cands, store);
+    assert.equal(paula.status, 'exists');
+    assert.deepEqual(applyImport(cands, ['1'], store, { addToExisting: true }).created, 0);
+  });
+});
