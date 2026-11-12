@@ -112,6 +112,9 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 - [ ] MCP question: give a task with narrow leeway and offer something else on the phone. The AI says "Einen Moment bitte, ich frage kurz nach", the agent gets the question, its answer with `say` arrives on the phone. Without an answer the AI carries on after about 25 seconds.
 - [ ] MCP blocks: with the setting "Nur gespeicherte Kontakte", `start_call` refuses a number without a contact; "Ablehnen" in the dialog and an unanswered request (two minutes) do not dial; after the limit per hour `start_call` refuses.
 - [ ] MCP from the installed app: copy the configuration from "Agenten verbinden", for Codex or Claude Code over HTTP, for Claude Desktop as a process; the agent shows the eight tools.
+- [ ] Agents with one click: under "Agenten verbinden" choose "Einrichten" for an installed agent. The message names the backup copy, the other entries in the file are unchanged, and after a restart or new session the agent shows the eight tools. "Entfernen" takes out only the entry "sipfunk". Check once per agent (Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI, Copilot CLI).
+- [ ] Changing the port: under "Einstellungen › Technik" save a different port, "Jetzt neu starten". The page switches to the new address, the tray menu names the new port, the agents' HTTP entries show "Veraltet" and can be updated; Claude Desktop (process) keeps working without a change.
+- [ ] Port in use: quit SIPFunk, occupy the configured port with another program, start SIPFunk. It runs on the next free port, the tray app reports this, and the new port is in the settings.
 
 ## 9. Google Gemini: real phone calls (only a few so far)
 

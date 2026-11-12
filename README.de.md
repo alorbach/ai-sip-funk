@@ -49,7 +49,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
    npm start
    ```
 
-4. <http://127.0.0.1:8080> öffnen. Solange das Nötigste fehlt, öffnet sich der **Einrichtungsassistent**: Er fragt nach den Zugangsdaten des IP-Telefons und dem Schlüssel des KI-Anbieters (OpenAI oder Google Gemini), prüft beide und legt sie in der `.env` ab. Am Ende bietet er einen Testanruf im Echo-Modus an eine interne Nebenstelle an (z. B. `**610`, meist das erste Schnurlostelefon); das kostet nichts und beweist, dass SIP und Audio funktionieren. Wer mag, kopiert stattdessen `.env.example.de` nach `.env` und füllt sie von Hand aus.
+4. <http://127.0.0.1:3865> öffnen. Solange das Nötigste fehlt, öffnet sich der **Einrichtungsassistent**: Er fragt nach den Zugangsdaten des IP-Telefons und dem Schlüssel des KI-Anbieters (OpenAI oder Google Gemini), prüft beide und legt sie in der `.env` ab. Am Ende bietet er einen Testanruf im Echo-Modus an eine interne Nebenstelle an (z. B. `**610`, meist das erste Schnurlostelefon); das kostet nichts und beweist, dass SIP und Audio funktionieren. Wer mag, kopiert stattdessen `.env.example.de` nach `.env` und füllt sie von Hand aus.
 
 Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP: für „Private Netzwerke“ zulassen.
 
@@ -93,7 +93,7 @@ Ohne Telefon lässt sich das Gesprächsverhalten mit dem Simulator prüfen (er l
 npm run sim
 ```
 
-KI-Agenten erreichen SIPFunk über den eingebauten MCP-Server, direkt über HTTP unter `http://127.0.0.1:8080/mcp` oder als stdio-Prozess (`npm run mcp`; aus der installierten App mit der Konfiguration, die die Web-UI anzeigt). Die Schnittstelle ist aus, bis du sie unter „Einstellungen › MCP-Schnittstelle“ einschaltest; dieselbe Karte zeigt die fertige Konfiguration für Codex, Claude Code und Claude Desktop. Einrichtung, alle Tools und ein durchgespieltes Beispiel („Tisch reservieren“): [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle). Ein Beispiel-Skill für Agenten liegt unter [`examples/skills/sipfunk-anruf`](examples/skills/sipfunk-anruf/SKILL.md).
+KI-Agenten erreichen SIPFunk über den eingebauten MCP-Server, direkt über HTTP unter `http://127.0.0.1:3865/mcp` oder als stdio-Prozess (`npm run mcp`; aus der installierten App mit der Konfiguration, die die Web-UI anzeigt). Die Schnittstelle ist aus, bis du sie unter „Einstellungen › MCP-Schnittstelle“ einschaltest; auf derselben Karte trägt sich SIPFunk auf Klick selbst bei Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI und GitHub Copilot CLI ein (mit Sicherungskopie, andere Einträge bleiben) und zeigt für alle anderen die fertige Konfiguration zum Kopieren. Der Port (Standard 3865) ist unter „Einstellungen › Technik“ einstellbar; ist er belegt, weicht SIPFunk auf den nächsten freien aus und speichert ihn. Einrichtung, alle Tools und ein durchgespieltes Beispiel („Tisch reservieren“): [Handbuch, Kapitel 13](doc/user-guide.de.md#13-mcp-schnittstelle). Ein Beispiel-Skill für Agenten liegt unter [`examples/skills/sipfunk-anruf`](examples/skills/sipfunk-anruf/SKILL.md).
 
 ## Kosten
 

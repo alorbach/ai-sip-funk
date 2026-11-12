@@ -51,7 +51,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
    npm start
    ```
 
-4. Open <http://127.0.0.1:8080>. As long as the essentials are missing, the **setup assistant** opens: it asks for the credentials of the IP phone and the key of the AI provider (OpenAI or Google Gemini), checks both and stores them in `.env`. At the end it offers a test call in echo mode to an internal extension (e.g. `**610`, usually the first cordless phone); this costs nothing and proves that SIP and audio work. If you prefer, copy `.env.example` to `.env` and fill it in by hand instead (German comments: `.env.example.de`).
+4. Open <http://127.0.0.1:3865>. As long as the essentials are missing, the **setup assistant** opens: it asks for the credentials of the IP phone and the key of the AI provider (OpenAI or Google Gemini), checks both and stores them in `.env`. At the end it offers a test call in echo mode to an internal extension (e.g. `**610`, usually the first cordless phone); this costs nothing and proves that SIP and audio work. If you prefer, copy `.env.example` to `.env` and fill it in by hand instead (German comments: `.env.example.de`).
 
 On first start the Windows firewall asks about the UDP ports for SIP and RTP: allow them for private networks.
 
@@ -95,7 +95,7 @@ The simulator lets you check conversation behaviour without a phone (it works wi
 npm run sim
 ```
 
-AI agents reach SIPFunk through its MCP server, directly over HTTP on `http://127.0.0.1:8080/mcp` or as a stdio process (`npm run mcp`; from the installed app with the configuration the web UI shows). The interface is off until you switch it on under "Einstellungen › MCP-Schnittstelle"; the same card shows the ready-made configuration for Codex, Claude Code and Claude Desktop. Setup, all tools and a worked example ("book a table"): [user guide, chapter 13](doc/user-guide.md#13-mcp-interface). An example skill for agents is in [`examples/skills/sipfunk-call`](examples/skills/sipfunk-call/SKILL.md).
+AI agents reach SIPFunk through its MCP server, directly over HTTP on `http://127.0.0.1:3865/mcp` or as a stdio process (`npm run mcp`; from the installed app with the configuration the web UI shows). The interface is off until you switch it on under "Einstellungen › MCP-Schnittstelle"; on the same card SIPFunk registers itself at a click with Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI and GitHub Copilot CLI (with a backup copy, other entries are kept) and shows the ready-made configuration to copy for everything else. The port (default 3865) can be changed under "Einstellungen › Technik"; if it is in use, SIPFunk moves to the next free one and stores it. Setup, all tools and a worked example ("book a table"): [user guide, chapter 13](doc/user-guide.md#13-mcp-interface). An example skill for agents is in [`examples/skills/sipfunk-call`](examples/skills/sipfunk-call/SKILL.md).
 
 ## Cost
 

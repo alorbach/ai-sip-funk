@@ -67,7 +67,7 @@ npm install
 npm start
 ```
 
-Then open <http://127.0.0.1:8080>. No configuration file is needed for the first start.
+Then open <http://127.0.0.1:3865>. No configuration file is needed for the first start. If port 3865 is in use, SIPFunk takes the next free one and names it in the log and in the tray menu ("Web-UI öffnen (Port …)"); you can change it under "Einstellungen › Technik" (section 14.3).
 
 ### 4.2 The setup assistant
 
@@ -385,7 +385,7 @@ The subject is sortable: `[SIPFunk] Wichtig · Praxis Weber · Termin verschiebe
 3. **Worum es ging** (what it was about): the result according to the AI, otherwise the summary, five lines at most.
 4. **Einschätzung** (assessment): important or unimportant with a one-sentence reason.
 5. **Gesprächsverlauf (gekürzt)** (conversation, shortened): only finished turns, long ones cut to around 200 characters.
-6. **Footer**: link to the "Anrufe" page (`http://127.0.0.1:8080/#calls`), log ID and cost.
+6. **Footer**: link to the "Anrufe" page (`http://127.0.0.1:3865/#calls`), log ID and cost.
 
 The mail is sent as text and HTML; in the HTML view a coloured header shows the assessment (red = important, grey = unimportant, orange = spam). Spam mails are deliberately short and contain no conversation. The link only works on the computer SIPFunk runs on.
 
@@ -413,7 +413,7 @@ Everything is under "Einstellungen › E-Mail-Versand". The `MAIL_*` and `SMTP_*
 
 1. Choose the **Versandweg** (delivery method): "SMTP mit Passwort" (all providers), "Gmail" or "Microsoft 365 / Outlook" (sign-in via OAuth, no password).
 2. **SMTP**: enter the mailbox and click **"Automatisch einrichten"** (set up automatically). SIPFunk looks for server, port and encryption in this order: a built-in list of well-known providers, the Thunderbird database (ISPDB), the MX records of the domain (Microsoft 365 and Google Workspace are recognised) and finally `smtp.<domain>`/`mail.<domain>` with a connection probe. Then enter the password; many providers require an **app password** instead of the account password. If the provider requires OAuth, the button switches the delivery method.
-3. **OAuth**: enter mailbox, client ID (and secret), save, then **"Mail-Konto verbinden"** (connect mail account; sign-in in the browser, the access token ends up in `mail-token.json`). Gmail: OAuth client of type "Desktop app" in the Google Cloud Console. Microsoft 365: app registration in Entra, platform "Mobile and desktop applications", redirect `http://127.0.0.1:8080/oauth/callback` (port = `WEB_PORT`), permission `SMTP.Send`, SMTP AUTH enabled for the mailbox; tenant = tenant ID or `common`.
+3. **OAuth**: enter mailbox, client ID (and secret), save, then **"Mail-Konto verbinden"** (connect mail account; sign-in in the browser, the access token ends up in `mail-token.json`). Gmail: OAuth client of type "Desktop app" in the Google Cloud Console. Microsoft 365: app registration in Entra, platform "Mobile and desktop applications", redirect `http://127.0.0.1:3865/oauth/callback` (port = `WEB_PORT`), permission `SMTP.Send`, SMTP AUTH enabled for the mailbox; tenant = tenant ID or `common`.
 4. **"Verbindung prüfen"** (check connection) signs in to the server without sending anything; **"Probe-Mail senden"** sends a mail in the notification layout with sample data. Both save the settings first.
 
 Recipient empty = the mailbox itself; sender empty = the mailbox. The status line in the card header shows whether sending is ready.
@@ -587,28 +587,58 @@ Every agent call that came about is listed under "Anrufe" (calls) like any other
 
 SIPFunk has to be running (tray app or `npm start`). There are two ways to the same server; both can only be reached from your own computer:
 
-- **Directly over HTTP** (Streamable HTTP): the agent talks to `http://127.0.0.1:8080/mcp`, that is, to the running app itself. No extra process, no paths. This is the simplest way for Codex and Claude Code.
-- **As a process (stdio)**: the agent starts a small process that passes every call on to the running app. Claude Desktop needs this way, because it starts local servers only as a process.
+- **Directly over HTTP** (Streamable HTTP): the agent talks to `http://127.0.0.1:3865/mcp`, that is, to the running app itself. No extra process, no paths. This is the simplest way for most agents. The address contains the port of the web UI (section 14.3).
+- **As a process (stdio)**: the agent starts a small process that passes every call on to the running app. Claude Desktop needs this way, because it starts local servers only as a process. The process reads the port of the running app from the data folder and so follows every port change.
 
-Under "Agenten verbinden" (connecting agents) the card "MCP-Schnittstelle" shows the finished configuration for your computer, matching the port and whether SIPFunk is installed or runs from the project folder. Choose the agent, "Kopieren" (copy), paste. The examples below show the structure.
+#### Setting up with one click
+
+Under "Agenten verbinden" (connecting agents) the card "MCP-Schnittstelle" lists the agents SIPFunk can register itself with, each with its state and the file concerned:
+
+| State | Meaning | Buttons |
+| --- | --- | --- |
+| Nicht gefunden (not found) | There is no folder of this agent on the computer. | – |
+| Nicht eingetragen (not registered) | The agent is there, SIPFunk is not in its configuration. | "Einrichten" (set up) |
+| Eingetragen (registered) | The entry matches the current address. | "Entfernen" (remove) |
+| Veraltet (outdated) | There is an entry "sipfunk", but it no longer matches, typically after a port change or when SIPFunk was installed in a different place. | "Aktualisieren" (update), "Entfernen" |
+| Nicht auswertbar (cannot be read) | The file contains comments, is damaged or has a structure SIPFunk cannot change safely. SIPFunk does not touch it; add the entry by hand. | – |
+
+| Agent | File | Connection | When the agent sees SIPFunk |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude.json` (through the command `claude mcp add`) | HTTP | in every new session; running sessions do not see the change |
+| Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` (Store build: in the package folder under `%LOCALAPPDATA%\Packages`) | process | after Claude Desktop has been quit completely (also in the taskbar notification area) and started again |
+| Codex (CLI, app, IDE extension) | `~/.codex/config.toml` | HTTP | in every new session; restart the app and the IDE extension once |
+| Cursor | `~/.cursor/mcp.json` | HTTP | check under "Settings › MCP" whether "sipfunk" is active; otherwise restart Cursor |
+| Gemini CLI | `~/.gemini/settings.json` | HTTP | in every new session |
+| GitHub Copilot CLI | `~/.copilot/mcp-config.json` | HTTP | in every new session |
+
+What applies:
+
+- **Nothing is written without your click.** When the card opens, SIPFunk only reads the files to show the state.
+- **Other entries stay.** SIPFunk adds, replaces or removes only the entry "sipfunk". Indentation, line endings and the order of the file are kept; in JSON files only the notation of individual values can change (for example a one-line list becomes multi-line). In Codex's `config.toml` everything outside the section `[mcp_servers.sipfunk]` stays character for character.
+- **Backup copy.** Before every change SIPFunk puts a time-stamped copy next to the file (`….sipfunk-YYYY-MM-DDThh-mm-ss.bak`); the message after the click names the path. SIPFunk does not clean these copies up.
+- **Claude Code** manages its file itself and rewrites it all the time. SIPFunk therefore does not change it directly but calls the command `claude mcp add` or `claude mcp remove` (for all projects, `--scope user`). If SIPFunk cannot find the command, the message says so; then copy the command under "Von Hand eintragen" and run it in a terminal.
+- **After a port change** the agents with an HTTP entry show "Veraltet"; "Aktualisieren" writes the new address. The Claude Desktop entry stays valid, because its process finds the port itself.
+- So far only the Claude Code command has been checked against a real installation. The other formats and paths follow the vendors' documentation (as of November 2026); if a vendor changes them, "Von Hand eintragen" helps.
+
+#### Entering by hand
+
+For all other cases the card shows, under "Von Hand eintragen" (enter by hand), the finished configuration for your computer, matching the port and whether SIPFunk is installed or runs from the project folder: choose the agent (Codex, Claude Code, Claude Desktop, Cursor, VS Code, Gemini CLI or "Anderer Agent"), "Kopieren" (copy), paste. The examples below show the structure.
 
 **Codex** – in `~/.codex/config.toml` (on Windows in your user folder), then restart Codex:
 
 ```toml
 [mcp_servers.sipfunk]
-url = "http://127.0.0.1:8080/mcp"
+url = "http://127.0.0.1:3865/mcp"
 tool_timeout_sec = 120
 ```
 
 `tool_timeout_sec` matters: `wait_for_events` waits up to 50 seconds, and Codex's default is 60.
 
-**Claude Code** – in a terminal:
+**Claude Code** – in a terminal; the connection then applies to all projects:
 
 ```bash
-claude mcp add --transport http sipfunk http://127.0.0.1:8080/mcp
+claude mcp add --transport http --scope user sipfunk http://127.0.0.1:3865/mcp
 ```
-
-With `--scope user` the connection applies to all projects.
 
 **Claude Desktop** – in `claude_desktop_config.json` (Settings › Developer › Edit Config; on Windows `%APPDATA%\Claude\claude_desktop_config.json`), then restart Claude Desktop. For the installed app:
 
@@ -620,16 +650,24 @@ With `--scope user` the connection applies to all projects.
       "args": ["C:\\Users\\YOURNAME\\AppData\\Local\\Programs\\SIPFunk\\resources\\app.asar\\dist\\mcp\\server.js"],
       "env": {
         "ELECTRON_RUN_AS_NODE": "1",
-        "SIPFUNK_URL": "http://127.0.0.1:8080"
+        "SIPFUNK_DATA_DIR": "C:\\Users\\YOURNAME\\AppData\\Roaming\\SIPFunk"
       }
     }
   }
 }
 ```
 
-`ELECTRON_RUN_AS_NODE=1` makes the installed `SIPFunk.exe` run the bundled MCP script instead of starting the tray app a second time; Node.js does not have to be installed for this. The paths depend on where SIPFunk is installed, so it is best to copy them from the web UI.
+`ELECTRON_RUN_AS_NODE=1` makes the installed `SIPFunk.exe` run the bundled MCP script instead of starting the tray app a second time; Node.js does not have to be installed for this. `SIPFUNK_DATA_DIR` points to the data folder; there the process reads the port of the running app. The paths depend on where SIPFunk is installed, so it is best to copy them from the web UI.
 
-From the project folder (development) the command for the stdio process is `npx tsx /path/to/sipfunk/src/mcp/server.ts`, or `npm run mcp` for short. If the web UI runs on a different port, that port belongs in the address (`/mcp`) or in `SIPFUNK_URL`.
+**Cursor** – in `~/.cursor/mcp.json`:
+
+```json
+{ "mcpServers": { "sipfunk": { "url": "http://127.0.0.1:3865/mcp" } } }
+```
+
+**VS Code (Copilot)** – in a terminal: `code --add-mcp "{\"name\":\"sipfunk\",\"type\":\"http\",\"url\":\"http://127.0.0.1:3865/mcp\"}"`. **Gemini CLI** – `gemini mcp add -t http -s user sipfunk http://127.0.0.1:3865/mcp`. Other agents: enter the address as an MCP server of type "Streamable HTTP", without sign-in.
+
+From the project folder (development) the command for the stdio process is `npx tsx /path/to/sipfunk/src/mcp/server.ts`, or `npm run mcp` for short. If you start the process without `SIPFUNK_DATA_DIR`, give the address of the web UI in `SIPFUNK_URL` (e.g. `http://127.0.0.1:3865`); a set `SIPFUNK_URL` always takes precedence. Entries from earlier versions with `SIPFUNK_URL` keep working but do not follow a port change.
 
 After connecting, the agent shows SIPFunk's tools. As long as the interface is switched off, SIPFunk answers every call with a note saying where you switch it on.
 
@@ -730,7 +768,7 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 | `OWNER_NUMBERS` | – | own numbers (alternative to the "Inhaber" contact) |
 | `AUDIO_HD` | true | negotiate HD G.711 (16 kHz) with the box; `false` forces 8 kHz |
 | `LIVE_LISTEN_ENABLED` | true | listening in via the browser |
-| `WEB_PORT` | 8080 | port of the web UI (127.0.0.1 only) |
+| `WEB_PORT` | 3865 | initial value for the port of the web UI (127.0.0.1 only); after that the setting under "Technik" applies (section 14.3) |
 | `SIP_DEBUG` | 0 | write all SIP messages to the log |
 
 ### 14.2 Web UI, section "Technik"
@@ -749,11 +787,21 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Sprechgeschwindigkeit – speaking rate | 1.05 | `AI_SPEECH_SPEED` | 0.25–1.5; with Google Gemini only a hint to the AI |
 | Lautstärke der KI – AI volume | 1.5 | `AI_OUTPUT_GAIN` | gain towards the phone, with a soft limiter |
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
+| Port der Oberfläche und der MCP-Schnittstelle – port of the web UI and the MCP interface | 3865 | `WEB_PORT` | port on 127.0.0.1 for the web UI and `/mcp`; takes effect after a restart (section 14.3) |
 | Textmodell – text model | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | plan, summary, assessment, complaint |
 
 The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` (dashboard, AI assistant), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` and `AI_VOICE` (AI connections; `AI_VOICE` is now only the initial value for connections without a default voice of their own), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
 
 ---
+
+### 14.3 Port of the web UI
+
+The web UI and the MCP interface listen on the same port, always on `127.0.0.1` only. The default is 3865. If you set up SIPFunk before this version, you keep your previous port (usually 8080), because it is in your `.env`.
+
+- **Changing it**: "Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle" (level "Erweitert"), then save. Allowed values are 1024 to 65535. The new port takes effect after a restart; with the tray app the web UI offers "Jetzt neu starten" (restart now) and then switches to the new address by itself. Without the tray app (`npm start`), quit SIPFunk and start it again by hand.
+- **Port in use**: if the configured port is taken by another program at start, SIPFunk takes the next free one above it and stores it as the new setting. This is written to the log, the tray app shows a notification, and the web UI says so the next time it is opened. After that the address does not change by itself again as long as the new port stays free.
+- **Finding it again**: the tray menu "Web-UI öffnen (Port …)" and a double click on the tray icon always open the right address. The port of the running app is also in the file `sipfunk.port` in the data folder.
+- **What changes with the port**: browser bookmarks; the address `http://127.0.0.1:PORT/mcp` in registered AI agents (section 13.3 shows how to update them with one click); with Microsoft 365 the redirect address of the app registration (chapter 9). The browser remembers small things such as the last dialled number per address; they start afresh under the new port.
 
 ## 15. Cost
 

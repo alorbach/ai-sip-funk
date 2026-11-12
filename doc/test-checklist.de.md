@@ -112,6 +112,9 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 - [ ] MCP-Rückfrage: Auftrag mit engem Spielraum geben und am Telefon etwas anderes anbieten. Die KI sagt „Einen Moment bitte, ich frage kurz nach“, der Agent bekommt die Rückfrage, seine Antwort mit `say` kommt am Telefon an. Ohne Antwort macht die KI nach etwa 25 Sekunden weiter.
 - [ ] MCP-Sperren: Mit der Einstellung „Nur gespeicherte Kontakte“ lehnt `start_call` eine Nummer ohne Kontakt ab; „Ablehnen“ im Dialog und eine unbeantwortete Anfrage (zwei Minuten) wählen nicht; nach dem Limit je Stunde lehnt `start_call` ab.
 - [ ] MCP aus der installierten App: Konfiguration aus „Agenten verbinden“ kopieren, für Codex oder Claude Code über HTTP, für Claude Desktop als Prozess; der Agent zeigt die acht Tools.
+- [ ] Agenten mit einem Klick: Unter „Agenten verbinden“ bei einem installierten Agenten „Einrichten“ wählen. Die Meldung nennt die Sicherungskopie, die übrigen Einträge der Datei sind unverändert, und der Agent zeigt nach Neustart bzw. neuer Sitzung die acht Tools. „Entfernen“ nimmt nur den Eintrag „sipfunk“ heraus. Je Agent einmal prüfen (Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI, Copilot CLI).
+- [ ] Port ändern: Unter „Einstellungen › Technik“ einen anderen Port speichern, „Jetzt neu starten“. Die Seite wechselt auf die neue Adresse, das Tray-Menü nennt den neuen Port, HTTP-Einträge der Agenten zeigen „Veraltet“ und lassen sich aktualisieren; Claude Desktop (Prozess) funktioniert ohne Änderung weiter.
+- [ ] Port belegt: SIPFunk beenden, den eingestellten Port mit einem anderen Programm belegen, SIPFunk starten. Es läuft auf dem nächsten freien Port, die Tray-App meldet das, und der neue Port steht in den Einstellungen.
 
 ## 9. Google Gemini: echte Telefonate (erst wenige)
 
