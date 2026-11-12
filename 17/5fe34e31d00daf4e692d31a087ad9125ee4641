@@ -1,0 +1,36 @@
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_ee79f10dc552fd 9-11
+CHANGELOG.md
+  s_6e62c686ceb639::t_ee79f10dc552fd 9-11
+test/personas.test.ts
+  s_6e62c686ceb639::t_a66050d96a9f9a 41-48
+src/ai/providers/geminiLive.ts
+  s_6e62c686ceb639::t_ee79f10dc552fd 28,32,321-322
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_ee79f10dc552fd 11,69-70,134-148,264-274,398,404-441,473,697-706,767,957-965,1266-1271
+src/ai/personas.ts
+  s_6e62c686ceb639::t_ee79f10dc552fd 155,223,273-282
+  s_6e62c686ceb639::t_d07b952e0ffae3 283
+src/main.ts
+  s_6e62c686ceb639::t_ee79f10dc552fd 276,334-335
+test/bridge.test.ts
+  s_6e62c686ceb639::t_a66050d96a9f9a 503-545
+test/gemini.test.ts
+  s_6e62c686ceb639::t_a66050d96a9f9a 142,152-154,260-273,324-325,376
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "175fe34e31d00daf4e692d31a087ad9125ee4641",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
