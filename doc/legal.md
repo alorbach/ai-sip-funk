@@ -64,7 +64,7 @@ It applies **in full** when SIPFunk is used for business: a company number, cust
 
 - Phone numbers (caller, called party), times, duration.
 - Call content as audio (live only, passed through to the selected AI provider, not stored on your side) and as text (transcript, summary, result, assessment).
-- Contact data and notes in `contacts.json`.
+- Contact data and notes in `contacts.json`, also contacts imported from an address book (Google, Microsoft or a file). The import reads your address book directly from the provider with your own app registration, processes it in memory only and keeps nothing but the contacts you select; during the import itself SIPFunk sends address book data to no one else. Afterwards they are ordinary contacts: during a call the contact's name and notes go to the chosen AI provider as before. In business use, import only the contacts you need for telephony; the people in your address book are data subjects too.
 - Background knowledge you give the AI.
 - Operating log with phone numbers.
 

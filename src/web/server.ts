@@ -64,6 +64,21 @@ export interface WebServerOptions {
     /** Vorschlag für SMTP-Server usw. aus der Adresse */
     autoconfig: (email: string) => Promise<unknown>;
   };
+  /** Kontakt-Import (Google, Microsoft, vCard/CSV-Datei): Anmeldung, Vorschau und Übernahme der Auswahl */
+  contactImport?: {
+    status: () => Record<string, unknown>;
+    loginUrl: (provider: unknown) => string;
+    /** Gehört die Rückkehr der Anmeldung (state) zum Kontakt-Import statt zur Mail? */
+    owns: (state: string) => boolean;
+    callback: (code: string, state: string) => Promise<string>;
+    disconnect: (provider: unknown) => Promise<void>;
+    load: (provider: unknown) => Promise<{ items: unknown[] } & Record<string, unknown>>;
+    /** Dateiinhalt als Bytes; der Zeichensatz (UTF-8, UTF-16, Windows-1252) wird erst auf dem Server erkannt */
+    file: (name: string, data: Buffer) => { items: unknown[] } & Record<string, unknown>;
+    /** token = Kennung der Vorschau, aus der ausgewählt wurde */
+    apply: (token: unknown, ids: string[], addToExisting: boolean) => { created: number; merged: number } & Record<string, unknown>;
+    discard: (token: unknown) => void;
+  };
   /** MCP-Schnittstelle für KI-Agenten: Zustand für die Oberfläche, Bestätigung einer Anfrage, Tool-Aufrufe (stdio-Prozess) und Streamable HTTP unter /mcp */
   mcp?: {
     info: () => Record<string, unknown>;
@@ -84,12 +99,15 @@ export interface WebServerOptions {
 /** Größter angenommener Request-Body; die längsten echten Eingaben (Mail-Vorlage, Notizen) liegen weit darunter. */
 const MAX_BODY_BYTES = 1_000_000;
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+/** Adressbuch-Dateien (vCard mit Fotos, base64-kodiert, also etwa ein Drittel größer als die Datei) dürfen größer sein */
+const MAX_IMPORT_BYTES = 30_000_000;
+
+async function readJson(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY_BYTES) throw new Error('Anfrage zu groß');
+    if (size > maxBytes) throw new Error('Anfrage zu groß');
     chunks.push(chunk as Buffer);
   }
   const text = Buffer.concat(chunks).toString('utf8');
@@ -278,6 +296,22 @@ export function startWebServer(opts: WebServerOptions): () => void {
         const state = url.searchParams.get('state') ?? '';
         const err = url.searchParams.get('error_description') ?? url.searchParams.get('error');
         let html: string;
+        if (opts.contactImport?.owns(state)) {
+          try {
+            if (err || !code) {
+              opts.contactImport.callback('', state).catch(() => undefined); // offene Anmeldung verwerfen
+              throw new Error(err ?? 'Kein Code erhalten');
+            }
+            const provider = await opts.contactImport.callback(code, state);
+            log.info(`Kontakt-Import: ${provider === 'google' ? 'Google' : 'Microsoft'} verbunden`);
+            html = '<p>Adressbuch verbunden. Dieses Fenster kann geschlossen werden – weiter geht es in SIPFunk unter „Kontakte importieren“.</p>';
+          } catch (e) {
+            log.error(`Kontakt-Import: Anmeldung fehlgeschlagen: ${(e as Error).message}`);
+            html = `<p>Anmeldung fehlgeschlagen: ${escapeHtml((e as Error).message)}</p>`;
+          }
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          return res.end(`<!doctype html><meta charset="utf-8"><title>SIPFunk</title><body style="font-family:system-ui;padding:24px">${html}</body>`);
+        }
         try {
           if (err || !code || !opts.mail?.callback) throw new Error(err ?? 'Kein Code erhalten');
           const r = await opts.mail.callback(code, state);
@@ -313,6 +347,41 @@ export function startWebServer(opts: WebServerOptions): () => void {
       if (req.method === 'GET' && url.pathname === '/api/transcripts') {
         const number = url.searchParams.get('number');
         return sendJson(res, 200, { items: number ? opts.store.listByNumber(number) : opts.store.list() });
+      }
+      if (url.pathname.startsWith('/api/contacts/import/')) {
+        const ci = opts.contactImport;
+        if (!ci) return sendJson(res, 400, { error: 'Kontakt-Import nicht verfügbar' });
+        const action = url.pathname.slice('/api/contacts/import/'.length);
+        if (req.method === 'GET' && action === 'status') return sendJson(res, 200, ci.status());
+        if (req.method === 'POST' && action === 'login') return sendJson(res, 200, { url: ci.loginUrl((await readJson(req)).provider) });
+        if (req.method === 'POST' && action === 'disconnect') {
+          const { provider } = await readJson(req);
+          await ci.disconnect(provider);
+          log.info(`Kontakt-Import: Verbindung zu ${provider === 'google' ? 'Google' : 'Microsoft'} getrennt`);
+          return sendJson(res, 200, ci.status());
+        }
+        if (req.method === 'POST' && action === 'load') {
+          const r = await ci.load((await readJson(req)).provider);
+          log.info(`Kontakt-Import: ${r.items.length} Einträge mit Telefonnummer abgerufen`);
+          return sendJson(res, 200, r);
+        }
+        if (req.method === 'POST' && action === 'file') {
+          const body = await readJson(req, MAX_IMPORT_BYTES);
+          const r = ci.file(String(body.name ?? ''), Buffer.from(String(body.data ?? ''), 'base64'));
+          log.info(`Kontakt-Import: ${r.items.length} Einträge mit Telefonnummer aus Datei gelesen`);
+          return sendJson(res, 200, r);
+        }
+        if (req.method === 'POST' && action === 'apply') {
+          const body = await readJson(req);
+          const ids = Array.isArray(body.ids) ? body.ids.map(String) : [];
+          const r = ci.apply(body.token, ids, body.addToExisting === true);
+          log.info(`Kontakt-Import: ${String(r.created)} neu angelegt, ${String(r.merged)} um Nummern ergänzt`);
+          return sendJson(res, 200, { ...r, items: opts.contacts.list() });
+        }
+        if (req.method === 'POST' && action === 'discard') {
+          ci.discard((await readJson(req)).token);
+          return sendJson(res, 200, { ok: true });
+        }
       }
       if (req.method === 'GET' && url.pathname === '/api/contacts') {
         return sendJson(res, 200, { items: opts.contacts.list() });

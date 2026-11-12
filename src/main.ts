@@ -31,6 +31,8 @@ import { Mailer, oauthFrom } from './notify/email.js';
 import { buildCallMail, buildTestMail } from './notify/mailFormat.js';
 import { suggestMail } from './notify/autoconfig.js';
 import { OAuthLogin, TokenStore } from './notify/oauth.js';
+import { decodeImportFile, fromFile, ImportSession } from './contactImport.js';
+import { ContactSources, type ImportProvider } from './contactSources.js';
 import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
@@ -40,7 +42,7 @@ import { callVoice, connectionKey, connectionKeyEnv, connectionsFrom, connection
 import type { AiProvider, ProviderId, TextModel } from './ai/providers/types.js';
 import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
-import { ContactStore, numberKey } from './contacts.js';
+import { ContactStore, numberKey, sameMainNumber } from './contacts.js';
 import { writeEnvValues } from './envFile.js';
 import { cleanSipAccount, explainSipError, testSipAccount } from './setup.js';
 
@@ -505,7 +507,8 @@ const gateway: McpGateway = new McpGateway({
   policy: () => mcpPolicyFrom(loadSettings()),
   principal: () => loadSettings().principal,
   contacts: () => contacts.list().map((c) => ({ name: c.name, number: c.number })),
-  findContact: (number) => contacts.findByNumber(number),
+  // Nur die Hauptnummer: Die Freigabe „nur Kontakte“ soll nicht jede importierte weitere Nummer einschließen
+  findContact: (number) => contacts.list().find((c) => sameMainNumber(c, number)),
   prepare: (target) => manager.prepare(target),
   line: () => {
     const st = manager.status();
@@ -997,7 +1000,43 @@ const mailConfig = () => mailConfigFrom(loadSettings());
 const mailer = new Mailer(mailConfig, mailTokens);
 const mailLogin = new OAuthLogin(() => oauthFrom(mailConfig()), `http://127.0.0.1:${config.webPort}/oauth/callback`, mailTokens);
 
+// Kontakt-Import: abgerufene Adressbuchdaten liegen nur hier im Arbeitsspeicher, bis übernommen oder verworfen wird
+const importSession = new ImportSession();
+setInterval(() => importSession.sweep(), 60_000).unref();
+const contactSources = new ContactSources(
+  () => {
+    const s = loadSettings();
+    return {
+      google: s.importGoogleClientId.trim() ? { clientId: s.importGoogleClientId.trim(), clientSecret: s.importGoogleClientSecret || undefined } : undefined,
+      microsoft: s.importMsClientId.trim() ? { clientId: s.importMsClientId.trim(), tenant: s.importMsTenant.trim() || 'common' } : undefined,
+    };
+  },
+  (p) => `http://${p === 'google' ? '127.0.0.1' : 'localhost'}:${config.webPort}/oauth/callback`,
+);
+const importProvider = (p: unknown): ImportProvider => {
+  if (p !== 'google' && p !== 'microsoft') throw new Error('Unbekannter Anbieter');
+  return p;
+};
+
 const stopWeb = startWebServer({
+  contactImport: {
+    status: () => ({ ...contactSources.status(), redirect: { google: `http://127.0.0.1:${config.webPort}/oauth/callback`, microsoft: 'http://localhost/oauth/callback' } }),
+    loginUrl: (p) => contactSources.authUrl(importProvider(p)),
+    owns: (state) => contactSources.owns(state),
+    callback: (code, state) => contactSources.handleCallback(code, state),
+    disconnect: async (p) => {
+      const provider = importProvider(p);
+      await contactSources.disconnect(provider);
+      importSession.discard({ source: provider });
+    },
+    load: async (p) => {
+      const provider = importProvider(p);
+      return importSession.show(provider, await contactSources.load(provider), contacts);
+    },
+    file: (name, data) => importSession.show('file', fromFile(name, decodeImportFile(data)), contacts),
+    apply: (token, ids, addToExisting) => importSession.apply(token, ids, contacts, { addToExisting }),
+    discard: (token) => importSession.discard({ token }),
+  },
   mail: {
     status: () => mailer.status() as unknown as Record<string, unknown>,
     loginUrl: () => mailLogin.authUrl(),

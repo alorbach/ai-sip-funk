@@ -19,7 +19,7 @@ SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the b
 - **notify** you afterwards (tray notification, e-mail, for important calls a call back with the option to be put through to the caller),
 - optionally **brush off or stall advertising and scam callers** (spam defence, only after explicit confirmation, chapter 10).
 
-Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, and to tellows if you switch on the lookup. The web UI is reachable only from the same computer (127.0.0.1).
+Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, to tellows if you switch on the lookup, and to Google or Microsoft while you import contacts from there. The web UI is reachable only from the same computer (127.0.0.1).
 
 Limits: one user, one extension, one call at a time. SIPFunk works with the OpenAI Realtime API or the Gemini Live API (section 6.2). The AI speaks German with callers. No audio is recorded; what is stored are transcripts (text), summaries and metadata.
 
@@ -502,6 +502,53 @@ Logs of such calls carry the tag "Spam-Abwehr". They never count as important; t
 
 Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked). The flag **"Inhaber"** marks your own number.
 
+A contact can have **further numbers** ("Weitere Nummern", separated by commas), for example a landline next to the mobile number. They count when a call comes in and for duplicates; the number above is always the one dialled. For the MCP permission "Nur gespeicherte Kontakte" only that number counts, so an agent cannot call a further number.
+
+#### Importing contacts
+
+"Kontakte importieren" (import contacts) on the "Kontakte" page takes contacts with phone numbers from an address book, so you do not have to type them. Sources:
+
+- **Google Contacts** (People API, read-only),
+- **Microsoft** (Outlook.com, Microsoft 365; Microsoft Graph, read-only),
+- **a file**: vCard (`.vcf`) or CSV (UTF-8, UTF-16 or the Windows character set of German Outlook and Excel exports). This is the way for **Apple iCloud**, which offers no open interface for other apps, and for any other address book or phone.
+
+After loading, SIPFunk shows a list with a search field and a summary ("… neu, … teilweise vorhanden, … schon vorhanden"); each partly known row says whether it will be added to the existing contact or created as a new one. Tick single entries or "Alle neuen auswählen" (select all new; partly known entries, "Name mehrfach" and "Name schon vorhanden" are only selected one by one), then click "… Kontakte importieren". Nothing is written before this click.
+
+- Only entries with at least one phone number are offered; fax and pager numbers are skipped.
+- Numbers are converted to the SIPFunk format: German numbers with a leading 0 (`+49 (0)30 …` becomes `030…`), foreign ones with `+`; a label before and text after the number (such as "ext. 12" or a time) are dropped. Unusual notations in the phone field (opening hours before the number, several slashes) are not interpreted specially; the preview shows what would be imported. FRITZ!Box extensions keep their stars ("**610", also after a number as a further number); service codes with * or # and numbers under five digits without a leading 0 or + ("610") are not imported, so none of them is dialled publicly.
+- Several numbers per entry: the first one (a dialable number before a foreign one, then mobile before home before work) becomes the number that is dialled, the others become further numbers.
+- **Duplicates:** an entry whose number is already stored (also as a further number) is marked "schon vorhanden" (already there) or "teilweise vorhanden" (partly there). "Schon vorhanden" is not imported; what happens to "teilweise vorhanden" is shown in the row (see below). Existing contacts are never overwritten. Only if you tick "Bei vorhandenen Kontakten fehlende Nummern … ergänzen" are missing numbers added to the existing contact as further numbers, and only for the same person: same first name and same or abbreviated surname ("Erika B." and "Erika Beispiel": abbreviated to the initial), the known number is not only a business number and not shared with another entry; name, style, voice, task and notes stay as they are. If a partly known entry is a different person (for example a partner on the owner's landline), importing it creates a new contact with only the numbers nobody has yet. An entry whose name already exists with a different number is marked "Name schon vorhanden" (name already there). If the same number occurs in several entries (a shared landline), the list marks it with ⇄ and only one entry gets it: first one that extends an existing contact, otherwise the first one selected. If a contact is marked "Inhaber", a number that is also on your own card goes to no other entry (marked "deine Karte" in the list; an entry with only such numbers shows "nur Nummern deiner Karte"); if needed, add it to the "Inhaber" contact by hand. Your own contact ("Inhaber") is never extended. Selected cards with exactly the same name (marked "Name mehrfach" in the list) become one contact with all their numbers; this also applies to two different people with the same name – then select only one of the cards.
+- **Data:** the address book is only processed in memory on this computer and discarded when you close the dialog or import, at the latest after 30 minutes; only the contacts you import are saved. The sign-in to Google or Microsoft only grants read access to contacts and is kept in memory only (about one hour, no file). "Trennen" (disconnect) discards it at once (Google is also asked to revoke it); after a restart you sign in again.
+- **Afterwards** imported contacts are ordinary contacts, also for the MCP interface: with "Nur gespeicherte Kontakte" an agent may call them, and "Nur bei Nummern ohne Kontakt" no longer asks for them – both only for the first number (the one dialled), not for further numbers. Your own card (exactly the same name as the "Inhaber" contact; without such a contact this rule does not apply) is not imported, even if no number matches; enter further own numbers in that contact by hand.
+
+**What you set up yourself.** SIPFunk is open source and ships no keys of its own. For Google and Microsoft you register your own app once (free); SIPFunk then uses your client ID. If you do not want that, use the file import.
+
+*Google:*
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/) create or choose a project (the project for sending mail can be reused).
+2. "APIs & Services › Library": enable **People API**.
+3. "Google Auth Platform" (OAuth consent screen): user type "External", an app name and your address. Under "Data access" add the scope `https://www.googleapis.com/auth/contacts.readonly`, under "Audience" add yourself as a test user. The app may stay in "Testing" status; Google then shows a warning that the app is not verified – it is your own app, continue.
+4. "Clients" (credentials): create an OAuth client of type **"Desktop app"**. Enter client ID and client secret in the import dialog under "Einrichtung" (setup). Google does not treat the secret of a desktop client as confidential; SIPFunk stores it in `settings.json` and shows it masked. A redirect address does not have to be entered: desktop clients accept `http://127.0.0.1:<port>/oauth/callback` automatically.
+5. "Verbinden" (connect) opens the Google sign-in; afterwards click "Adressbuch laden" (load address book).
+
+*Microsoft:*
+
+1. In the [Microsoft Entra admin center](https://entra.microsoft.com/) (or the Azure portal) under "App registrations" create a **new registration**. Supported account types: "Accounts in any organizational directory and personal Microsoft accounts" (needed for Outlook.com), or only your organisation.
+2. Redirect URI: platform **"Public client/native (mobile & desktop)"**, address `http://localhost/oauth/callback` – without a port. Microsoft ignores the port for `localhost`, so a port change of the web UI needs no change here.
+3. "API permissions": Microsoft Graph › Delegated permissions › **Contacts.Read**. In a company tenant the administrator may have to consent.
+4. No client secret is needed. Enter the "Application (client) ID" in the import dialog; tenant `common` (default), `consumers` for personal accounts only, or your tenant ID.
+5. "Verbinden", sign in, "Adressbuch laden". SIPFunk reads the default contacts folder, the other contact folders and their subfolders (one level).
+
+*Apple iCloud and file exports:*
+
+- iCloud: on [icloud.com/contacts](https://www.icloud.com/contacts) select all contacts, then "Export vCard". On an iPhone the Contacts app can share a contact list as a vCard as well.
+- Google Contacts: "Export", format vCard or Google CSV.
+- Outlook.com: "People › Manage contacts › Export contacts" (CSV).
+
+In the dialog, "Datei wählen" (choose file; up to 22 MB, save larger exports without photos or split them). Delete the export file afterwards if you no longer need it; it contains your whole address book.
+
+*If it fails:* "People API has not been used in project" – enable the People API (step 2). `AADSTS50011` (redirect mismatch) – check the redirect URI of the app registration. `AADSTS65001` or "admin approval required" – the administrator has to consent to Contacts.Read. "Anmeldung abgelaufen" – start the sign-in again.
+
 ### 11.2 Call logs
 
 ![Calls with transcript, result and summary](images/calls.en.png)
@@ -517,7 +564,7 @@ The data folder is the project folder when starting from the repository, and `%A
 | File | Content | Confidential |
 | --- | --- | --- |
 | `.env` | credentials (SIP, keys of the AI connections, optionally the OpenAI admin key), initial values | yes, never share |
-| `settings.json` | all web UI settings including the list of AI connections (without keys), mail password, OAuth secret and spam defence confirmation | yes |
+| `settings.json` | all web UI settings including the list of AI connections (without keys), mail password, OAuth secret (mail and contact import) and spam defence confirmation | yes |
 | `contacts.json` | contacts | yes (personal data) |
 | `transcripts/` | call logs | yes (personal data) |
 | `mail-token.json` | OAuth token for sending mail | yes |

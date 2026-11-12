@@ -24,7 +24,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Pop-up while ringing** with an assessment of the number (contact, your own spam list, earlier spam calls, conspicuous number range, optional lookup at tellows) and buttons to answer immediately or let it ring.
 - **Spam defence.** The AI brushes off advertising and scam callers or keeps them busy, openly as an AI by default. If you switch AI disclosure off, it acts as a private person with a name of its own; that is only possible after you have explicitly confirmed the risk in the web UI. Voice, pace and instructions of the role are configurable.
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
-- **Contacts and call logs.** Contacts with notes as background knowledge; per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
+- **Contacts and call logs.** Contacts with notes as background knowledge, importable with their phone numbers from Google, Microsoft (Outlook, Microsoft 365) or a vCard/CSV file (e.g. Apple iCloud); for Google and Microsoft you register your own app once (user guide, section 11.1); per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
 - **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone (OpenAI only).
 - **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result. Off by default; in the web UI you set whom an agent may call, whether and when you confirm a call before it is dialled (always, only for numbers without a contact, never), and the limits.
 
@@ -84,7 +84,7 @@ The web UI has four pages:
 
 - **Dashboard**: start a call (number or contact, task, style, voice, form of address, AI connection), transcript of the running call, server log. "Anrufen …" (call) always shows a confirmation first.
 - **Anrufe** (calls): stored calls with transcript, summary, result and cost.
-- **Kontakte** (contacts): names, numbers, defaults and notes.
+- **Kontakte** (contacts): names, numbers, defaults and notes; "Kontakte importieren" takes them from an address book.
 - **Einstellungen** (settings): see above.
 
 While a call is running, the header shows its phase, the other party and the duration, plus "Mithören" (listen in) and "Auflegen" (hang up).

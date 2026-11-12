@@ -212,6 +212,24 @@
   .contact .num { color: var(--text-2); font-size: 13px; }
   .contact .tools, .call .tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
   .contact:focus-visible, .call.row:focus-visible { outline-offset: -2px; }
+  /* Kontakt-Import */
+  dialog.wide { width: min(760px, 94vw); }
+  dialog .body[hidden] { display: none; }
+  .imp-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .imp-src { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .imp-src h4 { margin: 0; font-size: 14px; }
+  .imp-src .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .imp-src details summary { cursor: pointer; font-size: 13px; color: var(--text-2); }
+  .imp-src details .field { margin-top: 8px; }
+  .imp-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .imp-tools .search { flex: 1 1 200px; width: auto; min-width: 0; }
+  #imp-list { border: 1px solid var(--line); border-radius: 10px; max-height: 46vh; overflow: auto; }
+  .imp-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .imp-row:last-child { border-bottom: 0; }
+  .imp-row.off { cursor: default; opacity: .65; }
+  .imp-row input { margin-top: 3px; }
+  .imp-row .n { font-weight: 600; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .imp-row .num { grid-column: 2; color: var(--text-2); font-size: 13px; }
   .call.row { cursor: pointer; }
   .call .s { color: var(--text-2); font-size: 13px; grid-column: 1 / -1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .call .m { color: var(--text-3); font-size: 12px; white-space: nowrap; }
@@ -475,12 +493,12 @@
   <section class="page" id="page-contacts" role="tabpanel" aria-labelledby="tab-contacts" hidden>
     <div class="page-head">
       <h1>Kontakte</h1>
-      <button id="contact-new" class="btn primary">Neuer Kontakt</button>
+      <div class="actions"><button id="contact-import" class="btn">Kontakte importieren</button> <button id="contact-new" class="btn primary">Neuer Kontakt</button></div>
       <p class="hint">Kontakte belegen beim Anruf Stil, Stimme, Anrede und Auftrag vor; ihre Notizen bekommt die KI als Hintergrundwissen. Kontakte werden von der Spam-Erkennung im Gespräch nie als Spam eingestuft.</p>
     </div>
     <section class="card narrow">
       <div id="contacts"></div>
-      <div id="contacts-empty" class="empty"><b>Noch keine Kontakte</b>„Neuer Kontakt“ legt den ersten an.</div>
+      <div id="contacts-empty" class="empty"><b>Noch keine Kontakte</b>„Neuer Kontakt“ legt den ersten an, „Kontakte importieren“ übernimmt sie aus einem Adressbuch.</div>
     </section>
   </section>
 
@@ -891,6 +909,55 @@
   <div class="foot"><button type="button" id="voices-close" class="btn quiet">Schließen</button></div>
 </dialog>
 
+<dialog id="import-dialog" class="wide" aria-labelledby="import-title">
+  <div class="head"><h3 id="import-title">Kontakte importieren</h3><p class="hint">Es werden nur Kontakte mit Telefonnummer angeboten. Das Adressbuch wird nur auf diesem Rechner verarbeitet und nicht gespeichert – gespeichert werden allein die Kontakte, die du übernimmst. Vorhandene Kontakte werden nie überschrieben.</p></div>
+  <div class="body" id="imp-source">
+    <div class="imp-sources">
+      <div class="imp-src">
+        <h4>Google-Kontakte</h4>
+        <div class="hint" id="imp-google-status">nicht eingerichtet</div>
+        <div class="actions"><button type="button" class="btn small primary" id="imp-google-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-google-off" style="display:none">Trennen</button></div>
+        <details id="imp-google-setup"><summary>Einrichtung</summary>
+          <p class="hint" id="imp-google-hint">Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Anleitung im Handbuch.</p>
+          <label class="field"><span>Client-ID</span><input id="p-imp-google-id" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span>Client-Secret</span><input id="p-imp-google-secret" type="password" autocomplete="off"></label>
+        </details>
+      </div>
+      <div class="imp-src">
+        <h4>Microsoft (Outlook, Microsoft 365)</h4>
+        <div class="hint" id="imp-ms-status">nicht eingerichtet</div>
+        <div class="actions"><button type="button" class="btn small primary" id="imp-ms-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-ms-off" style="display:none">Trennen</button></div>
+        <details id="imp-ms-setup"><summary>Einrichtung</summary>
+          <p class="hint">Eigene App-Registrierung in Microsoft Entra (Plattform „Mobile und Desktop“, Weiterleitung <code>http://localhost/oauth/callback</code>, Berechtigung „Contacts.Read“) und die Client-ID hier eintragen. Anleitung im Handbuch.</p>
+          <label class="field"><span>Client-ID</span><input id="p-imp-ms-id" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span>Mandant</span><input id="p-imp-ms-tenant" autocomplete="off" spellcheck="false" placeholder="common"></label>
+        </details>
+      </div>
+      <div class="imp-src">
+        <h4>Datei (Apple iCloud und andere)</h4>
+        <div class="hint">vCard (.vcf) aus iCloud, Google Kontakte oder vom Handy, CSV aus Google oder Outlook.</div>
+        <div class="actions"><button type="button" class="btn small primary" id="imp-file-pick">Datei wählen</button><input type="file" id="imp-file" accept=".vcf,.csv,.txt,text/vcard,text/csv" hidden></div>
+      </div>
+    </div>
+  </div>
+  <div class="body" id="imp-result" hidden>
+    <p id="imp-summary" style="margin:0"></p>
+    <div class="imp-tools">
+      <input id="imp-search" class="search" type="search" placeholder="Name oder Nummer suchen" aria-label="Adressbuch durchsuchen">
+      <button type="button" class="btn small quiet" id="imp-all">Alle neuen auswählen</button>
+      <button type="button" class="btn small quiet" id="imp-none">Auswahl aufheben</button>
+    </div>
+    <div id="imp-list" role="group" aria-label="Einträge im Adressbuch"></div>
+    <p class="hint" style="margin:0">Importierte Kontakte gelten als gespeicherte Kontakte – auch für die Regeln der MCP-Schnittstelle („Nur gespeicherte Kontakte“, Nachfrage nur bei Nummern ohne Kontakt), dort aber nur über ihre erste Nummer. ✓ = Nummer schon gespeichert · ⇄ = Nummer steht auch bei den genannten Einträgen; sie bekommt nur ein Eintrag (zuerst einer, der einen vorhandenen Kontakt ergänzt, sonst der erste ausgewählte in der Liste); eine Nummer deiner eigenen Karte („deine Karte“, nur wenn ein Kontakt als Inhaber markiert ist) bekommt keiner. „Name schon vorhanden“: Es gibt bereits einen Kontakt mit diesem Namen und anderer Nummer – vor dem Import prüfen, sonst gibt es den Namen zweimal. „Name mehrfach“: Gewählte Karten mit genau diesem Namen werden ein Kontakt.</p>
+    <label class="check"><input type="checkbox" id="imp-merge"> Bei vorhandenen Kontakten fehlende Nummern als weitere Nummern ergänzen (Name und Einstellungen bleiben unverändert; nur bei gleichem Namen)</label>
+  </div>
+  <div class="foot">
+    <button type="button" id="imp-back" class="btn quiet" hidden>Andere Quelle</button>
+    <button type="button" id="imp-close" class="btn quiet">Schließen</button>
+    <button type="button" id="imp-apply" class="btn primary" hidden disabled>Importieren</button>
+  </div>
+</dialog>
+
 <dialog id="contact-dialog" aria-labelledby="contact-title">
   <form id="contact-form">
     <div class="head"><h3 id="contact-title">Neuer Kontakt</h3><p class="hint">Nur Name und Nummer sind Pflicht. Die übrigen Felder werden beim Anruf vorbelegt.</p></div>
@@ -898,6 +965,7 @@
       <div class="grid c2">
         <label class="field"><span>Name</span><input id="c-name" required></label>
         <label class="field"><span>Nummer</span><input id="c-number" required inputmode="tel" placeholder="0171 … oder **610"></label>
+        <label class="field" style="grid-column:1/-1"><span>Weitere Nummern</span><input id="c-numbers" inputmode="tel" placeholder="mit Komma getrennt, z. B. 030 … , 0171 …"><small>Werden beim Anruf erkannt; gewählt wird immer die Nummer oben. Für KI-Agenten mit „Nur gespeicherte Kontakte“ zählt nur die Nummer oben.</small></label>
         <label class="field"><span>Anrede</span><select id="c-address"><option value="">– Standard –</option><option value="sie">Sie</option><option value="du">Du</option></select></label>
         <label class="field"><span>Stil</span><select id="c-persona"><option value="">– Standard –</option></select></label>
         <label class="field"><span>Stimme</span><select id="c-voice"><option value="">– Standard –</option></select></label>
@@ -927,13 +995,16 @@ const FORM_FIELDS = {
   notifyTray: 'p-notify-tray', notifyEmail: 'p-notify-email', notifyCall: 'p-notify-call',
   scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
+  importGoogleClientId: 'p-imp-google-id', importGoogleClientSecret: 'p-imp-google-secret', importMsClientId: 'p-imp-ms-id', importMsTenant: 'p-imp-ms-tenant',
   mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history', mcpPlan: 'p-mcp-plan',
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', liveJudge: 't-judge', webPort: 't-web-port',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
 // Die Stimme gehört nicht dazu: Ohne Wahl für den Anruf gilt die Standardstimme der KI-Verbindung
 const DASH_KEYS = ['mode', 'task', 'persona', 'address'];
-const SETTINGS_KEYS = Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k));
+// Die Client-IDs für den Kontakt-Import speichert der Import-Dialog selbst
+const IMPORT_KEYS = ['importGoogleClientId', 'importGoogleClientSecret', 'importMsClientId', 'importMsTenant'];
+const SETTINGS_KEYS = Object.keys(FORM_FIELDS).filter((k) => !DASH_KEYS.includes(k) && !IMPORT_KEYS.includes(k));
 const BEHAVE_KEYS = ['behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk'];
 /** Zuletzt vom Server gelieferte Einstellungen: gespeichert wird nur, was davon abweicht. */
 let loaded = {};
@@ -966,9 +1037,28 @@ function ask(title, text, label) {
     $('ask').showModal(); $('ask-no').focus();
   });
 }
-function key(n) { n = String(n || '').replace(/[\s\-/()]/g, ''); return n.startsWith('**') ? n : n.replace(/^\+49|^0049/, '0').replace(/\D/g, ''); }
+// Wie numberKey() im Server: „+49 (0)30 …“, +49/0049 -> 0, sonst 00 wie +, nur Ziffern
+function key(n) {
+  n = String(n || '').replace(/\(0\)/g, '').replace(/[\s\-/()]/g, '');
+  if (n.startsWith('**')) return n;
+  const intl = n.startsWith('+') ? n.slice(1) : n.startsWith('00') ? n.slice(2) : null;
+  if (intl === null) return n.replace(/\D/g, '');
+  const d = intl.replace(/\D/g, '');
+  return d.startsWith('49') ? '0' + d.slice(2).replace(/^0/, '') : d;
+}
 const sameNumber = (a, b) => key(a) !== '' && key(a) === key(b);
-const contactFor = (number) => contacts.find((x) => sameNumber(x.number, number));
+const numbersOf = (c) => [c.number, ...(c.numbers || [])];
+// Nachschlagetabelle Nummer -> Kontakt, neu gebildet, sobald die Kontaktliste ersetzt wurde (die Anrufliste fragt je Zeile)
+let contactIndex = { list: null, map: new Map() };
+function contactFor(number) {
+  if (contactIndex.list !== contacts) {
+    const map = new Map();
+    for (const c of contacts) for (const n of numbersOf(c)) { const k = key(n); if (k && !map.has(k)) map.set(k, c); }
+    contactIndex = { list: contacts, map };
+  }
+  const k = key(number);
+  return k ? contactIndex.map.get(k) : undefined;
+}
 
 // ---- Seiten (Tab-Leiste): Dashboard, Anrufe, Kontakte, Einstellungen; letzte Seite wird gemerkt ----
 const PAGES = ['dashboard', 'calls', 'contacts', 'settings'];
@@ -1109,7 +1199,7 @@ function callRow(c, compact) {
 function renderCalls() {
   const q = $('calls-filter').value.trim().toLowerCase();
   let items = allCalls;
-  if (activeContact) items = items.filter((c) => sameNumber(c.target, activeContact.number));
+  if (activeContact) items = items.filter((c) => numbersOf(activeContact).some((n) => sameNumber(c.target, n)));
   const qDigits = /^[\d\s+*\-/()]+$/.test(q) ? q.replace(/[^\d*]/g, '') : '';
   if (q) items = items.filter((c) => { const n = contactFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (qDigits && (c.target || '').includes(qDigits)) || (c.summary || '').toLowerCase().includes(q); });
   const el = $('calls'); el.innerHTML = '';
@@ -1211,7 +1301,7 @@ function renderContacts() {
   $('contacts-empty').style.display = contacts.length ? 'none' : 'block';
   for (const c of contacts) {
     const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id; d.setAttribute('role', 'group'); d.setAttribute('aria-label', c.name);
-    d.innerHTML = `<div><div class="n"><span data-no-i18n>${esc(c.name)}</span>${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num" data-no-i18n>${esc(c.number)}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
+    d.innerHTML = `<div><div class="n"><span data-no-i18n>${esc(c.name)}</span>${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num" data-no-i18n>${esc(numbersOf(c).join(', '))}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
       <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}">Löschen</button></div>`;
     el.appendChild(d);
   }
@@ -1261,6 +1351,7 @@ function openContactDialog(c, presetNumber) {
   $('contact-title').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
   $('c-name').value = c?.name || '';
   $('c-number').value = c?.number || presetNumber || (!activeContact ? $('target').value : '');
+  $('c-numbers').value = (c?.numbers || []).join(', ');
   $('c-address').value = c?.address || ''; $('c-persona').value = c?.persona || ''; $('c-voice').value = c?.voice || '';
   $('c-owner').checked = !!c?.owner; $('c-task').value = c?.task || ''; $('c-notes').value = c?.notes || '';
   $('contact-dialog').showModal(); $('c-name').focus();
@@ -1269,7 +1360,7 @@ $('contact-new').onclick = () => openContactDialog(null);
 $('contact-cancel').onclick = () => $('contact-dialog').close();
 $('contact-form').onsubmit = async (ev) => {
   ev.preventDefault();
-  const body = { name: $('c-name').value, number: $('c-number').value, address: $('c-address').value, persona: $('c-persona').value, voice: $('c-voice').value, owner: $('c-owner').checked, task: $('c-task').value, notes: $('c-notes').value };
+  const body = { name: $('c-name').value, number: $('c-number').value, numbers: $('c-numbers').value, address: $('c-address').value, persona: $('c-persona').value, voice: $('c-voice').value, owner: $('c-owner').checked, task: $('c-task').value, notes: $('c-notes').value };
   try {
     const saved = editingId ? await api('/api/contacts/' + editingId, body, 'PUT') : await api('/api/contacts', body);
     $('contact-dialog').close();
@@ -1277,6 +1368,123 @@ $('contact-form').onsubmit = async (ev) => {
     if (selectedCallId) await showCall(selectedCallId);
     if (!$('page-dashboard').hidden) selectContact(contacts.find((c) => c.id === saved.id));
   } catch (err) { toast(err.message); }
+};
+
+// ---- Kontakt-Import ----
+// Das Adressbuch liegt nur im Server-Speicher; hier stehen nur die Vorschau-Einträge und die Auswahl
+let impItems = [], impSel = new Set(), impToken = null, impHits = [];
+const IMP_LABEL = { mobil: 'Mobil', privat: 'Privat', 'geschäftlich': 'Geschäftlich', sonstige: 'Sonstige' };
+async function refreshImport() {
+  try {
+    const st = await api('/api/contacts/import/status');
+    for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
+      const s = st[p];
+      $(`imp-${id}-status`).textContent = s.connected ? 'verbunden' : s.configured ? 'eingerichtet, nicht verbunden' : 'nicht eingerichtet';
+      $(`imp-${id}-load`).textContent = s.connected ? 'Adressbuch laden' : 'Verbinden';
+      $(`imp-${id}-off`).style.display = s.connected ? '' : 'none';
+      if (!s.configured) $(`imp-${id}-setup`).open = true;
+    }
+    $('imp-google-hint').textContent = `Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Weiterleitung: ${st.redirect.google}. Anleitung im Handbuch.`;
+    return st;
+  } catch (err) { toast(err.message); }
+}
+function impShow(result) {
+  // Kam die Antwort erst nach dem Schließen des Dialogs, die Vorschau gleich wieder verwerfen
+  if (result && !$('import-dialog').open) { api('/api/contacts/import/discard', { token: result.token }).catch(() => {}); return; }
+  $('imp-source').hidden = !!result; $('imp-result').hidden = !result;
+  $('imp-back').hidden = !result; $('imp-apply').hidden = !result;
+  if (!result) { impItems = []; impSel = new Set(); impToken = null; return; }
+  impItems = result.items; impSel = new Set(); impToken = result.token; $('imp-search').value = ''; $('imp-merge').checked = false;
+  const c = result.counts;
+  $('imp-summary').textContent = c.total ? `${c.total} Einträge mit Telefonnummer: ${c.new} neu, ${c.partial} teilweise vorhanden, ${c.exists} schon vorhanden.` : 'Keine Einträge mit Telefonnummer gefunden.';
+  renderImport();
+}
+// Teilweise bekannt: derselbe Mensch nur mit Haken „ergänzen“; ein anderer Mensch wird neu angelegt (ohne die bekannten Nummern)
+function impSelectable(it) { return !it.ownCard && (it.status === 'new' || (it.status === 'partial' && (!it.mergeable || $('imp-merge').checked))); }
+/** Zahl der gewählten Einträge im Knopf; ohne die Liste neu zu zeichnen (sonst ginge der Tastaturfokus verloren) */
+function impCount() {
+  const n = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); }).length;
+  $('imp-apply').disabled = n === 0;
+  $('imp-apply').textContent = n === 1 ? '1 Kontakt importieren' : `${n} Kontakte importieren`;
+}
+function renderImport() {
+  const q = $('imp-search').value.trim().toLowerCase();
+  // Ziffernsuche nur, wenn die Eingabe nach einer Nummer aussieht (sonst fände „Müller 2“ jede Nummer mit einer 2)
+  const qd = /^[\d\s+\-/()]+$/.test(q) ? key(q) : '';
+  const hits = impHits = impItems.filter((it) => !q || it.name.toLowerCase().includes(q) || (qd && it.numbers.some((n) => key(n.number).includes(qd))));
+  const shown = hits.slice(0, 500);
+  $('imp-list').innerHTML = shown.map((it) => {
+    const ok = impSelectable(it);
+    const badge = it.ownCard ? '<span class="badge">schon vorhanden</span>' : it.status === 'exists' ? (it.existing ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : '<span class="badge">nur Nummern deiner Karte</span>') : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span> <span class="hint">${it.ownCard ? '– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen' : it.mergeable ? ($('imp-merge').checked ? '– wird dort ergänzt' : '– nur mit Haken „ergänzen“ unten') : '– wird neu angelegt, ohne die schon gespeicherten Nummern'}</span>` : '';
+    const nameBadge = (it.twin ? ' <span class="badge">Name mehrfach</span>' : '') + (it.sameName ? ' <span class="badge">Name schon vorhanden</span>' : it.ownCard && it.status === 'new' ? ' <span class="hint">– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen</span>' : '');
+    const nums = it.numbers.map((n) => `${esc(n.number)} (${esc(I18N.t(IMP_LABEL[n.label] || n.label))})${n.known ? ' ✓' : n.ownNumber ? ` (${esc(I18N.t('deine Karte'))})` : ''}${n.shared ? ` ⇄ ${esc((n.sharedWith || []).join(', '))}` : ''}`).join(' · ');
+    return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}${nameBadge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
+  }).join('') + (hits.length > shown.length ? `<div class="empty">${hits.length - shown.length} weitere – bitte die Suche eingrenzen</div>` : '') + (!hits.length && impItems.length ? '<div class="empty">Kein Treffer</div>' : '');
+  impCount();
+}
+$('contact-import').onclick = async () => { impShow(null); $('import-dialog').showModal(); await refreshImport(); };
+$('imp-close').onclick = () => $('import-dialog').close();
+// Vorschau im Server verwerfen (nur die eigene; eine neuere aus einem anderen Tab bleibt)
+function impDiscard() { if (impToken) api('/api/contacts/import/discard', { token: impToken }).catch(() => {}); impShow(null); }
+$('import-dialog').onclose = impDiscard;
+$('imp-back').onclick = () => { impDiscard(); refreshImport(); };
+for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
+  $(`imp-${id}-load`).onclick = async () => {
+    const btn = $(`imp-${id}-load`);
+    btn.disabled = true;
+    try {
+      await saveKeys(IMPORT_KEYS);
+      const st = await refreshImport();
+      if (st?.[p].connected) { impShow(await api('/api/contacts/import/load', { provider: p })); return; }
+      const r = await api('/api/contacts/import/login', { provider: p });
+      window.open(r.url, '_blank', 'noopener');
+      toast('Anmeldung im neuen Fenster abschließen, danach hier „Adressbuch laden“.', 'warn');
+      // Nach der Anmeldung wechselt der Knopf von selbst auf „Adressbuch laden“
+      let tries = 0;
+      const poll = setInterval(async () => { const s = await refreshImport(); if (s?.[p].connected || ++tries > 60 || !$('import-dialog').open) clearInterval(poll); }, 3000);
+    } catch (err) { toast(err.message); }
+    finally { btn.disabled = false; }
+  };
+  $(`imp-${id}-off`).onclick = async () => {
+    try { await api('/api/contacts/import/disconnect', { provider: p }); await refreshImport(); toast('Verbindung getrennt – SIPFunk hat keinen Zugriff mehr auf das Adressbuch.', 'ok'); }
+    catch (err) { toast(err.message); }
+  };
+}
+$('imp-file-pick').onclick = () => $('imp-file').click();
+$('imp-file').onchange = async () => {
+  const f = $('imp-file').files[0];
+  $('imp-file').value = '';
+  if (!f) return;
+  // Grenze des Servers (30 MB nach base64-Kodierung)
+  if (f.size > 22_000_000) { toast('Die Datei ist größer als 22 MB. Bitte ohne Fotos exportieren oder in mehrere Dateien teilen.'); return; }
+  try {
+    // Als Bytes senden: deutsche Outlook-/Excel-CSV ist oft Windows-1252, das erkennt erst der Server
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    impShow(await api('/api/contacts/import/file', { name: f.name, data: btoa(bin) }));
+  }
+  catch (err) { toast(err.message); }
+};
+$('imp-search').oninput = renderImport;
+$('imp-merge').onchange = renderImport;
+$('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
+// Wählt nur, was die Suche gerade zeigt
+// Nur ganz neue Einträge; teilweise vorhandene, „Name mehrfach“ und „Name schon vorhanden“ wählt man bewusst einzeln
+$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin && !it.sameName) impSel.add(it.id); renderImport(); };
+$('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
+$('imp-apply').onclick = async () => {
+  const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });
+  if (!ids.length || $('imp-apply').dataset.busy) return;
+  $('imp-apply').dataset.busy = '1'; $('imp-apply').disabled = true;
+  try {
+    const r = await api('/api/contacts/import/apply', { token: impToken, ids, addToExisting: $('imp-merge').checked });
+    impToken = null;
+    contacts = r.items; renderContacts(); renderCalls();
+    $('import-dialog').close();
+    delete $('imp-apply').dataset.busy;
+    toast(`${r.created === 1 ? '1 Kontakt' : `${r.created} Kontakte`} angelegt${r.merged ? `, ${r.merged === 1 ? '1 Kontakt' : `${r.merged} Kontakte`} um Nummern ergänzt` : ''}${r.combined ? `, ${r.combined === 1 ? '1 Doppelkarte' : `${r.combined} Doppelkarten`} zusammengeführt` : ''}${r.skipped.length + r.unchanged ? `, ${r.skipped.length + r.unchanged} übersprungen` : ''}.`, 'ok');
+  } catch (err) { delete $('imp-apply').dataset.busy; impCount(); toast(err.message); }
 };
 
 // ---- E-Mail-Versand ----

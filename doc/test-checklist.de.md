@@ -118,6 +118,14 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 - [ ] Port ändern: Unter „Einstellungen › Technik“ einen anderen Port speichern, „Jetzt neu starten“. Die Seite wechselt auf die neue Adresse, das Tray-Menü nennt den neuen Port, HTTP-Einträge der Agenten zeigen „Veraltet“ und lassen sich aktualisieren; Claude Desktop (Prozess) funktioniert ohne Änderung weiter.
 - [ ] Port belegt: SIPFunk beenden, den eingestellten Port mit einem anderen Programm belegen, SIPFunk starten. Es läuft auf dem nächsten freien Port, die Tray-App meldet das, und der neue Port steht in den Einstellungen.
 
+## 8a. Kontakt-Import (braucht eigene Konten)
+
+- [ ] Google: eigener Desktop-App-Client mit People API und Testnutzer; „Verbinden“ öffnet die Anmeldung, danach meldet die Seite „Adressbuch verbunden“, „Adressbuch laden“ listet die Einträge mit Telefonnummer. „Trennen“ beendet den Zugriff; „Adressbuch laden“ verlangt danach eine neue Verbindung.
+- [ ] Microsoft mit privatem Konto (Outlook.com) und, falls vorhanden, einem Firmenkonto: App-Registrierung mit `http://localhost/oauth/callback` und Contacts.Read; Anmeldung, Laden, Kontakte aus Unterordnern sind dabei.
+- [ ] iCloud: exportierte vCard-Datei, Umlaute in Namen korrekt, alle Nummern da.
+- [ ] Google-CSV und Outlook-CSV (auch ein deutscher Outlook-Export mit Semikolon).
+- [ ] Dubletten: Ein vorhandener Kontakt mit Stil und Auftrag bleibt unverändert; mit „fehlende Nummern ergänzen“ bekommt er nur weitere Nummern; ein Anruf von einer weiteren Nummer zeigt den Namen des Kontakts.
+
 ## 9. Google Gemini: echte Telefonate (erst wenige)
 
 **Stand.** Der Gemini-Weg ist erst in wenigen echten Telefonaten erprobt: Am 11. November 2026 liefen die ersten drei (zwei am Anrufbeantworter, ein Rückruf an den Inhaber) ohne Fehler durch; Vorstellung als KI, Auftrag, Verabschiedung und Auflegen funktionierten. Die Punkte unten bleiben für weitere Gespräche offen. Unter „Einstellungen › KI-Verbindungen“ die Verbindung „Google Gemini“ aufklappen und aktiv schalten („Diese Verbindung verwenden“), dann:
