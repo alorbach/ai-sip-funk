@@ -1412,7 +1412,7 @@ const impOpen = (it) => it.numbers.filter((x) => !x.known && !x.ownNumber).map((
 function impSimulate(sel) {
   const merge = $('imp-merge').checked;
   const order = impItems.filter((it) => sel.has(it.id) && impSelectable(it))
-    .sort((a, b) => Number(merge && b.mergeable) - Number(merge && a.mergeable) || Number(a.id) - Number(b.id));
+    .sort((a, b) => Number(!!(merge && b.mergeable)) - Number(!!(merge && a.mergeable)) || Number(a.id) - Number(b.id));
   const claimed = new Set();
   const receiving = [];
   for (const it of order) {
@@ -1494,17 +1494,34 @@ $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === 
 // Wählt nur, was die Suche gerade zeigt
 // Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
 // Ohne „Name mehrfach“ und „Name schon vorhanden“ (zwei Karten können zwei Menschen sein) und ohne Einträge, deren
-// Nummern alle schon ein anderer gewählter Eintrag bekommt (in derselben Reihenfolge wie beim Import)
+// Nummern alle schon ein anderer gewählter Eintrag bekommt (Nachrechnung in derselben Reihenfolge wie beim Import)
 $('imp-all').onclick = () => {
-  // Erst bekommen die schon gewählten Einträge ihre Nummern (wie beim Import), dann neue in Listenreihenfolge
-  const { claimed } = impSimulate(impSel);
+  // Ein neuer Eintrag kommt nur dazu, wenn er beim Import (gleiche Reihenfolge wie der Server) selbst eine Nummer bekommt
+  // und keinem schon gewählten Eintrag eine wegnimmt
+  let sel = new Set(impSel);
+  let sim = impSimulate(sel);
+  let receiving = new Set(sim.receiving.map((it) => it.id));
+  let claimed = sim.claimed;
   for (const it of impHits) {
-    if (impSel.has(it.id) || it.status !== 'new' || it.ownCard || it.twin || it.sameName) continue;
+    if (sel.has(it.id) || it.status !== 'new' || it.ownCard || it.twin || it.sameName) continue;
     const keys = impOpen(it);
-    if (keys.every((k) => claimed.has(k))) continue;
-    impSel.add(it.id);
-    keys.forEach((k) => claimed.add(k));
+    if (!keys.length) continue;
+    // Schneller Weg: keine seiner Nummern ist vergeben, also bekommt er sie und nimmt niemandem etwas weg
+    if (keys.every((k) => !claimed.has(k))) {
+      sel.add(it.id);
+      receiving.add(it.id);
+      keys.forEach((k) => claimed.add(k));
+      continue;
+    }
+    const trial = new Set(sel).add(it.id);
+    const next = impSimulate(trial);
+    const got = new Set(next.receiving.map((x) => x.id));
+    if (!got.has(it.id) || [...receiving].some((id) => !got.has(id))) continue;
+    sel = trial;
+    receiving = got;
+    claimed = next.claimed;
   }
+  impSel = sel;
   renderImport();
 };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
