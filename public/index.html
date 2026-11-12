@@ -1471,8 +1471,9 @@ $('imp-merge').onchange = renderImport;
 $('imp-list').onchange = (ev) => { const id = ev.target.dataset?.id; if (id === undefined) return; if (ev.target.checked) impSel.add(id); else impSel.delete(id); impCount(); };
 // Wählt nur, was die Suche gerade zeigt
 // Nur ganz neue Einträge; teilweise vorhandene wählt man einzeln (Hinweis in der Zeile sagt, was mit ihnen geschieht)
-// Ohne „Name mehrfach“: zwei Karten gleichen Namens können zwei Menschen sein, die wählt man bewusst einzeln
-$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin && !it.sameName) impSel.add(it.id); renderImport(); };
+// Ohne „Name mehrfach“, „Name schon vorhanden“ und Einträge, deren Nummern alle geteilt sind (⇄): die wählt man bewusst
+// einzeln, weil zwei Karten zwei Menschen sein können bzw. die Nummer nur einer bekommt
+$('imp-all').onclick = () => { for (const it of impHits) if (it.status === 'new' && !it.ownCard && !it.twin && !it.sameName && !it.numbers.every((x) => x.shared)) impSel.add(it.id); renderImport(); };
 $('imp-none').onclick = () => { impSel = new Set(); renderImport(); };
 $('imp-apply').onclick = async () => {
   const ids = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); });

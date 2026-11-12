@@ -560,9 +560,10 @@ function canMerge(c: ImportCandidate, owners: (Contact | undefined)[], shared: S
 export function previewCounts(items: PreviewItem[]): { total: number; new: number; partial: number; exists: number } {
   return {
     total: items.length,
-    new: items.filter((i) => i.status === 'new').length,
-    partial: items.filter((i) => i.status === 'partial').length,
-    exists: items.filter((i) => i.status === 'exists').length,
+    // Die eigene Karte des Inhabers zählt als vorhanden (sie wird nie importiert)
+    new: items.filter((i) => i.status === 'new' && !i.ownCard).length,
+    partial: items.filter((i) => i.status === 'partial' && !i.ownCard).length,
+    exists: items.filter((i) => i.status === 'exists' || i.ownCard).length,
   };
 }
 

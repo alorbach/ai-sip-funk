@@ -1037,3 +1037,13 @@ test('Ergänzen entscheidet nach gespeicherten Kontakten, auch wenn eine Nummer 
     assert.deepEqual(store.findByName('Paula Beispiel')!.numbers, ['01525553303']);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 27
+
+test('Übersicht zählt die eigene Karte als vorhanden', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '030 5553400', owner: true });
+    const items = buildPreview([{ name: 'Sam Beispiel', numbers: [{ number: '01715553401', label: 'mobil' as const }] }, { name: 'Neu Beispiel', numbers: [{ number: '01715553402', label: 'mobil' as const }] }], store);
+    assert.deepEqual(previewCounts(items), { total: 2, new: 1, partial: 0, exists: 1 });
+  });
+});
