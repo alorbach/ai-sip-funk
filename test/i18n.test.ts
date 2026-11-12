@@ -17,7 +17,7 @@ function loadDictionary(): { exact: Record<string, string>; patterns: [RegExp, u
 
 function sources(): string {
   const walk = (dir: string): string[] => readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}${e.name}/`) : e.name.endsWith('.ts') ? [`${dir}${e.name}`] : []));
-  const files = ['public/index.html', 'public/ring.html', ...walk('src/'), ...readdirSync(new URL('personas/', root)).map((f) => `personas/${f}`)];
+  const files = ['public/index.html', 'public/ring.html', 'public/mcp-ask.html', ...walk('src/'), ...readdirSync(new URL('personas/', root)).map((f) => `personas/${f}`)];
   return norm(files.map(read).join('\n'));
 }
 

@@ -153,8 +153,8 @@ export function startWebServer(opts: WebServerOptions): () => void {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(js);
       }
-      if (req.method === 'GET' && url.pathname === '/ring.html') {
-        const html = await readFile(PUBLIC_DIR + 'ring.html');
+      if (req.method === 'GET' && (url.pathname === '/ring.html' || url.pathname === '/mcp-ask.html')) {
+        const html = await readFile(PUBLIC_DIR + url.pathname.slice(1));
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(html);
       }

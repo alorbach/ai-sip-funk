@@ -497,8 +497,13 @@ const gateway: McpGateway = new McpGateway({
   },
   hangup: (reason) => manager.hangup(reason),
   records: store,
-  publish: (info) => bus.emit('message', info),
-  notify: (title, body) => trayNotice(title, body),
+  publish: (info) => {
+    bus.emit('message', info);
+    // Beantwortet, abgelaufen oder zurückgezogen: Das Pop-up der Tray-App hat nichts mehr zu fragen
+    if (!info.pending) traySend({ type: 'mcpAskEnd' });
+  },
+  // Die Tray-App fragt in einem eigenen Pop-up (mcp-ask.html), damit die Web-UI dafür nicht offen sein muss
+  notify: () => traySend({ type: 'mcpAsk' }),
 });
 manager.on('status', (s: { phase: string }) => gateway.linePhase(s.phase));
 

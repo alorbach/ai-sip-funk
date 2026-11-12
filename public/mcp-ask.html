@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPFunk – KI-Agent möchte anrufen</title>
+<script src="/i18n-en.js"></script>
+<script src="/i18n.js"></script>
+<style>
+  /* Pop-up der Tray-App, wenn ein KI-Agent (MCP) einen Anruf anfragt. Farben und Aufbau wie ring.html. */
+  :root { --bg: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-text: #fff; --warn: #734400; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-text: #0b1a2b; --warn: #ffb340; } }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; border: 1px solid var(--line); overflow: hidden; -webkit-app-region: drag; user-select: none; }
+  .wrap { padding: 14px 16px 12px; display: grid; gap: 8px; height: 100%; grid-template-rows: auto auto 1fr auto; }
+  .top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .top .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .top .dot { animation: none; } }
+  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); font-size: 16px; cursor: pointer; min-width: 28px; min-height: 28px; border-radius: 6px; -webkit-app-region: no-drag; }
+  .top .x:hover { background: var(--surface-2); color: var(--text); }
+  .top .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .who { font-size: 19px; font-weight: 700; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { color: var(--text-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub.other { color: var(--warn); font-weight: 600; }
+  .task { border-radius: 8px; padding: 8px 10px; background: var(--surface-2); font-size: 13px; overflow-y: auto; white-space: pre-wrap; user-select: text; -webkit-app-region: no-drag; }
+  .btns { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+  button.b { flex: 1 1 auto; white-space: nowrap; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 32px; background: transparent; color: var(--text); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  button.b:hover { background: var(--surface-2); }
+  button.b:disabled { opacity: .45; cursor: default; }
+  button.b.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  button.b:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { color: var(--text-2); font-size: 12px; min-height: 16px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="dot"></span><span>KI-Agent möchte anrufen</span><button class="x" id="close" aria-label="Fenster schließen" title="Schließen (die Anfrage bleibt in der Web-UI offen)">✕</button></div>
+  <div>
+    <div class="who" id="who" data-no-i18n>…</div>
+    <div class="sub" id="sub" data-no-i18n></div>
+  </div>
+  <div class="task" id="task" data-no-i18n></div>
+  <div>
+    <div class="btns">
+      <button class="b" id="no">Ablehnen</button>
+      <button class="b primary" id="yes">Anrufen</button>
+    </div>
+    <div class="note" id="note" role="status"></div>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let id = '', done = false;
+function render(p) {
+  id = p.id;
+  $('who').textContent = p.contact || p.number;
+  const principal = p.ownPrincipal ? I18N.t('im Auftrag von {0}', p.principal || '–') : I18N.t('laut Agent im Auftrag von {0} – nicht dein eingestellter Name', p.principal || '–');
+  $('sub').textContent = (p.contact ? p.number : I18N.t('Kein gespeicherter Kontakt')) + ' · ' + principal;
+  $('sub').classList.toggle('other', !p.ownPrincipal);
+  $('task').textContent = p.task + (p.context ? '\n\n' + I18N.t('Hintergrundwissen vom Agenten:') + '\n' + p.context : '');
+  const secs = Math.max(0, Math.ceil((new Date(p.expiresAt).getTime() - Date.now()) / 1000));
+  if (!done) $('note').textContent = I18N.t('Ohne Antwort verfällt die Anfrage in {0} s.', secs);
+}
+async function poll() {
+  try {
+    const info = await (await fetch('/api/mcp')).json();
+    // Beantwortet (hier oder in der Web-UI), abgelaufen oder zurückgezogen: Das Fenster hat nichts mehr zu fragen
+    if (!info.pending) { window.close(); return; }
+    if (!done) render(info.pending);
+  } catch { /* Server kurz weg: weiter versuchen */ }
+  setTimeout(poll, 700);
+}
+async function answer(allow) {
+  if (done || !id) return;
+  done = true;
+  $('yes').disabled = $('no').disabled = true;
+  $('note').textContent = allow ? 'Wähle …' : 'Abgelehnt.';
+  try {
+    const res = await fetch('/api/mcp/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, allow }) });
+    const info = await res.json();
+    if (!res.ok) throw new Error(info.error || res.statusText);
+    // Bestätigt, aber das Wählen ging nicht (Leitung inzwischen belegt): den Grund kurz stehen lassen
+    if (info.failed) { $('note').textContent = info.failed; setTimeout(() => window.close(), 4000); }
+    else setTimeout(() => window.close(), 600);
+  } catch (err) {
+    $('note').textContent = err.message;
+    setTimeout(() => window.close(), 4000);
+  }
+}
+$('yes').onclick = () => answer(true);
+$('no').onclick = () => answer(false);
+// Schließen und Escape lehnen nicht ab: Die Anfrage bleibt in der Web-UI offen, bis sie beantwortet ist oder verfällt
+$('close').onclick = () => window.close();
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); });
+// ?preview zeigt das Fenster ohne offene Anfrage (zum Ansehen des Layouts)
+if (new URLSearchParams(location.search).has('preview')) {
+  render({ id: '', contact: 'Praxis Dr. Weber', number: '030 1234567', principal: 'Max', ownPrincipal: true, task: 'Vereinbare einen Termin zur Kontrolle in der nächsten Woche, am liebsten vormittags.', context: '', expiresAt: new Date(Date.now() + 120000).toISOString() });
+} else {
+  poll();
+  fetch('/api/settings').then((r) => r.json()).then((s) => I18N.sync(s.uiLang)).catch(() => {});
+}
+</script>
+</body>
+</html>

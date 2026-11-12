@@ -448,6 +448,13 @@
     'eingestellt': 'selected',
     'Hinweise': 'Notices',
     'Hinweis schließen': 'Dismiss notice',
+    // ---- pop-up for a call requested by an AI agent ----
+    'SIPFunk – KI-Agent möchte anrufen': 'SIPFunk – AI agent wants to call',
+    'KI-Agent möchte anrufen': 'AI agent wants to call',
+    'Schließen (die Anfrage bleibt in der Web-UI offen)': 'Close (the request stays open in the web UI)',
+    'Ohne Antwort verfällt die Anfrage in {0} s.': 'Without an answer the request expires in {0} s.',
+    'Wähle …': 'Dialling …',
+    'Abgelehnt.': 'Declined.',
     // ---- ring pop-up ----
     'SIPFunk – eingehender Anruf': 'SIPFunk – incoming call',
     'Fenster schließen': 'Close window',
