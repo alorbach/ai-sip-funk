@@ -303,8 +303,8 @@ export class RealtimeBridge implements AudioHandler {
   /** Wie die letzte Antwort endete ('cancelled' = das Gegenüber hat sie unterbrochen) */
   private lastResponseStatus?: string;
   /**
-   * Äußerungen des Gegenübers (Items), die nach der Verabschiedung begannen und deren Mitschrift noch fehlt, in der Reihenfolge ihres
-   * Beginns (undefined = Anbieter nennt keine Kennung). Solange eine fehlt, wird nicht aufgelegt: Sie könnte der Anlass sein, weiterzureden.
+   * Äußerungen des Gegenübers (Items), die nach der Verabschiedung begannen (oder beim end_call noch liefen) und deren Mitschrift noch fehlt,
+   * in der Reihenfolge ihres Beginns (undefined = Anbieter nennt keine Kennung). Solange eine fehlt, wird nicht aufgelegt: Sie könnte der Anlass sein, weiterzureden.
    */
   private farewellOpen: (string | undefined)[] = [];
   /** Kennung der Äußerung, die das Gegenüber gerade spricht (gilt, solange partnerSpeaking gesetzt ist; undefined = Anbieter nennt keine) */
@@ -657,6 +657,12 @@ export class RealtimeBridge implements AudioHandler {
       return 'resumed';
     }
     if (this.goodbye !== 'none') return 'ending';
+    // Der Agent hat das Beenden verlangt, die KI aber noch nicht end_call aufgerufen, und gibt jetzt etwas anderes vor: Das Beenden gilt nicht mehr,
+    // der nächste end_call der KI wird wie jeder andere geprüft (wie bei einer Vorgabe während des Beendens, siehe cancelHangup)
+    if (this.endByAgent) {
+      this.endByAgent = false;
+      this.endCallChecked = false;
+    }
     if (this.ask) {
       this.resolveAsk(askAnswer(text));
       return 'answered';
@@ -1412,6 +1418,10 @@ export class RealtimeBridge implements AudioHandler {
       }
     }, 30_000);
     this.endSafetyTimer.unref();
+    // Das Gegenüber setzte schon vor dem end_call an und redet noch: Seine Äußerung zählt wie eine nach der Verabschiedung, auch wenn sie endet und
+    // mitgeschrieben wird, bevor der Abschied ausgespielt ist (sonst wäre sie danach nie ausgewertet worden). Die Frist ist die übliche, ab dem Sprachende.
+    // Äußerungen, die schon zu Ende waren, bleiben außen: Darauf antwortet die KI mit dem end_call, ihre verspätete Mitschrift entscheidet nichts
+    if (this.partnerTalking()) this.onSpeechAfterGoodbye(this.partnerItem);
     // Die Prüfung nebenher hatte Punkte gemeldet, und die KI beendet, ohne dass das Gegenüber seitdem etwas gesagt hat (ihre Antwort war schon
     // unterwegs, als der Hinweis kam): so, als hätte die Prüfung beim end_call selbst sie gefunden. Einmal – sie sind jetzt verbraucht
     // (ob das Gegenüber seitdem etwas gesagt hat, entschied schon der Anfang des Handlers)
@@ -1561,7 +1571,7 @@ export class RealtimeBridge implements AudioHandler {
     // Das Gegenüber setzte schon vor dem end_call an und redet noch (speech_started kam vor dem Beenden, also hat ihn onSpeechAfterGoodbye nie gesehen):
     // Es zählt wie Sprache nach der Verabschiedung. Die Mitschrift entscheidet, statt dass mitten in den Satz aufgelegt wird.
     // (Setzt es später an, hebt speech_started die Nachhörphase ohnehin auf; im Auflege-Timer selbst kann es daher nicht mehr reden)
-    if (this.partnerSpeaking) {
+    if (this.partnerTalking()) {
       this.onSpeechAfterGoodbye(this.partnerItem);
       return;
     }
@@ -1615,8 +1625,7 @@ export class RealtimeBridge implements AudioHandler {
   private armFarewellTimer(): void {
     clearTimeout(this.farewellDecisionTimer);
     this.farewellDecisionTimer = setTimeout(() => {
-      // (Höchstens eine Minute am Stück: Bleibt die Spracherkennung hängen, soll das Auflegen nicht auf Dauer blockiert sein)
-      if (this.partnerSpeaking && !this.closed && Date.now() - this.speechStartedAt < FAREWELL_SPEAKING_MAX_MS) {
+      if (this.partnerTalking() && !this.closed) {
         this.armFarewellTimer();
         return;
       }
@@ -1624,9 +1633,17 @@ export class RealtimeBridge implements AudioHandler {
     }, FAREWELL_DECISION_MS);
   }
 
+  /**
+   * Das Gegenüber redet, höchstens aber FAREWELL_SPEAKING_MAX_MS am Stück: Bleibt die Spracherkennung hängen (kein Sprachende), soll das Auflegen
+   * nicht auf Dauer blockiert sein. Danach entscheidet, was bekannt ist (die Worte davor, sonst weiter), als spräche es nicht mehr.
+   */
+  private partnerTalking(): boolean {
+    return this.partnerSpeaking && Date.now() - this.speechStartedAt < FAREWELL_SPEAKING_MAX_MS;
+  }
+
   /** Das Gegenüber redet noch oder hat neu angesetzt, und die Mitschrift davon fehlt: Es kommt gleich mehr. */
   private moreAfterGoodbye(): boolean {
-    return this.partnerSpeaking || this.farewellOpen.length > 0;
+    return this.partnerTalking() || this.farewellOpen.length > 0;
   }
 
   /**

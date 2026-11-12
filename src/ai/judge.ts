@@ -49,7 +49,8 @@ export interface CallJudge {
  * Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist (4 s bzw. 8 s). Die Prüfung beim Auflegen
  * und die Regie lesen mehr und brauchen länger (gemessen meist drei bis vier Sekunden, vereinzelt acht). Beide etwas unter der
  * Frist der Brücke: Liefen sie gleichzeitig ab, hinge es vom Zufall ab, ob der Anbieter (und danach ein Ausweichmodell, dessen
- * Urteil zu spät käme) oder die Brücke zuerst aufgibt.
+ * Urteil zu spät käme) oder die Brücke zuerst aufgibt. (Wartete die Prüfung beim Auflegen vorher auf eine Mitschrift, bis zu 1,5 s,
+ * kann das Modell erst danach beginnen und über die Frist der Brücke hinauslaufen: Dann gilt die Frist der Brücke, ihr Urteil kommt zu spät.)
  */
 const MODEL_TIMEOUT_MS = 3500;
 const MODEL_TIMEOUT_LONG_MS = 7500;
