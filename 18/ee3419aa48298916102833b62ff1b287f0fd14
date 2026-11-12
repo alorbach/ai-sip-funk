@@ -1,0 +1,52 @@
+src/settings.ts
+  s_9e7cbef9751112::t_20b77ce0d33d12 544-545
+src/main.ts
+  s_9e7cbef9751112::t_0a636fc1e62730 8,58-59,511,517-518,1057
+public/index.html
+  s_9e7cbef9751112::t_20b77ce0d33d12 1478,1481
+  s_9e7cbef9751112::t_0a636fc1e62730 2098
+test/webPort.test.ts
+  s_9e7cbef9751112::t_20b77ce0d33d12 70,84-85
+test/agents.test.ts
+  s_9e7cbef9751112::t_cea1fa3e880a6b 162-165,170-175,182,202,211,213-220
+  s_9e7cbef9751112::t_20b77ce0d33d12 27,34-36,120-122,166-169
+doc/user-guide.de.md
+  s_9e7cbef9751112::t_712549c93ef816 769,799
+  s_9e7cbef9751112::t_20b77ce0d33d12 414
+.env.example
+  s_9e7cbef9751112::t_20b77ce0d33d12 187
+src/webPort.ts
+  s_9e7cbef9751112::t_0a636fc1e62730 4,60-65
+  s_9e7cbef9751112::t_7564e6cfe5050e 66-68
+public/i18n-en.js
+  s_9e7cbef9751112::t_0a636fc1e62730 704,752
+  s_9e7cbef9751112::t_20b77ce0d33d12 753
+.env.example.de
+  s_9e7cbef9751112::t_20b77ce0d33d12 188
+doc/user-guide.md
+  s_9e7cbef9751112::t_20b77ce0d33d12 416
+  s_9e7cbef9751112::t_712549c93ef816 771,801
+src/web/server.ts
+  s_9e7cbef9751112::t_20b77ce0d33d12 134-140
+  s_9e7cbef9751112::t_0a636fc1e62730 12,236,246-253
+src/mcp/agents.ts
+  s_9e7cbef9751112::t_0a636fc1e62730 8,164-174,205,208-210,219,229,233,239,241-244,282-283,311-314,329-330,354-355,371,374-375
+  s_9e7cbef9751112::t_20b77ce0d33d12 115-117,121,175-178,181-191,193-197,199,221-224,323-324
+  s_9e7cbef9751112::t_234db345c4980b 315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18ee3419aa48298916102833b62ff1b287f0fd14",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
