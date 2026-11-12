@@ -564,3 +564,44 @@ test('Abgekürzte Doppelkarte verhindert das Ergänzen nicht', () => {
     assert.equal(store.list().length, 1);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 7
+
+test('Doppelkarten nur bei genau gleichem Namen zusammenführen; eigene Karte nur bei genau gleichem Namen', () => {
+  withStore((store) => {
+    store.create({ name: 'Tom Wu', number: '030 5552200', owner: true });
+    const cands = [
+      { name: 'Anna S.', numbers: [{ number: '01715552201', label: 'mobil' as const }] },
+      { name: 'Anna Sommer', numbers: [{ number: '01715552202', label: 'mobil' as const }] },
+      { name: 'Tom Wunderlich', numbers: [{ number: '01715552203', label: 'mobil' as const }] },
+      { name: 'Anna Sommer', numbers: [{ number: '0305552204', label: 'privat' as const }] },
+    ];
+    assert.equal(buildPreview(cands, store)[2].ownCard, undefined);
+    const r = applyImport(cands, ['0', '1', '2', '3'], store);
+    assert.deepEqual([r.created, r.combined], [3, 1]);
+    assert.deepEqual(store.findByName('Anna Sommer')!.numbers, ['0305552204']);
+    assert.equal(sameperson('Erika Be', 'Erika Beispiel'), false);
+  });
+});
+
+test('Zweite Karte geht zum Kontakt, den die erste ergänzt', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552300' });
+    const cands = [
+      { name: 'Erika Beispiel', numbers: [{ number: '01715552300', label: 'mobil' as const }, { number: '0305552301', label: 'privat' as const }] },
+      { name: 'Erika Beispiel', numbers: [{ number: '0405552302', label: 'geschäftlich' as const }] },
+    ];
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.combined], [0, 1, 1]);
+    assert.deepEqual(store.findByName('Erika Beispiel')!.numbers, ['0305552301', '0405552302']);
+  });
+});
+
+test('Viele neue Karten bleiben schnell', () => {
+  withStore((store) => {
+    const cands = Array.from({ length: 5000 }, (_, i) => ({ name: 'Vorname' + i + ' Nachname' + i, numbers: [{ number: '0171' + String(6000000 + i), label: 'mobil' as const }] }));
+    const started = Date.now();
+    assert.equal(applyImport(cands, cands.map((_, i) => String(i)), store).created, 5000);
+    assert.ok(Date.now() - started < 3000);
+  });
+});
