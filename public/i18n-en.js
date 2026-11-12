@@ -121,7 +121,7 @@
     'Eigene App-Registrierung in Microsoft Entra (Plattform „Mobile und Desktop“, Weiterleitung <code>http://localhost/oauth/callback</code>, Berechtigung „Contacts.Read“) und die Client-ID hier eintragen. Anleitung im Handbuch.': 'Create your own app registration in Microsoft Entra (platform "Mobile and desktop", redirect <code>http://localhost/oauth/callback</code>, permission "Contacts.Read") and enter its client ID here. Instructions in the user guide.',
     'Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Anleitung im Handbuch.': 'Create your own OAuth client of type "Desktop app" in the Google Cloud Console, enable the People API and enter client ID and secret here. Instructions in the user guide.',
     'Weitere Nummern': 'Further numbers',
-    'Werden beim Anruf erkannt; gewählt wird immer die Nummer oben. Für KI-Agenten mit „Nur gespeicherte Kontakte“ zählt nur die Nummer oben.': 'Recognised on calls; the number above is always the one dialled. For AI agents with "Nur gespeicherte Kontakte" only the number above counts.',
+    'Werden beim Anruf erkannt; gewählt wird immer die Nummer oben. Für KI-Agenten mit „Nur gespeicherte Kontakte“ zählt nur die Nummer oben.': 'Recognised on calls; the number above is always the one dialled. For AI agents with "Saved contacts only" only the number above counts.',
     'Importieren': 'Import',
     'Adressbuch durchsuchen': 'Search address book',
     'Einträge im Adressbuch': 'Address book entries',
