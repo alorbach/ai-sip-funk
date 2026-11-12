@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdirSync } from 'node:fs';
 import { loadConfig } from './config.js';
-import { chooseWebPort, parsePort, writePortFile } from './webPort.js';
+import { chooseWebPort, parsePort, removePortFile, writePortFile } from './webPort.js';
 import { VERSION } from './version.js';
 import { CallManager, type AudioHandler } from './callManager.js';
 import { log, logEvents } from './log.js';
@@ -55,6 +55,8 @@ const config = loadConfig();
 const wantedWebPort = parsePort(loadSettings().webPort) ?? config.webPort;
 const webPortChoice = await chooseWebPort(wantedWebPort);
 config.webPort = webPortChoice.port;
+// Die .env liefert nur den Startwert: Wer dort später WEB_PORT ändert, soll erfahren, warum das nichts bewirkt
+if (parsePort(process.env.WEB_PORT) && parsePort(process.env.WEB_PORT) !== wantedWebPort) log.warn(`WEB_PORT=${process.env.WEB_PORT} aus der .env wird nicht verwendet: Es gilt Port ${wantedWebPort} aus den Einstellungen (Einstellungen › Technik).`);
 /** Gesetzt, wenn beim Start ausgewichen wurde: der Port, der belegt war */
 const webPortMovedFrom = webPortChoice.moved ? wantedWebPort : undefined;
 if (webPortChoice.moved) {
@@ -506,12 +508,14 @@ function mcpConnect(): McpTarget & { packaged: boolean; port: number; runningPor
   const source = fileURLToPath(new URL('./mcp/server.ts', import.meta.url));
   // Aus dem Quelltext gestartet (npm start): über tsx; gebaut oder installiert: mit dem eigenen Programm als Node
   const fromSource = !existsSync(built) && existsSync(source);
+  const tsxCli = join(projectRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
   // Der Prozess liest den Port der laufenden App aus dem Datenordner und folgt so jeder Portänderung
   const env: Record<string, string> = { SIPFUNK_DATA_DIR: dataDir };
   if (!fromSource && process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1';
   return {
     httpUrl: `${url}/mcp`,
-    stdio: fromSource ? { command: 'npx', args: ['tsx', source], env } : { command: process.execPath, args: [built], env },
+    // Aus dem Quelltext: Node mit dem tsx-Programm direkt (ein Agent kann „npx“ unter Windows nicht ohne Shell starten)
+    stdio: fromSource ? (existsSync(tsxCli) ? { command: process.execPath, args: [tsxCli, source], env } : { command: 'npx', args: ['tsx', source], env }) : { command: process.execPath, args: [built], env },
     packaged: Boolean(process.versions.electron) && !fromSource,
     port,
     runningPort: config.webPort,
@@ -1050,6 +1054,7 @@ async function shutdown(): Promise<void> {
   shuttingDown = true;
   log.info('Beende ...');
   stopWeb();
+  removePortFile(dataDir, config.webPort);
   await manager.stop();
   process.exit(0);
 }

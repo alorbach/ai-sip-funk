@@ -1475,10 +1475,10 @@ async function portChanged(port) {
   try { await api('/api/restart', {}); } catch (err) { return toast(err.message, 'error'); }
   toast('SIPFunk startet neu …', 'ok');
   const target = `http://127.0.0.1:${port}/`;
-  // Fremde Herkunft: Die Antwort ist nicht lesbar, aber ein gelungener Abruf zeigt, dass der neue Port bedient wird
+  // Erst wechseln, wenn unter der neuen Adresse wirklich SIPFunk antwortet (ein fremdes Programm auf dem Port besteht die Abfrage nicht)
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 750));
-    try { await fetch(target + 'i18n.js', { mode: 'no-cors', cache: 'no-store' }); location.href = target + location.hash; return; } catch {}
+    try { if ((await (await fetch(target + 'hello', { cache: 'no-store' })).json()).app === 'sipfunk') { location.href = target + location.hash; return; } } catch {}
   }
   toast(I18N.t('SIPFunk antwortet auf Port {0} nicht. Bitte im Tray-Menü „Web-UI öffnen“ wählen.', port), 'error');
 }
@@ -2094,8 +2094,8 @@ function mcpSnippet() {
   const agent = $('mcp-agent').value;
   // Claude Desktop startet lokale Server nur als Prozess
   const http = agent !== 'claude-desktop' && $('mcp-transport').value === 'http';
-  if (agent === 'claude-code' && http) return { text: `claude mcp add --transport http --scope user sipfunk ${c.httpUrl}`, where: 'Im Terminal ausführen. Die Verbindung gilt dann für alle Projekte.' };
   $('mcp-transport').disabled = agent === 'claude-desktop';
+  if (agent === 'claude-code' && http) return { text: `claude mcp add --transport http --scope user sipfunk ${c.httpUrl}`, where: 'Im Terminal ausführen. Die Verbindung gilt dann für alle Projekte.' };
   const env = Object.entries(c.stdio.env);
   if (agent === 'codex') {
     const text = http

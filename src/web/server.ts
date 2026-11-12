@@ -9,6 +9,7 @@ import { log, logEvents } from '../log.js';
 import { loadSettings, publicSettings, saveSettings, type FormSettings } from '../settings.js';
 import type { CallRecord, TranscriptStore } from '../transcripts.js';
 import type { ContactStore } from '../contacts.js';
+import { parsePort, portFree } from '../webPort.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
 
@@ -130,6 +131,13 @@ export function startWebServer(opts: WebServerOptions): () => void {
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
+    // Nach einer Portänderung fragt die Seite unter der alten Adresse hier nach, ob unter der neuen wirklich SIPFunk
+    // antwortet (und nicht ein fremdes Programm). Nur für Seiten auf diesem Rechner lesbar; verrät nichts außer dem Namen.
+    if (req.method === 'GET' && url.pathname === '/hello' && localRequestAllowed(req.headers.host, undefined)) {
+      const origin = req.headers.origin;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(origin && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}) });
+      return res.end('{"app":"sipfunk"}');
+    }
     if (!localRequestAllowed(req.headers.host, req.headers.origin)) return sendJson(res, 403, { error: 'Nur lokal erreichbar' });
     if ((url.pathname.startsWith('/api/') || url.pathname === '/mcp') && !apiFetchAllowed(req.headers['sec-fetch-site'] as string | undefined)) return sendJson(res, 403, { error: 'Nur von der eigenen Seite aufrufbar' });
     try {
@@ -225,7 +233,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       if (req.method === 'POST' && url.pathname === '/api/restart') {
         if (!opts.restart) return sendJson(res, 400, { error: 'Ohne die Tray-App lässt sich SIPFunk nicht von hier neu starten – bitte von Hand beenden und wieder starten.' });
-        if (manager.status().phase === 'connected') return sendJson(res, 409, { error: 'Es läuft gerade ein Gespräch – bitte danach neu starten.' });
+        if (['calling', 'ringing', 'incoming', 'connected'].includes(manager.status().phase)) return sendJson(res, 409, { error: 'Es läuft gerade ein Anruf – bitte danach neu starten.' });
         log.info('Neustart über die Oberfläche angefordert');
         sendJson(res, 200, { ok: true });
         // Erst antworten, dann neu starten
@@ -235,7 +243,14 @@ export function startWebServer(opts: WebServerOptions): () => void {
         return sendJson(res, 200, publicSettings(loadSettings()));
       }
       if (req.method === 'POST' && url.pathname === '/api/settings') {
-        const saved = saveSettings(await readJson(req));
+        const input = await readJson(req);
+        // Ein anderer Port, der gerade belegt ist: nicht speichern. Sonst wiche SIPFunk beim Neustart aus und die Seite
+        // wechselte auf die Adresse eines fremden Programms.
+        const newPort = parsePort(input.webPort);
+        if (newPort && newPort !== opts.port && String(newPort) !== loadSettings().webPort && !(await portFree(newPort))) {
+          return sendJson(res, 400, { error: `Port ${newPort} ist gerade von einem anderen Programm belegt – bitte einen anderen wählen.` });
+        }
+        const saved = saveSettings(input);
         log.info('Einstellungen gespeichert (settings.json)');
         opts.onSettingsChanged?.(saved);
         return sendJson(res, 200, publicSettings(saved));

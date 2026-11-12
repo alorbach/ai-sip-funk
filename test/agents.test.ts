@@ -24,13 +24,16 @@ const put = (file: string, text: string) => { mkdirSync(dirname(file), { recursi
 const state = (env: AgentEnv, id: string, t = T1) => agentStatus(env, t).find((a) => a.id === id)!.state;
 const backups = (file: string) => readdirSync(dirname(file)).filter((f) => f.endsWith('.bak'));
 
-test('Agenten: ohne Ordner „nicht gefunden“, mit Ordner „nicht eingetragen“', () => {
+test('Agenten: ohne Ordner „nicht gefunden“, mit Ordner „nicht eingetragen“', async () => {
   const s = sandbox();
   try {
     assert.deepEqual(agentStatus(s.env, T1).map((a) => a.state), ['absent', 'absent', 'absent', 'absent', 'absent', 'absent']);
     mkdirSync(join(s.home, '.cursor'));
     assert.equal(state(s.env, 'cursor'), 'missing');
     assert.equal(state(s.env, 'codex'), 'absent');
+    // Kein Ordner des Agenten: nichts anlegen
+    await assert.rejects(installAgent('codex', s.env, T1, NOW), /nicht gefunden/);
+    assert.equal(existsSync(join(s.home, '.codex')), false);
   } finally { s.done(); }
 });
 
@@ -114,6 +117,9 @@ test('Claude Desktop: Eintrag als Prozess; Store-Fassung wird gefunden; anderer 
     assert.equal(data.globalShortcut, 'Alt+C');
     // Der Prozess findet den Port selbst: Eine Portänderung macht den Eintrag nicht ungültig
     assert.equal(state(s.env, 'claude-desktop', T2), 'ok');
+    // Von Hand eingetragen, Felder in anderer Reihenfolge: derselbe Eintrag
+    put(file, JSON.stringify({ mcpServers: { sipfunk: { env: { ELECTRON_RUN_AS_NODE: '1', SIPFUNK_DATA_DIR: 'C:\\Daten\\SIPFunk' }, args: T1.stdio.args, command: T1.stdio.command } } }));
+    assert.equal(state(s.env, 'claude-desktop'), 'ok');
     assert.equal(state(s.env, 'claude-desktop', { ...T1, stdio: { ...T1.stdio, command: 'D:\\Neu\\SIPFunk.exe' } }), 'stale');
   } finally { s.done(); }
   const store = sandbox();
@@ -153,13 +159,27 @@ test('TOML: alter Eintrag als Prozess mit Unterabschnitt mitten in der Datei, CR
   // Ähnliche Namen gehören nicht dazu
   const other = '[mcp_servers.sipfunk2]\nurl = "x"\n';
   assert.equal(tomlRemove(other), other);
+  // Anführungszeichen um die Namensteile sind dieselbe Tabelle: ersetzen, nicht ein zweites Mal anlegen
+  for (const header of ['["mcp_servers"."sipfunk"]', "[mcp_servers.'sipfunk']", '[ "mcp_servers" . sipfunk ] # alt']) {
+    assert.equal(tomlSet(`x = 1\n\n${header}\nurl = "alt"\n`, 'http://neu/mcp'), 'x = 1\n\n[mcp_servers.sipfunk]\nurl = "http://neu/mcp"\ntool_timeout_sec = 120\n', header);
+  }
+  // Ein Kommentar vor der nächsten Tabelle gehört zu ihr und bleibt beim Ersetzen und Entfernen stehen
+  const commented = '[mcp_servers.sipfunk]\nurl = "alt"\n# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n';
+  assert.equal(tomlRemove(commented), '# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n');
+  assert.equal(tomlSet(commented, 'http://neu/mcp'), '# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n\n[mcp_servers.sipfunk]\nurl = "http://neu/mcp"\ntool_timeout_sec = 120\n');
+  // Der Rest bleibt Zeichen für Zeichen: mehrere Leerzeilen und mehrzeilige Texte in anderen Abschnitten
+  const rich = 'a = 1\n\n\n\n[profiles.x]\ninstructions = """\nzeile1\n\n\nzeile2\n"""\n\n\n[[liste]]\nn = 1\n';
+  const withOurs = tomlSet(rich, 'http://x/mcp');
+  assert.ok(withOurs.startsWith(rich));
+  assert.equal(tomlRemove(withOurs), rich);
+  assert.equal(tomlRemove(rich.replace('[[liste]]', '[mcp_servers.sipfunk]\nurl = "u"\n\n\n[[liste]]')), rich);
 });
 
 test('Codex: Schreibweisen, die sich nicht sicher ändern lassen, werden nicht angefasst', async () => {
   const s = sandbox();
   try {
     const file = join(s.home, '.codex', 'config.toml');
-    for (const text of ['mcp_servers = { sipfunk = { url = "http://127.0.0.1:1/mcp" } }\n', '[mcp_servers]\nsipfunk = { url = "x" }\n', 'mcp_servers.sipfunk.url = "x"\n']) {
+    for (const text of ['mcp_servers = { sipfunk = { url = "http://127.0.0.1:1/mcp" } }\n', '[mcp_servers]\nsipfunk = { url = "x" }\n', 'mcp_servers.sipfunk.url = "x"\n', '"mcp_servers"."sipfunk".url = "x"\n', '["mcp_servers"]\n"sipfunk" = { url = "x" }\n']) {
       put(file, text);
       assert.equal(state(s.env, 'codex'), 'unreadable', text);
       await assert.rejects(installAgent('codex', s.env, T1, NOW), /von Hand/);
@@ -179,6 +199,7 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     await assert.rejects(installAgent('claude-code', s.env, T1, NOW), /nicht aufrufen/);
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /nicht gefunden/);
     assert.equal(readFileSync(file, 'utf8'), original);
+    assert.equal(backups(file).length, 0);
     // Mit Befehl: erst den alten Eintrag entfernen, dann neu anlegen; das Schreiben erledigt Claude Code selbst
     const run: AgentEnv['run'] = async (command, args) => {
       s.calls.push([command, ...args]);
@@ -187,11 +208,16 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
       return { code: 0, output: '' };
     };
     const r = await installAgent('claude-code', { ...s.env, run }, T1, NOW);
-    assert.deepEqual(s.calls, [['claude', 'mcp', 'remove', '--scope', 'user', 'sipfunk'], ['claude', 'mcp', 'add', '--transport', 'http', '--scope', 'user', 'sipfunk', 'http://127.0.0.1:3865/mcp']]);
+    assert.deepEqual(s.calls, [['claude', '--version'], ['claude', 'mcp', 'remove', '--scope', 'user', 'sipfunk'], ['claude', 'mcp', 'add', '--transport', 'http', '--scope', 'user', 'sipfunk', 'http://127.0.0.1:3865/mcp']]);
     assert.equal(r.agent.state, 'ok');
-    assert.equal(r.backup, undefined);
-    assert.equal(backups(file).length, 0);
-    assert.equal((await removeAgent('claude-code', { ...s.env, run }, T1, NOW)).agent.state, 'missing');
+    // Auch hier eine Sicherungskopie, bevor Claude Code die Datei ändert
+    assert.equal(readFileSync(r.backup!, 'utf8'), original);
+    const rm = await removeAgent('claude-code', { ...s.env, run }, T1, NOW);
+    assert.equal(rm.agent.state, 'missing');
+    // Zweite Sicherung in derselben Sekunde: eigener Name, die erste bleibt
+    assert.notEqual(rm.backup, r.backup);
+    assert.equal(readFileSync(r.backup!, 'utf8'), original);
+    assert.equal(backups(file).length, 2);
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: 'kaputt' }) }, T1, NOW), /kaputt/);
   } finally { s.done(); }
 });

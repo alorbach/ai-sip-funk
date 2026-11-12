@@ -67,7 +67,7 @@ test('Portdatei: der stdio-Prozess findet den Port der laufenden App', () => {
   }
 });
 
-test('Einstellung webPort: wird gespeichert, Unsinn fällt auf die Vorgabe zurück', async () => {
+test('Einstellung webPort: wird gespeichert, Unsinn ändert nichts', async () => {
   const { loadSettings, saveSettings } = await import('../src/settings.js');
   const dir = mkdtempSync(join(tmpdir(), 'sipfunk-set-'));
   const cwd = process.cwd(), envPort = process.env.WEB_PORT;
@@ -81,7 +81,8 @@ test('Einstellung webPort: wird gespeichert, Unsinn fällt auf die Vorgabe zurü
     assert.equal(saveSettings({ webPort: '4200' }).webPort, '4200');
     assert.equal(loadSettings().webPort, '4200');
     assert.equal(JSON.parse(readFileSync('settings.json', 'utf8')).webPort, '4200');
-    for (const bad of ['80', 'abc', '70000', '']) assert.equal(saveSettings({ webPort: bad }).webPort, '8080', bad);
+    // Unsinn ändert den gespeicherten Port nicht
+    for (const bad of ['80', 'abc', '70000', '']) assert.equal(saveSettings({ webPort: bad }).webPort, '4200', bad);
   } finally {
     process.chdir(cwd);
     if (envPort === undefined) delete process.env.WEB_PORT; else process.env.WEB_PORT = envPort;

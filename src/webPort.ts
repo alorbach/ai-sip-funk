@@ -1,7 +1,7 @@
 // Port der Web-UI (und damit von /mcp): einstellbar, weicht bei belegtem Port dauerhaft aus und steht für
 // andere Prozesse (stdio-MCP-Server, Installationsskript) in einer kleinen Datei im Datenordner.
 import { createServer } from 'node:net';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** 3865 = „FUNK“ auf der Telefontastatur; 8080 war auf vielen Rechnern schon belegt */
@@ -54,6 +54,15 @@ export function writePortFile(dataDir: string, port: number): void {
     writeFileSync(join(dataDir, PORT_FILE), `${port}\n`);
   } catch {
     /* ohne die Datei gilt für andere Prozesse der Standardport */
+  }
+}
+
+/** Beim Beenden: Die Datei soll nicht auf einen Port zeigen, den inzwischen ein anderes Programm nutzt. */
+export function removePortFile(dataDir: string, port: number): void {
+  try {
+    if (readPortFile(dataDir) === port) rmSync(join(dataDir, PORT_FILE), { force: true });
+  } catch {
+    /* bleibt liegen */
   }
 }
 

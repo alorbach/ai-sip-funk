@@ -5,6 +5,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 import { writeFileAtomic } from '../fsutil.js';
 
 export const SERVER_NAME = 'sipfunk';
@@ -111,10 +112,13 @@ const AGENTS: AgentDef[] = [
   },
 ];
 
+/** JSON mit sortierten Schlüsseln: Die Reihenfolge der Felder (z. B. in „env“) soll beim Vergleich keine Rolle spielen. */
+const canonical = (v: unknown): string => JSON.stringify(v, (_k, val: unknown) => (val && typeof val === 'object' && !Array.isArray(val) ? Object.fromEntries(Object.entries(val as Entry).sort(([a], [b]) => (a < b ? -1 : 1))) : val));
+
 /** Der vorhandene Eintrag passt, wenn er alle Felder des erwarteten Eintrags mit gleichem Wert enthält. */
 function entryMatches(existing: unknown, expected: Entry): boolean {
   if (!existing || typeof existing !== 'object') return false;
-  return Object.entries(expected).every(([k, v]) => JSON.stringify((existing as Entry)[k]) === JSON.stringify(v));
+  return Object.entries(expected).every(([k, v]) => canonical((existing as Entry)[k]) === canonical(v));
 }
 
 // ---- JSON-Dateien (mcpServers.sipfunk) ----
@@ -157,28 +161,53 @@ const jsonEntry = (doc: JsonDoc): unknown => (doc.data.mcpServers as Record<stri
 
 // ---- TOML (Codex): Abschnitt [mcp_servers.sipfunk] samt Unterabschnitten, rein auf Textebene ----
 
-const TOML_OURS = /^\s*\[\s*mcp_servers\s*\.\s*(?:sipfunk|"sipfunk"|'sipfunk')\s*(?:\.[^\]]*)?\]\s*(?:#.*)?$/;
-const TOML_HEADER = /^\s*\[/;
+/** Kopfzeile einer Tabelle ([a.b] oder [[a.b]]) in ihre Namensteile zerlegen; undefined, wenn die Zeile keine ist. Anführungszeichen um einzelne Teile zählen nicht zum Namen. */
+function tomlHeader(line: string): string[] | undefined {
+  const m = /^\s*\[\[?([^\]]*)\]\]?\s*(?:#.*)?$/.exec(line);
+  if (!m) return undefined;
+  const parts = m[1].match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^.]+/g) ?? [];
+  return parts.map((p) => p.trim().replace(/^(["'])(.*)\1$/, '$2'));
+}
+const isOurs = (h: string[]): boolean => h[0] === 'mcp_servers' && h[1] === SERVER_NAME;
+/** Beginnt hier eine Tabelle? Auch Schreibweisen, die tomlHeader nicht zerlegen kann, beenden den Abschnitt davor. */
+const TOML_TABLE = /^\s*\[/;
 
-/** Zeilen in „unser Abschnitt“ und den Rest teilen. */
+/**
+ * Zeilen in „unser Abschnitt“ (samt Unterabschnitten) und den Rest teilen. Leerzeilen direkt nach unseren Werten gehören
+ * zu uns; ein Kommentar vor der nächsten Tabelle gehört zu ihr und bleibt deshalb mit allem danach im Rest.
+ */
 function tomlSplit(text: string): { ours: string[]; rest: string[] } {
   const ours: string[] = [], rest: string[] = [];
-  let inOurs = false;
+  let block: string[] | undefined;
+  const flush = () => {
+    if (!block) return;
+    let last = block.length - 1;
+    while (last > 0 && /^\s*(#.*)?$/.test(block[last])) last--;
+    let end = last + 1;
+    while (end < block.length && block[end].trim() === '') end++;
+    ours.push(...block.slice(0, end));
+    rest.push(...block.slice(end));
+    block = undefined;
+  };
   for (const line of text.split(/\r?\n/)) {
-    if (TOML_HEADER.test(line)) inOurs = TOML_OURS.test(line);
-    (inOurs ? ours : rest).push(line);
+    if (TOML_TABLE.test(line)) {
+      if (isOurs(tomlHeader(line) ?? [])) { (block ??= []).push(line); continue; }
+      flush();
+    }
+    (block ?? rest).push(line);
   }
+  flush();
   return { ours, rest };
 }
 
 /** Schreibweisen, die sich nicht sicher auf Textebene ändern lassen (Inline-Tabelle, Punkt-Schlüssel). */
 function tomlUnsupported(rest: string[]): boolean {
+  const key = String.raw`(?:mcp_servers|"mcp_servers"|'mcp_servers')`, name = String.raw`(?:sipfunk|"sipfunk"|'sipfunk')`;
   let table = '';
   for (const line of rest) {
-    const header = /^\s*\[\s*([^\]]*?)\s*\]/.exec(line);
-    if (header) { table = header[1].replace(/\s+/g, ''); continue; }
-    if (table === '' && /^\s*mcp_servers\s*(=|\.\s*["']?sipfunk)/.test(line)) return true;
-    if (table === 'mcp_servers' && /^\s*["']?sipfunk["']?\s*(=|\.)/.test(line)) return true;
+    if (TOML_TABLE.test(line)) { table = (tomlHeader(line) ?? ['?']).join('.'); continue; }
+    if (table === '' && new RegExp(String.raw`^\s*${key}\s*(=|\.\s*${name})`).test(line)) return true;
+    if (table === 'mcp_servers' && new RegExp(String.raw`^\s*${name}\s*(=|\.)`).test(line)) return true;
   }
   return false;
 }
@@ -187,27 +216,32 @@ function tomlUnsupported(rest: string[]): boolean {
 function tomlValue(ours: string[], key: string): string | undefined {
   let first = true;
   for (const line of ours) {
-    if (TOML_HEADER.test(line)) { if (!first) break; first = false; continue; }
+    if (TOML_TABLE.test(line)) { if (!first) break; first = false; continue; }
     const m = new RegExp(`^\\s*${key}\\s*=\\s*(?:"((?:[^"\\\\]|\\\\.)*)"|'([^']*)')`).exec(line);
-    if (m) return m[2] ?? (JSON.parse(`"${m[1]}"`) as string);
+    if (!m) continue;
+    if (m[2] !== undefined) return m[2];
+    // TOML kennt Maskierungen, die JSON nicht kennt: Dann gilt der Wert als unbekannt (der Eintrag als veraltet)
+    try { return JSON.parse(`"${m[1]}"`) as string; } catch { return undefined; }
   }
   return undefined;
 }
 
+/** Unseren Abschnitt herausnehmen. Alles andere bleibt Zeichen für Zeichen stehen, auch Leerzeilen und mehrzeilige Texte. */
 export function tomlRemove(text: string): string {
   const { ours, rest } = tomlSplit(text);
   if (!ours.length) return text;
-  const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  // Höchstens eine Leerzeile dort lassen, wo der Abschnitt stand
-  return rest.join(eol).replace(/(\r?\n){3,}/g, eol + eol).replace(/^(\r?\n)+/, '').replace(/(\r?\n){2,}$/, eol);
+  return rest.join(text.includes('\r\n') ? '\r\n' : '\n');
 }
 
 export function tomlSet(text: string, url: string): string {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const base = tomlRemove(text).replace(/\s+$/, '');
-  // wait_for_events wartet bis zu einer Minute: über der Vorgabe von Codex (60 s) bleiben
+  // wait_for_events wartet bis zu 50 Sekunden: mit Abstand über der Vorgabe von Codex (60 s) bleiben
   const block = [`[mcp_servers.${SERVER_NAME}]`, `url = ${JSON.stringify(url)}`, 'tool_timeout_sec = 120'].join(eol);
-  return (base ? base + eol + eol : '') + block + eol;
+  const out = (base ? base + eol + eol : '') + block + eol;
+  // Sicherheitsnetz: Stünde der Abschnitt jetzt doppelt in der Datei, könnte Codex sie gar nicht mehr laden
+  if (out.split(/\r?\n/).filter((l) => (tomlHeader(l) ?? []).join('.') === `mcp_servers.${SERVER_NAME}`).length !== 1) throw new Error('„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.');
+  return out;
 }
 
 // ---- Zustand ----
@@ -245,7 +279,8 @@ export function agentStatus(env: AgentEnv, target: McpTarget): AgentInfo[] {
 function backup(file: string, now: Date): string | undefined {
   if (!existsSync(file)) return undefined;
   const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const copy = `${file}.sipfunk-${stamp}.bak`;
+  let copy = `${file}.sipfunk-${stamp}.bak`;
+  for (let n = 2; existsSync(copy); n++) copy = `${file}.sipfunk-${stamp}-${n}.bak`;
   copyFileSync(file, copy);
   return copy;
 }
@@ -273,6 +308,11 @@ async function runClaude(env: AgentEnv, args: string[]): Promise<{ code: number;
   }
 }
 
+/** Gibt es den Befehl überhaupt? Vor der Sicherungskopie prüfen, damit ein fehlendes Programm keine Kopien hinterlässt. */
+async function findClaude(env: AgentEnv): Promise<void> {
+  await runClaude(env, ['--version']);
+}
+
 /** Eintrag anlegen oder auf den aktuellen Stand bringen. */
 export async function installAgent(id: string, env: AgentEnv, target: McpTarget, now = new Date()): Promise<AgentResult> {
   const def = AGENTS.find((a) => a.id === id);
@@ -280,10 +320,14 @@ export async function installAgent(id: string, env: AgentEnv, target: McpTarget,
   const before = statusOf(def, env, target);
   if (before.state === 'unreadable') throw new Error(`${def.label}: ${before.detail}`);
   if (before.state === 'ok') return { agent: before, changed: false };
+  // Kein Ordner dieses Agenten: nichts anlegen (die Oberfläche bietet den Knopf dann auch nicht an)
+  if (before.state === 'absent') throw new Error(`${def.label} wurde auf diesem Rechner nicht gefunden.`);
   const file = def.file(env);
   let copy: string | undefined;
   if (def.kind === 'claude-cli') {
     // Ein vorhandener Eintrag (alter Port) muss erst weg: „claude mcp add“ überschreibt nicht
+    await findClaude(env);
+    copy = backup(file, now);
     if (before.state === 'stale') await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
     const r = await runClaude(env, ['mcp', 'add', '--transport', 'http', '--scope', 'user', SERVER_NAME, target.httpUrl]);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
@@ -307,6 +351,8 @@ export async function removeAgent(id: string, env: AgentEnv, target: McpTarget, 
   const file = def.file(env);
   let copy: string | undefined;
   if (def.kind === 'claude-cli') {
+    await findClaude(env);
+    copy = backup(file, now);
     const r = await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
@@ -322,10 +368,11 @@ export async function removeAgent(id: string, env: AgentEnv, target: McpTarget, 
 }
 
 /** Befehl eines Agenten ausführen (Windows: über die Shell, weil „claude“ auch als .cmd installiert sein kann). Die Argumente sind feste, unverfängliche Werte. */
-export function runCommand(command: string, args: string[]): Promise<{ code: number; output: string }> {
+export function runCommand(command: string, args: string[], cwd = homedir()): Promise<{ code: number; output: string }> {
   return new Promise((resolve, reject) => {
     if (args.some((a) => !/^[\w.:/-]+$/.test(a))) return reject(new Error('Unzulässiges Argument'));
-    const child = spawn(command, args, { shell: process.platform === 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // Im Benutzerordner starten: Die Windows-Shell sucht ein Programm zuerst im aktuellen Ordner, und das wäre sonst der Datenordner
+    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
     const timer = setTimeout(() => child.kill(), 20_000);
     child.stdout.on('data', (d) => { output += String(d); });

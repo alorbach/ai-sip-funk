@@ -541,6 +541,8 @@ export function saveSettings(input: Record<string, unknown>, internal: Partial<F
   // Maskierte Kennwörter aus der UI bedeuten „unverändert"
   for (const k of SECRET_KEYS) if (incoming[k] === SECRET_MASK) delete incoming[k];
   delete incoming.aiConnections;
+  // Ein ungültiger Port (Tippfehler, unter 1024) ändert nichts, statt auf die Vorgabe zurückzuspringen
+  if (incoming.webPort !== undefined && parsePort(incoming.webPort) === undefined) delete incoming.webPort;
   // Umschalten geht nur auf eine Verbindung, die es gibt
   if (incoming.aiConnection !== undefined && !connectionsFrom(current).list.some((c) => c.id === incoming.aiConnection)) delete incoming.aiConnection;
   const merged = normalize({ ...current, ...incoming, ...internal });

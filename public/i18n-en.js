@@ -701,7 +701,7 @@
     'Claude Code lässt sich von hier nicht aufrufen.': 'Claude Code cannot be called from here.',
     'Der Befehl „claude“ wurde nicht gefunden. Bitte den Befehl unten kopieren und im Terminal ausführen.': 'The command "claude" was not found. Please copy the command below and run it in a terminal.',
     'Ohne die Tray-App lässt sich SIPFunk nicht von hier neu starten – bitte von Hand beenden und wieder starten.': 'Without the tray app SIPFunk cannot be restarted from here – please quit and start it by hand.',
-    'Es läuft gerade ein Gespräch – bitte danach neu starten.': 'A call is in progress – please restart afterwards.',
+    'Es läuft gerade ein Anruf – bitte danach neu starten.': 'A call is in progress – please restart afterwards.',
   };
 
   const patterns = [
@@ -749,6 +749,8 @@
     [/^(.+) braucht den (.+)-Schlüssel \(Einstellungen › KI-Verbindungen\)$/, 'This needs the $2 key (Settings › AI connections)'],
     [/^Der (.+)-Schlüssel fehlt noch \(Einstellungen › KI-Verbindungen\)\.?$/, 'The $1 key is still missing (Settings › AI connections).'],
     [/^Höchstens (\d+) Verbindungen$/, 'At most $1 connections'],
+    [/^Port (\d+) ist gerade von einem anderen Programm belegt – bitte einen anderen wählen\.$/, 'Port $1 is currently in use by another program – please choose a different one.'],
+    [/^(.+) wurde auf diesem Rechner nicht gefunden\.$/, '$1 was not found on this computer.'],
     [/^Claude Code meldet einen Fehler: (.+)$/, 'Claude Code reports an error: $1'],
     [/^(Claude Code|Claude Desktop|Codex|Cursor|Gemini CLI|GitHub Copilot CLI): (.+)$/, (m, a, b) => `${a}: ${tr(b)}`],
     [/^Google antwortete mit Status (\d+)\.$/, 'Google answered with status $1.'],
