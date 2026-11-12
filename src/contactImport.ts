@@ -17,7 +17,8 @@ export interface PreviewItem {
   id: string;
   name: string;
   /** known = Name des Kontakts, der die Nummer schon hat; shared = steht auch bei einem anderen Eintrag dieses Adressbuchs */
-  numbers: { number: string; label: PhoneLabel; known?: string; shared?: boolean; sharedWith?: string[] }[];
+  /** ownNumber = steht auch auf der eigenen Karte des Inhabers und geht an keinen anderen Eintrag */
+  numbers: { number: string; label: PhoneLabel; known?: string; ownNumber?: boolean; shared?: boolean; sharedWith?: string[] }[];
   /** new = keine Nummer bekannt; partial = einige Nummern gehören schon zu einem Kontakt; exists = alle bekannt */
   status: 'new' | 'partial' | 'exists';
   /** Vorhandener Kontakt, zu dem bekannte Nummern gehören */
@@ -465,20 +466,24 @@ export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactS
   for (const c of candidates) if (isOwnCard(c, ownerContacts)) for (const n of c.numbers) reserved.add(numberKey(n.number));
   return candidates.map((c, i) => {
     const own = isOwnCard(c, ownerContacts);
-    const owners = c.numbers.map((n) => store.findByNumber(n.number) ?? (!own && reserved.has(numberKey(n.number)) ? ownerContacts[0] : undefined));
+    // Gespeicherte Kontakte entscheiden über das Ergänzen (wie applyImport); reservierte Nummern der eigenen Karte zählen
+    // nur als „vergeben“, damit Status und Zählung stimmen
+    const storeOwners = c.numbers.map((n) => store.findByNumber(n.number));
+    const ownNumber = c.numbers.map((n, j) => !storeOwners[j] && !own && reserved.has(numberKey(n.number)));
     const numbers = c.numbers.map((n, j) => {
       const list = holders.get(numberKey(n.number)) ?? [];
       const others: string[] = [];
       for (const x of list) { if (x !== i) others.push(candidates[x].name); if (others.length >= 3) break; }
-      return { ...n, known: owners[j]?.name, shared: others.length ? true : undefined, sharedWith: others.length ? others : undefined };
+      return { ...n, known: storeOwners[j]?.name, ownNumber: ownNumber[j] || undefined, shared: others.length ? true : undefined, sharedWith: others.length ? others : undefined };
     });
-    const known = owners.filter((o): o is Contact => !!o);
-    const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
-    const mergeable = status === 'partial' && canMerge(c, owners, shared);
-    const ownCard = status !== 'exists' && isOwnCard(c, ownerContacts) ? true : undefined;
+    const knownStore = storeOwners.filter((o): o is Contact => !!o);
+    const taken = numbers.filter((n, j) => storeOwners[j] || ownNumber[j]).length;
+    const status: PreviewItem['status'] = !taken ? 'new' : taken === numbers.length ? 'exists' : 'partial';
+    const mergeable = status === 'partial' && canMerge(c, storeOwners, shared);
+    const ownCard = status !== 'exists' && own ? true : undefined;
     const sameName = !ownCard && (status === 'new' || (status === 'partial' && !mergeable)) && names.has(nameKey(c.name)) ? true : undefined;
     const twin = (nameCount.get(nameKey(c.name)) ?? 0) > 1 ? true : undefined;
-    return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, ownCard, sameName, twin };
+    return { id: String(i), name: c.name, numbers, status, existing: knownStore[0]?.name, mergeable: mergeable || undefined, ownCard, sameName, twin };
   });
 }
 

@@ -1016,3 +1016,24 @@ test('Vorschau rechnet die Nummern der eigenen Karte wie der Import', () => {
     assert.deepEqual(applyImport(cands, ['1'], store, { addToExisting: true }).created, 0);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 26
+
+test('Ergänzen entscheidet nach gespeicherten Kontakten, auch wenn eine Nummer der eigenen Karte dabei ist', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '0171 5553300', owner: true });
+    store.create({ name: 'Paula Beispiel', number: '0160 5553302' });
+    const cands = [
+      { name: 'Sam Beispiel', numbers: [{ number: '01715553300', label: 'mobil' as const }, { number: '0305553301', label: 'privat' as const }] },
+      { name: 'Paula Beispiel', numbers: [{ number: '0305553301', label: 'privat' as const }, { number: '01605553302', label: 'mobil' as const }, { number: '01525553303', label: 'mobil' as const }] },
+      { name: 'Kim Beispiel', numbers: [{ number: '0305553301', label: 'privat' as const }] },
+    ];
+    const [, paula, kim] = buildPreview(cands, store);
+    assert.deepEqual([paula.status, paula.mergeable, paula.existing], ['partial', true, 'Paula Beispiel']);
+    assert.deepEqual([kim.status, kim.existing, kim.numbers[0].ownNumber], ['exists', undefined, true]);
+    assert.equal(applyImport(cands, ['1'], store).merged, 0);
+    const r = applyImport(cands, ['1'], store, { addToExisting: true });
+    assert.equal(r.merged, 1);
+    assert.deepEqual(store.findByName('Paula Beispiel')!.numbers, ['01525553303']);
+  });
+});
