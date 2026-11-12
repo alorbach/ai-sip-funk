@@ -3,6 +3,8 @@ import { gemini } from './gemini.js';
 import { openai } from './openai.js';
 import { connectionKey, connectionsFrom, type AiConnection, type ConnectionSettings } from '../connections.js';
 import type { AiProvider, ProviderId, TextModel } from './types.js';
+import { isLimitError } from '../limits.js';
+import { log } from '../../log.js';
 
 export const PROVIDERS: Record<ProviderId, AiProvider> = { openai, gemini };
 
@@ -39,7 +41,10 @@ export interface ActiveAi {
   /** Sprachmodell für einen Anruf: der gewünschte Wert, sofern er zum Anbieter gehört, sonst das Modell der Verbindung */
   realtimeModel(value?: string): string;
   textModel: string;
-  /** Textmodell, gebunden an Schlüssel und Modell; wirft ohne Schlüssel */
+  /** Ausweichmodelle der Verbindung (ohne das jeweils eingestellte Modell), in der Reihenfolge, in der sie versucht werden */
+  realtimeFallbacks(model?: string): string[];
+  textFallbacks: string[];
+  /** Textmodell, gebunden an Schlüssel und Modell; wirft ohne Schlüssel. Bei einem Limit antwortet das nächste Ausweichmodell */
   ask: TextModel;
   /** Gesprächslimit in Sekunden unter Beachtung der Grenze des Anbieters */
   callLimit(seconds: number): number;
@@ -67,6 +72,8 @@ export function resolveAi(s: ConnectionSettings, env: NodeJS.ProcessEnv = proces
   const defaultText = own(env[ENV_MODELS[provider.id].text], provider.defaults.text);
   const realtime = own(connection.model, defaultRealtime);
   const textModel = own(connection.textModel, defaultText);
+  const others = (list: string[] | undefined, primary: string) => (list ?? []).filter((m) => MODEL_ID.test(m) && provider.ownsModel(m) && m !== primary);
+  const textFallbacks = others(connection.textFallbacks, textModel);
   return {
     connection,
     provider,
@@ -75,9 +82,22 @@ export function resolveAi(s: ConnectionSettings, env: NodeJS.ProcessEnv = proces
     defaultText,
     realtimeModel: (value) => own(value, realtime),
     textModel,
-    ask: (prompt, maxOutputTokens, format) => {
-      if (!key) return Promise.reject(new Error(`Der ${provider.label}-Schlüssel fehlt noch (Einstellungen › KI-Verbindungen)`));
-      return provider.text(key, textModel, prompt, maxOutputTokens, format);
+    realtimeFallbacks: (model) => others(connection.modelFallbacks, own(model, realtime)),
+    textFallbacks,
+    ask: async (prompt, maxOutputTokens, format) => {
+      if (!key) throw new Error(`Der ${provider.label}-Schlüssel fehlt noch (Einstellungen › KI-Verbindungen)`);
+      const models = [textModel, ...textFallbacks];
+      for (let i = 0; ; i++) {
+        try {
+          const out = await provider.text(key, models[i], prompt, maxOutputTokens, format);
+          if (i > 0) log.info(`Textmodell: ${models[i]} hat geantwortet (Ausweichmodell für ${textModel})`);
+          return out;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (i >= models.length - 1 || !isLimitError(message)) throw err;
+          log.warn(`Textmodell ${models[i]} am Limit oder überlastet (${message.replace(/\s+/g, ' ').slice(0, 80)}) – weiche auf ${models[i + 1]} aus`);
+        }
+      }
     },
     callLimit: (seconds) => (provider.maxCallSeconds ? Math.min(seconds, provider.maxCallSeconds) : seconds),
   };

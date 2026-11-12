@@ -196,3 +196,42 @@ test('Rangfolge der Stimme: Spam-Rolle, Anruf, Verbindung, alte Einstellung, ers
   assert.equal(connectionVoice(g, 'marin'), 'Puck');
   assert.equal(pickVoice(['a', 'b'], undefined, ' ', 'x', 'b'), 'b');
 });
+
+test('Ausweichmodelle: nur gültige Modelle des Anbieters, jedes einmal; ein Fenster ohne das Feld löscht sie nicht', () => {
+  const [c] = parseConnections(list([{ id: 'c1', name: 'G', provider: 'gemini', model: '', textModel: '', textFallbacks: ['gemini-3.5-flash', 'gpt-6-luna', 'gemini-3.5-flash', 'nicht erlaubt!', 'gemini-3.5-pro'] } as Partial<AiConnection>]));
+  assert.deepEqual(c.textFallbacks, ['gemini-3.5-flash', 'gemini-3.5-pro']);
+  assert.equal('modelFallbacks' in c, false, 'ohne Einträge gibt es das Feld nicht');
+  const kept = cleanConnections([{ id: 'c1', name: 'G', provider: 'gemini', model: '', textModel: '' }], [c]);
+  assert.deepEqual(kept[0].textFallbacks, ['gemini-3.5-flash', 'gemini-3.5-pro']);
+  const cleared = cleanConnections([{ id: 'c1', name: 'G', provider: 'gemini', model: '', textModel: '', textFallbacks: [] }], [c]);
+  assert.equal('textFallbacks' in cleared[0], false, 'eine leere Liste entfernt sie');
+});
+
+test('Ausweichmodelle: Bei einem Limit antwortet das nächste Textmodell, bei anderen Fehlern nicht', async () => {
+  const json = list([{ id: 'gemini', name: 'G', provider: 'gemini', model: '', textModel: 'gemini-3.5-flash-lite', textFallbacks: ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.5-pro'], modelFallbacks: ['gemini-3.8-live', 'gemini-3.7-live'] } as Partial<AiConnection>]);
+  const r = resolveAi({ aiConnections: json, aiConnection: 'gemini' }, { GEMINI_API_KEY: 'AIza-test-0123456789abcdefghijklmnop' });
+  assert.deepEqual(r.textFallbacks, ['gemini-3.5-flash', 'gemini-3.5-pro'], 'das eingestellte Modell steht nicht noch einmal in der Liste');
+  assert.deepEqual(r.realtimeFallbacks(), ['gemini-3.7-live']);
+  const original = gemini.text;
+  const asked: string[] = [];
+  try {
+    gemini.text = async (_key, model) => {
+      asked.push(model);
+      if (model === 'gemini-3.5-flash-lite') throw new Error('Textmodell fehlgeschlagen: 503 {"error":{"status":"UNAVAILABLE"}}');
+      if (model === 'gemini-3.5-flash') throw new Error('Textmodell fehlgeschlagen: 429 Resource has been exhausted (e.g. check quota).');
+      return 'ok von ' + model;
+    };
+    assert.equal(await r.ask('Frage', 100), 'ok von gemini-3.5-pro');
+    assert.deepEqual(asked, ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.5-pro']);
+    asked.length = 0;
+    gemini.text = async (_key, model) => { asked.push(model); throw new Error('Textmodell fehlgeschlagen: 400 API key not valid'); };
+    await assert.rejects(r.ask('Frage', 100), /400 API key not valid/);
+    assert.deepEqual(asked, ['gemini-3.5-flash-lite'], 'kein Ausweichen bei einem Fehler, der jedes Modell träfe');
+    asked.length = 0;
+    gemini.text = async (_key, model) => { asked.push(model); throw new Error('Textmodell fehlgeschlagen: 503 überlastet'); };
+    await assert.rejects(r.ask('Frage', 100), /503/);
+    assert.equal(asked.length, 3, 'alle drei versucht, der letzte Fehler gilt');
+  } finally {
+    gemini.text = original;
+  }
+});

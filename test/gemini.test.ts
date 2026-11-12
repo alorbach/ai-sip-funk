@@ -201,6 +201,51 @@ test('Gemini: Wird die Umsetzung einer Vorgabe des Agenten abgeschnitten, steht 
   h.bridge.close();
 });
 
+test('Gemini: Lehnt der Server die Sitzung beim Aufbau wegen des Kontingents ab, wird sie mit dem Ausweichmodell neu aufgebaut', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const sockets: FakeSocket[] = [];
+  const errors: string[] = [];
+  const models: string[] = [];
+  const bridge = new RealtimeBridge({
+    apiKey: KEY, model: 'gemini-3.8-live', instructions: 'ANWEISUNG', voice: 'Kore', greetingInstruction: 'GRUSS', formal: true,
+    allowInterrupt: true, outputGain: 1, speechSpeed: 1, vadSilenceMs: 800, hangupGraceMs: 1000, stallMs: 0, greetingWaitMs: 0,
+    onTranscript: () => undefined, onUsage: () => undefined, onEndCall: () => undefined,
+    onError: (m) => errors.push(m),
+    createLive: (config, events) => gemini.createLive(config, events),
+    createSocket: () => { const ws = new FakeSocket(); sockets.push(ws); return ws as unknown as WebSocket; },
+    fallbackModels: ['gemini-3.7-live'],
+    onModel: (m) => models.push(m),
+  });
+  sockets[0].emit('open');
+  assert.equal(sockets[0].sent[0].setup.model, 'models/gemini-3.8-live');
+  sockets[0].emit('close', 1011, Buffer.from('Resource has been exhausted (e.g. check quota).'));
+  assert.equal(sockets.length, 2, 'zweite Sitzung aufgebaut');
+  assert.deepEqual(models, ['gemini-3.7-live']);
+  assert.deepEqual(errors, [], 'kein Fehler für das Gespräch');
+  sockets[1].emit('open');
+  assert.equal(sockets[1].sent[0].setup.model, 'models/gemini-3.7-live');
+  // Auch das Ausweichmodell ist am Limit, und es gibt kein weiteres: Jetzt gilt der Fehler
+  sockets[1].emit('close', 1011, Buffer.from('Resource has been exhausted (e.g. check quota).'));
+  assert.equal(sockets.length, 2);
+  assert.equal(errors.length, 1);
+  bridge.close();
+});
+
+test('Gemini: Kein Wechsel des Sprachmodells bei einem anderen Fehler und nicht mehr, wenn die Sitzung steht', (t) => {
+  for (const scenario of ['key', 'ready'] as const) {
+    const sockets: FakeSocket[] = [];
+    const errors: string[] = [];
+    const h = setup(t, { fallbackModels: ['gemini-3.7-live'], onError: (m) => errors.push(m), createSocket: () => { const ws = new FakeSocket(); sockets.push(ws); return ws as unknown as WebSocket; } });
+    sockets[0].emit('open');
+    if (scenario === 'ready') sockets[0].emit('message', Buffer.from(JSON.stringify({ setupComplete: {} })));
+    sockets[0].emit('close', scenario === 'key' ? 1007 : 1011, Buffer.from(scenario === 'key' ? 'API key not valid. Please pass a valid API key.' : 'Resource has been exhausted (e.g. check quota).'));
+    assert.equal(sockets.length, 1, scenario);
+    assert.equal(errors.length, 1, scenario);
+    h.bridge.close();
+    t.mock.timers.reset();
+  }
+});
+
 test('Gemini: Geräusch gleich nach dem Abheben – die KI begrüßt trotzdem von sich aus', (t) => {
   const h = setup(t, { greetingWaitMs: 2500 });
   h.start();

@@ -5,6 +5,7 @@
 // liegen wie alle Zugangsdaten nur in der .env.
 import { knownProvider, providerById } from './providers/index.js';
 import type { ProviderId } from './providers/types.js';
+import { MAX_FALLBACKS } from './limits.js';
 
 export interface AiConnection {
   /** Kennung (klein, a–z und Ziffern); „openai“ und „gemini“ sind die beiden mitgelieferten Verbindungen */
@@ -17,6 +18,10 @@ export interface AiConnection {
   textModel: string;
   /** Standardstimme dieser Verbindung (eine Stimme ihres Anbieters); leer = Vorgabe, siehe connectionVoice */
   voice: string;
+  /** Ausweich-Sprachmodelle, der Reihe nach: Lehnt der Anbieter die Sitzung wegen eines Limits ab, wird mit dem nächsten aufgebaut */
+  modelFallbacks?: string[];
+  /** Ausweich-Textmodelle, der Reihe nach: Meldet das Textmodell ein Limit oder eine Überlastung, antwortet das nächste */
+  textFallbacks?: string[];
 }
 
 /** Höchstens so viele Verbindungen (die Oberfläche bleibt übersichtlich, die .env auch) */
@@ -52,7 +57,18 @@ function clean(raw: unknown): AiConnection | undefined {
   };
   const name = String(r.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 40) || provider.label;
   const voice = String(r.voice ?? '').trim();
-  return { id, name, provider: provider.id, model: model(r.model), textModel: model(r.textModel), voice: provider.voices.includes(voice) ? voice : '' };
+  // Ausweichmodelle: gültige Modelle des Anbieters, jedes einmal; fehlt die Liste oder ist sie leer, gibt es das Feld nicht
+  const fallbacks = (v: unknown) => {
+    const list = [...new Set((Array.isArray(v) ? v : []).map(model).filter(Boolean))].slice(0, MAX_FALLBACKS);
+    return list.length ? list : undefined;
+  };
+  const modelFallbacks = fallbacks(r.modelFallbacks);
+  const textFallbacks = fallbacks(r.textFallbacks);
+  return {
+    id, name, provider: provider.id, model: model(r.model), textModel: model(r.textModel), voice: provider.voices.includes(voice) ? voice : '',
+    ...(modelFallbacks ? { modelFallbacks } : {}),
+    ...(textFallbacks ? { textFallbacks } : {}),
+  };
 }
 
 /** Gespeicherte Liste lesen; ungültige und doppelte Einträge entfallen. */
@@ -127,7 +143,9 @@ export function cleanConnections(input: unknown, current: readonly AiConnection[
     // Der Anbieter einer Verbindung steht fest: Sonst ginge ihr gespeicherter Schlüssel an einen anderen Anbieter
     if (known && known.provider !== r.provider) throw new Error('Der Anbieter einer Verbindung lässt sich nicht ändern – leg dafür eine neue Verbindung an.');
     // Ein Fenster aus der Zeit vor der Standardstimme schickt keine: Dann bleibt die gespeicherte
-    const c = clean({ ...r, id, voice: r.voice === undefined && known ? known.voice : r.voice });
+    // Ebenso die Ausweichmodelle: Ein Fenster, das sie nicht kennt, löscht sie nicht
+    const keep = (field: 'modelFallbacks' | 'textFallbacks') => (r[field] === undefined && known ? known[field] : r[field]);
+    const c = clean({ ...r, id, voice: r.voice === undefined && known ? known.voice : r.voice, modelFallbacks: keep('modelFallbacks'), textFallbacks: keep('textFallbacks') });
     if (!c) throw new Error('Ungültige Verbindung');
     if (!String(r.name ?? '').trim()) throw new Error('Jede Verbindung braucht einen Namen');
     if (out.some((x) => x.id === c.id)) throw new Error('Verbindung doppelt in der Liste');

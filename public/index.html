@@ -338,6 +338,8 @@
   ul.plain { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; color: var(--text-2); }
   .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .fallbacks { display: grid; gap: 6px; max-height: 148px; overflow-y: auto; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .fallbacks:empty { display: none; }
   /* Schmale Fenster: alles einspaltig (steht am Ende, damit es die Komponentenregeln überstimmt) */
   @media (max-width: 600px) {
     .line, main, .callbar .inner { padding-left: 16px; padding-right: 16px; }
@@ -1540,6 +1542,8 @@ function buildConn(x) {
         <div class="field"><span class="field-head"><label for="conn-voice-${id}">Standardstimme</label> <button type="button" class="linkish" data-f="voice-listen">Probe hören</button></span><select id="conn-voice-${id}" data-f="voice" data-no-i18n></select><small>Gilt, wenn Anruf, Kontakt oder eigene Rufnummer keine Stimme dieses Anbieters vorgeben.</small></div>
         <label class="field"><span>Sprachmodell für Anrufe</span><select data-f="model"></select><small>Führt das Gespräch bei ausgehenden Anrufen und am Anrufbeantworter. Die neuesten Modelle stehen oben. „Günstig“ steht nur an Modellen, deren Preis SIPFunk kennt; alle Preise nennt der Anbieter.</small></label>
         <label class="field"><span>Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)</span><select data-f="text-model"></select></label>
+        <div class="field"><span id="fb-model-h-${id}">Ausweich-Sprachmodelle</span><div class="fallbacks" data-f="fb-model" role="group" aria-labelledby="fb-model-h-${id}"></div><small>Lehnt der Anbieter ein Gespräch schon beim Aufbau ab, weil das Kontingent erschöpft oder das Modell überlastet ist, versucht SIPFunk die angekreuzten Modelle der Reihe nach. Im laufenden Gespräch wird nicht gewechselt.</small></div>
+        <div class="field"><span id="fb-text-h-${id}">Ausweich-Textmodelle</span><div class="fallbacks" data-f="fb-text" role="group" aria-labelledby="fb-text-h-${id}"></div><small>Meldet das Textmodell ein Limit oder eine Überlastung, antwortet das nächste angekreuzte Modell. Ohne Häkchen bleibt es beim Fehler; dann fehlen Plan oder Zusammenfassung.</small></div>
         <label class="field adv"><span>Eigene Modell-ID (Sprachmodell)</span><input data-f="model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Sprachmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, kommt kein KI-Gespräch zustande.</small></label>
         <label class="field adv"><span>Eigene Modell-ID (Textmodell)</span><input data-f="text-model-custom" placeholder="leer = Auswahl aus der Liste" maxlength="64" autocomplete="off" spellcheck="false"><small>Für ein Textmodell, das in der Liste fehlt. Mit einer ID, die es nicht gibt, entstehen weder Plan noch Zusammenfassung.</small></label>
         <div class="actions span">
@@ -1570,6 +1574,13 @@ function buildConn(x) {
   f('text-model').onchange = () => patchConn(id, { textModel: f('text-model').value === conn(id).defaultText ? '' : f('text-model').value });
   ownModel(f('model-custom'), id, 'model');
   ownModel(f('text-model-custom'), id, 'textModel');
+  for (const [box, field] of [['fb-model', 'modelFallbacks'], ['fb-text', 'textFallbacks']]) {
+    f(box).onchange = (ev) => {
+      const picked = [...f(box).querySelectorAll('input:checked')].map((el) => el.value);
+      if (picked.length > MAX_FALLBACKS) { ev.target.checked = false; return toast(I18N.t('Höchstens {0} Ausweichmodelle je Liste.', MAX_FALLBACKS)); }
+      patchConn(id, { [field]: picked });
+    };
+  }
   f('models-refresh').onclick = () => loadModels(id, true);
   f('key-save').onclick = () => withBusy(f('key-save'), f('result'), I18N.t('Prüfe den Schlüssel bei {0} …', p.label), () => saveAiKey(f('key'), conn(id)));
   f('key').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); f('key-save').click(); } });
@@ -1637,7 +1648,7 @@ async function refreshAi(switched) { applyAiData(await api('/api/status'), switc
  *  Geschickt wird nur die Änderung, nie die ganze Liste: Ein veraltetes Fenster überschreibt so nichts. */
 async function saveConnections(changes, active, remove) {
   const before = ai.active;
-  const body = { connections: changes.map(({ id, name, provider, model, textModel, voice }) => ({ id, name, provider, model, textModel, voice })), active, remove };
+  const body = { connections: changes.map(({ id, name, provider, model, textModel, voice, modelFallbacks, textFallbacks }) => ({ id, name, provider, model, textModel, voice, modelFallbacks, textFallbacks })), active, remove };
   const data = await api('/api/ai/connections', body);
   applyAiData(data, data.ai.active !== before);
   if ($('setup').open) { setupInfo = await api('/api/setup'); renderSetupState(); }
@@ -1727,6 +1738,7 @@ async function testConn(id) {
 // ---- Modelle je Verbindung: Die Listen kommen vom Anbieter (über den Server, der sie zwischenspeichert). ----
 // Der gewählte Wert bleibt immer als Eintrag erhalten, auch wenn die Liste nicht geladen werden konnte oder ihn nicht enthält.
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+const MAX_FALLBACKS = 6;
 let modelNotes = {};
 /** Geladene Modell-Listen je Verbindung und welche gerade geladen werden */
 const catalogs = {}, modelsBusy = {};
@@ -1755,6 +1767,10 @@ function renderModels(id) {
     const { html, known } = modelOptions(kind, value, c);
     f(sel).innerHTML = html; f(sel).value = value;
     setIfClean(f(custom), known ? '' : value || '');
+    // Ausweichmodelle: alle Modelle der Liste außer dem eingestellten; ein angekreuztes, das dort fehlt, bleibt sichtbar
+    const saved = (kind === 'realtime' ? c.modelFallbacks : c.textFallbacks) || [];
+    const ids = [...new Set([...((catalogs[id] || {})[kind] || []).map((m) => m.id), ...saved])].filter((m) => m !== value);
+    f(kind === 'realtime' ? 'fb-model' : 'fb-text').innerHTML = ids.map((m) => `<label class="check" data-no-i18n><input type="checkbox" value="${esc(m)}"${saved.includes(m) ? ' checked' : ''}> ${esc(m)}</label>`).join('');
   }
   const cat = catalogs[id] || {}, at = cat.fetchedAt ? when(cat.fetchedAt) : '', label = aiProvider(c.provider).label;
   f('models-refresh').disabled = Boolean(modelsBusy[id]);

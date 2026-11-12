@@ -10,6 +10,7 @@ import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
 import { EMPTY_USAGE, type LiveConfig, type LiveError, type LiveEvents, type LiveResponseDone, type LiveSession, type Usage } from './providers/types.js';
@@ -85,6 +86,10 @@ export interface RealtimeBridgeOptions {
   createSocket?: (url: string) => WebSocket;
   /** Baut die Live-Verbindung des gewählten Anbieters auf; ohne Angabe OpenAI Realtime */
   createLive?: (config: LiveConfig, events: LiveEvents) => LiveSession;
+  /** Ausweich-Sprachmodelle: Lehnt der Anbieter die Sitzung vor ihrer Bestätigung wegen eines Limits ab, wird mit dem nächsten neu aufgebaut */
+  fallbackModels?: readonly string[];
+  /** Die Sitzung läuft jetzt mit diesem Ausweichmodell (für Protokoll und Kosten) */
+  onModel?: (model: string) => void;
 }
 
 // Das Modell generiert ca. 3x schneller als Echtzeit; eine lange Antwort liegt also fast komplett
@@ -128,6 +133,9 @@ const STALL_INSTRUCTION =
 
 export class RealtimeBridge implements AudioHandler {
   private live: LiveSession;
+  /** Baut eine Sitzung mit dem genannten Modell auf (auch erneut, mit einem Ausweichmodell) */
+  private connectLive: (model: string) => LiveSession;
+  private fallbackModels: string[];
   private ready = false;
   private closed = false;
   private connected = false;
@@ -256,7 +264,7 @@ export class RealtimeBridge implements AudioHandler {
       createSocket: opts.createSocket,
     };
     const events: LiveEvents = {
-      open: () => log.info(`Realtime: verbunden (${this.opts.model})`),
+      open: () => log.info(`Realtime: verbunden (${config.model})`),
       ready: () => {
         if (!this.ready) {
           this.ready = true;
@@ -290,9 +298,43 @@ export class RealtimeBridge implements AudioHandler {
         }
       },
     };
-    this.live = opts.createLive ? opts.createLive(config, events) : new OpenAiLive(config, events);
+    this.fallbackModels = [...(opts.fallbackModels ?? [])];
+    this.connectLive = (model) => {
+      config.model = model;
+      // Die Anweisungen können sich bis hierher geändert haben (Gesprächsplan)
+      config.instructions = this.opts.instructions;
+      // Meldungen einer abgelösten Sitzung (ihr „geschlossen“ nach dem Wechsel) gehen niemanden mehr an
+      const own: LiveEvents = {
+        ...events,
+        socketError: (message) => { if (session === this.live && !this.switchModel(message)) events.socketError(message); },
+        closed: (code, reason) => { if (session === this.live && !this.switchModel(`${code} ${reason}`)) events.closed(code, reason); },
+      };
+      const session: LiveSession = opts.createLive ? opts.createLive({ ...config }, own) : new OpenAiLive({ ...config }, own);
+      return session;
+    };
+    this.live = this.connectLive(opts.model);
     this.toAi = new Resampler(8000, this.live.inputRate);
     this.fromAi = new Resampler(this.live.outputRate, 8000);
+  }
+
+  /**
+   * Der Anbieter hat die Sitzung abgelehnt oder geschlossen, bevor sie stand, und der Grund ist ein Limit (Kontingent,
+   * Überlast): mit dem nächsten Ausweichmodell neu aufbauen. Liefert false, wenn das nicht geht – dann gilt der Fehler.
+   * Nach der Bestätigung der Sitzung wird nicht mehr gewechselt: Das Gespräch hinge am alten Verlauf.
+   */
+  private switchModel(reason: string): boolean {
+    if (this.closed || this.ready || !this.fallbackModels.length || !isLimitError(reason)) return false;
+    const next = this.fallbackModels.shift()!;
+    log.warn(`Realtime: ${this.live.label} lehnt die Sitzung ab (${reason.replace(/\s+/g, ' ').slice(0, 80)}) – baue sie mit dem Ausweichmodell ${next} neu auf`);
+    const old = this.live;
+    this.live = this.connectLive(next);
+    try {
+      old.close();
+    } catch {
+      /* war schon zu */
+    }
+    this.opts.onModel?.(next);
+    return true;
   }
 
   // ---- AudioHandler ----

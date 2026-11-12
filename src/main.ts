@@ -276,7 +276,7 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
   if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
   // Das Modell gehört zur Verbindung; nur ein Anruf über die API, der ausdrücklich eines nennt, weicht davon ab
-  const model = active.realtimeModel(typeof params.model === 'string' ? params.model : undefined);
+  let model = active.realtimeModel(typeof params.model === 'string' ? params.model : undefined);
   log.info(`KI: ${provider.label}, Modell ${model}, Persona ${persona.label}, Stimme ${voice}, ${input.formal ? 'Sie' : 'Du'}, Name ${input.aiName}`);
 
   transcript = [];
@@ -308,6 +308,11 @@ ${mcp ? str('context') : input.context}` : input.task,
     apiKey,
     createLive: (cfg, events) => provider.createLive(cfg, events),
     model,
+    fallbackModels: active.realtimeFallbacks(model),
+    onModel: (m) => {
+      model = m;
+      if (current) current.model = m;
+    },
     instructions: scamInstructions ?? instructions,
     voice,
     greetingInstruction: scam ? scamGreeting(sc?.scamName, scamOpen) : greetingInstruction(input),
