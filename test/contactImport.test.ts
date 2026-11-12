@@ -668,3 +668,25 @@ test('Kombinierende Zeichen gehören zum Wort; „Name schon vorhanden“ auch b
     assert.equal(item.sameName, true);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 10
+
+test('Emoji mit Variantenwähler ändern den Namen nicht und lassen Emoji-Namen nicht zusammenfallen', () => {
+  const heart = '\u2764\uFE0F';
+  const phone = '\u260E\uFE0F';
+  assert.equal(sameperson('Erika Beispiel ' + heart, 'Erika Beispiel'), true);
+  withStore((store) => {
+    store.create({ name: 'Erika Beispiel', number: '0171 5552900' });
+    store.create({ name: 'Tom Weber ' + heart, number: '030 5552901', owner: true });
+    const cands = [
+      { name: 'Erika Beispiel ' + heart, numbers: [{ number: '01715552900', label: 'mobil' as const }, { number: '0305552902', label: 'privat' as const }] },
+      { name: 'Tom Weber', numbers: [{ number: '01715552903', label: 'mobil' as const }] },
+      { name: heart, numbers: [{ number: '01715552904', label: 'mobil' as const }] },
+      { name: phone, numbers: [{ number: '01715552905', label: 'mobil' as const }] },
+    ];
+    const items = buildPreview(cands, store);
+    assert.deepEqual(items.map((i) => [i.mergeable, i.ownCard, i.twin]), [[true, undefined, undefined], [undefined, true, undefined], [undefined, undefined, undefined], [undefined, undefined, undefined]]);
+    const r = applyImport(cands, ['0', '1', '2', '3'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.combined], [2, 1, 0]);
+  });
+});

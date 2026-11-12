@@ -168,6 +168,8 @@ export class ContactStore {
     // Scheitert das Speichern, bleibt der Stand im Speicher wie auf der Platte
     const before = this.contacts;
     this.contacts = [...before];
+    // Position je ID in der Kopie: Ergänzen ersetzt den Eintrag an Ort und Stelle (die Kopie, nie `before`)
+    const position = new Map(this.contacts.map((c, i) => [c.id, i]));
     try {
       for (const add of addNumbers) {
         const existing = this.get(add.id);
@@ -177,7 +179,7 @@ export class ContactStore {
         try {
           const clean = this.validate({ ...existing, numbers: [...(existing.numbers ?? []), ...fresh] }, existing.id);
           const updated: Contact = { ...existing, numbers: clean.numbers, updatedAt: now };
-          this.contacts = this.contacts.map((c) => (c.id === existing.id ? updated : c));
+          this.contacts[position.get(existing.id)!] = updated;
           this.indexAdd(updated);
           merged++;
         } catch (err) {

@@ -390,8 +390,16 @@ function isOwnCard(c: ImportCandidate, ownerContacts: Contact[]): boolean {
   return n !== '' && ownerContacts.some((o) => nameKey(o.name) === n);
 }
 
-// \p{M}: Vokalzeichen und andere kombinierende Zeichen gehören zum Wort (etwa in indischen Schriften)
-const nameParts = (s: string) => s.normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}\p{M}]+/u).filter(Boolean);
+// \p{M}: Vokalzeichen und andere kombinierende Zeichen gehören zum Wort (etwa in indischen Schriften) – aber nur hinter
+// einem Buchstaben; Emoji-Steuerzeichen (Variantenwähler, Verbinder, Tastenkappe) zählen nie als Name
+const nameParts = (s: string) =>
+  s
+    .normalize('NFC')
+    .replace(/[︀-️‍⃣]/g, '')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}\p{M}]+/u)
+    .map((t) => t.replace(/^\p{M}+/u, ''))
+    .filter(Boolean);
 /** Name ohne Groß/Klein, Satzzeichen und doppelte Leerzeichen */
 // Namen ganz ohne Buchstaben und Ziffern („🚑“, „???“) behalten ihren Text, sonst fielen sie alle zusammen
 const nameKey = (s: string) => nameParts(s).join(' ') || s.normalize('NFC').trim().toLowerCase();
@@ -449,6 +457,7 @@ export function applyImport(
 ): { created: number; merged: number; combined: number; unchanged: number; skipped: string[] } {
   const create: ContactInput[] = [];
   const add: { id: string; numbers: string[] }[] = [];
+  const addById = new Map<string, { id: string; numbers: string[] }>();
   let unchanged = 0;
   /** Karten, deren Nummern zu einer anderen gewählten Karte mit genau demselben Namen kamen */
   let combined = 0;
@@ -484,15 +493,16 @@ export function applyImport(
       if (!opts.addToExisting) {
         unchanged++;
         used = false;
-      } else if (add.some((x) => x.id === existing.id)) {
+      } else if (addById.has(existing.id)) {
         // Eine weitere Karte für denselben Kontakt (auch „Erika B.“ neben „Erika Beispiel“): ein Eintrag je Kontakt
-        const entry = add.find((x) => x.id === existing.id)!;
+        const entry = addById.get(existing.id)!;
         entry.numbers = [...entry.numbers, ...fresh];
         if (!target) byName.set(nameKey(c.name), entry);
         combined++;
       } else {
         const entry = { id: existing.id, numbers: fresh };
         add.push(entry);
+        addById.set(existing.id, entry);
         if (!target) byName.set(nameKey(c.name), entry);
       }
     } else if (target) {
