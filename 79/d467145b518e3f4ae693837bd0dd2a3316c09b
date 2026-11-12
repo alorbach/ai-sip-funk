@@ -1,0 +1,26 @@
+src/contacts.ts
+  s_ddd51a70c3e2b9::t_66ab819c84a297 171-172
+  s_ddd51a70c3e2b9::t_f4fcdd339fe038 182
+src/contactImport.ts
+  s_ddd51a70c3e2b9::t_c6982f12933ce4 496,498,505
+  s_ddd51a70c3e2b9::t_90155e0605324d 460
+  s_ddd51a70c3e2b9::t_607ede53b3bd38 393-402
+test/contactImport.test.ts
+  s_ddd51a70c3e2b9::t_0c62dd3a670f3a 671-692
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79d467145b518e3f4ae693837bd0dd2a3316c09b",
+  "prompts": {},
+  "sessions": {
+    "s_ddd51a70c3e2b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1be2cd17-1f2b-433a-be4b-da1c0c0d54db",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
