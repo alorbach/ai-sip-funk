@@ -309,6 +309,12 @@ function startServer() {
     env[k] = v;
   }
   env.SIPFUNK_DATA_DIR = dataDir;
+  // Die Karte „MCP-Schnittstelle“ liest die Konfigurationen der Agenten im Benutzerordner: Die Demo bekommt einen leeren
+  const home = path.join(tempRoot, 'home');
+  fs.mkdirSync(home, { recursive: true });
+  env.USERPROFILE = env.HOME = home;
+  env.APPDATA = path.join(home, 'AppData', 'Roaming');
+  env.LOCALAPPDATA = path.join(home, 'AppData', 'Local');
   const child = spawn('node', ['--import', pathToFileURL(path.join(tempRoot, 'preload.mjs')).href, path.join(ROOT, 'dist', 'main.js')], { cwd: dataDir, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   let logText = '';
   child.stdout.on('data', (d) => { logText += d; });
@@ -339,7 +345,12 @@ const SHOTS = [
   { name: 'settings-provider-gemini', hash: 'settings', mode: 'easy', height: 1100, section: 'settings-provider', connection: 'gemini', bottom: true },
   { name: 'settings-incoming', hash: 'settings', mode: 'easy', height: 900, section: 'settings-incoming' },
   { name: 'settings-scam', hash: 'settings', mode: 'advanced', height: 900, section: 'settings-scam' },
-  { name: 'settings-mcp', hash: 'settings', mode: 'easy', height: 980, section: 'settings-mcp' },
+  // Adresse mit dem Standardport und erfundene Einträge bei den Agenten (die Demo läuft auf einem freien Port in einem leeren Benutzerordner)
+  { name: 'settings-mcp', hash: 'settings', mode: 'easy', height: 1500, section: 'settings-mcp', after: `(() => {
+    renderMcp({ connect: { ...mcp.connect, httpUrl: 'http://127.0.0.1:3865/mcp', port: 3865, runningPort: 3865 } });
+    const a = (id, label, state, file) => ({ id, label, state, file: 'C:\\\\Users\\\\max\\\\' + file, transport: 'http', restart: '' });
+    renderAgents([a('claude-code', 'Claude Code', 'ok', '.claude.json'), a('claude-desktop', 'Claude Desktop', 'ok', 'AppData\\\\Roaming\\\\Claude\\\\claude_desktop_config.json'), a('codex', 'Codex', 'stale', '.codex\\\\config.toml'), a('cursor', 'Cursor', 'missing', '.cursor\\\\mcp.json'), a('gemini-cli', 'Gemini CLI', 'absent', ''), a('copilot-cli', 'GitHub Copilot CLI', 'absent', '')]);
+  })()` },
   // Anfrage eines Agenten, wie sie der Bestätigungsdialog zeigt (erfundene Daten, es wird nichts gewählt)
   { name: 'mcp-confirm', hash: 'dashboard', mode: 'easy', height: 760, after: `renderMcp({ pending: { id: 'demo', number: '03023125410', contact: 'Restaurant Sonne', principal: 'Max Mustermann', ownPrincipal: true, context: 'Anlass ist ein Geburtstag. Ein Gast braucht einen Kinderstuhl.', task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.' } })` },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },

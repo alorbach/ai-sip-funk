@@ -2,8 +2,10 @@
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { mkdirSync } from 'node:fs';
 import { loadConfig } from './config.js';
+import { chooseWebPort, parsePort, writePortFile } from './webPort.js';
 import { VERSION } from './version.js';
 import { CallManager, type AudioHandler } from './callManager.js';
 import { log, logEvents } from './log.js';
@@ -14,6 +16,7 @@ import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction,
 import { sampleText, voiceSample } from './ai/voiceSample.js';
 import { McpGateway, type AgentCallControl } from './mcp/gateway.js';
 import { handleMcpHttp } from './mcp/http.js';
+import { agentStatus, installAgent, removeAgent, userAgentEnv, type McpTarget } from './mcp/agents.js';
 import { existsSync } from 'node:fs';
 import { mcpPolicyFrom, incomingFrom, incomingOverride, loadSettings, saveSettings, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
@@ -47,6 +50,17 @@ mkdirSync(dataDir, { recursive: true });
 process.chdir(dataDir);
 
 const config = loadConfig();
+// Port der Web-UI: aus den Einstellungen (Basis: WEB_PORT der .env). Ist er belegt, weicht SIPFunk auf den nächsten
+// freien aus und speichert ihn, damit die Adresse für eingetragene Agenten danach wieder fest ist.
+const wantedWebPort = parsePort(loadSettings().webPort) ?? config.webPort;
+const webPortChoice = await chooseWebPort(wantedWebPort);
+config.webPort = webPortChoice.port;
+/** Gesetzt, wenn beim Start ausgewichen wurde: der Port, der belegt war */
+const webPortMovedFrom = webPortChoice.moved ? wantedWebPort : undefined;
+if (webPortChoice.moved) {
+  saveSettings({ webPort: String(webPortChoice.port) });
+  log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ab jetzt Port ${webPortChoice.port} (gespeichert). Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
+}
 const personas = loadPersonas(join(projectRoot, 'personas'));
 const bus = new EventEmitter();
 const contacts = new ContactStore(join(dataDir, 'contacts.json'));
@@ -484,19 +498,33 @@ const gateway: McpGateway = new McpGateway({
 manager.on('status', (s: { phase: string }) => gateway.linePhase(s.phase));
 
 /** Wie ein Agent den MCP-Server erreicht: Adresse für Streamable HTTP und der Befehl für den stdio-Prozess (für die Schnipsel der Oberfläche). */
-function mcpConnect(): Record<string, unknown> {
-  const url = `http://127.0.0.1:${config.webPort}`;
+function mcpConnect(): McpTarget & { packaged: boolean; port: number; runningPort: number } {
+  // Der eingestellte Port: Weicht er vom laufenden ab (gespeichert, aber noch nicht neu gestartet), gilt er ab dem Neustart
+  const port = parsePort(loadSettings().webPort) ?? config.webPort;
+  const url = `http://127.0.0.1:${port}`;
   const built = fileURLToPath(new URL('./mcp/server.js', import.meta.url));
   const source = fileURLToPath(new URL('./mcp/server.ts', import.meta.url));
   // Aus dem Quelltext gestartet (npm start): über tsx; gebaut oder installiert: mit dem eigenen Programm als Node
   const fromSource = !existsSync(built) && existsSync(source);
-  const env: Record<string, string> = { SIPFUNK_URL: url };
+  // Der Prozess liest den Port der laufenden App aus dem Datenordner und folgt so jeder Portänderung
+  const env: Record<string, string> = { SIPFUNK_DATA_DIR: dataDir };
   if (!fromSource && process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1';
   return {
     httpUrl: `${url}/mcp`,
     stdio: fromSource ? { command: 'npx', args: ['tsx', source], env } : { command: process.execPath, args: [built], env },
     packaged: Boolean(process.versions.electron) && !fromSource,
+    port,
+    runningPort: config.webPort,
   };
+}
+
+// Einträge in den Konfigurationen der Agenten (Claude Code, Claude Desktop, Codex, Cursor …): nur lesen, außer auf Klick
+const agentEnv = userAgentEnv(process.env, homedir());
+async function agentAction(id: string, action: string): Promise<Record<string, unknown>> {
+  if (action !== 'install' && action !== 'remove') throw new Error('Unbekannte Aktion');
+  const r = action === 'install' ? await installAgent(id, agentEnv, mcpConnect()) : await removeAgent(id, agentEnv, mcpConnect());
+  if (r.changed) log.info(`MCP: Eintrag bei ${r.agent.label} ${action === 'install' ? 'geschrieben' : 'entfernt'} (${r.agent.file})${r.backup ? `, Sicherung: ${r.backup}` : ''}`);
+  return { agents: agentStatus(agentEnv, mcpConnect()), agent: r.agent, backup: r.backup, changed: r.changed };
 }
 
 /** Tray-Hinweis an die Tray-App (electron/main.cjs), falls wir als Kindprozess laufen. */
@@ -941,6 +969,9 @@ const stopWeb = startWebServer({
     autoconfig: (email) => suggestMail(email),
   },
   port: config.webPort,
+  onListening: () => writePortFile(dataDir, config.webPort),
+  // Neustart über die Tray-App (z. B. nach einer Portänderung); ohne sie muss von Hand neu gestartet werden
+  restart: typeof process.send === 'function' ? () => traySend({ type: 'restart' }) : undefined,
   manager,
   createHandler,
   modes,
@@ -976,6 +1007,8 @@ const stopWeb = startWebServer({
   setup: { status: setupStatus, saveSip, saveAiKey },
   mcp: {
     info: () => ({ ...gateway.info(), connect: mcpConnect() }),
+    agents: () => ({ agents: agentStatus(agentEnv, mcpConnect()) }),
+    agentAction,
     approve: (id, allow) => gateway.approve(id, allow),
     run: (tool, args, client) => gateway.run(tool, args, client),
     http: (req, res, body) => handleMcpHttp(req, res, body, (tool, args) => gateway.run(tool, args, String(req.headers['user-agent'] ?? 'http'))),
@@ -998,7 +1031,7 @@ const stopWeb = startWebServer({
     settingsBroken: settingsBroken(),
     ...aiUiData(),
     // Nur zur Anzeige auf der Technik-Seite; Zugangsdaten bleiben in der .env
-    env: { version: VERSION, sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
+    env: { version: VERSION, sipServer: config.sipServer, sipLocalPort: config.sipLocalPort, rtpPort: config.rtpPort, webPort: config.webPort, webPortMovedFrom, canRestart: typeof process.send === 'function', dataDir, hdAudio: config.hdAudio, liveListen: config.liveListenEnabled, ownerNumbers: config.ownerNumbers.length },
   }),
 });
 await manager.start();
@@ -1006,7 +1039,7 @@ await manager.start();
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
 if (typeof process.send === 'function') {
   const send = (msg: Record<string, unknown>) => { try { process.send?.(msg); } catch { /* Elternprozess weg */ } };
-  send({ type: 'ready', webPort: config.webPort, dataDir, setupNeeded: setupStatus().needed === true });
+  send({ type: 'ready', webPort: config.webPort, webPortMovedFrom, dataDir, setupNeeded: setupStatus().needed === true });
   manager.on('status', (s) => send({ type: 'status', phase: s.phase, registered: s.registered, incoming: s.incomingSettings.enabled, target: s.target }));
   logEvents.on('line', (line: { level: string; text: string }) => { if (line.level === 'error') send({ type: 'error', message: line.text }); });
 }

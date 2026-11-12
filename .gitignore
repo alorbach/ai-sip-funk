@@ -13,3 +13,4 @@ usage.json
 .claude/
 *.tmp
 *.defekt
+sipfunk.port

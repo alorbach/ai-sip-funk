@@ -58,13 +58,17 @@ function running() {
   }
 }
 
-/** Port der Web-UI der installierten App: aus ihrer .env im Datenordner, sonst der Standard. */
+/** Port der Web-UI der installierten App: den die laufende App abgelegt hat, sonst aus ihrer .env im Datenordner, sonst der Standard. */
 function webPort() {
+  try {
+    const m = /^(\d{4,5})\s*$/.exec(readFileSync(join(process.env.APPDATA || '', product, 'sipfunk.port'), 'utf8'));
+    if (m) return m[1];
+  } catch { /* App lief noch nie mit dieser Fassung */ }
   try {
     const m = /^\s*WEB_PORT\s*=\s*(\d+)/m.exec(readFileSync(join(process.env.APPDATA || '', product, '.env'), 'utf8'));
     if (m) return m[1];
   } catch { /* keine .env: Standard */ }
-  return '8080';
+  return '3865';
 }
 
 /** Zustand der laufenden App über die lokale Web-UI; null, wenn nichts antwortet. */

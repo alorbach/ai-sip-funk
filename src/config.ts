@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { isOn } from './fsutil.js';
+import { DEFAULT_WEB_PORT } from './webPort.js';
 
 export interface Config {
   sipServer: string;
@@ -56,7 +57,7 @@ export function loadConfig(): Config {
     maxCallSeconds: envInt('MAX_CALL_SECONDS', 300),
     liveListenEnabled: envBool('LIVE_LISTEN_ENABLED', true),
     hdAudio: envBool('AUDIO_HD', true),
-    webPort: envInt('WEB_PORT', 8080),
+    webPort: envInt('WEB_PORT', DEFAULT_WEB_PORT),
     sipDebug: envBool('SIP_DEBUG', false),
   };
 }

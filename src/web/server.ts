@@ -16,6 +16,10 @@ export type HandlerFactory = (mode: string, params: Record<string, unknown>) => 
 
 export interface WebServerOptions {
   port: number;
+  /** Der Server lauscht (z. B. um den Port für andere Prozesse abzulegen) */
+  onListening?: () => void;
+  /** Neustart des Servers anstoßen (nur unter der Tray-App) */
+  restart?: () => void;
   manager: CallManager;
   /** Erzeugt den Audio-Handler für einen Anruf; 'tone' und 'echo' gibt es immer, 'ai' nur mit dem Schlüssel des gewählten KI-Anbieters. */
   createHandler: HandlerFactory;
@@ -62,6 +66,9 @@ export interface WebServerOptions {
   /** MCP-Schnittstelle für KI-Agenten: Zustand für die Oberfläche, Bestätigung einer Anfrage, Tool-Aufrufe (stdio-Prozess) und Streamable HTTP unter /mcp */
   mcp?: {
     info: () => Record<string, unknown>;
+    /** Einträge in den Konfigurationen der Agenten: Zustand, und auf Klick eintragen ('install') oder entfernen ('remove') */
+    agents: () => Record<string, unknown>;
+    agentAction: (id: string, action: string) => Promise<Record<string, unknown>>;
     /** Liefert einen Grund, wenn bestätigt wurde, das Wählen aber nicht ging */
     approve: (id: string, allow: boolean) => string | undefined;
     run: (tool: string, args: Record<string, unknown>, client: string) => Promise<{ text: string; isError?: boolean }>;
@@ -160,6 +167,12 @@ export function startWebServer(opts: WebServerOptions): () => void {
       if (req.method === 'GET' && url.pathname === '/api/mcp') {
         return sendJson(res, 200, opts.mcp ? opts.mcp.info() : { enabled: false });
       }
+      if (url.pathname === '/api/mcp/agents' && (req.method === 'GET' || req.method === 'POST')) {
+        if (!opts.mcp) return sendJson(res, 400, { error: 'Nicht verfügbar' });
+        if (req.method === 'GET') return sendJson(res, 200, opts.mcp.agents());
+        const body = await readJson(req);
+        return sendJson(res, 200, await opts.mcp.agentAction(String(body.id ?? ''), String(body.action ?? '')));
+      }
       if (req.method === 'POST' && url.pathname === '/api/mcp/approve') {
         if (!opts.mcp) return sendJson(res, 400, { error: 'Nicht verfügbar' });
         const body = await readJson(req);
@@ -209,6 +222,14 @@ export function startWebServer(opts: WebServerOptions): () => void {
         if (typeof key !== 'string') return sendJson(res, 400, { error: 'Schlüssel fehlt' });
         const r = await opts.usage.saveAdminKey(key);
         return r.ok ? sendJson(res, 200, { ok: true, usage: await opts.usage.get(false) }) : sendJson(res, 400, { error: r.error ?? 'Prüfung fehlgeschlagen' });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/restart') {
+        if (!opts.restart) return sendJson(res, 400, { error: 'Ohne die Tray-App lässt sich SIPFunk nicht von hier neu starten – bitte von Hand beenden und wieder starten.' });
+        if (manager.status().phase === 'connected') return sendJson(res, 409, { error: 'Es läuft gerade ein Gespräch – bitte danach neu starten.' });
+        log.info('Neustart über die Oberfläche angefordert');
+        sendJson(res, 200, { ok: true });
+        // Erst antworten, dann neu starten
+        return void setTimeout(() => opts.restart?.(), 200);
       }
       if (req.method === 'GET' && url.pathname === '/api/settings') {
         return sendJson(res, 200, publicSettings(loadSettings()));
@@ -370,11 +391,12 @@ export function startWebServer(opts: WebServerOptions): () => void {
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     // Ohne Behandlung endet der Prozess mit einem Stacktrace; so steht die Ursache im Log und im Tray
-    log.error(err.code === 'EADDRINUSE' ? `Web-UI: Port ${opts.port} ist belegt – läuft SIPFunk schon? Sonst WEB_PORT in der .env ändern.` : `Web-UI: ${err.message}`);
+    log.error(err.code === 'EADDRINUSE' ? `Web-UI: Port ${opts.port} ist belegt und in der Nähe war kein freier Port – die Oberfläche ist nicht erreichbar. Port in settings.json („webPort“) ändern und neu starten.` : `Web-UI: ${err.message}`);
     process.exitCode = 1;
   });
   server.listen(opts.port, '127.0.0.1', () => {
     log.info(`Web-UI: http://127.0.0.1:${opts.port}`);
+    opts.onListening?.();
   });
 
   return () => {

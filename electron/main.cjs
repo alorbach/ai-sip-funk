@@ -19,7 +19,7 @@ const envFile = path.join(dataDir, '.env');
 
 let tray = null;
 let child = null;
-let state = { server: 'startet', phase: '', registered: false, incoming: false, target: '', webPort: Number(process.env.WEB_PORT || 8080), error: '' };
+let state = { server: 'startet', phase: '', registered: false, incoming: false, target: '', webPort: Number(process.env.WEB_PORT || 3865), error: '' };
 let quitting = false;
 let ringWin = null;
 /** Die Web-UI wurde für die Ersteinrichtung schon einmal geöffnet (nicht bei jedem Server-Neustart wieder) */
@@ -58,6 +58,7 @@ const EN = {
   'dist/main.js fehlt – erst „npm run build“': 'dist/main.js is missing – run "npm run build" first',
   'Anrufbeantworter konnte nicht umgeschaltet werden': 'The answering machine could not be switched',
   'SIPFunk – eingehender Anruf': 'SIPFunk – incoming call',
+  'Port {0} war belegt. Die Oberfläche läuft jetzt auf Port {1}. Eingetragene KI-Agenten bitte in den Einstellungen aktualisieren.': 'Port {0} was in use. The web UI now runs on port {1}. Please update registered AI agents in the settings.',
   'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.': 'SIPFunk now starts after you sign in to Windows. To turn this off: tray menu › "Start at login".',
 };
 function uiLang() {
@@ -158,7 +159,7 @@ function buildMenu() {
     { label: stateLine(), enabled: false },
     ...(state.error ? [{ label: `${T('Fehler')}: ${state.error.slice(0, 80)}`, click: () => clipboard.writeText(state.error) }] : []),
     { type: 'separator' },
-    { label: T('Web-UI öffnen'), enabled: running, click: () => shell.openExternal(webUrl()) },
+    { label: running ? `${T('Web-UI öffnen')} (Port ${state.webPort})` : T('Web-UI öffnen'), enabled: running, click: () => shell.openExternal(webUrl()) },
     { label: T('Anrufbeantworter'), type: 'checkbox', checked: state.incoming, enabled: running, click: (item) => setIncoming(item.checked) },
     { type: 'separator' },
     { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
@@ -240,7 +241,15 @@ function startServer() {
       state.server = 'läuft'; state.webPort = Number(msg.webPort) || state.webPort;
       // Noch nicht eingerichtet: Web-UI öffnen, dort führt der Einrichtungsassistent durch das Nötigste
       if (msg.setupNeeded && !setupOpened) { setupOpened = true; shell.openExternal(webUrl()); }
+      // Der eingestellte Port war belegt: SIPFunk ist ausgewichen und hat den neuen Port gespeichert
+      if (msg.webPortMovedFrom && Notification.isSupported()) {
+        const n = new Notification({ title: 'SIPFunk', body: T('Port {0} war belegt. Die Oberfläche läuft jetzt auf Port {1}. Eingetragene KI-Agenten bitte in den Einstellungen aktualisieren.').replace('{0}', msg.webPortMovedFrom).replace('{1}', state.webPort), icon: ICON_PNG });
+        n.on('click', () => shell.openExternal(`${webUrl()}/#settings`));
+        n.show();
+      }
     }
+    // Die Oberfläche bittet um einen Neustart (z. B. nach einer Portänderung)
+    else if (msg.type === 'restart') restart();
     else if (msg.type === 'status') { state.phase = msg.phase; state.registered = !!msg.registered; state.incoming = !!msg.incoming; state.target = msg.target || ''; }
     else if (msg.type === 'error') state.error = String(msg.message || '');
     else if (msg.type === 'ring') showRing();

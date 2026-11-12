@@ -6,10 +6,11 @@
 // diesem Skript als Argument – die fertige Konfiguration zeigt die Web-UI unter „Einstellungen › MCP-Schnittstelle“.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from './tools.js';
-
-const BASE = process.env.SIPFUNK_URL ?? `http://127.0.0.1:${process.env.WEB_PORT ?? '8080'}`;
+import { appBaseUrl } from '../webPort.js';
 
 const server = createMcpServer(async (tool, args) => {
+  // Bei jedem Aufruf neu: Ändert sich der Port der App, findet ihn der Prozess ohne Neustart des Agenten wieder
+  const BASE = appBaseUrl(process.env);
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/mcp/call`, {

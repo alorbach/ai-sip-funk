@@ -6,6 +6,7 @@ import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT } from './notify/mailFormat.js'
 import type { PrincipalKind } from './ai/personas.js';
 import { providerById } from './ai/providers/index.js';
 import { connectionsFrom } from './ai/connections.js';
+import { DEFAULT_WEB_PORT, parsePort } from './webPort.js';
 
 export interface FormSettings {
   /** Sprache der Oberfläche: 'auto' (Sprache des Browsers) | 'de' | 'en'. Die KI spricht unabhängig davon Deutsch */
@@ -126,6 +127,8 @@ export interface FormSettings {
   mailSubject: string;
   /** Text-Vorlage der Benachrichtigungs-Mail; leer = Standard */
   mailBody: string;
+  /** Port der Web-UI und der MCP-Schnittstelle auf 127.0.0.1 (1024–65535); wirkt nach einem Neustart. .env (WEB_PORT) liefert die Basis */
+  webPort: string;
   // ---- MCP-Schnittstelle für KI-Agenten (Seite „Einstellungen › MCP-Schnittstelle"); bewusst ohne Schalter in der .env ----
   /** MCP-Schnittstelle: 'on' | 'off' (Standard aus). Aus = jeder Tool-Aufruf wird abgelehnt */
   mcpEnabled: string;
@@ -213,7 +216,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -327,6 +330,7 @@ function envDefaults(): FormSettings {
     mailUser: e('MAIL_USER'),
     mailSubject: '',
     mailBody: '',
+    webPort: String(parsePort(e('WEB_PORT')) ?? DEFAULT_WEB_PORT),
     // Bewusst aus und ohne .env-Schalter: Dass ein Agent telefonieren darf, wird in der Oberfläche entschieden
     mcpEnabled: 'off',
     mcpTargets: 'contacts',
@@ -592,6 +596,8 @@ function normalize(s: FormSettings): FormSettings {
   if (s.setupDone !== 'on') s.setupDone = 'off';
   if (s.uiLang !== 'de' && s.uiLang !== 'en') s.uiLang = 'auto';
   if (s.scamDisclose !== 'off') s.scamDisclose = 'on';
+  // Ungültiger Port (Tippfehler, unter 1024): beim Vorgabewert bleiben statt beim nächsten Start zu scheitern
+  s.webPort = String(parsePort(s.webPort) ?? parsePort(process.env.WEB_PORT) ?? DEFAULT_WEB_PORT);
   if (s.mcpEnabled !== 'on') s.mcpEnabled = 'off';
   if (s.mcpTargets !== 'any') s.mcpTargets = 'contacts';
   if (s.mcpConfirm !== 'never' && s.mcpConfirm !== 'unknown') s.mcpConfirm = 'always';

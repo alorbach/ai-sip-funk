@@ -280,6 +280,13 @@
   dialog h3 { margin: 0 0 4px; font-size: 17px; }
   dialog .body { padding: 14px 20px; display: grid; gap: 12px; }
   dialog .foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .agent-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-s); }
+  .agent-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; flex-wrap: wrap; }
+  .agent-list li + li { border-top: 1px solid var(--line); }
+  .agent-list .who { flex: 1 1 260px; min-width: 0; }
+  .agent-list .who small { display: block; margin-top: 2px; color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
+  .agent-list .pill.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--text); }
+  .agent-list .acts { display: flex; gap: 8px; }
   .snippet { position: relative; margin-top: 8px; }
   .snippet pre { margin: 0; padding: 12px 14px; padding-right: 96px; border-radius: var(--radius-s); background: var(--surface-2); border: 1px solid var(--line); font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); min-height: 44px; }
   .snippet .btn { position: absolute; top: 8px; right: 8px; }
@@ -683,8 +690,13 @@
               <label class="switch span adv"><span>Agent darf die Namen meiner Kontakte lesen<small>Rufnummern und Notizen bekommt er nie. Einen Kontakt anrufen kann er auch ohne diese Liste, wenn er den Namen kennt.</small></span><input type="checkbox" id="p-mcp-contacts" role="switch"></label>
             </div>
             <div class="subhead" style="margin-top:18px">Agenten verbinden</div>
+            <p class="hint" style="margin-top:6px">Auf Klick trägt sich SIPFunk selbst als MCP-Server „sipfunk“ beim Agenten ein. Andere Einträge in dessen Konfigurationsdatei bleiben erhalten; vor jeder Änderung entsteht daneben eine Sicherungskopie.</p>
+            <p class="hint" style="margin-top:6px">Adresse: <code id="mcp-url" data-no-i18n></code></p>
+            <p class="hint" id="mcp-port-note" style="margin-top:6px" role="status" data-no-i18n hidden></p>
+            <ul class="agent-list" id="mcp-agents" aria-label="Agenten"></ul>
+            <div class="subhead" style="margin-top:18px">Von Hand eintragen</div>
             <div class="actions" style="margin-top:8px">
-              <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Agent</span><select id="mcp-agent" style="width:auto" data-no-i18n><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="claude-desktop">Claude Desktop</option></select></label>
+              <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Agent</span><select id="mcp-agent" style="width:auto"><option value="codex" data-no-i18n>Codex</option><option value="claude-code" data-no-i18n>Claude Code</option><option value="claude-desktop" data-no-i18n>Claude Desktop</option><option value="cursor" data-no-i18n>Cursor</option><option value="vscode" data-no-i18n>VS Code (Copilot)</option><option value="gemini" data-no-i18n>Gemini CLI</option><option value="other">Anderer Agent</option></select></label>
               <label class="field adv" style="grid-auto-flow:column;align-items:center;gap:8px"><span>Verbindung</span><select id="mcp-transport" style="width:auto"><option value="http">Direkt über HTTP</option><option value="stdio">Als Prozess (stdio)</option></select></label>
             </div>
             <div class="snippet" role="group" aria-label="Konfiguration"><pre id="mcp-snippet" data-no-i18n tabindex="0"></pre><button type="button" id="mcp-copy" class="btn small">Kopieren</button></div>
@@ -707,6 +719,7 @@
               <label class="field"><span>Sprechgeschwindigkeit</span><input id="t-speed" type="number" min="0.25" max="1.5" step="0.05"><small>0,25 bis 1,5. Standard 1,05.</small></label>
               <label class="field"><span>Lautstärke der KI</span><input id="t-gain" type="number" min="0.2" max="4" step="0.1"><small>Verstärkung Richtung Telefon, mit weichem Begrenzer. Standard 1,5.</small></label>
               <label class="switch span"><span>Gegenüber darf die KI unterbrechen</span><input type="checkbox" id="t-interrupt" role="switch"></label>
+              <label class="field"><span>Port der Oberfläche und der MCP-Schnittstelle</span><input id="t-web-port" type="number" min="1024" max="65535" step="1"><small>Nur von diesem Rechner erreichbar (127.0.0.1). Standard 3865. Gilt nach einem Neustart. Ist der Port beim Start belegt, nimmt SIPFunk den nächsten freien und speichert ihn.</small></label>
             </div>
             <div class="subhead" style="margin-top:14px">Nur in der <code>.env</code></div>
             <dl class="kv" id="env-info" style="margin-top:8px"></dl>
@@ -911,7 +924,7 @@ const FORM_FIELDS = {
   scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
   mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history',
-  maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt',
+  maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', webPort: 't-web-port',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
 // Die Stimme gehört nicht dazu: Ohne Wahl für den Anruf gilt die Standardstimme der KI-Verbindung
@@ -1443,13 +1456,31 @@ function applySettings(s, keys) {
   if (s.retentionDays) $('retention').textContent = s.retentionDays;
 }
 async function saveKeys(keys) {
-  const hadPass = Boolean(loaded.smtpPass);
+  const hadPass = Boolean(loaded.smtpPass), oldPort = loaded.webPort;
   const saved = await api('/api/settings', changedFields(keys));
   applySettings(saved, keys);
   if (keys.includes('mcpEnabled')) loadMcp();
+  if (keys.includes('webPort') && oldPort && saved.webPort !== oldPort) { loadMcp(); portChanged(saved.webPort); }
   // Der Server verwirft das gespeicherte Mail-Passwort, wenn nur die Serveradresse geändert wurde
   if (hadPass && !saved.smtpPass && keys.includes('smtpHost')) toast('Der Mailserver wurde geändert. Bitte das Passwort des Postfachs neu eingeben und speichern.', 'warn');
   return saved;
+}
+/** Port, auf dem diese Oberfläche gerade läuft, und ob die Tray-App den Server neu starten kann */
+let runningPort = location.port, canRestart = false;
+/** Nach einer Portänderung: Neustart anbieten und danach auf die neue Adresse wechseln. */
+async function portChanged(port) {
+  if (port === runningPort) return;
+  if (!canRestart) return toast(I18N.t('Port {0} gespeichert. Er gilt, sobald SIPFunk beendet und neu gestartet wurde; die Oberfläche hat dann die Adresse http://127.0.0.1:{0}.', port), 'warn');
+  if (!(await ask(I18N.t('Port {0} gespeichert', port), I18N.t('Der neue Port gilt erst nach einem Neustart von SIPFunk. Diese Seite wechselt danach von selbst auf http://127.0.0.1:{0}. Eingetragene KI-Agenten zeigen unter „MCP-Schnittstelle“ an, ob sie aktualisiert werden müssen.', port), I18N.t('Jetzt neu starten')))) return;
+  try { await api('/api/restart', {}); } catch (err) { return toast(err.message, 'error'); }
+  toast('SIPFunk startet neu …', 'ok');
+  const target = `http://127.0.0.1:${port}/`;
+  // Fremde Herkunft: Die Antwort ist nicht lesbar, aber ein gelungener Abruf zeigt, dass der neue Port bedient wird
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 750));
+    try { await fetch(target + 'i18n.js', { mode: 'no-cors', cache: 'no-store' }); location.href = target + location.hash; return; } catch {}
+  }
+  toast(I18N.t('SIPFunk antwortet auf Port {0} nicht. Bitte im Tray-Menü „Web-UI öffnen“ wählen.', port), 'error');
 }
 /** Angaben für einen Anruf: Dashboard-Felder plus Name, Auftraggeber und Verhalten – keine sonstigen Einstellungen. */
 function callParams() {
@@ -2063,6 +2094,7 @@ function mcpSnippet() {
   const agent = $('mcp-agent').value;
   // Claude Desktop startet lokale Server nur als Prozess
   const http = agent !== 'claude-desktop' && $('mcp-transport').value === 'http';
+  if (agent === 'claude-code' && http) return { text: `claude mcp add --transport http --scope user sipfunk ${c.httpUrl}`, where: 'Im Terminal ausführen. Die Verbindung gilt dann für alle Projekte.' };
   $('mcp-transport').disabled = agent === 'claude-desktop';
   const env = Object.entries(c.stdio.env);
   if (agent === 'codex') {
@@ -2077,6 +2109,11 @@ function mcpSnippet() {
       : `claude mcp add ${env.map(([k, v]) => `--env ${shellArg(`${k}=${v}`)}`).join(' ')} --transport stdio sipfunk -- ${[c.stdio.command, ...c.stdio.args].map(shellArg).join(' ')}`;
     return { text, where: 'Im Terminal ausführen. Mit „--scope user“ gilt die Verbindung für alle Projekte.' };
   }
+  const stdioJson = { command: c.stdio.command, args: c.stdio.args, env: c.stdio.env };
+  if (agent === 'cursor') return { text: JSON.stringify({ mcpServers: { sipfunk: http ? { url: c.httpUrl } : stdioJson } }, null, 2), where: 'In die Datei ~/.cursor/mcp.json eintragen (unter Windows im Benutzerordner). Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.' };
+  if (agent === 'vscode') return { text: `code --add-mcp ${shellArg(JSON.stringify(http ? { name: 'sipfunk', type: 'http', url: c.httpUrl } : { name: 'sipfunk', type: 'stdio', ...stdioJson }))}`, where: 'Im Terminal ausführen; VS Code trägt den Server in das Benutzerprofil ein.' };
+  if (agent === 'gemini') return { text: http ? `gemini mcp add -t http -s user sipfunk ${c.httpUrl}` : JSON.stringify({ mcpServers: { sipfunk: stdioJson } }, null, 2), where: http ? 'Im Terminal ausführen.' : 'In die Datei ~/.gemini/settings.json eintragen. Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.' };
+  if (agent === 'other') return { text: http ? c.httpUrl : JSON.stringify({ mcpServers: { sipfunk: stdioJson } }, null, 2), where: http ? 'Diese Adresse beim Agenten als MCP-Server vom Typ „Streamable HTTP“ eintragen; eine Anmeldung ist nicht nötig. Wie das geht, steht in der Anleitung des Agenten.' : 'Die meisten Agenten erwarten einen Prozess in dieser Form; wo der Eintrag hingehört, steht in der Anleitung des Agenten.' };
   return {
     text: JSON.stringify({ mcpServers: { sipfunk: { command: c.stdio.command, args: c.stdio.args, env: c.stdio.env } } }, null, 2),
     where: 'In die Datei claude_desktop_config.json eintragen (Claude Desktop: Einstellungen › Entwickler › Konfiguration bearbeiten) und Claude Desktop neu starten. Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.',
@@ -2086,6 +2123,12 @@ function renderMcp(info) {
   mcp = { ...mcp, ...info };
   const last = mcp.lastAccess;
   $('mcp-status').textContent = !mcp.enabled ? 'Ausgeschaltet' : last ? I18N.t('Eingeschaltet · letzter Zugriff {0}', when(last.at)) : 'Eingeschaltet · noch kein Zugriff';
+  if (mcp.connect) {
+    $('mcp-url').textContent = mcp.connect.httpUrl;
+    const pending = mcp.connect.port !== mcp.connect.runningPort;
+    $('mcp-port-note').hidden = !pending;
+    if (pending) $('mcp-port-note').textContent = I18N.t('Port {0} ist gespeichert, gilt aber erst nach einem Neustart von SIPFunk. Bis dahin ist SIPFunk nur unter Port {1} erreichbar.', mcp.connect.port, mcp.connect.runningPort);
+  }
   const snip = mcpSnippet();
   $('mcp-snippet').textContent = snip.text;
   $('mcp-where').textContent = snip.where;
@@ -2107,7 +2150,29 @@ function resetMcpDialog() {
   dlg.dataset.id = '';
   if (dlg.open && !mcpAnswering) dlg.close();
 }
-async function loadMcp() { try { renderMcp(await api('/api/mcp')); } catch {} }
+async function loadMcp() { try { renderMcp(await api('/api/mcp')); } catch {} loadAgents(); }
+// Einträge bei den Agenten: Zustand zeigen; geschrieben wird nur auf Klick
+const AGENT_STATES = { absent: ['Nicht gefunden', 'out'], missing: ['Nicht eingetragen', 'out'], ok: ['Eingetragen', 'ok'], stale: ['Veraltet', ''], unreadable: ['Nicht auswertbar', ''] };
+function renderAgents(list) {
+  $('mcp-agents').innerHTML = list.map((a) => {
+    const [text, cls] = AGENT_STATES[a.state] || [a.state, ''];
+    const acts = a.state === 'missing' ? [['install', 'Einrichten', 'primary']] : a.state === 'stale' ? [['install', 'Aktualisieren', 'primary'], ['remove', 'Entfernen', 'quiet']] : a.state === 'ok' ? [['remove', 'Entfernen', 'quiet']] : [];
+    const note = a.state === 'absent' ? I18N.t('Auf diesem Rechner wurde kein Ordner dieses Agenten gefunden.') : a.state === 'unreadable' ? I18N.t(a.detail || '') : a.state === 'stale' ? I18N.t('Der Eintrag passt nicht mehr zur aktuellen Adresse von SIPFunk.') : '';
+    return `<li><div class="who"><b data-no-i18n>${esc(a.label)}</b> <span class="pill ${cls}">${esc(text)}</span><small data-no-i18n>${esc(note)}${note && a.state !== 'absent' ? ' ' : ''}${a.state === 'absent' ? '' : esc(a.file)}</small></div><div class="acts">${acts.map(([act, label, c]) => `<button type="button" class="btn small ${c}" data-agent="${esc(a.id)}" data-act="${act}">${label}</button>`).join('')}</div></li>`;
+  }).join('');
+}
+async function loadAgents() { try { renderAgents((await api('/api/mcp/agents')).agents); } catch {} }
+$('mcp-agents').onclick = async (ev) => {
+  const btn = ev.target.closest('button[data-agent]');
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    const r = await api('/api/mcp/agents', { id: btn.dataset.agent, action: btn.dataset.act });
+    renderAgents(r.agents);
+    const done = btn.dataset.act === 'install' ? I18N.t('SIPFunk ist bei {0} eingetragen. {1}', r.agent.label, I18N.t(r.agent.restart)) : I18N.t('Der Eintrag bei {0} ist entfernt. {1}', r.agent.label, I18N.t(r.agent.restart));
+    toast(done + (r.backup ? ' ' + I18N.t('Sicherungskopie: {0}', r.backup) : ''), 'ok');
+  } catch (err) { toast(err.message, 'error'); loadAgents(); }
+};
 /** Kennung der Anfrage, die schon beantwortet ist, und ob die Antwort gerade unterwegs ist (gegen Doppelklicks) */
 let mcpAnswered = '', mcpAnswering = false;
 async function answerMcp(allow) {
@@ -2156,7 +2221,14 @@ $('mcp-copy').onclick = async () => {
     if (data.env) {
       const e = data.env;
       if (e.version) { $('app-version').textContent = `SIPFunk ${e.version}`; $('app-version').hidden = false; }
-      const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Web-UI', `127.0.0.1:${e.webPort}`], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und KI-Schlüssel nur in der .env; Mail-Kennwörter in settings.json']];
+      canRestart = !!e.canRestart; runningPort = String(e.webPort);
+      // Beim Start ausgewichen: einmal je Browsersitzung deutlich sagen, sonst wundert sich niemand über die neue Adresse
+      let told = ''; try { told = sessionStorage.getItem('sipfunk.portMoved') || ''; } catch {}
+      if (e.webPortMovedFrom && told !== String(e.webPort)) {
+        try { sessionStorage.setItem('sipfunk.portMoved', String(e.webPort)); } catch {}
+        toast(I18N.t('Port {0} war beim Start belegt. SIPFunk läuft jetzt dauerhaft auf Port {1}. Eingetragene KI-Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.', e.webPortMovedFrom, e.webPort), 'warn');
+      }
+      const rows = [['FRITZ!Box (SIP)', `${e.sipServer} · lokal Port ${e.sipLocalPort}, RTP ab ${e.rtpPort}`], ['HD-Audio', e.hdAudio ? 'an' : 'aus'], ['Mithören', e.liveListen ? 'an' : 'aus'], ['Datenordner', e.dataDir], ['Inhabernummern (.env)', String(e.ownerNumbers)], ['Zugangsdaten', 'SIP-Kennwort und KI-Schlüssel nur in der .env; Mail-Kennwörter in settings.json']];
       $('env-info').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     }
     applySettings(settings, Object.keys(FORM_FIELDS).filter((k) => k !== 'mode'));
