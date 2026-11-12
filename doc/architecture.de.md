@@ -70,7 +70,7 @@ SIPFunk meldet sich als IP-Telefon an der Box an und reicht das Telefonaudio an 
 
 - **Pufferung**: Das Modell liefert Audio schneller als Echtzeit. Die Ausgabe wird gepuffert und im 20-ms-Takt abgespielt, mit kurzem Vorpuffer gegen abgehackte Satzanfänge.
 - **Unterbrechung**: Spricht das Gegenüber, pausiert die Ausgabe. Erst wenn die Transkription Inhalt zeigt, wird der Rest verworfen; bei einem Geräusch oder Zuhör-Laut spricht die KI weiter.
-- **Beenden**: Das Modell ruft `end_call` mit Ergebnis und offenen Punkten auf. Bei ausgehenden Gesprächen mit Gesprächsplan wird der erste Aufruf mit einer Selbstprüfung gegen die Planschritte zurückgegeben. Die Verabschiedung fordert der Code an; danach folgt eine Nachhörphase, in der Inhalt des Gegenübers das Gespräch fortsetzt.
+- **Beenden**: Das Modell ruft `end_call` mit Ergebnis und offenen Punkten auf. Das Textmodell prüft dann neben der Verabschiedung her am ganzen Transkript, ob vom Auftrag etwas fehlt, und nimmt das Auflegen in dem Fall zurück (`src/ai/judge.ts`); ist das ausgeschaltet, wird bei ausgehenden Gesprächen mit Gesprächsplan der erste Aufruf mit einer Selbstprüfung gegen die Planschritte zurückgegeben. Die Verabschiedung fordert der Code an; danach folgt eine Nachhörphase, in der Inhalt des Gegenübers das Gespräch fortsetzt.
 - **Wächter**: bleibt nach einer Anforderung das Audio aus oder nach dem Ende der Ausgabe alles still, stößt die Brücke eine Antwort an.
 - **Rollenwechsel**: Bei `flag_spam` tauscht die Brücke Anweisung und Werkzeugliste in der laufenden Sitzung aus (`LiveSession.update`).
 

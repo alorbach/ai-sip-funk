@@ -70,7 +70,7 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 
 - **Buffering**: the model delivers audio faster than real time. The output is buffered and played at a 20 ms pace, with a short pre-buffer against choppy sentence starts.
 - **Interruption**: when the other party speaks, the output pauses. Only when the transcription shows content is the rest discarded; for a noise or a listening sound the AI keeps talking.
-- **Ending**: the model calls `end_call` with the result and open points. For outgoing calls with a call plan, the first call is returned with a self-check against the plan steps. The goodbye is requested by the code; a listening phase follows in which content from the other party continues the call.
+- **Ending**: the model calls `end_call` with the result and open points. The text model then checks the whole transcript alongside the goodbye for anything missing from the task and takes back the hang-up in that case (`src/ai/judge.ts`); if that is switched off, for outgoing calls with a call plan the first call is returned with a self-check against the plan steps. The goodbye is requested by the code; a listening phase follows in which content from the other party continues the call.
 - **Watchdogs**: if no audio arrives after a request, or everything stays silent after the output has ended, the bridge triggers a response.
 - **Role switch**: on `flag_spam` the bridge swaps the instruction and the tool list in the running session (`LiveSession.update`).
 
