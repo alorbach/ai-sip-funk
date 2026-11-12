@@ -29,7 +29,7 @@ const microsoft = (tenant: string) => ({
   scope: 'https://graph.microsoft.com/Contacts.Read',
 });
 const GRAPH = 'https://graph.microsoft.com/v1.0';
-const GRAPH_SELECT = '$select=displayName,givenName,surname,companyName,mobilePhone,homePhones,businessPhones&$top=500';
+const GRAPH_SELECT = '$select=id,displayName,givenName,surname,companyName,mobilePhone,homePhones,businessPhones&$top=500';
 
 const base64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 

@@ -482,3 +482,20 @@ test('Gemeinsame Nummer: Vorschau nennt die anderen Einträge', () => {
     assert.deepEqual(items[1].numbers.find((n) => n.shared)?.sharedWith, ['Erika Muster']);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 4
+
+test('Hauptnummer ist eine wählbare Nummer; keine Firmenzentrale aus deutschem Outlook', () => {
+  const [c] = fromVcard('BEGIN:VCARD\nFN:Ali Probe\nTEL;TYPE=CELL:+90 532 5551400\nTEL;TYPE=HOME:030 5551401\nEND:VCARD');
+  assert.deepEqual(c.numbers.map((n) => n.number), ['0305551401', '+905325551400']);
+  const [d] = fromCsv('Vorname;Nachname;Telefon Firma;Telefon für Hörbehinderte;Mobiltelefon\nLea;Probe;030 5551500;030 5551501;0171 5551502\n');
+  assert.deepEqual(d.numbers.map((n) => n.number), ['01715551502']);
+});
+
+test('Gemeinsame Nummer bei gleichem Namen nennt den anderen Eintrag', () => {
+  withStore((store) => {
+    const cands = fromVcard('BEGIN:VCARD\nFN:Kim Probe\nTEL:030 5551600\nEND:VCARD\nBEGIN:VCARD\nFN:Kim Probe\nTEL:030 5551600\nTEL;TYPE=CELL:0171 5551601\nEND:VCARD');
+    const items = buildPreview(cands, store);
+    assert.deepEqual(items[0].numbers[0].sharedWith, ['Kim Probe']);
+  });
+});

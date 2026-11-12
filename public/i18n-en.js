@@ -155,6 +155,7 @@
     '1 Kontakt importieren': 'Import 1 contact',
     'Bei vorhandenen Kontakten fehlende Nummern als weitere Nummern ergänzen (Name und Einstellungen bleiben unverändert; nur bei gleichem Namen)': 'Add missing numbers to existing contacts as further numbers (name and settings stay unchanged; only for the same name)',
     '– wird dort ergänzt': '– will be added there',
+    '– nur mit Haken „ergänzen“ unten': '– only with the "ergänzen" tick below',
     '– wird neu angelegt, ohne die schon gespeicherten Nummern': '– will be created as a new contact, without the numbers already stored',
     'Anmeldung im neuen Fenster abschließen, danach hier „Adressbuch laden“.': 'Finish signing in in the new window, then click "Load address book" here.',
     'Verbindung getrennt – SIPFunk hat keinen Zugriff mehr auf das Adressbuch.': 'Disconnected – SIPFunk no longer has access to the address book.',

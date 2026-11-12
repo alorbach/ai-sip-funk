@@ -3,6 +3,7 @@
 // gespeichert werden allein die Kontakte, die der Nutzer übernimmt.
 import { randomBytes } from 'node:crypto';
 import { numberKey, type Contact, type ContactInput, type ContactStore } from './contacts.js';
+import { checkDialTarget } from './dialPolicy.js';
 
 export type PhoneLabel = 'mobil' | 'privat' | 'geschäftlich' | 'sonstige';
 
@@ -127,7 +128,10 @@ export function cleanCandidates(raw: { name: string; numbers: { value: string; t
       numbers.push({ number, label });
     }
     if (!numbers.length) continue;
-    numbers.sort((a, b) => LABEL_ORDER.indexOf(a.label) - LABEL_ORDER.indexOf(b.label));
+    // Mobil vor Privat vor Geschäftlich; eine wählbare Nummer vor einer gesperrten (Ausland, Sondernummer), denn die
+    // erste wird die Nummer, die SIPFunk wählt
+    const dialable = (n: string) => (checkDialTarget(n) === undefined ? 0 : 1);
+    numbers.sort((a, b) => dialable(a.number) - dialable(b.number) || LABEL_ORDER.indexOf(a.label) - LABEL_ORDER.indexOf(b.label));
     const name = r.name.replace(/\s+/g, ' ').trim() || numbers[0].number;
     out.push({ name, numbers });
   }
@@ -306,7 +310,7 @@ export function fromCsv(text: string): ImportCandidate[] {
   // Outlook und allgemein: jede Spalte, deren Kopf nach Telefon aussieht (Fax/Pager filtert phoneLabel)
   const otherPhones = googlePhones.length
     ? []
-    : h.flatMap((x, i) => (/phone|telefon|mobil|handy|^tel\b|rufnummer|cell/i.test(x) && !/ - (type|label)$|assist|company main|zentrale|callback|rückruf/i.test(x) ? [{ value: i, header: x }] : []));
+    : h.flatMap((x, i) => (/phone|telefon|mobil|handy|^tel\b|rufnummer|cell/i.test(x) && !/ - (type|label)$|assist|company main|zentrale|callback|rückruf|telefon firma|firmentelefon|hörbehinderte|\btty\b|autotelefon|car phone/i.test(x) ? [{ value: i, header: x }] : []));
   return cleanCandidates(
     rows.map((r) => {
       const get = (i: number) => (i >= 0 ? (r[i] ?? '').trim() : '');
@@ -332,13 +336,13 @@ export function fromFile(name: string, text: string): ImportCandidate[] {
 /** Vorschau: Kandidaten mit den gespeicherten Kontakten abgleichen (über alle Nummern eines Kontakts). */
 export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber' | 'list'>): PreviewItem[] {
   const shared = sharedKeys(candidates);
-  const holders = new Map<string, string[]>();
-  for (const c of candidates) for (const n of c.numbers) if (shared.has(numberKey(n.number))) holders.set(numberKey(n.number), [...(holders.get(numberKey(n.number)) ?? []), c.name]);
+  const holders = new Map<string, number[]>();
+  candidates.forEach((c, i) => { for (const n of c.numbers) if (shared.has(numberKey(n.number))) holders.set(numberKey(n.number), [...(holders.get(numberKey(n.number)) ?? []), i]); });
   const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
   return candidates.map((c, i) => {
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
     const numbers = c.numbers.map((n, j) => {
-      const others = holders.get(numberKey(n.number))?.filter((x) => x !== c.name);
+      const others = holders.get(numberKey(n.number))?.filter((x) => x !== i).map((x) => candidates[x].name);
       return { ...n, known: owners[j]?.name, shared: shared.has(numberKey(n.number)) || undefined, sharedWith: others?.length ? others.slice(0, 3) : undefined };
     });
     const known = owners.filter((o): o is Contact => !!o);
