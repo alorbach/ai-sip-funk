@@ -848,3 +848,35 @@ test('Uhrzeiten und Daten in allen gängigen Schreibweisen', () => {
   assert.deepEqual(nums('+49.30.1234567'), ['0301234567']);
   assert.deepEqual(nums('030.12.34.56'), ['030123456']);
 });
+
+// ---------------------------------------------------------------- Review-Runde 18
+
+test('Gegliederte Nummern sind keine Daten; „ / “ mit kurzen Gruppen; Daten und Zeiten mit - und /', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.equal(n('0171 12.34.56'), '0171123456');
+  assert.equal(n('01.23.45.67.89'), '0123456789');
+  assert.equal(n('06.96.44.16'), '06964416');
+  assert.equal(n('0171-23-45-67'), '0171234567');
+  assert.equal(n('0221 / 123 / 4567'), '02211234567');
+  assert.equal(n('+49 221 / 102 / 7465 / 1'), '02211027465' + '1');
+  assert.deepEqual(nums('Mo-Fr 08-17 Uhr'), []);
+  assert.deepEqual(nums('gültig bis 15-11-2026'), []);
+  assert.deepEqual(nums('31/12/2026'), []);
+  assert.deepEqual(nums('030 1234567 / 8-17 Uhr'), ['0301234567']);
+  assert.deepEqual(nums('030 1234567 / 08.00-17.00'), ['0301234567']);
+});
+
+test('Bindestrich- und Punktgliederung im Ausland; Zeitangabe hinter der Rufnummer', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.equal(n('0049-30-1234567'), '0301234567');
+  assert.equal(n('0041-44-1234567'), '+41441234567');
+  assert.equal(n('0711-12-34-56'), '0711123456');
+  assert.equal(n('06.12.34.56.78'), '0612345678');
+  assert.equal(n('+33 6.12.34.56.78'), '+33612345678');
+  assert.equal(n('030 12.34.56'), '030123456');
+  assert.deepEqual(nums('030 / 1234567 ab 09:00'), ['0301234567']);
+  assert.deepEqual(nums('0171 / 5550100 (Mo-Fr 9:00-17:00)'), ['01715550100']);
+  assert.deepEqual(nums('0171 / 5550100 (gültig bis 31.12.2026)'), ['01715550100']);
+});

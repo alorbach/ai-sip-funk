@@ -42,7 +42,25 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
  * ausländische mit +. Durchwahl-Zusätze („ext. 12“) und Fremdtext fallen weg; zu kurz oder leer = undefined.
  */
 /** Uhrzeit oder Datum in einem Telefonfeld (Öffnungszeiten, „gültig bis …“) */
-const TIME_OR_DATE = /(?<![\d.])(\d{1,2}[:.]\d{2}(?![\d.])|\d{1,2}:\d{2}|\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})?(?!\d)|\d{4}-\d{2}-\d{2})/;
+// Bewusst streng, weil Nummern oft mit Punkten oder Bindestrichen gegliedert sind („0171 12.34.56“, „0171-23-45-67“):
+// Uhrzeit nur mit Doppelpunkt oder „Uhr“; Datum nur mit gültigem Tag und Monat und vierstelligem Jahr (oder „01.01.-“)
+const DAY = '(0?[1-9]|[12]\\d|3[01])';
+const MONTH = '(0?[1-9]|1[0-2])';
+const YEAR = '(19|20)\\d{2}';
+const TIME_OR_DATE = new RegExp(
+  [
+    '\\d{1,2}:\\d{2}',
+    '\\d{1,2}(:\\d{2})?\\s*-\\s*\\d{1,2}(:\\d{2})?\\s*uhr',
+    // Zeitspanne mit Punkten („08.00-17.00“)
+    '([01]?\\d|2[0-3])\\.[0-5]\\d\\s*-\\s*([01]?\\d|2[0-3])\\.[0-5]\\d(?![.\\d])',
+    `${DAY}\\.${MONTH}\\.(${YEAR}(?![.\\-/]?\\d)|(?=[\\s-]|$))`,
+    `${DAY}[-/]${MONTH}[-/]${YEAR}(?![.\\-/]?\\d)`,
+    `${YEAR}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])(?![.\\-/]?\\d)`,
+  ]
+    .map((p) => `(?<![\\d.\\-])${p}`)
+    .join('|'),
+  'i',
+);
 
 /** Vollbreite und andere Doppelgänger von Ziffern, * und # in die üblichen Zeichen bringen (NFKC plus Rechen-Sternchen) */
 const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*').replace(/♯/g, '#');
@@ -72,14 +90,15 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // „p123“) und sonstiger Text fallen weg
   const end = s.search(/[,;:*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  // „ / “ verbindet nur Vorwahl und Rufnummer („0171 / 5550100“); was danach kein Nummernteil mit mindestens fünf
-  // Ziffern ist („/ 8-17 Uhr“, „/ 08“), fällt weg
+  // „ / “ verbindet nur Vorwahl und Rufnummer („0171 / 5550100“, auch gegliedert „0221 / 123 / 4567“); folgen danach
+  // zusammen weniger als fünf Ziffern („/ 8-17“, „/ 08“), ist es keine Rufnummer und fällt weg
   const slashParts = s.split(/\s+\/\s+/);
-  s = slashParts[0];
+  const tail: string[] = [];
   for (const p of slashParts.slice(1)) {
-    if (!/^[\d\s()-]+$/.test(p) || p.replace(/\D/g, '').length < 5) break;
-    s += ' ' + p;
+    if (!/^[\d\s()-]+$/.test(p)) break;
+    tail.push(p);
   }
+  s = slashParts[0] + (tail.join('').replace(/\D/g, '').length >= 5 ? ' ' + tail.join(' ') : '');
   // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“ und
   // „(+49 30 1234567)“ behalten das Plus
   s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1').replace(/^\(\s*(?=\+)/, '');
@@ -138,7 +157,7 @@ export function splitNumbers(value: string): string[] {
       for (const x of s.slice(1)) {
         const left = out[out.length - 1];
         // Eine Uhrzeit oder ein Datum („/ 08:00“, „/ 01.01.2027“) wird ein eigener Teil, der keine Nummer ergibt
-        const separate = TIME_OR_DATE.test(x) || (/^[+(0*]/.test(x.trim()) && complete(x) && (complete(left) || normalizeImportNumber(left) === undefined));
+        const separate = x.trim().search(TIME_OR_DATE) === 0 || (/^[+(0*]/.test(x.trim()) && complete(x) && (complete(left) || normalizeImportNumber(left) === undefined));
         if (separate) out.push(x);
         else out[out.length - 1] = `${left} / ${x}`;
       }
