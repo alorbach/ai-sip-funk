@@ -1,0 +1,38 @@
+src/main.ts
+  s_3c75956bd77b21::t_c933b13592bf2f 313-314
+CHANGELOG.md
+  s_3c75956bd77b21::t_a048318f8557b6 9
+src/ai/realtimeBridge.ts
+  s_3c75956bd77b21::t_29a9874a81fff5 317-322,560-562,1269-1273,1283-1285,1349,1503-1509,1520-1529,1533-1535,1539-1540,1543,1546-1550,1588-1589
+  s_3c75956bd77b21::t_7a1bda1d2a6b20 11
+test/judge.test.ts
+  s_3c75956bd77b21::t_0d62575fb60694 493
+  s_3c75956bd77b21::t_7fd35b62345dfb 418-492,494-510
+src/sim/simulate.ts
+  s_3c75956bd77b21::t_a048318f8557b6 521-523
+doc/user-guide.de.md
+  s_3c75956bd77b21::t_a048318f8557b6 307
+CHANGELOG.de.md
+  s_3c75956bd77b21::t_a048318f8557b6 9
+doc/user-guide.md
+  s_3c75956bd77b21::t_ea90bfbf8f0093 309
+src/ai/judge.ts
+  s_3c75956bd77b21::t_a048318f8557b6 4-5,123-124
+  s_3c75956bd77b21::t_c933b13592bf2f 48-51,53-55,91-92,122,125-126,149,178-179,209-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a2150a73a2dde1531d948e1b0555627282f1832",
+  "prompts": {},
+  "sessions": {
+    "s_3c75956bd77b21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2b0f873-621e-469b-b95f-5668ff138577",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
