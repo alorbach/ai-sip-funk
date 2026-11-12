@@ -1,0 +1,38 @@
+CHANGELOG.de.md
+  s_3c75956bd77b21::t_426c65b95c0d89 14
+doc/user-guide.md
+  s_3c75956bd77b21::t_a0caeb47e4c593 314
+test/judge.test.ts
+  s_3c75956bd77b21::t_b0f58105f0ee5e 1482-1495
+  s_3c75956bd77b21::t_34b12718d75232 1512,1517,1519
+  s_3c75956bd77b21::t_9b4483c9d57d17 1455-1481,1496-1511,1513-1516,1518,1520-1551
+CHANGELOG.md
+  s_3c75956bd77b21::t_4c45a8e2d0707e 14
+doc/user-guide.de.md
+  s_3c75956bd77b21::t_1c05ce42b950b8 312
+src/ai/realtimeBridge.ts
+  s_3c75956bd77b21::t_a440c1c62d453f 1428-1430
+  s_3c75956bd77b21::t_d6643905049cd8 1643-1645
+  s_3c75956bd77b21::t_44c496844474a3 1696-1697
+  s_3c75956bd77b21::t_c502705b6edee3 1396-1401
+  s_3c75956bd77b21::t_6f7bc51676a4db 661-664
+  s_3c75956bd77b21::t_1f2de678ffee99 142
+  s_3c75956bd77b21::t_8dd4b423ef3218 692-696,701-708
+  s_3c75956bd77b21::t_d881410adf4f14 709-710
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "164cd27e07790a4c5f4a6090cb10287a0a5e9266",
+  "prompts": {},
+  "sessions": {
+    "s_3c75956bd77b21": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2b0f873-621e-469b-b95f-5668ff138577",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
