@@ -1,0 +1,44 @@
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_d7b502e864316b 106,158-159,483,485,505,555-567,679
+src/main.ts
+  s_6e62c686ceb639::t_0b191544d2d64c 15
+  s_6e62c686ceb639::t_d7b502e864316b 271,491
+CHANGELOG.md
+  s_6e62c686ceb639::t_d7b502e864316b 9-10
+src/mcp/gateway.ts
+  s_6e62c686ceb639::t_d7b502e864316b 33-34,265
+examples/skills/sipfunk-anruf/SKILL.md
+  s_6e62c686ceb639::t_d7b502e864316b 77-78
+src/mcp/tools.ts
+  s_6e62c686ceb639::t_d7b502e864316b 39,62-63
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_d7b502e864316b 9-10
+test/mcp.test.ts
+  s_6e62c686ceb639::t_645c0197484477 15
+  s_6e62c686ceb639::t_78d0122343ebbb 344
+  s_6e62c686ceb639::t_d7b502e864316b 416-423
+examples/skills/sipfunk-call/SKILL.md
+  s_6e62c686ceb639::t_d7b502e864316b 77-78
+src/ai/agentCall.ts
+  s_6e62c686ceb639::t_d7b502e864316b 10,44-60,62-72,75
+test/gemini.test.ts
+  s_6e62c686ceb639::t_d7b502e864316b 268-286
+src/ai/personas.ts
+  s_6e62c686ceb639::t_d7b502e864316b 4,91-92,180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "500d8f834cbd032e3b420f01b3c452e9b4f8ca97",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
