@@ -16,12 +16,15 @@ export interface PreviewItem {
   id: string;
   name: string;
   /** known = Name des Kontakts, der die Nummer schon hat; shared = steht auch bei einem anderen Eintrag dieses Adressbuchs */
-  numbers: { number: string; label: PhoneLabel; known?: string; shared?: boolean }[];
+  numbers: { number: string; label: PhoneLabel; known?: string; shared?: boolean; sharedWith?: string[] }[];
   /** new = keine Nummer bekannt; partial = einige Nummern gehören schon zu einem Kontakt; exists = alle bekannt */
   status: 'new' | 'partial' | 'exists';
   /** Vorhandener Kontakt, zu dem bekannte Nummern gehören */
   existing?: string;
-  /** partial: fehlende Nummern lassen sich ergänzen (siehe canMerge) */
+  /**
+   * partial: true = derselbe Mensch, fehlende Nummern lassen sich beim vorhandenen Kontakt ergänzen (siehe canMerge);
+   * sonst wird beim Import ein neuer Kontakt nur mit den noch unbekannten Nummern angelegt.
+   */
   mergeable?: boolean;
   /** new: es gibt schon einen Kontakt mit genau diesem Namen (andere Nummer) */
   sameName?: boolean;
@@ -36,7 +39,9 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
   let s = String(raw ?? '').slice(0, 80).replace(/\s+/g, ' ').trim();
-  if (/^\*\*\d+$/.test(s.replace(/ /g, ''))) return s.replace(/ /g, ''); // FRITZ!Box-Nebenstelle
+  // FRITZ!Box-Nebenstelle, auch mit Zusatz („**610 (Büro)“); ohne die Sterne ginge der Anruf ins öffentliche Netz
+  const internal = /^\*\*\s*(\d+)/.exec(s);
+  if (internal) return '**' + internal[1];
   // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“) weg: ab dem ersten +, ( oder Ziffer
   const start = s.search(/[+(\d]/);
   if (start < 0) return undefined;
@@ -44,7 +49,7 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // Hinter der Nummer: Wahlpausen (, ;), Durchwahl-Zusätze („ext. 12“, „x12“, „p123“) und sonstiger Text fallen weg
   const end = s.search(/[,;a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  s = s.replace(/\(0\)/g, ''); // „+49 (0)30 …“
+  s = s.replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1'); // „+49 (0)30 …“, „(+49) 171 …“
   const plus = s.startsWith('+');
   // „+43 0664 …“: eine nach der Landesvorwahl irrtümlich mitgeschriebene 0 entfällt
   // (nicht in Italien, San Marino und dem Vatikan: dort gehört die 0 zur Nummer, „+39 06 …“)
@@ -74,10 +79,19 @@ export function decodeImportFile(buf: Buffer): string {
 /**
  * Ein Feld mit mehreren Nummern („0171 … / 0221 …“, „… , …“, „… oder …“, Google „ ::: “) aufteilen. Teile mit
  * weniger als sechs Ziffern hinter der ersten Nummer sind Wahlpausen oder Durchwahlen („,,1234“) und fallen weg.
- * Ein Schrägstrich ohne Leerzeichen bleibt Teil der Nummer („0171/5550100“).
+ * Ein Schrägstrich zwischen Vorwahl und Rufnummer bleibt Teil der Nummer („0171/5550100“, „0171 / 5550100“).
  */
 export function splitNumbers(value: string): string[] {
-  const parts = String(value ?? '').slice(0, 400).split(/\s+\/\s+|[,;]|:::|\s+oder\s+|\s+or\s+|\n/i).map((x) => x.trim()).filter(Boolean);
+  const parts = String(value ?? '')
+    .slice(0, 400)
+    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n/i)
+    // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ ist Vorwahl und Rufnummer
+    .flatMap((p) => {
+      const s = p.split(/\s+\/\s+/);
+      return s.length > 1 && s.every((x) => x.replace(/\D/g, '').length >= 6) ? s : [p];
+    })
+    .map((x) => x.trim())
+    .filter(Boolean);
   return parts.filter((p, i) => i === 0 || p.replace(/\D/g, '').length >= 6);
 }
 
@@ -316,10 +330,15 @@ export function fromFile(name: string, text: string): ImportCandidate[] {
 /** Vorschau: Kandidaten mit den gespeicherten Kontakten abgleichen (über alle Nummern eines Kontakts). */
 export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber' | 'list'>): PreviewItem[] {
   const shared = sharedKeys(candidates);
+  const holders = new Map<string, string[]>();
+  for (const c of candidates) for (const n of c.numbers) if (shared.has(numberKey(n.number))) holders.set(numberKey(n.number), [...(holders.get(numberKey(n.number)) ?? []), c.name]);
   const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
   return candidates.map((c, i) => {
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
-    const numbers = c.numbers.map((n, j) => ({ ...n, known: owners[j]?.name, shared: shared.has(numberKey(n.number)) || undefined }));
+    const numbers = c.numbers.map((n, j) => {
+      const others = holders.get(numberKey(n.number))?.filter((x) => x !== c.name);
+      return { ...n, known: owners[j]?.name, shared: shared.has(numberKey(n.number)) || undefined, sharedWith: others?.length ? others.slice(0, 3) : undefined };
+    });
     const known = owners.filter((o): o is Contact => !!o);
     const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
     const mergeable = status === 'partial' && canMerge(c, owners, shared);
@@ -335,20 +354,34 @@ function sharedKeys(candidates: ImportCandidate[]): Set<string> {
   return new Set([...uses].filter(([, n]) => n > 1).map(([k]) => k));
 }
 
-const nameWords = (s: string) => new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 2));
+const nameParts = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/**
+ * Derselbe Name? Vorname gleich und Nachname gleich oder abgekürzt („Erika B.“ / „Erika Beispiel“); einteilige Namen
+ * müssen ganz gleich sein. Ein gemeinsamer Vorname allein reicht nicht („Anna Müller“ / „Anna Schmidt“).
+ */
+export function sameperson(a: string, b: string): boolean {
+  const x = nameParts(a);
+  const y = nameParts(b);
+  if (!x.length || !y.length) return false;
+  if (x.length < 2 || y.length < 2) return x.join(' ') === y.join(' ');
+  const [lx, ly] = [x[x.length - 1], y[y.length - 1]];
+  const abbrev = (short: string, long: string) => short.length <= 2 && long.startsWith(short);
+  return x[0] === y[0] && (lx === ly || abbrev(lx, ly) || abbrev(ly, lx));
+}
 
 /**
  * Darf ein teilweise bekannter Eintrag seine übrigen Nummern beim vorhandenen Kontakt ergänzen? Nur wenn alle bekannten
- * Nummern zu genau einem Kontakt gehören, das nicht der Inhaber ist, keine davon bei einem anderen Eintrag des
- * Adressbuchs steht (gemeinsames Festnetz) und die Namen mindestens ein Wort teilen („Erika B.“ / „Erika Beispiel“).
- * Sonst landete etwa das Handy der Oma beim Vater, nur weil beide dieselbe Festnetznummer haben.
+ * Nummern zu genau einem Kontakt gehören, das nicht der Inhaber ist, mindestens eine davon keine Geschäftsnummer ist
+ * (eine Zentrale teilen sich viele), keine davon bei einem anderen Eintrag des Adressbuchs steht (gemeinsames Festnetz)
+ * und es derselbe Name ist. Sonst landete etwa das Handy der Oma beim Vater, nur weil beide dasselbe Festnetz haben.
  */
 function canMerge(c: ImportCandidate, owners: (Contact | undefined)[], shared: Set<string>): boolean {
   const known = owners.filter((o): o is Contact => !!o);
   if (!known.length || known[0].owner || !known.every((o) => o.id === known[0].id)) return false;
   if (c.numbers.some((n, i) => owners[i] && shared.has(numberKey(n.number)))) return false;
-  const a = nameWords(c.name);
-  return [...nameWords(known[0].name)].some((w) => a.has(w));
+  if (!c.numbers.some((n, i) => owners[i] && n.label !== 'geschäftlich')) return false;
+  return sameperson(c.name, known[0].name);
 }
 
 export function previewCounts(items: PreviewItem[]): { total: number; new: number; partial: number; exists: number } {
@@ -363,7 +396,9 @@ export function previewCounts(items: PreviewItem[]): { total: number; new: numbe
 /**
  * Ausgewählte Einträge übernehmen. Neue werden angelegt (erste Nummer = Hauptnummer, weitere als Zusatznummern).
  * Vorhandene Kontakte werden nie überschrieben; nur mit `addToExisting` (ausdrücklich bestätigt) bekommen sie
- * fehlende Nummern als Zusatznummern – Name, Stil, Auftrag usw. bleiben, wie sie sind.
+ * fehlende Nummern als Zusatznummern – Name, Stil, Auftrag usw. bleiben, wie sie sind. Ist ein teilweise bekannter
+ * Eintrag ein anderer Mensch (canMerge nein, etwa die Partnerin am Festnetz des Inhabers), wird er neu angelegt,
+ * nur mit den Nummern, die noch niemand hat.
  */
 export function applyImport(
   candidates: ImportCandidate[],
@@ -384,11 +419,12 @@ export function applyImport(
     const fresh = c.numbers.filter((n, i) => !owners[i] && !taken.has(numberKey(n.number))).map((n) => n.number);
     const existing = owners.find((o): o is Contact => !!o);
     const mergeable = existing && canMerge(c, owners, shared);
+    const createNew = !existing || !mergeable;
     if (!fresh.length) unchanged++;
-    else if (!existing) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
-    else if (opts.addToExisting && mergeable) add.push({ id: existing.id, numbers: fresh });
+    else if (createNew) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
+    else if (opts.addToExisting) add.push({ id: existing.id, numbers: fresh });
     else unchanged++;
-    if (!existing || (opts.addToExisting && mergeable)) for (const n of fresh) taken.add(numberKey(n));
+    if (fresh.length && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
   }
   const r = store.importMany(create, add);
   return { ...r, unchanged };

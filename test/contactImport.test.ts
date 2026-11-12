@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactStore, numberKey, sameMainNumber } from '../src/contacts.js';
-import { applyImport, buildPreview, decodeImportFile, splitNumbers, fromCsv, fromFile, fromGoogle, fromGraph, fromVcard, ImportSession, normalizeImportNumber, previewCounts } from '../src/contactImport.js';
+import { applyImport, buildPreview, decodeImportFile, sameperson, splitNumbers, fromCsv, fromFile, fromGoogle, fromGraph, fromVcard, ImportSession, normalizeImportNumber, previewCounts } from '../src/contactImport.js';
 import { ContactSources } from '../src/contactSources.js';
 
 function withStore(fn: (store: ContactStore, file: string) => void): void {
@@ -111,7 +111,7 @@ test('Auswahl-Import: nur gewählte, vorhandene nie überschrieben, Ergänzen nu
     const cands = [
       { name: 'Eins', numbers: [{ number: '01605550701', label: 'mobil' as const }, { number: '0305550702', label: 'privat' as const }] },
       { name: 'Zwei', numbers: [{ number: '01605550703', label: 'mobil' as const }] },
-      { name: 'Vorhanden Büro', numbers: [{ number: '01715550700', label: 'mobil' as const }, { number: '0405550704', label: 'geschäftlich' as const }] },
+      { name: 'vorhanden', numbers: [{ number: '01715550700', label: 'mobil' as const }, { number: '0405550704', label: 'geschäftlich' as const }] },
     ];
     // Ohne Bestätigung: der teilweise vorhandene Eintrag bleibt unverändert, Unbekanntes ignoriert
     let r = applyImport(cands, ['0', '2', '99', 'x'], store);
@@ -301,7 +301,7 @@ test('Gemeinsame Nummer: beide in der Vorschau, beim Import bekommt sie der erst
   });
 });
 
-test('Ergänzen: nie beim Inhaber, nie wenn Nummern zu verschiedenen Kontakten gehören', () => {
+test('Ergänzen: nie beim Inhaber, nie bei Nummern verschiedener Kontakte – dann neuer Kontakt ohne die bekannten Nummern', () => {
   withStore((store) => {
     store.create({ name: 'Ich', number: '0171 5550500', owner: true });
     store.create({ name: 'X', number: '030 5550501' });
@@ -313,8 +313,11 @@ test('Ergänzen: nie beim Inhaber, nie wenn Nummern zu verschiedenen Kontakten g
     const items = buildPreview(cands, store);
     assert.deepEqual(items.map((i) => [i.status, i.mergeable]), [['partial', undefined], ['partial', undefined]]);
     const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
-    assert.deepEqual([r.created, r.merged, r.unchanged], [0, 0, 2]);
-    assert.equal(store.findByNumber('0405550503'), undefined);
+    assert.deepEqual([r.created, r.merged, r.unchanged], [2, 0, 0]);
+    assert.equal(store.findByNumber('0405550503')?.name, 'Ich privat');
+    assert.equal(store.findByNumber('0405550504')?.name, 'XY');
+    assert.equal(store.findByName('Ich')!.numbers, undefined);
+    assert.equal(store.findByNumber('0305550501')?.name, 'X');
   });
 });
 
@@ -387,20 +390,21 @@ test('CSV: keine Kunden- oder Assistenznummern, Thunderbird „Cell Number“, "
   assert.deepEqual(c.map((x) => [x.name, x.numbers.map((n) => n.number)]), [['Eva Probe', ['01715550902']], ['Jo "Joe" Probe', ['01715550901']]]);
 });
 
-test('Ergänzen nur bei ähnlichem Namen und nicht geteilter Nummer; gleicher Name wird markiert', () => {
+test('Ergänzen nur bei gleichem Namen; anderer Mensch wird neu angelegt; gleicher Name wird markiert', () => {
   withStore((store) => {
     store.create({ name: 'Papa', number: '0171 5551000', numbers: ['0221 5551001'] });
     store.create({ name: 'Mama', number: '0171 5551002' });
     const cands = [
       { name: 'Oma', numbers: [{ number: '01715551003', label: 'mobil' as const }, { number: '02215551001', label: 'privat' as const }] },
-      { name: 'Papa Mobil', numbers: [{ number: '01715551000', label: 'mobil' as const }, { number: '01605551004', label: 'mobil' as const }] },
+      { name: 'papa', numbers: [{ number: '01715551000', label: 'mobil' as const }, { number: '01605551004', label: 'mobil' as const }] },
       { name: 'Mama', numbers: [{ number: '01605551005', label: 'mobil' as const }] },
     ];
     const items = buildPreview(cands, store);
     assert.deepEqual(items.map((i) => [i.status, i.mergeable, i.sameName]), [['partial', undefined, undefined], ['partial', true, undefined], ['new', undefined, true]]);
     const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
-    assert.deepEqual([r.created, r.merged, r.unchanged], [0, 1, 1]);
-    assert.equal(store.findByNumber('0171 5551003'), undefined);
+    assert.deepEqual([r.created, r.merged, r.unchanged], [1, 1, 0]);
+    assert.equal(store.findByNumber('0171 5551003')?.name, 'Oma');
+    assert.equal(store.findByNumber('0221 5551001')?.name, 'Papa');
     assert.equal(store.findByNumber('0160 5551004')?.name, 'Papa');
   });
 });
@@ -433,5 +437,43 @@ test('Kontaktspeicher: Nachschlagen bleibt bei großen Importen schnell und rich
     assert.equal(store.findByNumber('0305000123')?.name, 'P123');
     store.delete(p.id);
     assert.equal(store.findByNumber('0305000123'), undefined);
+  });
+});
+
+// ---------------------------------------------------------------- Review-Runde 2
+
+test('Nummern: „Vorwahl / Rufnummer“ bleibt eine Nummer, ** bleibt, „(+49)“', () => {
+  assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
+  assert.deepEqual(splitNumbers('030 / 123 45 67'), ['030 / 123 45 67']);
+  assert.deepEqual(splitNumbers('030 5550100 / 0171 5550101'), ['030 5550100', '0171 5550101']);
+  const [c] = fromVcard('BEGIN:VCARD\nFN:Oma Probe\nTEL:0160 / 1234567\nEND:VCARD');
+  assert.deepEqual(c.numbers.map((n) => n.number), ['01601234567']);
+  assert.equal(normalizeImportNumber('**610 (Büro)'), '**610');
+  assert.equal(normalizeImportNumber('(+49) 171 5550100'), '01715550100');
+});
+
+test('Gleiche Person: Vorname und (abgekürzter) Nachname', () => {
+  assert.equal(sameperson('Erika B.', 'Erika Beispiel'), true);
+  assert.equal(sameperson('erika beispiel', 'Erika Beispiel'), true);
+  assert.equal(sameperson('Anna Müller', 'Anna Schmidt'), false);
+  assert.equal(sameperson('Oma', 'Papa'), false);
+  assert.equal(sameperson('Papa', 'papa'), true);
+});
+
+test('Zentrale als einzige bekannte Nummer: kein Ergänzen, neuer Kontakt', () => {
+  withStore((store) => {
+    store.create({ name: 'Anna Muster', number: '030 5551200' });
+    const cands = [{ name: 'Anna Muster', numbers: [{ number: '01715551201', label: 'mobil' as const }, { number: '0305551200', label: 'geschäftlich' as const }] }];
+    const [item] = buildPreview(cands, store);
+    assert.deepEqual([item.status, item.mergeable], ['partial', undefined]);
+  });
+});
+
+test('Gemeinsame Nummer: Vorschau nennt die anderen Einträge', () => {
+  withStore((store) => {
+    const cands = fromVcard('BEGIN:VCARD\nFN:Erika Muster\nTEL;TYPE=HOME:030 5551300\nEND:VCARD\nBEGIN:VCARD\nFN:Max Muster\nTEL;TYPE=CELL:0171 5551301\nTEL;TYPE=HOME:030 5551300\nEND:VCARD');
+    const items = buildPreview(cands, store);
+    assert.deepEqual(items[0].numbers[0].sharedWith, ['Max Muster']);
+    assert.deepEqual(items[1].numbers.find((n) => n.shared)?.sharedWith, ['Erika Muster']);
   });
 });
