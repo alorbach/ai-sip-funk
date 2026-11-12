@@ -1620,3 +1620,72 @@ test('abgelehnter end_call: Verlangt der Agent das Beenden in der Schweigefrist,
   assert.ok(!h.creates().some((c) => /sagt nichts mehr/.test(c)), 'die Schweigefrist des abgelehnten end_call ist vorbei');
   h.bridge.close();
 });
+
+// ---- Review-Runde 9 ----
+
+test('Nach der Verabschiedung: Nimmt das Urteil „weiter“ das Beenden erst nach dem 5-s-Wächter zurück und blieb die Antwort des Anbieters unhörbar, fordert die Brücke selbst eine Antwort an', async (t) => {
+  const h = setup(t);
+  h.toolEnd();
+  h.asked[0].resolve([] as never);
+  await flush();
+  farewell(h);
+  h.ws.sent.length = 0;
+  speechStarted(h, 'u1');
+  h.tick(1500);
+  speechStopped(h, 'u1');
+  h.toolEnd('c2'); // die Antwort des Anbieters auf die Äußerung: nur ein weiterer end_call, nichts Hörbares
+  h.tick(1500);
+  transcribed(h, 'u1', 'Moment, ich habe noch eine Frage zur Rechnung.');
+  assert.equal(h.asked[1].kind, 'afterGoodbye');
+  h.tick(3600); // gut 5 s nach dem Satzende: Der Wächter ist während des Beendens still verfallen, das Textmodell urteilt noch
+  assert.deepEqual(h.creates(), []);
+  h.asked[1].resolve('content' as never);
+  await flush();
+  assert.deepEqual(h.ended, []);
+  assert.deepEqual(h.creates(), [''], 'es kommt von selbst eine Antwort – das Gespräch bleibt nicht stumm, bis das Gegenüber wieder spricht');
+  const sent = h.ws.sent.map((s) => (s.type === 'response.create' ? 'create' : s.item?.role === 'system' ? 'note' : ''));
+  assert.ok(sent.indexOf('note') >= 0 && sent.indexOf('note') < sent.indexOf('create'), 'der Hinweis „Gespräch geht weiter“ liegt vor der Anforderung');
+  h.bridge.close();
+
+  // War die Antwort des Anbieters zu hören (zurückgehaltenes Audio), wird sie ausgespielt – ohne zweite Anforderung
+  const k = setup(t);
+  k.toolEnd();
+  k.asked[0].resolve([] as never);
+  await flush();
+  farewell(k);
+  k.ws.sent.length = 0;
+  speechStarted(k, 'u1');
+  speechStopped(k, 'u1');
+  k.say('r2', 'i2', 1000, 'Ja, gern. Welche Frage?');
+  transcribed(k, 'u1', 'Moment, ich habe noch eine Frage zur Rechnung.');
+  k.tick(3600);
+  k.asked[1].resolve('content' as never);
+  await flush();
+  assert.deepEqual(k.creates(), []);
+  assert.ok(k.drain() > 0, 'die zurückgehaltene Antwort ist zu hören');
+  k.bridge.close();
+});
+
+test('Wächter: Lief die Antwort länger als 5 s ohne Audio und endet sie ohne Audio, bleibt die KI nicht stumm – der Wächter fordert nach, danach stößt der Stillstandswächter an', (t) => {
+  const stallMs = 6000;
+  const h = setup(t, { judge: undefined, stallMs });
+  h.tick(7000); // (der Wächter der Begrüßung und ein erster Anstoß sind vorbei)
+  h.ws.sent.length = 0;
+  speechStarted(h, 'u1');
+  h.tick(800);
+  speechStopped(h, 'u1');
+  transcribed(h, 'u1', 'Einen Moment bitte.');
+  h.tick(100);
+  h.server({ type: 'response.created', response: { id: 'r5' } });
+  h.tick(6000); // der Wächter vom Satzende meldet nur „Antwort läuft, aber langsam“
+  h.server({ type: 'response.done', response: { id: 'r5', status: 'completed' } }); // ohne Audio
+  assert.deepEqual(h.creates(), []);
+  const p = realtimePlayer(h);
+  p.play(5100);
+  assert.deepEqual(h.creates(), [''], 'ohne neue Antwort fordert der Wächter selbst eine an');
+  h.server({ type: 'response.created', response: { id: 'r6' } });
+  h.server({ type: 'response.done', response: { id: 'r6', status: 'completed' } }); // wieder ohne Audio
+  p.play(stallMs + 1000);
+  assert.ok(p.s.nudgeAt > 0, 'der Stillstandswächter ist wieder scharf und stößt die KI an');
+  h.bridge.close();
+});

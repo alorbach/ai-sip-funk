@@ -1094,6 +1094,9 @@ export class RealtimeBridge implements AudioHandler {
       this.pendingRespond = false;
       this.requestRespond('Regieanweisung des Agenten');
     }
+    // Der Wächter (audioExpected) lief ab, während diese Antwort noch lief („langsam“), und sie endet ohne Audio: Die Erwartung bleibt offen, und armStall
+    // (wie der Laut-Wächter) bliebe bis zur nächsten Äußerung des Gegenübers gesperrt. Der Wächter wird neu gestellt: Entsteht nichts mehr, fordert er eine Antwort an
+    if (st.deltas === 0 && this.awaitingAudioSince && !this.audioWatchdog) this.audioExpected(true, this.awaitingLabel);
     if (!this.playing && this.outQueue.length === 0) this.armStall();
     if (r.status === 'failed') {
       log.error('Realtime-Antwort fehlgeschlagen:', JSON.stringify(r.statusDetails));
@@ -1855,6 +1858,10 @@ export class RealtimeBridge implements AudioHandler {
     this.opts.onTranscript({ speaker: 'system', text: 'Gegenüber hat noch etwas gesagt – Gespräch geht weiter', final: true });
     // Dem Modell den Zustandswechsel klar machen, sonst hängt es in der "ich beende jetzt"-Haltung fest
     this.live.note('Das Gegenüber hat nach deiner Verabschiedung noch etwas gesagt. Das Gespräch läuft ganz normal weiter: Geh auf das Gesagte ein, als wäre nichts beendet worden. Wenn danach alles geklärt ist, rufe erneut end_call auf (ohne dich vorher zu verabschieden).');
+    // Der Wächter vom Satzende des Gegenübers (audioExpected) verfiel still, solange das Beenden galt, und der Anbieter hat auf die Äußerung
+    // nichts Hörbares geantwortet (nur ein weiterer end_call, nichts): Ohne Antwort, ohne Ausgabe und mit schweigendem Gegenüber käme von selbst nichts mehr.
+    // Läuft eine Antwort oder der Wächter noch, übernehmen deren Wege (onResponseDone/armStall, Wächter); liegt Audio an, ist die Antwort schon da
+    if (!this.activeResponse && !this.audioWatchdog && !this.playing && this.outQueue.length === 0 && !this.partnerSpeaking) this.requestRespond('Weiter nach dem Abschied');
   }
 
   private addUsage(u: Usage): void {
