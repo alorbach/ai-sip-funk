@@ -37,6 +37,10 @@ export function agentNote(text: string): string {
   return `Regieanweisung deines Auftraggebers (nicht vorlesen, nicht erwähnen, im nächsten passenden Moment in eigenen Worten umsetzen; deine Grundregeln gelten unverändert weiter): ${text.trim()}`;
 }
 
+/** Eine Antwort der KI wurde abgeschnitten, weil das Gegenüber gleichzeitig sprach: Das Modell hält sie sonst für gesagt. */
+export const INTERRUPTED_ANSWER =
+  'Hinweis der Telefon-App: Deine letzte Antwort wurde abgeschnitten, weil das Gegenüber gleichzeitig zu hören war; ihr Ende ist bei ihm nicht angekommen. Geh zuerst auf das ein, was es sagt. Ist der abgeschnittene Teil noch wichtig, sag ihn danach in einem kurzen Satz noch einmal. Die Verbindung war nicht gestört – behaupte das nicht.';
+
 /** Die Antwort, mit der die KI eine Vorgabe des Agenten umsetzte, wurde vom Gegenüber abgeschnitten. */
 export const INTERRUPTED_DIRECTIVE =
   'Deine letzte Antwort wurde vom Gegenüber unterbrochen und ist bei ihm nicht angekommen. Geh zuerst auf das ein, was es gerade sagt, und bring den Inhalt der unterbrochenen Antwort danach in einem kurzen Satz noch einmal an – außer er hat sich dadurch erledigt.';

@@ -52,3 +52,27 @@ export function isBackchannel(text: string): boolean {
   if (words.length > 0 && words.every((w) => JA_WORDS.has(w))) return false;
   return words.every((w) => BACKCHANNEL_WORDS.has(w));
 }
+
+/** Einzelne Wörter, die eine Antwort sein können: Sie gelten nie als Echo, auch wenn die KI sie gerade selbst gesagt hat. */
+const ANSWER_WORDS = new Set([
+  'ja', 'jaja', 'jo', 'nein', 'nee', 'nö', 'doch', 'okay', 'ok', 'gut', 'genau', 'richtig', 'stimmt', 'danke', 'bitte', 'hallo',
+  'klar', 'gerne', 'gern', 'super', 'moment', 'stopp', 'stop', 'halt', 'wie', 'was', 'wer', 'wann', 'wo', 'warum', 'falsch', 'nicht',
+]);
+
+/**
+ * true, wenn das „Gesagte" des Gegenübers nur wiederholt, was die KI in ihrer laufenden Antwort gerade selbst gesagt hat:
+ * dieselben Wörter in derselben Reihenfolge, höchstens sechs. Das ist das Echo ihrer eigenen Stimme vom Telefon der
+ * Gegenseite, keine Äußerung. Fragen, Zahlen und einzelne Antwortwörter („ja", „nein", „Moment") zählen immer als Inhalt.
+ */
+export function isEcho(text: string, spoken: string): boolean {
+  if (/[\d?]/.test(text)) return false;
+  const words = (s: string) => s.toLowerCase().replace(/['’]/g, '').replace(/[^a-zäöüß\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const said = words(text);
+  const own = words(spoken);
+  if (said.length === 0 || said.length > 6 || own.length < said.length) return false;
+  if (said.length === 1 && ANSWER_WORDS.has(said[0])) return false;
+  for (let i = 0; i + said.length <= own.length; i++) {
+    if (said.every((w, k) => own[i + k] === w)) return true;
+  }
+  return false;
+}

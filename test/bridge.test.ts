@@ -486,3 +486,17 @@ test('Vermittlung: Während die Box verbindet, stößt der Stillstandswächter d
   assert.equal(h.count('response.create'), 1, 'Modell erfährt den Fehlschlag');
   h.bridge.close();
 });
+
+test('Echo-Erkennung: dieselben Wörter in derselben Reihenfolge; Fragen, Zahlen und Antwortwörter sind Inhalt', async () => {
+  const { isEcho } = await import('../src/ai/farewell.js');
+  const spoken = 'Ich soll Ihnen schöne Grüße von André ausrichten, direkt aus seiner Sitzung. Ich wünsche Ihnen einen schönen Tag, ja?';
+  assert.equal(isEcho('von', spoken), true);
+  assert.equal(isEcho('Ich wünsche Ihnen', spoken), true);
+  assert.equal(isEcho('Grüße von André', spoken), true);
+  assert.equal(isEcho('Ja.', spoken), false, 'ein Antwortwort ist nie ein Echo');
+  assert.equal(isEcho('Von André?', spoken), false, 'eine Frage ist Inhalt');
+  assert.equal(isEcho('Grüße an André', spoken), false, 'andere Wortfolge');
+  assert.equal(isEcho('Das war abgebrochen', spoken), false);
+  assert.equal(isEcho('', spoken), false);
+  assert.equal(isEcho('von', ''), false);
+});

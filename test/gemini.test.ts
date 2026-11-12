@@ -193,13 +193,64 @@ test('Gemini: Wird die Umsetzung einer Vorgabe des Agenten abgeschnitten, steht 
   h.server({ serverContent: { outputTranscription: { text: 'Der Termin ist um 19 Uhr.' } } });
   assert.equal(h.drain(500), 500);
   h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
-  assert.equal(h.bridge.nextFrame(), undefined, 'der Rest ist verworfen');
-  assert.equal(h.texts.some((x) => /KI unterbrochen/.test(x)), false, 'der Hinweis wartet auf den Text der Antwort');
+  assert.equal(h.bridge.nextFrame(), undefined, 'pausiert, bis feststeht, was das Gegenüber sagt');
   h.server({ serverContent: { interrupted: true } });
-  assert.deepEqual(h.texts.slice(-2), ['ki: Der Termin ist um 19 Uhr.', 'system: KI unterbrochen: etwa 3,5 s ihrer letzten Antwort wurden nicht mehr gesprochen']);
+  assert.equal(h.texts.some((x) => /KI unterbrochen/.test(x)), false, 'noch nichts verworfen');
+  h.server({ serverContent: { inputTranscription: { text: 'Moment, das stimmt nicht.' } } });
+  h.tick(700);
+  assert.equal(h.bridge.nextFrame(), undefined, 'der Rest ist verworfen');
+  assert.deepEqual(h.texts.slice(-3), ['ki: Der Termin ist um 19 Uhr.', 'partner: Moment, das stimmt nicht.', 'system: KI unterbrochen: etwa 3,5 s ihrer Antwort, die mit „Der Termin ist um 19 Uhr.“ begann, wurden nicht mehr gesprochen']);
   const last = h.regie().at(-1)!;
   assert.match(last.text, /unterbrochen und ist bei ihm nicht angekommen/);
   assert.equal(last.go, false, 'nur ein Hinweis, keine zusätzliche Antwort');
+  h.bridge.close();
+});
+
+test('Gemini: Echo der eigenen Stimme – die KI spricht ihren Satz zu Ende, die Antwort auf das Echo bleibt stumm', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.audio(4000);
+  h.server({ serverContent: { outputTranscription: { text: 'Ich soll Ihnen schöne Grüße von Max ausrichten, direkt aus seiner Sitzung.' } } });
+  assert.equal(h.drain(1500), 1500);
+  // Das Telefon der Gegenseite wirft ihre Stimme zurück: Gemini meldet Sprache und bricht die Antwort ab
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ serverContent: { interrupted: true } });
+  assert.equal(h.bridge.nextFrame(), undefined, 'pausiert');
+  h.server({ serverContent: { inputTranscription: { text: 'Grüße von' } } });
+  // Gemini antwortet auf das vermeintlich Gesagte
+  h.audio(1000);
+  h.server({ serverContent: { outputTranscription: { text: 'aus seiner Sitzung.' } } });
+  h.server({ serverContent: { turnComplete: true } });
+  h.tick(700);
+  assert.equal(h.drain(), 2500, 'der Rest des Satzes, ohne die Antwort auf das Echo');
+  assert.equal(h.texts.some((x) => /KI unterbrochen/.test(x)), false);
+  assert.equal(h.texts.includes('ki: aus seiner Sitzung.'), false);
+  assert.equal(h.regie().some((r) => /abgeschnitten/.test(r.text)), false, 'kein Hinweis an die KI: Es wurde nichts abgeschnitten');
+  h.bridge.close();
+});
+
+test('Gemini: Ein echter Einwurf verwirft den Rest, die KI erfährt davon; ein einzelnes „Nein" ist nie ein Echo', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.audio(4000);
+  h.server({ serverContent: { outputTranscription: { text: 'Passt Ihnen Freitag, ja oder nein, oder lieber Samstag?' } } });
+  assert.equal(h.drain(1500), 1500);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ serverContent: { interrupted: true } });
+  h.server({ serverContent: { inputTranscription: { text: 'Nein.' } } });
+  h.tick(700);
+  assert.equal(h.bridge.nextFrame(), undefined, 'der Rest ist verworfen');
+  assert.ok(h.texts.some((x) => /^system: KI unterbrochen: etwa 2,5 s ihrer Antwort, die mit „Passt Ihnen Freitag/.test(x)), h.texts.join(' | '));
+  const note = h.regie().at(-1)!;
+  assert.match(note.text, /Deine letzte Antwort wurde abgeschnitten, weil das Gegenüber gleichzeitig zu hören war/);
+  assert.match(note.text, /Die Verbindung war nicht gestört/);
+  assert.equal(note.go, false);
   h.bridge.close();
 });
 

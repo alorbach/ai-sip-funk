@@ -7,9 +7,9 @@ import type { AudioHandler } from '../callManager.js';
 import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
-import { isBackchannel, isFarewell } from './farewell.js';
+import { isBackchannel, isEcho, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
@@ -180,7 +180,7 @@ export class RealtimeBridge implements AudioHandler {
   /** Zeitpunkt eines Unterlaufs mitten in einer Antwort, bis die Ausgabe wieder läuft */
   private underrunAt = 0;
   /** Hinweis auf eine abgeschnittene Antwort, der erst nach ihrem Text ins Transkript kommt */
-  private interruptNote = '';
+  private interruptNotes: string[] = [];
   private underrunPlayedMs = 0;
   // Messpunkte je Antwort: kam eine Mitschrift, und was hat die Antwort ausgelöst
   private responseHadText = false;
@@ -230,7 +230,21 @@ export class RealtimeBridge implements AudioHandler {
    * Transkription zeigt, ob es Inhalt war (Rest verwerfen) oder nur ein Geräusch/Zuhör-Laut (Satz zu Ende sprechen).
    * held = Audio der Antwort, die der Server inzwischen auf den Laut hin erzeugt.
    */
-  private hold?: { timer: NodeJS.Timeout; itemId?: string; /** die KI sprach noch einen längeren Rest oder wurde mitten in der Antwort unterbrochen */ midSentence?: boolean; held: { itemId: string; buf: Buffer }[]; texts: { itemId: string; text: string }[] };
+  private hold?: {
+    timer: NodeJS.Timeout;
+    itemId?: string;
+    /** die KI sprach noch einen längeren Rest oder wurde mitten in der Antwort unterbrochen */
+    midSentence?: boolean;
+    /** die Antwort, die gerade gesprochen wird, entsteht noch: Ihr weiteres Audio gehört in die Warteschlange, nicht zu held */
+    spokenActive: boolean;
+    /** was die KI in dieser Antwort bis hierher gesagt hat (für die Echo-Prüfung) */
+    spoken: string;
+    held: { itemId: string; buf: Buffer }[];
+    texts: { itemId: string; text: string }[];
+  };
+  /** Text und Kennung der zuletzt fertig gemeldeten Antwort der KI */
+  private lastAiText = '';
+  private lastAiItem = '';
   /** true = die Antwort auf ein bloßes Geräusch bleibt stumm (bis sie fertig ist oder das Gegenüber wieder spricht) */
   private muteNoiseResponse = false;
   /** Bis zu diesem Zeitpunkt gilt eine neu beginnende Antwort als Antwort auf einen bloßen Zuhör-Laut und bleibt stumm (0 = aus) */
@@ -586,7 +600,9 @@ export class RealtimeBridge implements AudioHandler {
     }
     if (this.muteNoiseResponse) return;
     if (this.hold) {
-      this.hold.held.push({ itemId, buf: pcm });
+      // Weiteres Audio der Antwort, die gerade gesprochen wird, gehört hinter den pausierten Rest
+      if (this.hold.spokenActive && itemId === this.currentItemId) this.enqueueAudio(pcm, itemId);
+      else this.hold.held.push({ itemId, buf: pcm });
       return;
     }
     this.enqueueAudio(pcm, itemId);
@@ -609,6 +625,8 @@ export class RealtimeBridge implements AudioHandler {
       return;
     }
     this.kiLive = '';
+    this.lastAiText = text;
+    this.lastAiItem = itemId;
     this.opts.onTranscript({ speaker: 'ki', text, final: true, itemId });
   }
 
@@ -681,13 +699,28 @@ export class RealtimeBridge implements AudioHandler {
       const ms = this.outQueue.length * 20;
       if (!this.opts.allowInterrupt) {
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, Unterbrechen aus`);
-      } else if (!this.activeResponse && !this.greetingResponse && (ms >= HOLD_MIN_MS || (this.live.answersAfterInterrupt && this.lastResponseStatus === 'cancelled'))) {
+      } else if (
+        !this.greetingResponse &&
+        (this.activeResponse
+          ? // Die Antwort entsteht noch: Der Anbieter bricht sie selbst ab; was schon vorliegt, wartet auf die Mitschrift.
+            // So fällt ein Echo der eigenen Stimme auf, bevor der halbe Satz verworfen ist
+            Boolean(this.live.answersAfterInterrupt) && ms >= HOLD_MIN_MS
+          : ms >= HOLD_MIN_MS || (this.live.answersAfterInterrupt && this.lastResponseStatus === 'cancelled'))
+      ) {
         // (Ein Anbieter, der eine Antwort bei einer Unterbrechung selbst abbricht, braucht die Prüfung dann auch bei wenig Rest:
         // Nur sie hält seine Antwort auf einen Zuhör-Laut stumm. War die Antwort dagegen fertig und fast ausgespielt, ist ein
         // „Okay“ die Antwort des Gegenübers, kein Zuhör-Laut.)
         // Antwort liegt vollständig vor: nur pausieren und erst nach der Transkription entscheiden
         log.info(`Realtime: speech_started – ${ms} ms in der Warteschlange, pausiere und prüfe, ob das Gegenüber etwas sagt`);
-        this.hold = { timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS), itemId, midSentence: ms >= HOLD_MIN_MS || this.lastResponseStatus === 'cancelled', held: [], texts: [] };
+        this.hold = {
+          timer: setTimeout(() => this.resolveHold(undefined), HOLD_MAX_MS),
+          itemId,
+          midSentence: ms >= HOLD_MIN_MS || this.lastResponseStatus === 'cancelled',
+          spokenActive: this.activeResponse,
+          spoken: this.kiLive || this.lastAiText,
+          held: [],
+          texts: [],
+        };
         this.hold.timer.unref();
       } else {
         log.info(`Realtime: speech_started – ${this.outQueue.length} Frames (${ms} ms) in der Warteschlange, verwerfe`);
@@ -744,10 +777,9 @@ export class RealtimeBridge implements AudioHandler {
     }
     // Ohne neue Stücke kommt nichts mehr nach: Ein späterer Leerlauf ist das Satzende, kein Aussetzer
     this.underrunAt = 0;
-    if (this.interruptNote) {
-      this.opts.onTranscript({ speaker: 'system', text: this.interruptNote, final: true });
-      this.interruptNote = '';
-    }
+    for (const note of this.interruptNotes.splice(0)) this.opts.onTranscript({ speaker: 'system', text: note, final: true });
+    // Die gesprochene Antwort ist zu Ende (auch: vom Anbieter abgebrochen); was jetzt noch entsteht, ist die Antwort auf das Gehörte
+    if (this.hold) this.hold.spokenActive = false;
     if (this.dupGuard === 'greeting' && this.dupGreetingStarted) {
       this.dupGuard = 'after';
       this.dupGuardUntil = Date.now() + DUP_AFTER_GREETING_MS;
@@ -1145,12 +1177,18 @@ export class RealtimeBridge implements AudioHandler {
     const lostMs = this.outQueue.length * 20;
     if (lostMs >= INTERRUPT_NOTE_MS) {
       // Die Mitschrift der KI nennt den ganzen Satz, auch wenn er abgeschnitten wurde: im Transkript und für den Agenten festhalten
-      const note = `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer letzten Antwort wurden nicht mehr gesprochen`;
-      // Der Text der Antwort kommt erst, wenn sie endet: Der Hinweis gehört dahinter, nicht davor
-      if (this.activeResponse) this.interruptNote = note;
+      // Welche Antwort betroffen ist: ihr Anfang, soweit er vorliegt (die Mitschrift nennt sonst den ganzen Satz als gesagt)
+      const said = (this.kiLive || (this.lastAiItem === this.playItemId ? this.lastAiText : '')).trim();
+      const which = said ? `, die mit „${said.slice(0, 40)}${said.length > 40 ? ' …' : ''}“ begann,` : '';
+      const note = `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer Antwort${which} wurden nicht mehr gesprochen`;
+      // Der Text der Antwort kommt erst, wenn sie endet: Der Hinweis gehört dahinter, nicht davor. Jede Unterbrechung bekommt ihren eigenen
+      if (this.activeResponse) this.interruptNotes.push(note);
       else this.opts.onTranscript({ speaker: 'system', text: note, final: true });
-      // Eine Vorgabe des Agenten, die so unterging, ist nicht erledigt
-      if (this.responseCause === CAUSE_AGENT_SAY || this.responseCause === CAUSE_ASK_ANSWER) this.live.note(INTERRUPTED_DIRECTIVE);
+      // Das Modell hält den Satz sonst für gesagt und erklärt sich die Rückfrage des Gegenübers mit einer Verbindungsstörung.
+      // Eine Vorgabe des Agenten, die so unterging, ist nicht erledigt. Beim Beenden bleibt es dabei.
+      if (this.endRequested === undefined && this.goodbye === 'none') {
+        this.live.note(this.responseCause === CAUSE_AGENT_SAY || this.responseCause === CAUSE_ASK_ANSWER ? INTERRUPTED_DIRECTIVE : INTERRUPTED_ANSWER);
+      }
     }
     this.stats.interruptions++;
     this.stats.discarded += this.outQueue.length;
@@ -1178,10 +1216,11 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(h.timer);
     this.hold = undefined;
     if (this.closed) return;
-    if (text !== undefined && isBackchannel(text)) {
-      log.info(`Realtime: ${text.trim() ? `nur ein Zuhör-Laut („${text}")` : 'nur ein Geräusch, keine Sprache'} – KI spricht ihren Satz zu Ende (${this.outQueue.length * 20} ms)`);
+    const echo = text !== undefined && !isBackchannel(text) && isEcho(text, h.spoken);
+    if (text !== undefined && (echo || isBackchannel(text))) {
+      log.info(`Realtime: ${echo ? `Echo der eigenen Stimme („${text}" steht in der laufenden Antwort)` : text.trim() ? `nur ein Zuhör-Laut („${text}")` : 'nur ein Geräusch, keine Sprache'} – KI spricht ihren Satz zu Ende (${this.outQueue.length * 20} ms)`);
       // Was das Modell auf den Laut hin sagen wollte, wird weder gesprochen noch im Verlauf behalten
-      if (this.activeResponse) {
+      if (this.activeResponse && !h.spokenActive) {
         this.muteNoiseResponse = true;
         this.live.cancelResponse();
       } else if (this.live.answersAfterInterrupt && h.midSentence) {
