@@ -1,0 +1,35 @@
+doc/test-checklist.de.md
+  s_9e7cbef9751112::t_1f302d8159954b 115-117
+CHANGELOG.de.md
+  s_9e7cbef9751112::t_51df71bd74d364 9-12,15
+README.md
+  s_9e7cbef9751112::t_51df71bd74d364 54,98
+doc/user-guide.de.md
+  s_9e7cbef9751112::t_51df71bd74d364 68,386,414,588-589,591-623,629,635,638,651,658-664,666-668,769,788,795-802
+  s_9e7cbef9751112::t_f1d104ee888e24 803
+doc/user-guide.md
+  s_9e7cbef9751112::t_51df71bd74d364 70,388,416,590-591,593-625,631,637,640,653,660-666,668-670,771,790,797-804
+  s_9e7cbef9751112::t_6fd799dd3e8987 805
+doc/test-checklist.md
+  s_9e7cbef9751112::t_1f302d8159954b 115-117
+README.de.md
+  s_9e7cbef9751112::t_51df71bd74d364 52,96
+CHANGELOG.md
+  s_9e7cbef9751112::t_51df71bd74d364 9-12,15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17a742f96627467e4ed3b4191a770e49a4879099",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
