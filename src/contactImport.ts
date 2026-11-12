@@ -67,8 +67,20 @@ const TIME_OR_DATE_SOURCE = [
   .join('|');
 const TIME_OR_DATE = new RegExp(TIME_OR_DATE_SOURCE, 'i');
 const TIME_OR_DATE_ALL = new RegExp(TIME_OR_DATE_SOURCE, 'gi');
-const WEEKDAY = /(?<![\p{L}])(mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun)\.?(?![\p{L}])/iu;
-const HOUR_RANGE_ALL = new RegExp(`${FREE}${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}(?![\\d.]|:\\d)`, 'gi');
+const WEEKDAY =
+  /(?<![\p{L}])(mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun|montags?|dienstags?|mittwochs?|donnerstags?|freitags?|samstags?|sonntags?|werktags|wochentags|täglich|taeglich|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekdays|daily)\.?(?![\p{L}])/iu;
+const HOUR_RANGE_ALL = new RegExp(`${FREE}${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}(?![\\d.]|:\\d|[-–—]\\d)`, 'gi');
+/** Stundenspanne in Klammern („030 1234567 (9-17)“) */
+const HOUR_RANGE_PAREN_ALL = new RegExp(`\\(\\s*${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}\\s*(uhr\\s*)?\\)`, 'gi');
+
+/**
+ * Nackte Stundenspannen ausblenden: in Klammern immer, sonst nur, wenn im Feld ein Wochentag, „werktags“ oder „täglich“
+ * steht (für das ganze Feld, bevor es an Kommas geteilt wird: „Mo-Fr 8-12, 14-17 030 …“)
+ */
+function maskHourRanges(s: string): string {
+  const out = s.replace(HOUR_RANGE_PAREN_ALL, ' | ');
+  return WEEKDAY.test(out) ? out.replace(HOUR_RANGE_ALL, ' | ') : out;
+}
 
 /** Vollbreite und andere Doppelgänger von Ziffern, * und # in die üblichen Zeichen bringen (NFKC plus Rechen-Sternchen) */
 const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*').replace(/♯/g, '#');
@@ -88,7 +100,7 @@ export function normalizeImportNumber(raw: string): string | undefined {
   if (s.length > 80) return undefined;
   // 1. Uhrzeiten und Daten durch einen Trenner ersetzen; neben einem Wochentag auch nackte Stundenspannen („Mo-Fr 8-17“)
   s = s.replace(TIME_OR_DATE_ALL, ' | ');
-  if (WEEKDAY.test(s)) s = s.replace(HOUR_RANGE_ALL, ' | ');
+  s = maskHourRanges(s);
   // 2. Anfang der Nummer: erstes +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“), „**“ vor Ziffern oder ein
   // * bzw. # vor Ziffer, * oder # – außer direkt hinter einem Wort („Mobil*0171 …“, „Cell#0171 …“ = Bezeichnung)
   const start = s.search(/\+|\d|\((?=\s*[+\d])|\*\*(?=\s*\d)|(?<![A-Za-zÄÖÜäöüß]\.?)[*#](?=[\d*#])/);
@@ -105,19 +117,21 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // Doppelpunkt und sonstiger Text
   const end = s.search(/[|,;:*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  s = s.replace(/[\s/\-–]+$/, '');
-  // 4. „ / “ verbindet nur eine Vorwahl mit der Rufnummer („0171 / 5550100“, „+49 (0)221 / 1234567“, gegliedert
-  // „0221 / 123 / 4567“). Ist die Nummer vor dem Schrägstrich schon vollständig (ab sechs Ziffern), ist das Folgende
-  // eine Nebenstelle oder Notiz („030 1234567 / 610“). Sonst kommen Gruppen dazu, bis die Nummer zehn Ziffern hat;
-  // eine kurze Gruppe danach ist wieder eine Nebenstelle („0221 / 1234567 / 610“).
+  // Reste am Ende („.“, „(+“, „[“) weg, schließende Klammer bleibt
+  s = s.replace(/[^\d)]+$/, '');
+  // 4. „ / “ verbindet eine Vorwahl mit der Rufnummer („0171 / 5550100“, „+49 (0)221 / 1234567“, „035022 / 12345“,
+  // gegliedert „0221 / 123 / 4567“). Gruppen kommen dazu, bis die Nummer zehn Ziffern hat; eine Gruppe mit höchstens
+  // drei Ziffern ist danach eine Nebenstelle oder Notiz („0221 / 1234567 / 610“), ebenso schon, wenn die Nummer vor
+  // dem Schrägstrich ab sieben Ziffern hat („030 1234567 / 610“, „0421 1234 / 610“).
   const groups = s.split(/\s*\/\s*(?=[\d(])/);
   if (groups.length > 1 && /\s\/|\/\s/.test(s)) {
     let joined = groups[0];
     let count = nationalDigits(joined);
-    if (count < 6) {
+    const headCount = count;
+    if (count < 10) {
       for (const g of groups.slice(1)) {
         const d = g.replace(/\D/g, '').length;
-        if (!/^[\d\s()-]+$/.test(g) || (count >= 10 && d <= 3)) break;
+        if (!/^[\d\s()-]+$/.test(g) || (count >= 10 && d <= 3) || (headCount >= 7 && d <= 3)) break;
         joined += ' ' + g;
         count += d;
       }
@@ -166,7 +180,7 @@ export function decodeImportFile(buf: Buffer): string {
  * Ein Schrägstrich zwischen Vorwahl und Rufnummer bleibt Teil der Nummer („0171/5550100“, „0171 / 5550100“).
  */
 export function splitNumbers(value: string): string[] {
-  const parts = phoneChars(String(value ?? '').slice(0, 400))
+  const parts = maskHourRanges(phoneChars(String(value ?? '').slice(0, 400)))
     // „Mobil: 0171 … / Büro: 030 …“, „**610 (Büro) / 030 …“: steht nach „ / “ Text und dann eine ganze Nummer, trennt der
     // Schrägstrich zwei Nummern
     // (eine ganze Nummer, keine Uhrzeit oder kein Datum wie „08:00“ oder „01.01.2027“)

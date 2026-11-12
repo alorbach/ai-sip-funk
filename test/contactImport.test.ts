@@ -929,3 +929,31 @@ test('Zeit oder Datum vor der Nummer, Stundenlisten, Gruppen nach „ / “, Dop
   assert.equal(n('030 1234567:12'), '0301234567');
   assert.equal(n('030:1234567'), '0301234567');
 });
+
+// ---------------------------------------------------------------- Review-Runde 21
+
+test('Stundenspannen in Klammern, mit ausgeschriebenen Wochentagen und vor Kommas; Gruppen nach „ / “', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.deepEqual(nums('030 1234567 (9-17)'), ['0301234567']);
+  assert.deepEqual(nums('Mo-Fr 8-12, 14-17 030 1234567'), ['0301234567']);
+  assert.deepEqual(nums('Montag-Freitag 8-17 030 1234567'), ['0301234567']);
+  assert.deepEqual(nums('werktags 08-18 030 1234567'), ['0301234567']);
+  assert.deepEqual(nums('täglich 08-17'), []);
+  assert.equal(n('030 1234 / 5678'), '03012345678');
+  assert.equal(n('030 1234567 / 610'), '0301234567');
+  assert.equal(n('0421 1234 / 610'), '04211234');
+  assert.equal(n('0171 555 01-23'), '0171555' + '0123');
+});
+
+test('Fünfstellige Vorwahl mit „ / “, Bindestrich-Nummern neben Wochentagen, Reste am Ende', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('035022 / 12345'), '03502212345');
+  assert.equal(n('+49 35022 / 12345'), '03502212345');
+  assert.equal(n('06-12-34-56-78 Mo-Fr'), '0612345678');
+  assert.equal(n('030 12-13-14 Mo-Fr'), '030121314');
+  assert.equal(n('Fr. Muster 030 12-13-14'), '030121314');
+  assert.equal(n('0172 / 3456789.'), '01723456789');
+  assert.equal(n('0172 / 3456789 [mobil]'), '01723456789');
+  assert.equal(n('0172 / 3456789 (+ Fax)'), '01723456789');
+});
