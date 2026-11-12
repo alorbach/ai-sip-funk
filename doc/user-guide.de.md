@@ -302,6 +302,24 @@ Ein Telefonat ist damit nicht geprüft.
 
 **Tatsächliche Kosten laut OpenAI (optional)** (Stufe „Erweitert“, nur OpenAI). Der Block erscheint unter der Liste, wenn die aktive oder eine aufgeklappte Verbindung zu OpenAI gehört. Hinterlegst du unter „Admin-Schlüssel“ einen Admin-Schlüssel deiner OpenAI-Organisation (`sk-admin-…`), zeigt die Karte zusätzlich die tatsächlichen Kosten der Organisation seit Monatsanfang. Ein Admin-Schlüssel ist nötig, weil OpenAIs Kosten-Abruf (`GET /v1/organization/costs`) normale API-Schlüssel ablehnt. Ein solcher Schlüssel kann auch Nutzer, Projekte und Schlüssel der Organisation verwalten: Hinterlege ihn nur bewusst und gib ihm bei OpenAI ein Ablaufdatum. Die Zahl umfasst alles, was die Organisation nutzt, nicht nur SIPFunk. Der Schlüssel steht als `OPENAI_ADMIN_KEY` in der `.env`; „Admin-Schlüssel entfernen“ löscht ihn wieder. Google bietet keinen solchen Abruf, und OpenAI bietet keinen Abruf für das verbleibende Guthaben.
 
+### 6.3 Textmodell im Gespräch
+
+Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schlecht mit. Deshalb entscheidet an einigen Stellen das Textmodell der aktiven KI-Verbindung mit. Es bekommt dafür jedes Mal die vollständigen Anweisungen der Sprach-KI (Grundregeln, Auftrag, Gesprächsplan, Hintergrundwissen) und das ganze bisherige Transkript, samt den Ereignissen der App (Unterbrechungen, Stille, Hinweise).
+
+| Stelle | Was das Textmodell tut | Antwortet es nicht rechtzeitig |
+| --- | --- | --- |
+| Die KI will auflegen | Die KI verabschiedet sich sofort. Währenddessen prüft das Textmodell Punkt für Punkt am Transkript, ob vom Auftrag etwas fehlt, das in diesem Gespräch noch geht. Fehlt etwas, nimmt SIPFunk das Auflegen zurück, und die KI spricht den Punkt noch an („Eine Sache noch: …“). Die Selbstprüfung der Sprach-KI gegen den Gesprächsplan entfällt | Das Auflegen wartet höchstens 6 s nach dem Auflegen-Wunsch auf das Urteil; kommt keines, wird aufgelegt, wie die Sprach-KI entschieden hat |
+| Das Gegenüber sagt nach der Verabschiedung noch etwas | Es entscheidet, ob das nur Abschied oder Dank ist (auflegen) oder noch ein Anliegen (das Gespräch geht weiter) | nach 4 s entscheidet die Wortliste wie bisher |
+| Regie im Hintergrund | Es liest nach jedem Redebeitrag der KI mit und gibt ihr nur bei Bedarf einen Hinweis: eine übergangene Frage, ein Missverständnis, ein vergessener Punkt, eine nicht bemerkte Mailbox. Der Hinweis steht im Transkript als „Hinweis der Regie an die KI: …“ und wirkt, wenn die KI das nächste Mal spricht | es gibt keinen Hinweis |
+
+**Was fest bleibt.** Die Vorstellung als KI samt Nachprüfung, Anruflimits und Höchstdauer, die Freigaben der MCP-Schnittstelle und die Schalter der Spam-Abwehr entscheidet nie ein Modell. Fest bleibt auch alles, wofür keine Zeit ist: Begrüßung, Unterbrechungen mitten im Satz, Echo und Stille. Ein Textmodell ist dafür zu langsam; mitten im Satz wäre jede Sekunde als Pause zu hören. In der Spam-Abwehr entscheidet das Textmodell nicht mit. Bei Agenten-Anrufen führt der Agent die Regie (Kapitel 13); das Textmodell prüft dort nur beim Auflegen und nach der Verabschiedung.
+
+**Verzögerung und Kosten.** Ein Textmodell braucht für eine Antwort zwei bis vier Sekunden. Deshalb wartet nichts Hörbares darauf: Die Prüfung beim Auflegen läuft neben dem Abschiedssatz und der Nachhörphase her, und ein Hinweis der Regie wirkt erst beim nächsten Redebeitrag der KI. Ist das Gespräch dann schon einen Redebeitrag weiter, verfällt der Hinweis. Die Regie kostet einen kurzen Textmodell-Aufruf je Redebeitrag der KI, höchstens 40 je Gespräch. Das Transkript geht dafür schon während des Gesprächs an das Textmodell deines Anbieters und nicht erst danach für die Zusammenfassung.
+
+**Ausschalten.** Der Schalter „Textmodell entscheidet im Gespräch mit“ steht unter „Einstellungen › Technik“ und ist eingeschaltet. Ausgeschaltet verhält sich SIPFunk wie bisher: Wortlisten, und mit Gesprächsplan die Selbstprüfung der Sprach-KI vor dem Abschied.
+
+---
+
 ## 7. Anrufbeantworter
 
 ### 7.1 Einschalten
@@ -524,6 +542,7 @@ spielt alle eingebauten Szenarien, `npm run sim -- praxis strom` nur die genannt
 | Kennung | Szenario |
 | --- | --- |
 | `privat`, `praxis`, `falsch`, `mailbox` | ausgehend: private Nachricht, Terminverschiebung in einer Praxis, falsche Person am Apparat, Mailbox |
+| `ausweichen`, `vergessen` | ausgehend: Das Gegenüber weicht einer Frage aus und will schnell auflegen; drei Punkte und ein Gegenüber, das viel redet und sich früh verabschiedet |
 | `rueckruf` | Rückruf an den Inhaber nach einem wichtigen Anruf |
 | `ab` | Anrufbeantworter mit echtem Anliegen bei eingeschalteter Spam-Abwehr (darf nicht auslösen) |
 | `strom`, `bank` | Werbung und angebliche Bank-Sicherheitsabteilung: Erkennung im Gespräch mit Rollenwechsel |
@@ -536,7 +555,7 @@ Eigenes ausgehendes Szenario:
 npm run sim -- --task "Frag nach den Öffnungszeiten am Samstag" --partner "Verkäuferin in einer Bäckerei, kurz angebunden" --sie
 ```
 
-Weitere Schalter: `--opening "…"` (erster Satz des Gegenübers), `--model <Realtime-Modell>`. Die Spam-Szenarien nehmen Name und eigene Anweisungen der Rolle aus den gespeicherten Einstellungen; zum Ausprobieren ohne Speichern gehen die Umgebungsvariablen `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` und `SIM_SCAM_DISCLOSE` (`on` = mit KI-Kennung). Berichte landen in `sim-results/`.
+Weitere Schalter: `--opening "…"` (erster Satz des Gegenübers), `--model <Realtime-Modell>`, `--no-judge` (ohne das Textmodell im Gespräch, Abschnitt 6.3). Mit eingeschaltetem Schalter prüft das Textmodell auch im Simulator beim Auflegen und führt Regie; die Zeilen „Prüfung vor dem Auflegen“ und „Hinweis der Regie“ stehen im Bericht, die Antwortzeiten in der Konsole. Die Entscheidung nach der Verabschiedung braucht ein Telefon und kommt im Simulator nicht vor. Die Spam-Szenarien nehmen Name und eigene Anweisungen der Rolle aus den gespeicherten Einstellungen; zum Ausprobieren ohne Speichern gehen die Umgebungsvariablen `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` und `SIM_SCAM_DISCLOSE` (`on` = mit KI-Kennung). Berichte landen in `sim-results/`.
 
 Bei den Spam-Szenarien bewertet der Richter streng: Jede genannte Angabe, jedes „Ja“ und jede KI-Nennung im Spam-Modus ist ein schwerer Fehler. Textmodelle spielen Betrüger allerdings ungern glaubhaft; diese Szenarien sind deshalb weniger aussagekräftig als ein echter Anruf.
 
@@ -554,7 +573,8 @@ Die Schnittstelle ist **standardmäßig ausgeschaltet**. Du schaltest sie unter 
 
 Am Telefon spricht nicht der Agent, sondern die Sprach-KI von SIPFunk, über die aktive KI-Verbindung und mit der Stimme, die dort eingestellt ist. Sie führt das Gespräch selbstständig nach dem Auftrag, genau wie bei einem Anruf vom Dashboard. Der Agent sitzt daneben:
 
-- Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund).
+- Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund) und Hinweise zum Ablauf: der Gesprächsplan der KI, Unterbrechungen, Stille, Laute ohne Worte, die Prüfung vor dem Auflegen und das Ergebnis laut KI. Jede Antwort nennt außerdem Dauer, Restzeit und die Lage im Moment der Abfrage (wer gerade spricht, wie lange es still ist, ob die KI auf ihn wartet oder sich verabschiedet). So kennt er jederzeit das ganze Gespräch.
+- Er **kann das Auflegen zurücknehmen**: Meldet ein Hinweis das Ergebnis laut KI, verabschiedet sie sich gerade. Fehlt aus Sicht des Agenten noch etwas, nimmt eine Vorgabe das Auflegen zurück, solange nicht aufgelegt ist. Ob vom Auftrag etwas fehlt, prüft zur selben Zeit auch das Textmodell (Abschnitt 6.3) und nimmt das Auflegen notfalls selbst zurück; der Agent muss nicht eingreifen, und die KI wartet nicht auf ihn.
 - Er **gibt Vorgaben**: „Sag, dass auch 19:30 Uhr passt.“ Die KI formuliert selbst und setzt die Vorgabe im nächsten passenden Moment um, ohne jemandem ins Wort zu fallen.
 - Die KI **fragt beim Agenten nach**, wenn ihr eine Entscheidung fehlt, von der das Ergebnis abhängt. Sie sagt dem Gegenüber „Einen Moment bitte, ich frage kurz nach“ und wartet bis zu 25 Sekunden auf die Antwort des Agenten. Kommt keine, sagt sie, dass du dich dazu meldest, und hält den Punkt als offen fest.
 
@@ -680,7 +700,7 @@ Alle Tools antworten mit Text, auf Deutsch (auch die Sprach-KI spricht Deutsch).
 | `get_status` | – | Anmeldung an der Telefonanlage, freie Leitung, erlaubte Ziele, ob du bestätigen musst, verbleibende Anrufe je Stunde und Tag, Höchstdauer, laufender Anruf |
 | `list_contacts` | – | Namen der Kontakte, ohne Nummern. Nur mit der Freigabe „Agent darf die Namen meiner Kontakte lesen“ |
 | `start_call` | `target` (Kontaktname oder Rufnummer), `task` (Auftrag, höchstens 2000 Zeichen), optional `context` (Hintergrundwissen, höchstens 6000 Zeichen), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; kann die Höchstdauer nur verkürzen) | `call_id` und der Zustand: „angefragt“ (wartet auf deine Bestätigung) oder „wählt“ |
-| `wait_for_events` | `call_id`, `after` (Nummer des letzten bekannten Ereignisses), `timeout_sec` (1–50, Vorgabe 25) | Blockiert, bis es Neues gibt oder die Zeit abläuft. Liefert den Zustand, die neuen Ereignisse mit Nummer (`Gegenüber`, `KI`, `Zustand`, `Hinweis`, `RÜCKFRAGE der KI an dich`), eine offene Rückfrage und die Nummer für den nächsten Aufruf |
+| `wait_for_events` | `call_id`, `after` (Nummer des letzten bekannten Ereignisses), `timeout_sec` (1–50, Vorgabe 25) | Blockiert, bis es Neues gibt oder die Zeit abläuft. Liefert den Zustand mit Dauer und Restzeit, im Gespräch die Zeile „Lage jetzt“ (wer spricht, Stille, Rückfrage offen, Verabschiedung), die neuen Ereignisse mit Nummer (`Gegenüber`, `KI`, `Zustand`, `Hinweis`, `RÜCKFRAGE der KI an dich`), eine offene Rückfrage und die Nummer für den nächsten Aufruf. Ohne `after` kommt der ganze bisherige Verlauf |
 | `say` | `call_id`, `text` (höchstens 600 Zeichen), `when` (`now` Vorgabe, `next`) | Übergibt eine Vorgabe an die Sprach-KI. Wartet sie auf die Antwort einer Rückfrage, ist `text` die Antwort. `now`: so bald wie möglich aussprechen; `next`: beim nächsten eigenen Redebeitrag berücksichtigen |
 | `end_call` | `call_id`, `mode` (`polite` Vorgabe, `now`) | `polite`: Die KI verabschiedet sich, meldet ihr Ergebnis und legt auf. `now`: sofort auflegen. Eine Anfrage, die noch auf Bestätigung wartet, wird zurückgezogen |
 | `get_call_result` | `call_id` oder `record_id` (der Zeitstempel am Zeilenanfang aus `list_calls`) | Zustand und Grund des Endes, Ergebnis laut KI (erreicht, offen), Zusammenfassung, Transkript. Kam kein Gespräch zustande, steht das dort |
@@ -729,7 +749,8 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 ### 13.6 Grenzen und Latenz
 
 - **Ein Gespräch gleichzeitig.** Läuft schon ein Anruf (auch ein eingehender), lehnt `start_call` ab.
-- **Der Agent hört nichts.** Er bekommt Text: die Transkription des Gegenübers und den Wortlaut der KI, jeweils erst, wenn eine Äußerung fertig ist. Tonfall, Pausen und Hintergrundgeräusche erreichen ihn nicht, und die Transkription kann Namen und Zahlen falsch wiedergeben.
+- **Der Agent hört nichts.** Er bekommt Text: die Transkription des Gegenübers und den Wortlaut der KI, jeweils erst, wenn eine Äußerung fertig ist. Tonfall und Hintergrundgeräusche erreichen ihn nicht; Stille, Laute ohne Worte und Unterbrechungen nur als Hinweis. Die Transkription kann Namen und Zahlen falsch wiedergeben.
+- **Den Gesprächsplan sieht der Agent nur, wenn er das Ziel beim Namen kennt.** Der Plan kann den Namen des Kontakts nennen. Hat der Agent eine Rufnummer gewählt und darf er die Kontaktnamen nicht lesen, bleibt der Plan deshalb weg.
 - **Vorgaben wirken mit Verzögerung.** Zwischen einer Äußerung am Telefon und der Reaktion des Agenten liegen mehrere Sekunden. Die KI wartet darauf nicht, außer sie hat selbst nachgefragt. Eine Vorgabe kann deshalb zu spät kommen; schreib den Spielraum lieber in den Auftrag.
 - **Vorgaben sind Inhalte, kein Wortlaut.** Die KI formuliert selbst und bleibt bei ihren Grundregeln.
 - **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
@@ -787,6 +808,7 @@ Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindun
 | Sprechgeschwindigkeit | 1,05 | `AI_SPEECH_SPEED` | 0,25–1,5; mit Google Gemini nur ein Hinweis an die KI |
 | Lautstärke der KI | 1,5 | `AI_OUTPUT_GAIN` | Verstärkung Richtung Telefon, mit weichem Begrenzer |
 | Gegenüber darf die KI unterbrechen | an | `AI_ALLOW_INTERRUPT` | aus: die KI spricht immer zu Ende |
+| Textmodell entscheidet im Gespräch mit | an | `AI_LIVE_JUDGE` | Prüfung beim Auflegen, Entscheidung nach der Verabschiedung und Regie im Hintergrund durch das Textmodell (Abschnitt 6.3); aus: Verhalten wie bisher |
 | Port der Oberfläche und der MCP-Schnittstelle | 3865 | `WEB_PORT` | Port auf 127.0.0.1 für Web-UI und `/mcp`; gilt nach einem Neustart (Abschnitt 14.3) |
 | Textmodell | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | Plan, Zusammenfassung, Einschätzung, Beschwerde |
 

@@ -308,7 +308,9 @@ ${mcp ? str('context') : input.context}` : input.task,
   // Das Textmodell entscheidet mit und führt Regie (Einstellungen › Technik); es kennt dafür Auftrag, Plan und das ganze Transkript.
   // Nicht in der Spam-Abwehr. Bei Agenten-Anrufen führt der Agent Regie, das Textmodell entscheidet nur an den Regelstellen mit
   const started = current;
-  const judgeContext = (): JudgeContext => ({ task: input.task, plan: started.plan, principal: input.principalName, incoming, entries: transcript, situation: bridge.situation() });
+  // Die vollständige Anweisung der Sprach-KI gehört zum Kontext (mit Plan, sobald er da ist)
+  let liveInstructions = instructions;
+  const judgeContext = (): JudgeContext => ({ task: input.task, plan: started.plan, instructions: liveInstructions, principal: input.principalName, incoming, entries: transcript, situation: bridge.situation() });
   const liveJudge = t.liveJudge && !scam;
   const director =
     liveJudge && !mcp
@@ -414,7 +416,8 @@ ${mcp ? str('context') : input.context}` : input.task,
         if (!started || current !== started) return; // Gespräch inzwischen vorbei
         const text = formatPlan(plan);
         started.plan = text;
-        bridge.updateInstructions(buildInstructions({ ...input, plan: text }), plan.schritte);
+        liveInstructions = buildInstructions({ ...input, plan: text });
+        bridge.updateInstructions(liveInstructions, plan.schritte);
         log.info(`Gesprächsplan: ${plan.schritte.length} Schritt(e) – ${plan.schritte.join(' | ')}`);
         if (mcp) gateway.plan(plan.schritte);
       })

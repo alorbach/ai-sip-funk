@@ -50,7 +50,7 @@ export const TOOLS: { name: string; description: string; inputSchema: z.ZodRawSh
       'Die erste Zeile nennt Dauer und Restzeit, im Gespräch folgt „Lage jetzt“: wer gerade spricht, wie lange es still ist, ob die KI auf dich wartet oder sich verabschiedet. Ohne after bekommst du den ganzen bisherigen Verlauf noch einmal – so kennst du jederzeit das vollständige Gespräch. ' +
       'Blockiert, bis es etwas Neues gibt oder timeout_sec abläuft – also in einer Schleife aufrufen, jeweils mit der zuletzt gemeldeten Nummer als after. Kein Pollen nötig. ' +
       'Steht in der Antwort „OFFENE RÜCKFRAGE“, wartet die KI am Telefon auf dich: sofort mit say antworten. ' +
-      'Meldet ein Hinweis „Ergebnis laut KI“, verabschiedet sie sich gerade: Fehlt aus deiner Sicht noch etwas oder stimmt das Ergebnis nicht, nimmt ein say das Auflegen zurück, solange nicht aufgelegt ist.',
+      'Meldet ein Hinweis „Ergebnis laut KI“, verabschiedet sie sich gerade: Fehlt aus deiner Sicht noch etwas oder stimmt das Ergebnis nicht, nimmt ein say das Auflegen zurück, solange nicht aufgelegt ist. SIPFunk prüft das auch selbst („Prüfung vor dem Auflegen: noch offen“ heißt: Das Auflegen ist zurückgenommen, die KI spricht den Punkt noch an).',
     inputSchema: {
       call_id: callId,
       after: z.number().int().min(0).optional().describe('Nur Ereignisse nach dieser Nummer (steht in jeder Antwort als „after …“); ohne Angabe alle'),

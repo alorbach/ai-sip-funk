@@ -53,18 +53,6 @@ export function isBackchannel(text: string): boolean {
   return words.every((w) => BACKCHANNEL_WORDS.has(w));
 }
 
-/**
- * true, wenn ein Einwurf mitten in die Antwort der KI weder klar Zuhören noch klar Inhalt ist: höchstens sechs Wörter,
- * keine Frage, keine Zahl, nicht nur Antwortwörter („nein“, „stopp, Moment“). Nur solche Fälle gehen ans Textmodell;
- * alles andere entscheidet die Wortliste sofort, damit beim echten Unterbrechen keine Pause entsteht.
- */
-export function isUnclearInterjection(text: string): boolean {
-  if (/[\d?]/.test(text)) return false;
-  const words = text.toLowerCase().replace(/['’]/g, '').replace(/[^a-zäöüß\s]/g, ' ').split(/\s+/).filter(Boolean);
-  if (words.length === 0 || words.length > 6) return false;
-  return !words.every((w) => ANSWER_WORDS.has(w));
-}
-
 /** Einzelne Wörter, die eine Antwort sein können: Sie gelten nie als Echo, auch wenn die KI sie gerade selbst gesagt hat. */
 const ANSWER_WORDS = new Set([
   'ja', 'jaja', 'jo', 'nein', 'nee', 'nö', 'doch', 'okay', 'ok', 'gut', 'genau', 'richtig', 'stimmt', 'danke', 'bitte', 'hallo',

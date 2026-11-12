@@ -1,11 +1,11 @@
-// Das Textmodell entscheidet im laufenden Gespräch mit: an den Stellen, an denen sonst Wortlisten und starre Regeln
-// entscheiden (Auflegen oder weiter nach der Verabschiedung, kurze Einwürfe mitten im Satz, Auftrag erledigt beim
-// end_call), und als Regie im Hintergrund, die nach jeder Äußerung des Gegenübers mitliest und der Sprach-KI bei
-// Bedarf einen Hinweis gibt. Es kennt dafür immer Auftrag, Gesprächsplan und das ganze bisherige Transkript.
+// Das Textmodell entscheidet im laufenden Gespräch mit: an Stellen, an denen sonst Wortlisten und starre Regeln entscheiden
+// und an denen das Gespräch nicht hörbar auf die Antwort warten muss (Auflegen oder weiter nach der Verabschiedung; Auftrag
+// erledigt beim end_call, neben der Verabschiedung her), und als Regie im Hintergrund, die nach jedem Redebeitrag der KI
+// mitliest und ihr bei Bedarf einen Hinweis gibt. Es kennt dafür immer die vollständigen Anweisungen der Sprach-KI
+// (Grundregeln, Auftrag, Plan, Hintergrundwissen) und das ganze bisherige Transkript.
 //
-// Hier stehen die Fragen ans Textmodell. Fristen und der Rückfall auf die alte Regel stecken in der Brücke
-// (realtimeBridge.ts): Kein Gespräch hängt an einer Antwort von hier. Schutzgrenzen (KI-Kennzeichnung, Limits,
-// Freigaben) entscheidet das Textmodell nicht.
+// Hier stehen die Fragen ans Textmodell. Die Fristen stecken in der Brücke (realtimeBridge.ts): Kein Gespräch hängt an
+// einer Antwort von hier. Schutzgrenzen (KI-Kennzeichnung, Limits, Freigaben) entscheidet das Textmodell nicht.
 import type { TextModel } from './providers/types.js';
 
 export interface JudgeEntry {
@@ -19,6 +19,11 @@ export interface JudgeContext {
   task: string;
   /** Gesprächsplan als Text (siehe formatPlan), falls vorhanden */
   plan?: string;
+  /**
+   * Die vollständige Systemanweisung der Sprach-KI (Grundregeln, Stil, Auftrag, Plan, Hintergrundwissen). Ohne sie hält
+   * das Textmodell für einen Fehler, was der KI vorgeschrieben ist (Rückruf anbieten, Rückrufnummer nennen).
+   */
+  instructions?: string;
   /** In wessen Auftrag die KI spricht */
   principal: string;
   /** true = Anrufbeantworter: Das Gegenüber hat angerufen */
@@ -32,10 +37,12 @@ export interface JudgeContext {
 export interface CallJudge {
   /** Das Gegenüber sagt nach der Verabschiedung der KI noch etwas: nur Abschied/Bestätigung oder noch ein Anliegen? */
   afterGoodbye(utterance: string): Promise<'farewell' | 'content'>;
-  /** Kurzer Einwurf mitten in die Antwort der KI: nur Zuhören bzw. Echo oder will das Gegenüber etwas sagen? */
-  interruption(spoken: string, utterance: string): Promise<'listening' | 'content'>;
-  /** Die KI will auflegen: Welche Punkte des Auftrags sind noch offen und in diesem Gespräch noch zu erledigen? */
-  endCall(result: string, open: string): Promise<string[]>;
+  /**
+   * Die KI will auflegen: Welche Punkte des Auftrags sind noch offen und in diesem Gespräch noch zu erledigen?
+   * Was die KI selbst als Ergebnis meldet, erfährt das Textmodell bewusst nicht: Im Simulator hielt es einen nie
+   * ausgerichteten Gruß für überbracht, weil die Meldung der KI das behauptete.
+   */
+  endCall(): Promise<string[]>;
 }
 
 /** Je Modell so lange; die Brücke wartet insgesamt nicht länger als ihre eigene Frist. */
@@ -56,7 +63,8 @@ export function dialogText(entries: readonly JudgeEntry[]): string {
   return lines.length ? lines.join('\n') : '(noch nichts gesagt)';
 }
 
-function frame(ctx: JudgeContext): string[] {
+/** full = mit den vollständigen Anweisungen der Sprach-KI (für die Regie; die Prüfung beim Auflegen bleibt schlank und damit schnell) */
+function frame(ctx: JudgeContext, full = false): string[] {
   return [
     ctx.incoming
       ? `Ein KI-Telefonassistent hat einen Anruf für ${ctx.principal} angenommen (Anrufbeantworter).`
@@ -65,6 +73,9 @@ function frame(ctx: JudgeContext): string[] {
     '',
     ctx.task.trim() ? `Auftrag der KI: ${ctx.task.trim()}` : 'Es gibt keinen konkreten Auftrag (Testgespräch).',
     ...(ctx.plan?.trim() ? ['', ctx.plan.trim()] : []),
+    ...(full && ctx.instructions?.trim()
+      ? ['', 'Die vollständigen Anweisungen, nach denen die KI spricht (was sie erlauben oder vorschreiben, ist kein Fehler der KI):', '<<<', ctx.instructions.trim(), '>>>']
+      : []),
     '',
     'Transkript bis hierher:',
     dialogText(ctx.entries),
@@ -101,40 +112,31 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
       return r.urteil === 'abschied' ? 'farewell' : 'content';
     },
 
-    async interruption(spoken, utterance) {
-      const r = await askJson<{ urteil: string }>(
-        ask,
-        'einwurf',
-        [
-          ...frame(context()),
-          '',
-          `Die KI spricht gerade diesen Satz: „${spoken.trim()}“`,
-          `Mittendrin ist vom Gegenüber zu hören: „${utterance.trim()}“`,
-          'Entscheide: Ist das nur ein Zeichen des Zuhörens („mhm“, „ach so“, „ja genau“) oder das Echo der Worte, die die KI selbst gerade gesagt hat (dann spricht die KI ihren Satz zu Ende)? Oder will das Gegenüber etwas sagen, antworten, widersprechen oder die KI stoppen (dann hört die KI auf und geht darauf ein)?',
-          'Im Zweifel „inhalt“. Antworte als JSON mit urteil „zuhoeren“ oder „inhalt“.',
-        ],
-        choice(['zuhoeren', 'inhalt']),
-        400,
-      );
-      return r.urteil === 'zuhoeren' ? 'listening' : 'content';
-    },
-
-    async endCall(result, open) {
+    async endCall() {
       const ctx = context();
-      const r = await askJson<{ urteil: string; offen: string[] }>(
+      const r = await askJson<{ punkte: { punkt: string; stand: string }[]; offen: string[] }>(
         ask,
         'auflegen_pruefen',
         [
           ...frame(ctx),
           '',
-          `Die KI will das Gespräch jetzt beenden. Als Ergebnis meldet sie: ${result.trim() || '–'}${open.trim() ? ` · offen laut KI: ${open.trim()}` : ''}`,
-          'Prüfe am Transkript, ob ein Punkt des Auftrags fehlt, der in DIESEM Gespräch jetzt noch erledigt werden kann: eine Frage, die die KI nie gestellt hat oder auf die sie keine Antwort bekam; eine Nachricht, die sie nie ausgesprochen hat; eine Frage des Gegenübers, die unbeantwortet blieb.',
+          'Die KI will das Gespräch jetzt beenden. Prüfe am Transkript, ob ein Punkt des Auftrags FEHLT, der in DIESEM Gespräch jetzt noch erledigt werden kann: eine Frage, die die KI nie gestellt hat oder auf die sie keine Antwort bekam; eine Nachricht oder ein Gruß, den sie nie ausgesprochen hat; eine Frage des Gegenübers, die unbeantwortet blieb.',
+          'Maßgeblich sind allein die Zeilen „KI:“ und „Gegenüber:“ im Transkript. Der Gesprächsplan und Zeilen in [App: …] belegen nichts: Die KI hält Punkte oft für gesagt, die sie nur vorhatte. Eine Nachricht gilt nur als überbracht, wenn ihr Inhalt in einer Zeile „KI:“ steht; eine Frage nur als gestellt, wenn sie dort steht.',
+          'Es geht nur um Fehlendes. Was die KI zusätzlich gesagt hat (um Rückruf gebeten, eine Rückrufnummer genannt, etwas angeboten), ist hier kein offener Punkt und wird nicht richtiggestellt.',
           'Nicht als offen zählt, was nicht mehr geht oder nicht mehr passt: falsche Person, Mailbox, klare Absage, das Gegenüber hat sich schon verabschiedet oder hat keine Zeit, es hat die Antwort verweigert oder ist ihr zweimal ausgewichen, oder das Gegenüber möchte nicht mit einer KI sprechen. Was nur im Plan steht, aber sinngemäß erledigt ist, zählt auch nicht.',
-          'Antworte als JSON: urteil „beenden“ (nichts mehr zu tun) oder „offen“; in offen je Punkt ein kurzer Satz an die KI in der Du-Form, was sie noch sagen oder fragen soll (höchstens drei, sonst leer).',
+          'Antworte als JSON. punkte: jeder Punkt des Auftrags einzeln in höchstens sechs Worten, mit stand „erledigt“ (steht so im Transkript), „offen“ (fehlt und geht noch) oder „geht_nicht_mehr“. offen: für jeden Punkt mit stand „offen“ – und für eine unbeantwortete Frage des Gegenübers – ein kurzer Satz an die KI in der Du-Form, was sie noch sagen oder fragen soll (höchstens drei); leer, wenn nichts mehr zu tun ist.',
         ],
-        choice(['beenden', 'offen'], { offen: { type: 'array', items: { type: 'string' } } }),
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['punkte', 'offen'],
+          properties: {
+            punkte: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['punkt', 'stand'], properties: { punkt: { type: 'string' }, stand: { type: 'string', enum: ['erledigt', 'offen', 'geht_nicht_mehr'] } } } },
+            offen: { type: 'array', items: { type: 'string' } },
+          },
+        },
+        1500,
       );
-      if (r.urteil !== 'offen') return [];
       return (r.offen ?? []).map((s) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_HINT)).filter(Boolean).slice(0, 3);
     },
   };
@@ -149,12 +151,15 @@ export async function directCall(ask: TextModel, ctx: JudgeContext): Promise<str
     ask,
     'regie',
     [
-      ...frame(ctx),
+      ...frame(ctx, true),
       ...(ctx.situation ? ['', `Lage gerade: ${ctx.situation}`] : []),
       '',
       'Du bist die Regie im Hintergrund: Du liest mit und gibst der KI nur dann einen Hinweis, wenn sie ohne ihn erkennbar etwas falsch macht oder übersieht. Die KI führt das Gespräch selbst und hört alles, was du liest; sie ist nur beim Planen und Mitzählen schwach.',
       'Ein Hinweis lohnt sich zum Beispiel, wenn die KI: eine Frage oder Bitte des Gegenübers übergangen hat; etwas falsch verstanden hat oder mit einer falschen Angabe weiterarbeitet; etwas behauptet oder zusagt, das weder im Auftrag noch im Transkript steht; sich wiederholt oder im Kreis dreht; einen Punkt des Auftrags vergisst, obwohl das Gespräch auf sein Ende zugeht; nicht merkt, dass eine Mailbox, eine Ansage oder die falsche Person dran ist; den Ton verfehlt (das Gegenüber ist in Eile, verärgert, verunsichert).',
-      'Kein Hinweis, wenn das Gespräch ordentlich läuft, wenn die KI den Punkt erkennbar gleich selbst angeht, oder wenn im Transkript schon ein Hinweis der Regie zum selben Punkt steht. Im Zweifel kein Hinweis: Jeder Hinweis stört den Fluss.',
+      'Abläufe der Telefon-App (Zeilen in [App: …]: abgelehntes oder geprüftes Auflegen, Unterbrechungen, Stille) regelt die App selbst; dazu gibst du keinen Hinweis. '
+        + 'Sag der KI nicht, wann sie das Gespräch beenden soll, und wiederhole keinen Hinweis: Steht im Transkript schon ein Hinweis der Regie oder eine Prüfung der App zum selben Punkt, schweigst du dazu. '
+        + 'Kein Hinweis zu Stil und Geschmack, und keiner, der der KI etwas nahelegt, was das Gegenüber nicht verlangt hat (etwa einen späteren Anruf anbieten, weil eine Antwort flapsig klang). '
+        + 'Kein Hinweis, wenn das Gespräch ordentlich läuft, wenn die KI den Punkt erkennbar gleich selbst angeht, oder wenn im Transkript schon ein Hinweis der Regie zum selben Punkt steht. Im Zweifel kein Hinweis: Jeder Hinweis stört den Fluss.',
       'Der Hinweis darf nichts verlangen, was dem Auftrag widerspricht oder täuscht: Die KI bleibt als KI erkennbar, gibt keine sensiblen Daten heraus und sagt nichts zu, was der Auftrag nicht deckt.',
       `Antworte als JSON: urteil „nichts“ oder „hinweis“; hinweis ist dann ein bis zwei kurze Sätze an die KI in der Du-Form (höchstens ${MAX_HINT} Zeichen): was sie übersehen hat und was sie als Nächstes tun soll – der Inhalt, nicht der Wortlaut. Sonst leer.`,
     ],
@@ -217,18 +222,17 @@ export function directorNote(text: string): string {
   return `Hinweis der Gesprächsregie (nicht vorlesen, nicht erwähnen; setz ihn im nächsten passenden Moment in eigenen Worten um, wenn er noch passt; deine Grundregeln gelten unverändert weiter): ${text.trim()}`;
 }
 
-/** Ergebnis der Prüfung beim end_call, wenn noch etwas offen ist: als Tool-Ergebnis für die Sprach-KI. */
-export function endCallOpenInstruction(open: string[]): string {
+/**
+ * Die Prüfung beim end_call meldet offene Punkte, während die Verabschiedung läuft oder schon gesprochen ist:
+ * Das Auflegen ist zurückgenommen, die KI spricht den Punkt noch an.
+ */
+export function endCallResumeNote(open: string[]): string {
   return [
-    'Noch nicht beendet. Eine Prüfung des bisherigen Gesprächs gegen deinen Auftrag sagt, dass noch etwas fehlt:',
-    ...open.map((s, i) => `${i + 1}. ${s}`),
-    'Stimmt das, dann sprich den ersten fehlenden Punkt jetzt direkt an – ohne Ankündigung, ohne Verabschiedung, ohne die Prüfung zu erwähnen, und rufe in derselben Antwort KEIN Tool auf; warte die Reaktion ab. Ist der Punkt aus deiner Sicht erledigt oder nicht mehr erledigbar (falsche Person, Mailbox, klare Absage, das Gegenüber hat sich schon verabschiedet), rufe nur end_call erneut auf, ohne Text; dann wird beendet.',
+    'Hinweis der Telefon-App: Das Beenden ist zurückgenommen. Eine Prüfung des bisherigen Gesprächs gegen deinen Auftrag sagt, dass noch etwas fehlt:',
+    ...open.map((p, i) => `${i + 1}. ${p}`),
+    'Stimmt das, dann sprich den ersten fehlenden Punkt jetzt direkt an – hast du dich schon verabschiedet, leite mit einem kurzen „Eine Sache noch:" ein –, ohne die Prüfung zu erwähnen und ohne Tool-Aufruf in derselben Antwort; warte die Reaktion ab. Ist der Punkt aus deiner Sicht erledigt oder nicht mehr erledigbar (falsche Person, Mailbox, klare Absage), rufe end_call erneut auf, ohne Text.',
   ].join('\n');
 }
-
-/** Während der Prüfung beim end_call kam etwas dazu: Das Gespräch geht erst einmal weiter. */
-export const END_CALL_PARTNER_SPOKE =
-  'Nicht beendet: Inzwischen ist noch etwas dazugekommen (das Gegenüber hat weitergesprochen, oder dein Auftraggeber hat dir etwas vorgegeben). Geh zuerst darauf ein. Wenn danach alles geklärt ist, rufe end_call erneut auf – ohne Text, ohne Verabschiedung.';
 
 /** Nach einem abgelehnten end_call schweigt das Gegenüber, und die Prüfung hat offene Punkte gemeldet. */
 export const END_CALL_AFTER_SILENCE_OPEN =

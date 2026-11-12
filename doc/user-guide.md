@@ -304,6 +304,24 @@ The test does not check an actual phone call.
 
 **Tatsächliche Kosten laut OpenAI (optional)** (actual costs according to OpenAI; level "Erweitert", OpenAI only). The block appears below the list when the active connection or an expanded one belongs to OpenAI. If you store an admin key of your OpenAI organisation (`sk-admin-…`) under "Admin-Schlüssel", the card also shows the organisation's actual costs since the start of the month. An admin key is required because OpenAI's costs endpoint (`GET /v1/organization/costs`) rejects normal API keys. Such a key can also manage users, projects and keys of the organisation: store it only deliberately and give it an expiry date at OpenAI. The figure covers everything the organisation uses, not just SIPFunk. The key is written to `.env` as `OPENAI_ADMIN_KEY`; "Admin-Schlüssel entfernen" (remove admin key) deletes it again. Google offers no such API, and OpenAI offers no API for the remaining credit balance.
 
+### 6.3 Text model during the call
+
+The voice AI conducts the conversation. It speaks well, but it is weak at planning and keeping count. So at a few points the text model of the active AI connection helps decide. Each time it gets the voice AI's complete instructions (basic rules, task, call plan, background knowledge) and the whole transcript so far, including the app's events (interruptions, silence, hints).
+
+| Point | What the text model does | If it does not answer in time |
+| --- | --- | --- |
+| The AI wants to hang up | The AI says goodbye at once. Meanwhile the text model checks the transcript point by point for anything from the task that is missing and can still be done in this call. If something is missing, SIPFunk takes back the hang-up and the AI raises the point ("Eine Sache noch: …", one more thing). The voice AI's self-check against the call plan is dropped | Hanging up waits for the verdict for at most 6 s after the AI asked to end; if none arrives, the call ends as the voice AI decided |
+| The other party says something after the goodbye | It decides whether that is just a farewell or thanks (hang up) or another matter (the call continues) | after 4 s the word list decides as before |
+| Director in the background | It reads along after each turn of the AI and gives it a hint only when needed: a question that was passed over, a misunderstanding, a forgotten point, a voicemail the AI did not notice. The hint appears in the transcript as "Hinweis der Regie an die KI: …" and takes effect the next time the AI speaks | there is no hint |
+
+**What stays fixed.** The introduction as an AI and its check, call limits and maximum duration, the permissions of the MCP interface and the switches of the spam defence are never decided by a model. Everything there is no time for stays fixed as well: the greeting, interruptions in mid-sentence, echo and silence. A text model is too slow for that; in mid-sentence every second would be audible as a pause. In the spam defence the text model does not take part. In agent calls the agent is the director (chapter 13); there the text model only checks on hanging up and after the goodbye.
+
+**Delay and cost.** A text model needs two to four seconds for an answer. So nothing audible waits for it: the check on hanging up runs alongside the goodbye and the listening period after it, and a hint from the director takes effect only at the AI's next turn. If the conversation has moved on by a turn by then, the hint is dropped. The director costs one short text-model request per turn of the AI, at most 40 per call. For this the transcript goes to your provider's text model during the call already, not only afterwards for the summary.
+
+**Switching it off.** The switch "Textmodell entscheidet im Gespräch mit" (text model helps decide during the call) is under "Einstellungen › Technik" and is on. Switched off, SIPFunk behaves as before: word lists, and with a call plan the voice AI's self-check before the goodbye.
+
+---
+
 ## 7. Answering machine
 
 ### 7.1 Switching it on
@@ -526,6 +544,7 @@ runs all built-in scenarios, `npm run sim -- praxis strom` only those named:
 | ID | Scenario |
 | --- | --- |
 | `privat`, `praxis`, `falsch`, `mailbox` | outgoing: private message, rescheduling an appointment at a practice, wrong person on the line, voicemail |
+| `ausweichen`, `vergessen` | outgoing: the other party dodges a question and wants to hang up quickly; three points and a talkative other party who says goodbye early |
 | `rueckruf` | call back to the owner after an important call |
 | `ab` | answering machine with a genuine request while the spam defence is on (must not trigger) |
 | `strom`, `bank` | advertising and an alleged bank security department: detection during the call with role switch |
@@ -538,7 +557,7 @@ Your own outgoing scenario:
 npm run sim -- --task "Frag nach den Öffnungszeiten am Samstag" --partner "Verkäuferin in einer Bäckerei, kurz angebunden" --sie
 ```
 
-Further switches: `--opening "…"` (first sentence of the other party), `--model <Realtime model>`. The spam scenarios take the role's name and own instructions from the saved settings; to try things without saving, use the environment variables `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` and `SIM_SCAM_DISCLOSE` (`on` = with AI disclosure). Reports are written to `sim-results/`.
+Further switches: `--opening "…"` (first sentence of the other party), `--model <Realtime model>`, `--no-judge` (without the text model during the call, section 6.3). With the switch on, the text model also checks on hanging up and directs in the simulator; the lines "Prüfung vor dem Auflegen" and "Hinweis der Regie" appear in the report, the response times in the console. The decision after the goodbye needs a phone and does not occur in the simulator. The spam scenarios take the role's name and own instructions from the saved settings; to try things without saving, use the environment variables `SIM_SCAM_NAME`, `SIM_SCAM_EXTRA`, `SIM_SCAM_GENDER` and `SIM_SCAM_DISCLOSE` (`on` = with AI disclosure). Reports are written to `sim-results/`.
 
 In the spam scenarios the judge is strict: any piece of data given, any "yes" and any mention of being an AI while in spam mode is a serious error. Text models are, however, reluctant to play scammers convincingly; these scenarios are therefore less meaningful than a real call.
 
@@ -556,7 +575,8 @@ The interface is **switched off by default**. You switch it on under "Einstellun
 
 The agent does not speak on the phone. SIPFunk's voice AI does, over the active AI connection and with the voice set there. It conducts the call by itself according to the task, exactly as in a call from the dashboard. The agent sits next to it:
 
-- It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason).
+- It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason) and notes on what is going on: the AI's call plan, interruptions, silence, sounds without words, the check before hanging up and the result according to the AI. Every answer also states the duration, the time left and the situation at the moment of the request (who is speaking, how long it has been silent, whether the AI is waiting for the agent or saying goodbye). So the agent knows the whole conversation at any time.
+- It **can take back the hang-up**: when a note reports the result according to the AI, the AI is saying goodbye. If the agent thinks something is still missing, an instruction takes back the hang-up as long as the call has not ended. Whether something from the task is missing is checked at the same time by the text model as well (section 6.3), which takes back the hang-up itself if need be; the agent does not have to step in, and the AI does not wait for the agent.
 - It **gives directions**: "Say that 7:30 pm is fine too." The AI words it itself and acts on the direction at the next suitable moment, without talking over anyone.
 - The AI **asks the agent** when it lacks a decision the result depends on. It tells the other party "Einen Moment bitte, ich frage kurz nach" (one moment please, I will just check) and waits up to 25 seconds for the agent's answer. If none comes, it says that you will get back about it and records the point as open.
 
@@ -682,7 +702,7 @@ All tools answer with text, in German (the voice AI speaks German too). Errors (
 | `get_status` | – | Registration with the phone system, free line, permitted targets, whether you have to confirm, calls left per hour and per day, maximum length, current call |
 | `list_contacts` | – | Names of the contacts, without numbers. Only with the permission "Agent darf die Namen meiner Kontakte lesen" |
 | `start_call` | `target` (contact name or phone number), `task` (at most 2000 characters), optional `context` (background knowledge, at most 6000 characters), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; can only shorten the maximum length) | `call_id` and the state: requested (waiting for your confirmation) or dialling |
-| `wait_for_events` | `call_id`, `after` (number of the last known event), `timeout_sec` (1–50, default 25) | Blocks until there is something new or the time is up. Returns the state, the new events with their number (`Gegenüber` = other party, `KI` = the AI, `Zustand` = state, `Hinweis` = note, `RÜCKFRAGE der KI an dich` = the AI's question to you), an open question and the number for the next call |
+| `wait_for_events` | `call_id`, `after` (number of the last known event), `timeout_sec` (1–50, default 25) | Blocks until there is something new or the time is up. Returns the state with duration and time left, during the call the line "Lage jetzt" (situation now: who is speaking, silence, open question, goodbye), the new events with their number (`Gegenüber` = other party, `KI` = the AI, `Zustand` = state, `Hinweis` = note, `RÜCKFRAGE der KI an dich` = the AI's question to you), an open question and the number for the next call. Without `after` the whole course so far is returned |
 | `say` | `call_id`, `text` (at most 600 characters), `when` (`now` default, `next`) | Hands a direction to the voice AI. If it is waiting for the answer to a question, `text` is that answer. `now`: say it as soon as possible; `next`: take it into account the next time the AI speaks |
 | `end_call` | `call_id`, `mode` (`polite` default, `now`) | `polite`: the AI says goodbye, reports its result and hangs up. `now`: hang up immediately. A request still waiting for confirmation is withdrawn |
 | `get_call_result` | `call_id` or `record_id` (the timestamp at the start of a line from `list_calls`) | State and reason of the end, result according to the AI (achieved, open), summary, transcript. If no call came about, it says so |
@@ -731,7 +751,8 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 ### 13.6 Limits and latency
 
 - **One call at a time.** If a call is already running (including an incoming one), `start_call` refuses.
-- **The agent hears nothing.** It gets text: the transcription of the other party and the wording of the AI, each only once an utterance is finished. Tone of voice, pauses and background noise do not reach it, and the transcription can get names and numbers wrong.
+- **The agent hears nothing.** It gets text: the transcription of the other party and the wording of the AI, each only once an utterance is finished. Tone of voice and background noise do not reach it; silence, sounds without words and interruptions only as a note. The transcription can get names and numbers wrong.
+- **The agent sees the call plan only if it knows the target by name.** The plan can mention the contact's name. If the agent dialled a number and may not read the contact names, the plan is therefore withheld.
 - **Directions take effect with a delay.** Several seconds pass between an utterance on the phone and the agent's reaction. The AI does not wait for that, unless it has asked a question itself. A direction can therefore arrive too late; rather put the leeway into the task.
 - **Directions are content, not wording.** The AI words things itself and keeps to its basic rules.
 - **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
@@ -789,6 +810,7 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Sprechgeschwindigkeit – speaking rate | 1.05 | `AI_SPEECH_SPEED` | 0.25–1.5; with Google Gemini only a hint to the AI |
 | Lautstärke der KI – AI volume | 1.5 | `AI_OUTPUT_GAIN` | gain towards the phone, with a soft limiter |
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
+| Textmodell entscheidet im Gespräch mit – text model helps decide during the call | on | `AI_LIVE_JUDGE` | check on hanging up, decision after the goodbye and director in the background by the text model (section 6.3); off: behaviour as before |
 | Port der Oberfläche und der MCP-Schnittstelle – port of the web UI and the MCP interface | 3865 | `WEB_PORT` | port on 127.0.0.1 for the web UI and `/mcp`; takes effect after a restart (section 14.3) |
 | Textmodell – text model | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | plan, summary, assessment, complaint |
 

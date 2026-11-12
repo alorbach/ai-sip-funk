@@ -7,8 +7,8 @@ import type { AudioHandler } from '../callManager.js';
 import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
-import { isBackchannel, isEcho, isFarewell, isUnclearInterjection } from './farewell.js';
-import { directorNote, END_CALL_AFTER_SILENCE_OPEN, END_CALL_PARTNER_SPOKE, endCallOpenInstruction, endCallOpenNote, type CallJudge } from './judge.js';
+import { isBackchannel, isEcho, isFarewell } from './farewell.js';
+import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, type CallJudge } from './judge.js';
 import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
@@ -94,8 +94,9 @@ export interface RealtimeBridgeOptions {
   /** Die Sitzung läuft jetzt mit diesem Ausweichmodell (für Protokoll und Kosten) */
   onModel?: (model: string) => void;
   /**
-   * Das Textmodell entscheidet mit (siehe ai/judge.ts): Auflegen oder weiter nach der Verabschiedung, unklare Einwürfe,
-   * Auftrag erledigt beim end_call. Antwortet es nicht innerhalb der Frist, entscheidet die Regel wie ohne diese Angabe.
+   * Das Textmodell entscheidet mit (siehe ai/judge.ts): Auflegen oder weiter nach der Verabschiedung (ohne Urteil in der
+   * Frist entscheidet die Wortliste) und Auftrag erledigt beim end_call (läuft neben der Verabschiedung her und nimmt das
+   * Auflegen zurück, wenn etwas fehlt; die Selbstprüfung der Sprach-KI gegen den Plan entfällt dann).
    */
   judge?: CallJudge;
 }
@@ -136,12 +137,15 @@ const REJECT_SILENCE_MS = 2500;
 /** Sprache nach der Verabschiedung: so lange wird auf die Transkription gewartet */
 const FAREWELL_DECISION_MS = 4000;
 // Fristen für das Textmodell (siehe opts.judge); danach entscheidet die Regel
+// (Gemessen braucht ein Textmodell für so eine Frage rund 2 s, mit Ausreißern. Deshalb entscheidet es nur dort, wo das
+// Gespräch diese Zeit hat. Unterbrechungen mitten im Satz bleiben bei der Wortliste: Dort wäre jede Sekunde als Pause zu hören.)
 /** Nach der Verabschiedung: Hier ist Zeit, das Auflegen wartet ohnehin */
-const JUDGE_FAREWELL_MS = 2500;
-/** Einwurf mitten im Satz: Die KI pausiert so lange, also kurz */
-const JUDGE_INTERRUPT_MS = 1500;
-/** end_call ohne Sprache: So lange bleibt es vor der Verabschiedung höchstens still */
-const JUDGE_END_MS = 3000;
+const JUDGE_FAREWELL_MS = 4000;
+/**
+ * end_call: Die Prüfung läuft neben der Verabschiedung her. So lange nach dem end_call wartet das Auflegen höchstens auf ihr
+ * Urteil; meist ist es da, bevor Abschiedssatz und Nachhörphase vorbei sind.
+ */
+const JUDGE_END_MS = 6000;
 /** end_call mit Sprache: Das Gegenüber ist ohnehin erst dran, die Prüfung läuft nebenher */
 const JUDGE_END_LATER_MS = 8000;
 
@@ -305,16 +309,8 @@ export class RealtimeBridge implements AudioHandler {
   private openingPending = false;
   private openingTimer?: NodeJS.Timeout;
   private speechStartedAt = 0;
-  /** Die Prüfung beim end_call läuft noch (Textmodell): Bis zum Urteil bleibt der Tool-Aufruf unbeantwortet */
-  private endJudge?: {
-    timer: NodeJS.Timeout;
-    callId: string;
-    outcome: CallOutcome;
-    /** Währenddessen kam etwas dazu (das Gegenüber sprach, der Agent gab etwas vor): nicht mitten hinein verabschieden */
-    partnerSpoke: boolean;
-    /** Der Anbieter hat darauf schon von selbst eine Antwort begonnen */
-    answered: boolean;
-  };
+  /** Die Prüfung beim end_call läuft noch (Textmodell, neben der Verabschiedung her): Das Auflegen wartet auf ihr Urteil */
+  private endCheck?: NodeJS.Timeout;
   /** Die Prüfung beim end_call hat offene Punkte gemeldet */
   private endOpenFound = false;
   private lastPartnerAt = 0;
@@ -456,7 +452,7 @@ export class RealtimeBridge implements AudioHandler {
     this.soundMs = 0;
     this.soundPeak = 0;
     if (ms < SOUND_MIN_MS) return;
-    if (this.closed || !this.greeted || this.opts.scam || this.hold || this.ask || this.endJudge || this.transferring || this.rejectTimer || this.followUpTimer || this.awaitingAudioSince) return;
+    if (this.closed || !this.greeted || this.opts.scam || this.hold || this.ask || this.transferring || this.rejectTimer || this.followUpTimer || this.awaitingAudioSince) return;
     if (this.goodbye !== 'none' || this.endRequested !== undefined || this.soundNudges >= 2) return;
     this.soundNudges++;
     log.info(`Realtime: Laut ohne Worte vom Gegenüber (${ms} ms, Pegel ${peak}) – KI soll darauf eingehen`);
@@ -552,8 +548,8 @@ export class RealtimeBridge implements AudioHandler {
     this.hold = undefined;
     if (this.ask) clearTimeout(this.ask.timer);
     this.ask = undefined;
-    if (this.endJudge) clearTimeout(this.endJudge.timer);
-    this.endJudge = undefined;
+    clearTimeout(this.endCheck);
+    this.endCheck = undefined;
   }
 
   /** Ereignis der App ins Transkript: Das lesen der Betreiber, das Textmodell und bei Agenten-Anrufen der Agent mit. */
@@ -596,7 +592,6 @@ export class RealtimeBridge implements AudioHandler {
     if (this.closed) return 'Gespräch beendet';
     if (!this.connected) return 'noch nicht verbunden';
     if (this.endRequested !== undefined || this.goodbye !== 'none') return 'die KI verabschiedet sich und legt gleich auf';
-    if (this.endJudge) return 'die KI will auflegen, die Prüfung gegen den Auftrag läuft';
     if (this.ask) return 'die KI wartet auf die Antwort des Agenten (Rückfrage), das Gegenüber wartet';
     if (this.transferring) return 'Vermittlung läuft';
     if (this.partnerSpeaking) return 'das Gegenüber spricht gerade';
@@ -611,7 +606,7 @@ export class RealtimeBridge implements AudioHandler {
    * wenn sie das nächste Mal spricht. Liefert false, wenn er nicht mehr ankommt (Gespräch endet, Spam-Abwehr).
    */
   directorHint(text: string): boolean {
-    if (this.closed || !this.connected || this.opts.scam || this.endRequested !== undefined || this.goodbye !== 'none' || this.endJudge) return false;
+    if (this.closed || !this.connected || this.opts.scam || this.endRequested !== undefined || this.goodbye !== 'none') return false;
     this.live.note(directorNote(text));
     this.event(`Hinweis der Regie an die KI: ${text}`);
     return true;
@@ -629,7 +624,7 @@ export class RealtimeBridge implements AudioHandler {
     if (this.endRequested !== undefined) {
       // Das Beenden läuft schon (Verabschiedung angefordert, gesprochen oder ausgespielt), aufgelegt ist noch nicht:
       // Eine Vorgabe des Agenten (meist eine Richtigstellung) geht vor
-      this.cancelHangup(true);
+      this.cancelHangup('agent');
       this.live.note(agentNote(text));
       this.requestRespond(CAUSE_AGENT_SAY);
       return 'resumed';
@@ -651,13 +646,7 @@ export class RealtimeBridge implements AudioHandler {
     if (this.endRequested !== undefined || this.goodbye !== 'none') return 'ending';
     // Der Auftraggeber beendet: Die Selbstprüfung gegen den Gesprächsplan („sprich fehlende Schritte jetzt aus“) entfällt
     this.endCallChecked = true;
-    if (this.endJudge) {
-      // Die KI wollte ohnehin gerade auflegen: Die Prüfung entfällt, es wird beendet
-      const run = this.endJudge;
-      clearTimeout(run.timer);
-      this.endJudge = undefined;
-      this.beginGoodbye(run.callId, END_CALL_TOOL.name, run.outcome, true);
-    } else if (this.ask) this.resolveAsk(AGENT_END_NOTE);
+    if (this.ask) this.resolveAsk(AGENT_END_NOTE);
     else {
       this.live.note(AGENT_END_NOTE);
       this.requestRespond('Beenden durch den Agenten');
@@ -687,11 +676,6 @@ export class RealtimeBridge implements AudioHandler {
     if (!this.ready || !this.connected || !this.greeted) return;
     // Die KI wartet auf die Antwort einer Rückfrage: Erst die Antwort darauf lässt sie weitersprechen
     if (this.ask) return;
-    // Die Prüfung beim end_call läuft: Ihr Urteil beantwortet den offenen Aufruf und fordert dann selbst an
-    if (this.endJudge) {
-      this.endJudge.partnerSpoke = true;
-      return;
-    }
     if (this.partnerSpeaking) return;
     // Eine Antwort läuft oder ist gerade angefordert (Begrüßung, Satzende des Gegenübers; der Wächter läuft noch): danach anfordern
     if (this.activeResponse || this.audioWatchdog) {
@@ -715,7 +699,6 @@ export class RealtimeBridge implements AudioHandler {
 
   private onResponseStarted(id?: string): void {
     this.activeResponse = true;
-    if (this.endJudge?.partnerSpoke) this.endJudge.answered = true;
     // Die KI antwortet auf die Meldung des Gegenübers: Das ist die Begrüßung
     this.openingPending = false;
     clearTimeout(this.openingTimer);
@@ -803,6 +786,8 @@ export class RealtimeBridge implements AudioHandler {
       if (!AI_INTRO_WORD.test(text)) {
         log.warn('Realtime: Die erste Antwort nennt die KI nicht – Nachholen angefordert');
         this.live.note(AI_INTRO_MISSING);
+        // (kommt hinter den Text der Antwort ins Transkript, wie die Hinweise auf Unterbrechungen)
+        this.interruptNotes.push('Die KI hat sich in der Begrüßung nicht als KI vorgestellt – sie holt das im nächsten Redebeitrag nach');
       } else if (itemId === this.lastCutItem) {
         log.warn('Realtime: Die Vorstellung als KI wurde abgeschnitten – Nachholen angefordert');
         this.live.note(AI_INTRO_CUT);
@@ -848,7 +833,6 @@ export class RealtimeBridge implements AudioHandler {
   private onSpeechStarted(itemId?: string): void {
     this.partnerSpeaking = true;
     this.speechStartedAt = Date.now();
-    if (this.endJudge) this.endJudge.partnerSpoke = true;
     clearTimeout(this.openingTimer);
     // Das Gegenüber redet: Die Antwort darauf entsteht von selbst und kennt die Regieanweisung schon
     this.pendingRespond = false;
@@ -1055,7 +1039,7 @@ export class RealtimeBridge implements AudioHandler {
   private armStall(): void {
     if (!this.opts.stallMs || this.closed || !this.connected) return;
     if (this.activeResponse || this.partnerSpeaking || this.goodbye !== 'none' || this.endRequested !== undefined) return;
-    if (this.greetingResponse || this.followUpTimer || this.rejectTimer || this.awaitingAudioSince || this.transferring || this.ask || this.endJudge) return;
+    if (this.greetingResponse || this.followUpTimer || this.rejectTimer || this.awaitingAudioSince || this.transferring || this.ask) return;
     if (this.stallTimer) return;
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;
@@ -1271,12 +1255,6 @@ export class RealtimeBridge implements AudioHandler {
       if (this.live.toolCallsBlock) this.live.toolOutput(callId, name, 'ok');
       return;
     }
-    if (this.endJudge) {
-      // Neuer end_call, während die Prüfung des vorigen noch läuft (das Gegenüber sprach dazwischen): Der neue gilt
-      clearTimeout(this.endJudge.timer);
-      this.live.toolOutput(this.endJudge.callId, name, 'Durch deinen neuen Aufruf ersetzt.');
-      this.endJudge = undefined;
-    }
     // Das Textmodell prüft einmal je Gespräch am ganzen Transkript, ob vom Auftrag noch etwas fehlt (nicht in der Spam-Abwehr)
     const judge = !this.opts.scam && !this.endCallChecked ? this.opts.judge : undefined;
     if (this.stats.deltas > 0) {
@@ -1288,7 +1266,7 @@ export class RealtimeBridge implements AudioHandler {
       if (check || judge) this.endCallChecked = true;
       if (judge) {
         // Das Gegenüber ist ohnehin erst dran: Die Prüfung läuft nebenher, Fehlendes kommt als Hinweis nach
-        this.askJudge('Auflegen, nebenher', judge.endCall(outcome.result, outcome.open), JUDGE_END_LATER_MS, () => true, (open) => {
+        this.askJudge('Auflegen, nebenher', judge.endCall(), JUDGE_END_LATER_MS, () => true, (open) => {
           if (!open?.length || this.endRequested !== undefined || this.goodbye !== 'none') return;
           this.endOpenFound = true;
           this.event(`Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')}`);
@@ -1323,59 +1301,23 @@ export class RealtimeBridge implements AudioHandler {
       return;
     }
     if (judge) {
-      // Erster end_call: Das Textmodell prüft den Auftrag gegen das ganze Transkript. Bis zum Urteil (höchstens
-      // JUDGE_END_MS) bleibt der Aufruf offen; Wächter, die sonst eine Antwort anfordern, schweigen so lange
+      // Erster end_call: Das Textmodell prüft den Auftrag gegen das ganze Transkript – neben der Verabschiedung her, damit
+      // vor dem Abschied keine Pause entsteht. Fehlt etwas, nimmt das Urteil das Auflegen zurück (resumeForOpen).
+      // Die Selbstprüfung der Sprach-KI gegen den Plan entfällt dann
       this.endCallChecked = true;
-      this.audioExpected(false);
-      this.pendingRespond = false;
-      log.info('Realtime: end_call – Prüfung gegen den Auftrag durch das Textmodell');
-      const run: NonNullable<RealtimeBridge['endJudge']> = {
-        callId,
-        outcome,
-        partnerSpoke: false,
-        answered: false,
-        timer: this.askJudge('Auflegen', judge.endCall(outcome.result, outcome.open), JUDGE_END_MS, (t) => this.endJudge === run && run.timer === t, (open) => {
-          this.endJudge = undefined;
-          if (run.partnerSpoke) {
-            // Das Gegenüber hat inzwischen weitergeredet: nicht mitten hinein verabschieden
-            log.info('Realtime: end_call – das Gegenüber hat während der Prüfung gesprochen, Gespräch geht weiter');
-            this.live.toolOutput(callId, name, END_CALL_PARTNER_SPOKE);
-            // Antwortet der Anbieter schon von selbst auf das Gesagte, braucht es keine zweite Antwort
-            if (!run.answered && !this.awaitingAudioSince) this.requestRespond('end_call zurückgestellt');
-          } else if (open?.length) {
-            log.info(`Realtime: end_call – laut Textmodell noch ${open.length} Punkt(e) offen, KI soll sie ansprechen`);
-            this.event(`Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')}`);
-            this.live.toolOutput(callId, name, endCallOpenInstruction(open));
-            this.requestRespond('Prüfung vor dem Auflegen');
-          } else if (!open && this.planSteps.length) {
-            // Kein Urteil: wie ohne Textmodell die Selbstprüfung der Sprach-KI
-            this.selfCheck(callId, name, true);
-          } else this.beginGoodbye(callId, name, outcome, true);
-        }),
-      };
-      this.endJudge = run;
-      return;
-    }
-    if (this.planSteps.length && !this.endCallChecked) {
+      log.info('Realtime: end_call – Prüfung gegen den Auftrag durch das Textmodell läuft neben der Verabschiedung');
+      this.endCheck = this.askJudge('Auflegen', judge.endCall(), JUDGE_END_MS, (t) => this.endCheck === t, (open) => {
+        this.endCheck = undefined;
+        if (open?.length) this.resumeForOpen(open);
+      });
+    } else if (this.planSteps.length && !this.endCallChecked) {
       // Erster end_call mit Plan: Schritte gegen das Gesagte prüfen lassen, dann erst beenden
       this.endCallChecked = true;
-      this.selfCheck(callId, name, false);
+      log.info(`Realtime: end_call – Selbstprüfung gegen ${this.planSteps.length} Planschritte angefordert`);
+      this.live.toolOutput(callId, name, endCallCheckInstruction(this.planSteps));
+      this.live.respond();
       return;
     }
-    this.beginGoodbye(callId, name, outcome, false);
-  }
-
-  /** Selbstprüfung der Sprach-KI gegen die Schritte des Gesprächsplans (ohne Textmodell bzw. wenn es nicht antwortet). */
-  private selfCheck(callId: string, name: string, later: boolean): void {
-    log.info(`Realtime: end_call – Selbstprüfung gegen ${this.planSteps.length} Planschritte angefordert`);
-    this.live.toolOutput(callId, name, endCallCheckInstruction(this.planSteps));
-    // later = die Antwort mit dem Tool-Aufruf ist schon fertig: nicht in eine andere laufende Antwort hinein anfordern
-    if (later) this.requestRespond('Selbstprüfung beim end_call');
-    else this.live.respond();
-  }
-
-  /** end_call gilt: Ergebnis festhalten und die Verabschiedung anfordern. later = der Aufruf wurde erst nach einer Prüfung beantwortet. */
-  private beginGoodbye(callId: string, name: string, outcome: CallOutcome, later: boolean): void {
     if (this.ask) {
       // Das Gespräch endet: Die offene Rückfrage braucht keine Antwort mehr
       clearTimeout(this.ask.timer);
@@ -1402,12 +1344,19 @@ export class RealtimeBridge implements AudioHandler {
       }
     }, 30_000);
     this.endSafetyTimer.unref();
-    // Die Antwort mit dem Tool-Aufruf ist längst fertig: Die Verabschiedung jetzt selbst anfordern (sonst macht das onResponseDone)
-    if (later && !this.activeResponse) {
-      this.goodbye = 'speaking';
-      this.goodbyeResponseId = undefined;
-      this.live.respond(this.opts.scam ? SCAM_FAREWELL : farewellInstruction(this.opts.formal, this.opts.owner));
-    }
+  }
+
+  /**
+   * Die Prüfung beim end_call meldet offene Punkte, während die Verabschiedung läuft oder schon gesprochen ist: Das Auflegen
+   * zurücknehmen und die KI den Punkt noch ansprechen lassen (wie bei einer Vorgabe des Agenten während des Beendens).
+   */
+  private resumeForOpen(open: string[]): void {
+    if (this.endRequested === undefined || this.closed) return;
+    log.info(`Realtime: Prüfung beim end_call – laut Textmodell noch ${open.length} Punkt(e) offen, Auflegen zurückgenommen`);
+    this.cancelHangup('check');
+    this.event(`Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')} – Gespräch geht weiter`);
+    this.live.note(endCallResumeNote(open));
+    this.requestRespond('Prüfung vor dem Auflegen');
   }
 
   /**
@@ -1483,29 +1432,13 @@ export class RealtimeBridge implements AudioHandler {
     const h = this.hold;
     if (!h) return;
     clearTimeout(h.timer);
-    // (Lief gerade eine Frage ans Textmodell zu einem früheren Einwurf, ist sie mit dem neuen Timer ungültig)
     if (this.closed) {
       this.hold = undefined;
       return;
     }
-    const echo = text !== undefined && !isBackchannel(text) && isEcho(text, h.spoken);
-    const judge = this.opts.scam ? undefined : this.opts.judge;
-    if (judge && text !== undefined && !echo && !isBackchannel(text) && isUnclearInterjection(text)) {
-      // Kurzer Einwurf, den die Wortliste nicht kennt („ach so, verstehe“): Das Textmodell entscheidet, die KI pausiert so lange.
-      // Ohne Urteil gilt er wie bisher als Inhalt
-      h.timer = this.askJudge('Einwurf', judge.interruption(h.spoken, text), JUDGE_INTERRUPT_MS, (t) => this.hold === h && h.timer === t, (verdict) => this.applyHold(h, text, verdict === 'listening', false));
-      return;
-    }
-    this.applyHold(h, text, text !== undefined && (echo || isBackchannel(text)), echo);
-  }
-
-  /** keepSpeaking = es war nur Zuhören, Echo oder ein Geräusch: Die KI spricht ihren Satz zu Ende. */
-  private applyHold(h: NonNullable<RealtimeBridge['hold']>, text: string | undefined, keepSpeaking: boolean, echo: boolean): void {
-    if (this.hold !== h) return;
-    clearTimeout(h.timer);
     this.hold = undefined;
-    if (this.closed) return;
-    if (text !== undefined && keepSpeaking) {
+    const echo = text !== undefined && !isBackchannel(text) && isEcho(text, h.spoken);
+    if (text !== undefined && (echo || isBackchannel(text))) {
       log.info(`Realtime: ${echo ? `Echo der eigenen Stimme („${text}" steht in der laufenden Antwort)` : text.trim() ? `nur ein Zuhör-Laut („${text}")` : 'nur ein Geräusch, keine Sprache'} – KI spricht ihren Satz zu Ende (${this.outQueue.length * 20} ms)`);
       // Was das Modell auf den Laut hin sagen wollte, wird weder gesprochen noch im Verlauf behalten
       if (this.activeResponse && !h.spokenActive) {
@@ -1533,11 +1466,17 @@ export class RealtimeBridge implements AudioHandler {
     const reason = this.endRequested;
     // Nachhörphase: Sagt das Gegenüber jetzt noch etwas, wird das Auflegen abgebrochen (siehe speech_started)
     log.info(`Realtime: Abschluss ausgespielt, lege in ${this.opts.hangupGraceMs} ms auf, falls das Gegenüber nichts mehr sagt`);
-    this.hangupTimer = setTimeout(() => {
+    const hangUp = (): void => {
+      // Das Urteil der Prüfung steht noch aus: kurz warten (askJudge beendet das spätestens nach JUDGE_END_MS)
+      if (this.endCheck) {
+        this.hangupTimer = setTimeout(hangUp, 250);
+        return;
+      }
       this.hangupTimer = undefined;
       this.endRequested = undefined;
       this.opts.onEndCall(reason);
-    }, this.opts.hangupGraceMs);
+    };
+    this.hangupTimer = setTimeout(hangUp, this.opts.hangupGraceMs);
   }
 
   /**
@@ -1595,8 +1534,12 @@ export class RealtimeBridge implements AudioHandler {
    * Gegenüber hat nach dem end_call noch etwas Inhaltliches gesagt: Beenden komplett zurücknehmen,
    * das Gespräch läuft weiter. Das Modell kann später erneut end_call aufrufen.
    */
-  private cancelHangup(byAgent = false): void {
+  private cancelHangup(why: 'partner' | 'agent' | 'check' = 'partner'): void {
     if (this.endRequested === undefined) return;
+    // Läuft die Prüfung beim end_call noch, ist sie mit dem Weitergehen hinfällig; beim nächsten end_call wird neu geprüft
+    if (this.endCheck && why !== 'check') this.endCallChecked = false;
+    clearTimeout(this.endCheck);
+    this.endCheck = undefined;
     clearTimeout(this.hangupTimer);
     this.hangupTimer = undefined;
     clearTimeout(this.farewellDecisionTimer);
@@ -1610,7 +1553,9 @@ export class RealtimeBridge implements AudioHandler {
     // Zurückgehaltene Antwort auf das Gesagte jetzt ausspielen
     for (const x of this.heldAudio) this.enqueueAudio(x.buf, x.itemId);
     this.heldAudio = [];
-    if (byAgent) {
+    // Die Prüfung beim end_call meldet selbst, was fehlt (resumeForOpen)
+    if (why === 'check') return;
+    if (why === 'agent') {
       log.info('Realtime: Vorgabe des Agenten während des Beendens – Auflegen abgebrochen, Gespräch geht weiter');
       this.opts.onTranscript({ speaker: 'system', text: 'Vorgabe des Agenten während des Beendens – Gespräch geht weiter', final: true });
       this.live.note(RESUME_FOR_DIRECTIVE);

@@ -40,6 +40,7 @@ SIPFunk registers with the box as an IP phone and passes the call audio through 
 | `src/ai/connectionTest.ts` | "Verbindung testen" (test connection) for a connection: key, voice model, live connection |
 | `src/usageCounter.ts` | monthly usage per provider in `usage.json`; optional query of the actual costs of the OpenAI organisation |
 | `src/ai/personas.ts`, `scam.ts`, `plan.ts` | system instructions: assistant, spam role, call plan |
+| `src/ai/judge.ts` | text model during the call: the questions to the text model (task done on hanging up, farewell or another matter after the goodbye) and the director in the background, each with the task, the plan and the whole transcript. Deadlines and the fallback to the fixed rule live in the bridge; it does not decide protective limits |
 | `src/ai/summary.ts`, `assess.ts`, `complaint.ts`, `farewell.ts`, `pricing.ts`, `voiceSample.ts` | summary, assessment, complaint draft, goodbye detection, cost estimate, voice samples |
 | `src/spamCheck.ts` | assessment of the caller's number while ringing, optional tellows lookup |
 | `src/notify/` | e-mail (SMTP, OAuth), auto-configuration, mail format and templates |

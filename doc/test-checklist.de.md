@@ -61,6 +61,8 @@ Von einem zweiten Telefon die eigene Nummer anrufen, die Klingelzahl abwarten, e
 - [ ] Nach dem Abschiedssatz legt sie innerhalb weniger Sekunden auf.
 - [ ] Keine lange Stille mitten im Gespräch; falls doch, spricht die KI nach der Zeit des Stillstandswächters von selbst weiter (Log: „Stillstand“).
 - [ ] Mit Profil „Nur klingeln lassen“ bzw. abweichender Klingelzahl verhält sich nur diese Nummer anders.
+- [ ] Textmodell im Gespräch (Schalter unter „Technik“ an): Vor dem Abschiedssatz entsteht keine Pause; das Urteil kommt, bevor aufgelegt wird (Log: „Textmodell (Auflegen) nach … ms“, kein „antwortet nicht in 6000 ms“). Ein Abschied, den die Wortliste nicht kennt („Ihnen auch einen schönen Feierabend“), führt zum Auflegen; ein Nachtrag („Ach, eins noch …“) nicht.
+- [ ] Regie: Bei einem ausgehenden Anruf mit mehreren Punkten einer Frage ausweichen und früh verabschieden. Im Transkript steht höchstens ein passender „Hinweis der Regie an die KI“ oder eine „Prüfung vor dem Auflegen: noch offen“, und die KI holt den Punkt nach („Eine Sache noch: …“), ohne dass es aufgesetzt klingt. Bei einem glatten Gespräch erscheint kein Hinweis.
 
 ## 4. Einschätzung und Benachrichtigung
 

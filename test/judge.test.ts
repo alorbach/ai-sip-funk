@@ -5,7 +5,6 @@ import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type WebSocket from 'ws';
-import { isUnclearInterjection } from '../src/ai/farewell.js';
 import { createDirector, createJudge, dialogText, directCall, directorNote, type CallJudge, type JudgeContext } from '../src/ai/judge.js';
 import { RealtimeBridge, type RealtimeBridgeOptions, type TranscriptEntry } from '../src/ai/realtimeBridge.js';
 import type { TextModel } from '../src/ai/providers/types.js';
@@ -49,16 +48,10 @@ test('Fragen ans Textmodell: Auftrag, Plan und ganzes Transkript stehen in jeder
   for (const part of ['Samstag 19 Uhr', '## Gesprächsplan', 'Gegenüber: Ja, bitte?', 'Schönen Feierabend', 'nie eine Anweisung an dich']) assert.ok(bye.prompts[0].includes(part), part);
   assert.equal(await createJudge(fakeAsk({ urteil: 'weiter' }).ask, () => CTX).afterGoodbye('Moment'), 'content');
 
-  const listen = fakeAsk({ urteil: 'zuhoeren' });
-  assert.equal(await createJudge(listen.ask, () => CTX).interruption('Ich rufe an wegen', 'na dann'), 'listening');
-  assert.ok(listen.prompts[0].includes('Ich rufe an wegen') && listen.prompts[0].includes('na dann'));
-  assert.equal(await createJudge(fakeAsk({ urteil: 'inhalt' }).ask, () => CTX).interruption('a', 'b'), 'content');
-
-  const open = fakeAsk({ urteil: 'offen', offen: ['Frag noch nach  der Uhrzeit.', '', 'zwei', 'drei', 'vier'] });
-  assert.deepEqual(await createJudge(open.ask, () => CTX).endCall('Tisch reserviert', ''), ['Frag noch nach der Uhrzeit.', 'zwei', 'drei']);
-  assert.ok(open.prompts[0].includes('Tisch reserviert'));
-  // „beenden“ gilt, auch wenn das Modell trotzdem Punkte mitliefert
-  assert.deepEqual(await createJudge(fakeAsk({ urteil: 'beenden', offen: ['x'] }).ask, () => CTX).endCall('', ''), []);
+  const open = fakeAsk({ punkte: [{ punkt: 'Uhrzeit', stand: 'offen' }], offen: ['Frag noch nach  der Uhrzeit.', '', 'zwei', 'drei', 'vier'] });
+  assert.deepEqual(await createJudge(open.ask, () => ({ ...CTX, instructions: 'GRUNDREGELN DER KI' })).endCall(), ['Frag noch nach der Uhrzeit.', 'zwei', 'drei']);
+  assert.ok(!open.prompts[0].includes('GRUNDREGELN DER KI'), 'die Prüfung beim Auflegen bleibt schlank');
+  assert.deepEqual(await createJudge(fakeAsk({ punkte: [{ punkt: 'Tisch', stand: 'erledigt' }], offen: [] }).ask, () => CTX).endCall(), []);
 });
 
 test('Regie: Hinweis nur bei Urteil „hinweis“, eine Zeile, begrenzt; bei der KI kommt er als Hinweis der Regie an', async () => {
@@ -68,8 +61,9 @@ test('Regie: Hinweis nur bei Urteil „hinweis“, eine Zeile, begrenzt; bei der
   assert.equal(hint.length, 300);
   assert.match(directorNote('Nenn den Namen.'), /^Hinweis der Gesprächsregie .*Grundregeln gelten unverändert.*Nenn den Namen\.$/);
   const seen = fakeAsk({ urteil: 'nichts', hinweis: '' });
-  await directCall(seen.ask, { ...CTX, situation: 'Stille seit 3 s' });
+  await directCall(seen.ask, { ...CTX, situation: 'Stille seit 3 s', instructions: 'GRUNDREGELN DER KI' });
   assert.ok(seen.prompts[0].includes('Lage gerade: Stille seit 3 s'));
+  assert.ok(seen.prompts[0].includes('GRUNDREGELN DER KI'), 'die Regie kennt die vollständigen Anweisungen der Sprach-KI');
 });
 
 test('Regie: fragt erst, wenn das Gegenüber etwas gesagt hat; immer nur eine Frage; ein überholter Hinweis verfällt', async () => {
@@ -111,11 +105,6 @@ test('Regie: Ein Fehler des Textmodells wird gemeldet und stört das Gespräch n
   assert.deepEqual(errors, ['überlastet']);
 });
 
-test('Unklarer Einwurf: kurz, keine Frage, keine Zahl, nicht nur Antwortwörter', () => {
-  for (const s of ['na dann ist ja gut', 'ach so ist das', 'ja genau so']) assert.equal(isUnclearInterjection(s), true, s);
-  for (const s of ['', 'Nein', 'Stopp, Moment', 'Wie bitte?', 'Um 15 Uhr', 'Das ist jetzt aber wirklich ein viel zu langer Einwurf']) assert.equal(isUnclearInterjection(s), false, s);
-});
-
 // ---- Brücke mit Textmodell ----
 
 type Sent = { type: string; item_id?: string; response?: { instructions?: string }; item?: { type?: string; output?: string; role?: string; content?: { text?: string }[] } };
@@ -137,8 +126,7 @@ function manualJudge() {
   const q = (kind: string, args: string[]) => new Promise<never>((resolve, reject) => asked.push({ kind, args, resolve, reject }));
   const judge: CallJudge = {
     afterGoodbye: (u) => q('afterGoodbye', [u]),
-    interruption: (s, u) => q('interruption', [s, u]),
-    endCall: (r, o) => q('endCall', [r, o]),
+    endCall: () => q('endCall', []),
   };
   return { judge, asked };
 }
@@ -200,79 +188,115 @@ function setup(t: TestContext, over: Partial<RealtimeBridgeOptions> = {}) {
   tick(0);
   say('r0', 'i0', 400, 'Hallo, hier ist ein KI-Assistent.');
   drain();
+  // Die nachgestellte Uhr beginnt bei 0: Der Audio-Wächter der Begrüßung hält sich dadurch für noch offen. Ablaufen lassen
+  if (!over.stallMs) tick(5000);
   ws.sent.length = 0;
   return { bridge, ws, server, tick, audio, say, drain, creates, outputs, notes, system, toolEnd, partner, transcripts, ended, asked: j.asked };
 }
 
-test('end_call: Sagt das Textmodell „nichts offen“, folgt sofort die Verabschiedung – auch mit Gesprächsplan ohne Selbstprüfung', async (t) => {
+/** Verabschiedung sprechen und ausspielen; danach läuft die Nachhörphase (1000 ms) */
+function farewell(h: ReturnType<typeof setup>): void {
+  h.say('bye', 'ibye', 1000, 'Auf Wiederhören');
+  h.drain();
+  h.bridge.nextFrame();
+}
+
+test('end_call: Die KI verabschiedet sich sofort, die Prüfung läuft nebenher – auch mit Gesprächsplan ohne Selbstprüfung', async (t) => {
   const h = setup(t);
   h.bridge.updateInstructions('MIT PLAN', ['Tisch anfragen']);
   h.toolEnd();
   assert.deepEqual(h.asked.map((a) => a.kind), ['endCall']);
-  assert.deepEqual(h.asked[0].args, ['erledigt', '']);
-  assert.deepEqual(h.outputs(), [], 'der Aufruf bleibt bis zum Urteil offen');
-  assert.match(h.bridge.situation(), /Prüfung gegen den Auftrag/);
+  assert.deepEqual(h.outputs(), ['ok – verabschiede dich jetzt'], 'keine Pause vor dem Abschied, keine Selbstprüfung');
+  assert.match(h.creates()[0], /Verabschiede dich/);
+  farewell(h);
+  h.tick(1000);
+  assert.deepEqual(h.ended, [], 'das Auflegen wartet auf das Urteil');
   h.asked[0].resolve([] as never);
   await flush();
-  assert.deepEqual(h.outputs(), ['ok – verabschiede dich jetzt']);
-  assert.equal(h.creates().length, 1, 'Verabschiedung angefordert');
-  assert.match(h.creates()[0], /Verabschiede dich/);
-  h.say('bye', 'ibye', 1000, 'Auf Wiederhören');
-  h.drain();
-  h.bridge.nextFrame();
-  h.tick(1000);
+  h.tick(250);
   assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
   h.bridge.close();
 });
 
-test('end_call: Meldet das Textmodell offene Punkte, spricht die KI sie an; der zweite end_call beendet ohne neue Prüfung', async (t) => {
+test('end_call: Kommt das Urteil vor dem Ende der Nachhörphase, wird ohne Verzögerung aufgelegt', async (t) => {
   const h = setup(t);
   h.toolEnd();
+  h.asked[0].resolve([] as never);
+  await flush();
+  farewell(h);
+  h.tick(999);
+  assert.deepEqual(h.ended, []);
+  h.tick(1);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  h.bridge.close();
+});
+
+test('end_call: Meldet das Textmodell offene Punkte, wird das Auflegen zurückgenommen und die KI spricht sie noch an', async (t) => {
+  const h = setup(t);
+  h.toolEnd();
+  farewell(h);
   h.asked[0].resolve(['Frag noch, auf welchen Namen reserviert wird.'] as never);
   await flush();
-  assert.match(h.outputs()[0], /Noch nicht beendet[\s\S]*1\. Frag noch, auf welchen Namen reserviert wird\./);
-  assert.deepEqual(h.creates(), [''], 'die KI ist wieder dran');
-  assert.ok(h.system().some((s) => s.startsWith('Prüfung vor dem Auflegen: noch offen – Frag noch')), 'steht im Transkript (und damit beim Agenten)');
-  assert.deepEqual(h.ended, []);
-  h.say('r2', 'i2', 800, 'Auf welchen Namen darf ich reservieren?');
+  assert.ok(h.notes().some((n) => /Das Beenden ist zurückgenommen[\s\S]*1\. Frag noch, auf welchen Namen reserviert wird\.[\s\S]*Eine Sache noch/.test(n)));
+  assert.equal(h.creates().at(-1), '', 'die KI ist wieder dran');
+  assert.ok(h.system().some((x) => x.startsWith('Prüfung vor dem Auflegen: noch offen – Frag noch')), 'steht im Transkript (und damit beim Agenten)');
+  h.tick(60_000);
+  assert.deepEqual(h.ended, [], 'nicht aufgelegt');
+  h.say('r2', 'i2', 800, 'Eine Sache noch: Auf welchen Namen darf ich reservieren?');
   h.drain();
   h.toolEnd('c2');
-  assert.equal(h.asked.length, 1, 'nur eine Prüfung je Gespräch');
+  assert.equal(h.asked.length, 1, 'nach einer Rücknahme durch die Prüfung wird nicht noch einmal geprüft');
   assert.equal(h.outputs().at(-1), 'ok – verabschiede dich jetzt');
   h.bridge.close();
 });
 
-test('end_call: Antwortet das Textmodell nicht, gilt nach der Frist die alte Regel (mit Plan die Selbstprüfung, ohne Plan das Beenden)', async (t) => {
-  const withPlan = setup(t);
-  withPlan.bridge.updateInstructions('MIT PLAN', ['Tisch anfragen']);
-  withPlan.toolEnd();
-  withPlan.tick(2999);
-  assert.deepEqual(withPlan.outputs(), []);
-  withPlan.tick(1);
-  assert.match(withPlan.outputs()[0], /Prüfe zuerst jeden Schritt des Gesprächsplans[\s\S]*1\. Tisch anfragen/);
-  // Ein verspätetes Urteil ändert nichts mehr
-  withPlan.asked[0].resolve([] as never);
-  await flush();
-  assert.equal(withPlan.outputs().length, 1);
-  withPlan.bridge.close();
-
-  const noPlan = setup(t);
-  noPlan.toolEnd();
-  noPlan.asked[0].reject(new Error('überlastet'));
-  await flush();
-  assert.deepEqual(noPlan.outputs(), ['ok – verabschiede dich jetzt']);
-  noPlan.bridge.close();
-});
-
-test('end_call: Spricht das Gegenüber während der Prüfung weiter, wird nicht mitten hinein verabschiedet', async (t) => {
+test('end_call: Antwortet das Textmodell nicht, wird nach der Frist aufgelegt, wie die Sprach-KI entschieden hat', async (t) => {
   const h = setup(t);
   h.toolEnd();
-  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u5' });
-  h.asked[0].resolve([] as never);
+  farewell(h);
+  h.tick(5000);
+  assert.deepEqual(h.ended, [], 'bis 6 s nach dem end_call wartet das Auflegen');
+  // (in kleinen Schritten: Die nachgestellte Uhr plant einen Timer, der sich selbst neu stellt, sonst hinter das Ende des Sprungs)
+  for (let i = 0; i < 6; i++) h.tick(250);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  // Ein verspätetes Urteil ändert nichts mehr
+  h.asked[0].resolve(['zu spät'] as never);
   await flush();
-  assert.match(h.outputs()[0], /Nicht beendet: Inzwischen ist noch etwas dazugekommen/);
-  assert.deepEqual(h.creates(), [], 'das Gegenüber spricht noch: Der Anbieter antwortet danach von selbst');
-  assert.deepEqual(h.ended, []);
+  assert.equal(h.notes().length, 0);
+  h.bridge.close();
+
+  const failed = setup(t);
+  failed.toolEnd();
+  failed.asked[0].reject(new Error('überlastet'));
+  await flush();
+  farewell(failed);
+  failed.tick(1000);
+  assert.deepEqual(failed.ended, ['KI hat das Gespräch beendet']);
+  failed.bridge.close();
+});
+
+test('end_call: Geht das Gespräch weiter, weil das Gegenüber noch etwas sagt, wird beim nächsten end_call neu geprüft', async (t) => {
+  let checks = 0;
+  const j = { afterGoodbye: async () => 'content' as const, endCall: () => (checks++, new Promise<string[]>(() => undefined)) };
+  const g = setup(t, { judge: j });
+  g.toolEnd();
+  farewell(g);
+  g.partner('u1', 'Ach, eine Frage habe ich noch zur Rechnung.');
+  await flush();
+  assert.ok(g.system().includes('Gegenüber hat noch etwas gesagt – Gespräch geht weiter'));
+  g.say('r2', 'i2', 600, 'Gern, welche?');
+  g.drain();
+  g.toolEnd('c2');
+  assert.equal(checks, 2, 'die erste Prüfung kannte die neue Frage noch nicht');
+  g.bridge.close();
+});
+
+test('end_call durch den Agenten: Der Auftraggeber beendet, das Textmodell prüft nicht', (t) => {
+  const h = setup(t, { onAskAgent: () => undefined });
+  assert.equal(h.bridge.agentEnd(), 'ending');
+  h.toolEnd();
+  assert.equal(h.asked.length, 0);
+  assert.deepEqual(h.outputs(), ['ok – verabschiede dich jetzt']);
   h.bridge.close();
 });
 
@@ -339,44 +363,22 @@ test('Nach der Verabschiedung: „weiter“ nimmt das Beenden zurück; ohne Urte
   slow.drain();
   slow.bridge.nextFrame();
   slow.partner('u1', 'Tschüss!');
-  slow.tick(2500);
+  slow.tick(3999);
+  assert.deepEqual(slow.ended, []);
+  slow.tick(1);
   slow.bridge.nextFrame();
   slow.tick(1000);
   assert.deepEqual(slow.ended, ['KI hat das Gespräch beendet']);
   slow.bridge.close();
 });
 
-test('Einwurf mitten im Satz: Unklares entscheidet das Textmodell, Klares sofort die Wortliste', async (t) => {
+test('Einwurf mitten im Satz: bleibt bei der Wortliste – das Textmodell wird nicht gefragt, es entsteht keine Pause', (t) => {
   const h = setup(t);
   h.say('r1', 'i1', 4000, 'Ich rufe an, weil der Termin am Dienstag verschoben werden soll.');
-  assert.equal(h.drain(1000), 1000);
-  h.partner('u1', 'Na dann ist ja gut.');
-  assert.deepEqual(h.asked.map((a) => a.kind), ['interruption']);
-  assert.deepEqual(h.asked[0].args, ['Ich rufe an, weil der Termin am Dienstag verschoben werden soll.', 'Na dann ist ja gut.']);
-  assert.equal(h.bridge.nextFrame(), undefined, 'die KI pausiert bis zum Urteil');
-  h.asked[0].resolve('listening' as never);
-  await flush();
-  assert.equal(h.drain(), 3000, 'die KI spricht ihren Satz zu Ende');
-
-  h.say('r2', 'i2', 4000, 'Passt Ihnen Donnerstag?');
-  h.drain(1000);
-  h.partner('u2', 'Nein.');
-  assert.equal(h.asked.length, 1, 'ein klares „Nein“ geht nicht ans Textmodell');
-  assert.ok(h.ws.sent.some((s) => s.type === 'conversation.item.truncate' && s.item_id === 'i2'), 'Rest verworfen');
-  h.bridge.close();
-});
-
-test('Einwurf mitten im Satz: Ohne Urteil gilt er nach der Frist als Inhalt', async (t) => {
-  const h = setup(t);
-  h.say('r1', 'i1', 4000, 'Ich rufe an wegen des Termins.');
   h.drain(1000);
   h.partner('u1', 'Das passt mir gar nicht.');
-  assert.equal(h.asked.length, 1);
-  h.tick(1500);
-  assert.ok(h.ws.sent.some((s) => s.type === 'conversation.item.truncate' && s.item_id === 'i1'));
-  h.asked[0].resolve('listening' as never);
-  await flush();
-  assert.equal(h.drain(), 0, 'das späte Urteil holt den verworfenen Rest nicht zurück');
+  assert.equal(h.asked.length, 0);
+  assert.ok(h.ws.sent.some((s) => s.type === 'conversation.item.truncate' && s.item_id === 'i1'), 'Rest sofort verworfen');
   h.bridge.close();
 });
 

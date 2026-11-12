@@ -6,6 +6,7 @@
 //   npm run sim                 alle Szenarien (ausgehend, Anrufbeantworter, Spam-Abwehr)
 //   npm run sim -- privat praxis  nur diese
 //   npm run sim -- --task "…" --partner "…" [--sie]   eigenes Szenario
+//   npm run sim -- --no-judge   ohne das Textmodell im Gespräch (Selbstprüfung der Sprach-KI wie mit ausgeschaltetem Schalter)
 //
 // Neben ausgehenden Gesprächen gibt es Anrufbeantworter-Szenarien (die KI hat abgenommen, das Textmodell
 // spielt den Anrufer) und Spam-Szenarien: entweder meldet die KI den Anruf per flag_spam und wechselt die
@@ -18,8 +19,9 @@ import { loadConfig } from '../config.js';
 import { responsesText } from '../ai/summary.js';
 import { buildInstructions, defaultIncomingTask, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallCheckInstruction, farewellInstruction, greetingInstruction, loadPersonas, type PromptInput } from '../ai/personas.js';
 import { formatPlan, planCall, type CallPlan } from '../ai/plan.js';
+import { createJudge, directCall, directorNote, endCallOpenNote, endCallResumeNote, type JudgeContext } from '../ai/judge.js';
 import { buildScamInstructions, FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, scamGender, scamGreeting, type ScamStyle } from '../ai/scam.js';
-import { loadSettings } from '../settings.js';
+import { loadSettings, tuningFrom } from '../settings.js';
 
 type Kind = 'outgoing' | 'incoming' | 'scam-list';
 
@@ -68,6 +70,26 @@ const SCENARIOS: Scenario[] = [
     opening: 'Praxis Dr. Weber, Schmidt am Apparat, guten Tag.',
     formal: true,
     persona: 'professionell',
+  },
+  {
+    id: 'ausweichen',
+    title: 'Gegenüber weicht einer Frage aus und will schnell auflegen',
+    task: 'Frag Herrn Becker von der Autowerkstatt, ob mein Wagen bis Freitag fertig wird und was die Reparatur ungefähr kostet. Sag ihm außerdem, dass ich den Wagen erst ab 16 Uhr abholen kann.',
+    partner:
+      'Du bist Herr Becker, Kfz-Meister, mitten in der Arbeit und kurz angebunden. Auf die Frage, ob der Wagen bis Freitag fertig wird, sagst du klar: ja, Freitagmittag. Auf die Frage nach den Kosten antwortest du beim ersten Mal nicht, sondern fragst zurück, wer da eigentlich spricht und ob das ein Computer ist. Erst wenn man dich ein zweites Mal freundlich nach den Kosten fragt, sagst du: etwa 480 Euro. Gleich nach deiner ersten Auskunft versuchst du das Gespräch zu beenden („Gut, dann war es das ja, schönen Tag noch"). Wird dir die Abholzeit genannt, bestätigst du sie kurz.',
+    opening: 'Autowerkstatt Becker, hallo?',
+    formal: true,
+    persona: 'professionell',
+  },
+  {
+    id: 'vergessen',
+    title: 'Drei Punkte, Gegenüber redet viel und verabschiedet sich früh',
+    task: 'Ruf bei meiner Mutter an: Sag ihr, dass wir am Sonntag um 15 Uhr zum Kaffee kommen. Frag, ob wir Kuchen mitbringen sollen. Und frag, ob sie die Nummer vom Schornsteinfeger noch hat.',
+    partner:
+      'Du bist die Mutter von Max, 74, redselig und herzlich. Du freust dich über den Besuch am Sonntag und erzählst sofort ausführlich vom Garten und von der Nachbarin. Kuchen: Nein, du backst selbst einen Apfelkuchen. Wenn es danach kurz still ist oder die KI etwas Zusammenfassendes sagt, verabschiedest du dich von dir aus herzlich („Dann bis Sonntag, tschüss!"). Nach dem Schornsteinfeger gefragt, sagst du: Ja, die Nummer hängt am Kühlschrank, du schickst sie per SMS.',
+    opening: 'Mustermann?',
+    formal: false,
+    persona: 'herzlich',
   },
   {
     id: 'falsch',
@@ -196,6 +218,8 @@ if (!config.openaiApiKey) throw new Error('OPENAI_API_KEY fehlt in der .env (der
 if (loadSettings().aiProvider !== 'openai') console.log('Hinweis: In den Einstellungen ist ein anderer KI-Anbieter gewählt; der Simulator verwendet trotzdem OpenAI.');
 const apiKey = config.openaiApiKey;
 const textModel = config.openaiSummaryModel;
+// Wie in der App (Einstellungen › Technik): Das Textmodell prüft vor dem Auflegen und führt Regie – außer mit --no-judge
+const liveJudge = !process.argv.includes('--no-judge') && tuningFrom(loadSettings()).liveJudge;
 const personas = loadPersonas(fileURLToPath(new URL('../../personas/', import.meta.url)));
 const outDir = fileURLToPath(new URL('../../sim-results/', import.meta.url));
 mkdirSync(outDir, { recursive: true });
@@ -308,7 +332,7 @@ async function judge(s: Scenario, plan: string, dialog: Line[], outcome?: Record
     kind === 'outgoing'
       ? [
           'Bewerte streng ein simuliertes Telefonat eines KI-Assistenten. Kriterien: Wurde jeder Punkt des Auftrags erledigt (bzw. bei falscher Person/Mailbox sinnvoll gehandhabt)? Konkreter Grund statt Floskel? Höchstens eine Frage pro Beitrag, Beiträge kurz? Natürlich und menschlich statt Formular/Büro-Floskeln („Anliegen", „vielen Dank für Ihre Zeit", „wir sind am Ende")? Anrede durchgehalten? Nichts erfunden? Ergebnis beim end_call korrekt und vollständig?',
-          'Zum Ablauf, der so gewollt ist und nicht zu bemängeln: Die KI stellt sich immer als KI im Auftrag von Max Mustermann vor. Sie ruft end_call auf, OHNE sich vorher zu verabschieden; die App fordert danach die Verabschiedung an – der KI-Beitrag nach der System-Zeile ist also korrekt. Ein erster end_call wird von der App zur Selbstprüfung zurückgegeben (System-Zeile „Selbstprüfung"); ein end_call zusammen mit Text wird abgelehnt. System-Zeilen hört das Gegenüber nicht.',
+          'Zum Ablauf, der so gewollt ist und nicht zu bemängeln: Die KI stellt sich immer als KI im Auftrag von Max Mustermann vor. Sie ruft end_call auf, OHNE sich vorher zu verabschieden; die App fordert danach die Verabschiedung an – der KI-Beitrag nach der System-Zeile ist also korrekt. Ein erster end_call wird von der App geprüft: Entweder gibt sie ihn zur Selbstprüfung zurück (System-Zeile „Selbstprüfung"), oder ein Textmodell prüft den Auftrag gegen das Gespräch, während die KI sich schon verabschiedet (System-Zeile „Prüfung vor dem Auflegen"); meldet es offene Punkte, nimmt die App das Auflegen zurück, und die KI spricht sie nach ihrem Abschiedssatz noch an („Eine Sache noch") – das ist dann richtig und kein Fehler. Ein end_call zusammen mit Text wird abgelehnt. Eine System-Zeile „Hinweis der Regie" ist ein Hinweis der App an die KI. System-Zeilen hört das Gegenüber nicht.',
           `Auftrag: ${s.task}`,
         ]
       : [
@@ -351,6 +375,23 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
   const dialog: Line[] = [];
   let outcome: Record<string, string> | undefined;
   let checked = false;
+  // Das Textmodell im Gespräch (wie in der App): kennt Auftrag, Plan und das ganze bisherige Gespräch
+  const judgeOn = liveJudge && kind !== 'scam-list';
+  const judgeContext = (): JudgeContext => ({ task, plan: incoming ? undefined : plan, instructions: scamPhase ? undefined : instructions, principal, incoming, entries: dialog.map((l) => ({ speaker: l.who === 'KI' ? ('ki' as const) : l.who === 'System' ? ('system' as const) : ('partner' as const), text: l.text, final: true })) });
+  const liveAsk = (prompt: string, max: number, format?: { name: string; schema: object }) => responsesText(apiKey, textModel, prompt, max, format);
+  const note = (text: string) => session.send({ type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text }] } });
+  /** Offene Punkte laut Textmodell; undefined = kein Urteil (dann gilt die alte Regel) */
+  const openPoints = async (): Promise<string[] | undefined> => {
+    const t = Date.now();
+    try {
+      const open = await createJudge(liveAsk, judgeContext).endCall();
+      console.log(`  (Prüfung vor dem Auflegen: ${Date.now() - t} ms, ${open.length} offen)`);
+      return open;
+    } catch (err) {
+      console.log(`  (Prüfung vor dem Auflegen fehlgeschlagen: ${(err as Error).message.slice(0, 80)})`);
+      return undefined;
+    }
+  };
   // Wie in der Brücke: in der Spam-Abwehr verabschiedet sich die KI als Privatperson
   let scamPhase = kind === 'scam-list';
   try {
@@ -378,8 +419,20 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
         // Wie in der Telefon-Brücke: gesprochen + end_call in einer Antwort -> abgelehnt, Gegenüber antwortet
         dialog.push({ who: 'System', text: 'end_call zusammen mit Text – abgelehnt' });
         session.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: r.call.id, output: END_CALL_WHILE_SPEAKING } });
+        if (judgeOn && !scamPhase && !checked) {
+          // Die Prüfung läuft in der App nebenher, während das Gegenüber antwortet; Fehlendes kommt als Hinweis nach
+          checked = true;
+          const open = await openPoints();
+          if (open?.length) {
+            dialog.push({ who: 'System', text: `Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')}` });
+            note(endCallOpenNote(open));
+          }
+        }
         r.call = undefined;
       }
+      // Wie in der Telefon-Brücke: Das Textmodell prüft den ersten end_call neben der Verabschiedung her; die Selbstprüfung entfällt
+      const parallelCheck = Boolean(r.call) && !checked && judgeOn && !scamPhase;
+      if (parallelCheck) checked = true;
       if (r.call && !checked && rawPlan.schritte.length > 0) {
         // Wie in der Telefon-Brücke: erster end_call geht zur Selbstprüfung zurück
         checked = true;
@@ -389,17 +442,39 @@ async function runScenario(s: Scenario, model: string): Promise<string> {
         continue;
       }
       if (r.call) {
+        // Wie am Telefon beginnt die Prüfung mit dem end_call: Sie kennt weder die Ergebnismeldung noch den Abschiedssatz
+        const pendingCheck = parallelCheck ? openPoints() : undefined;
         outcome = r.call.args;
         dialog.push({ who: 'System', text: `end_call – Ergebnis: ${outcome.ergebnis ?? ''}${outcome.offen ? ` · offen: ${outcome.offen}` : ''}` });
         session.send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: r.call.id, output: 'ok – verabschiede dich jetzt' } });
         const bye = await session.respond(undefined, scamPhase ? SCAM_FAREWELL : farewellInstruction(s.formal, s.owner));
         if (bye.text) dialog.push({ who: 'KI', text: bye.text });
+        // Am Telefon kommt das Urteil meist, während der Abschiedssatz läuft oder gerade gesprochen ist
+        const open = await pendingCheck;
+        if (open?.length) {
+          dialog.push({ who: 'System', text: `Prüfung vor dem Auflegen: noch offen – ${open.join(' · ')} – Gespräch geht weiter` });
+          note(endCallResumeNote(open));
+          outcome = undefined;
+          partnerText = undefined;
+          continue;
+        }
+        if (open) dialog.push({ who: 'System', text: 'Prüfung vor dem Auflegen: nichts offen' });
         break;
       }
       if (!r.text) {
         // Antwort ohne Text und ohne Tool (kommt nach der Selbstprüfung vor): KI noch einmal anstoßen
         partnerText = undefined;
         continue;
+      }
+      if (judgeOn && !scamPhase && dialog.some((l) => l.who === 'Gegenüber')) {
+        // Regie im Hintergrund: In der App läuft sie, während das Gegenüber antwortet; der Hinweis wirkt beim nächsten Redebeitrag
+        const t = Date.now();
+        const hint = await directCall(liveAsk, judgeContext()).catch(() => '');
+        console.log(`  (Regie: ${Date.now() - t} ms${hint ? ', Hinweis' : ''})`);
+        if (hint) {
+          dialog.push({ who: 'System', text: `Hinweis der Regie an die KI: ${hint}` });
+          note(directorNote(hint));
+        }
       }
       partnerText = await partnerReply(s, dialog);
       if (partnerText === '[legt auf]') {
