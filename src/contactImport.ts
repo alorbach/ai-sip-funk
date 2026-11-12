@@ -402,7 +402,10 @@ const nameParts = (s: string) =>
     .filter(Boolean);
 /** Name ohne Groß/Klein, Satzzeichen und doppelte Leerzeichen */
 // Namen ganz ohne Buchstaben und Ziffern („🚑“, „???“) behalten ihren Text, sonst fielen sie alle zusammen
-const nameKey = (s: string) => nameParts(s).join(' ') || s.normalize('NFC').trim().toLowerCase();
+const nameKey = (s: string) => {
+  const raw = s.normalize('NFC').trim().toLowerCase();
+  return nameParts(s).join(' ') || raw.replace(/[︀-️‍⃣]/g, '').replace(/\s+/g, ' ') || raw;
+};
 
 /**
  * Derselbe Name? Vorname gleich und Nachname gleich oder auf den Anfangsbuchstaben abgekürzt („Erika B.“ / „Erika

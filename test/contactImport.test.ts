@@ -690,3 +690,15 @@ test('Emoji mit Variantenwähler ändern den Namen nicht und lassen Emoji-Namen 
     assert.deepEqual([r.created, r.merged, r.combined], [2, 1, 0]);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 11
+
+test('Emoji-Namen mit und ohne Variantenwähler sind derselbe Name (eigene Karte)', () => {
+  withStore((store) => {
+    store.create({ name: '\u260E\uFE0F', number: '030 5553000', owner: true });
+    const cands = [{ name: '\u260E', numbers: [{ number: '0305553000', label: 'privat' as const }, { number: '01715553001', label: 'mobil' as const }] }];
+    const [item] = buildPreview(cands, store);
+    assert.equal(item.ownCard, true);
+    assert.equal(applyImport(cands, ['0'], store, { addToExisting: true }).created, 0);
+  });
+});
