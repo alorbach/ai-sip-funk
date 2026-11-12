@@ -12,6 +12,7 @@ import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
+import { agentLabel } from './ai/agentCall.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
 import { sampleText, voiceSample } from './ai/voiceSample.js';
 import { McpGateway, type AgentCallControl } from './mcp/gateway.js';
@@ -267,6 +268,7 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
     // Rückrufnummer: der Inhaber-Kontakt, sofern wir nicht gerade ihn selbst anrufen
     callbackNumber: isOwnerNumber(str('target')) ? undefined : (contacts.list().find((c) => c.owner)?.number ?? config.ownerNumbers[0]),
     agent: mcp,
+    agentName: mcp ? agentLabel(str('agentClient')) : undefined,
     // Ein Agenten-Anruf kann kürzer begrenzt sein als das allgemeine Gesprächslimit
     maxCallSeconds: mcp && typeof params.maxSeconds === 'number' ? Math.min(t.maxCallSeconds, params.maxSeconds) : t.maxCallSeconds,
   };
@@ -486,7 +488,7 @@ const gateway: McpGateway = new McpGateway({
     manager.checkDial(number);
     const s = loadSettings();
     // Name der KI und zusätzliche Hinweise kommen immer aus den Einstellungen des Betreibers, nie vom Agenten
-    const bridge = createAiHandler({ target: number, task: p.task, context: p.context, principal: p.principal, address: p.address ?? '', persona: p.persona ?? '', aiName: s.aiName, personaExtra: s.personaExtra, mcp: true, maxSeconds: p.maxSeconds });
+    const bridge = createAiHandler({ target: number, task: p.task, context: p.context, principal: p.principal, address: p.address ?? '', persona: p.persona ?? '', aiName: s.aiName, personaExtra: s.personaExtra, mcp: true, maxSeconds: p.maxSeconds, agentClient: p.client ?? '' });
     try {
       manager.dial(number, 'ai', bridge);
     } catch (err) {

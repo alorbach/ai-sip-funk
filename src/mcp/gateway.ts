@@ -30,6 +30,8 @@ export interface AgentCallParams {
   persona?: string;
   /** Höchstdauer dieses Anrufs in Sekunden */
   maxSeconds: number;
+  /** Kennung des MCP-Clients, der den Anruf gestartet hat (Eigenangabe; siehe agentLabel) */
+  client?: string;
 }
 
 interface AgentCall {
@@ -260,7 +262,7 @@ export class McpGateway {
       // Der Agent sieht den Namen, wenn er ihn selbst genannt hat oder die Kontaktnamen lesen darf; sonst die Nummer, die er genannt hat
       label: contactName && (named || p.contacts) ? contactName : number,
       contactName,
-      params: { task, context: context || undefined, principal, address, persona: oneLine(str(args.persona)).slice(0, 40) || undefined, maxSeconds },
+      params: { task, context: context || undefined, principal, address, persona: oneLine(str(args.persona)).slice(0, 40) || undefined, maxSeconds, client: this.access?.client },
       state: 'awaiting_approval',
       createdAt: this.now(),
       events: [],

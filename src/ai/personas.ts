@@ -1,7 +1,7 @@
 // Persona-Presets aus personas/*.md und Zusammenbau der Systemanweisung.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AGENT_CALL_RULES } from './agentCall.js';
+import { agentCallRules } from './agentCall.js';
 
 export interface Persona {
   id: string;
@@ -88,6 +88,8 @@ export interface PromptInput {
   familyMembers?: string;
   /** true = ein KI-Agent hat den Anruf über die MCP-Schnittstelle ausgelöst: Regieanweisungen und Rückfragen (siehe ai/agentCall.ts) */
   agent?: boolean;
+  /** Name des Agenten (siehe agentLabel), den die KI auf Nachfrage nennen darf */
+  agentName?: string;
   maxCallSeconds: number;
 }
 
@@ -175,7 +177,7 @@ export function buildInstructions(p: PromptInput): string {
     '- Variiere deine Formulierungen: nicht immer dieselbe Begrüßung, Bestätigung („Alles klar, danke dir") oder Überleitung. Klinge wie ein Mensch, nicht wie ein Formular.',
     '- Sagt das Gegenüber „Moment", „lass mich überlegen" oder nur „ähm": schweige und warte, bis es weiterspricht. Nicht nachhelfen, nicht kommentieren.',
     '- Passe dein Sprechtempo dem Gegenüber an: Spricht es schnell und knapp, sprich auch zügig; spricht es langsam oder wirkt unsicher, sprich ruhiger und deutlicher.',
-    ...(p.agent && !p.incoming ? AGENT_CALL_RULES : []),
+    ...(p.agent && !p.incoming ? agentCallRules(p.agentName) : []),
     '',
     '## Gesprächsführung',
     '- Der Auftrag besteht meist aus mehreren Punkten (etwas fragen, etwas ausrichten, etwas erfahren). Arbeite sie nacheinander ab, einen pro Redebeitrag, und erledige jeden wirklich – auch wenn das Gegenüber scherzt oder ausweicht. Ein Punkt ist erst erledigt, wenn du ihn in diesem Gespräch tatsächlich AUSGESPROCHEN hast bzw. die Antwort darauf gehört hast – nicht, weil er im Plan steht. Bevor du end_call aufrufst, geh die Punkte durch: Was davon habe ich wirklich gesagt?',

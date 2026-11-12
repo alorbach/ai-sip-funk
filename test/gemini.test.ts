@@ -265,6 +265,25 @@ test('Gemini: Was die KI nach einem abgelehnten end_call von sich aus nachschieb
   h.bridge.close();
 });
 
+test('Gemini: Kommt nach einem abgelehnten end_call die Mitschrift des Gegenübers als Nachtrag, ist die Antwort ganz zu hören', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.audio(1000);
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  // Die KI antwortet schon, die Mitschrift der Frage kommt erst währenddessen und ohne „Sprache beginnt“
+  h.audio(400);
+  h.server({ serverContent: { inputTranscription: { text: 'Wer hat dich gestartet?' } } });
+  h.tick(700);
+  h.audio(400);
+  h.server({ serverContent: { outputTranscription: { text: 'Das war Codex.' } } });
+  h.server({ serverContent: { turnComplete: true } });
+  assert.equal(h.drain(), 1800, 'Dank und die ganze Antwort, auch ihr Anfang');
+  assert.ok(h.texts.includes('ki: Das war Codex.'));
+  h.bridge.close();
+});
+
 test('Gemini: Nach einem abgelehnten end_call ist die Antwort auf das Gegenüber wieder zu hören', (t) => {
   const h = setup(t);
   h.start();

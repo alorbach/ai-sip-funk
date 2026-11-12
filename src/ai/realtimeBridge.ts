@@ -103,6 +103,7 @@ const AUDIO_WATCHDOG_MS = 5000;
 const OPENING_REPLY_MS = 2000;
 /** Nach einer nachgeholten Begrüßung: Eine Antwort, die so kurz danach von selbst beginnt, ist die zweite Antwort auf denselben Anfang */
 const DUP_AFTER_GREETING_MS = 1500;
+const MUTED_AFTER_REJECT = 'nach abgelehntem end_call';
 // Stillstandswächter: höchstens so oft hintereinander anstoßen, ohne dass das Gegenüber etwas sagt
 const STALL_MAX_NUDGES = 2;
 /** Unterbrechung prüfen statt sofort verwerfen: erst ab so viel Rest-Audio lohnt das Weitersprechen */
@@ -154,6 +155,8 @@ export class RealtimeBridge implements AudioHandler {
   private mutedResponse = false;
   private mutedBytes = 0;
   private mutedWhy = '';
+  /** Audio der stummen Antwort: Stellt sich heraus, dass das Gegenüber doch gesprochen hat, wird es nachgereicht */
+  private mutedHeld: { itemId: string; buf: Buffer }[] = [];
   /**
    * Nachgeholte Begrüßung (siehe lateGreeting): Kommt die Mitschrift des vermeintlichen Geräuschs doch noch, hat das Modell
    * zwei Auslöser und antwortet zweimal. 'greeting' = die Begrüßung ist angefordert oder läuft, 'after' = sie ist fertig;
@@ -477,8 +480,9 @@ export class RealtimeBridge implements AudioHandler {
     this.droppedItems = [];
     this.responseHadText = false;
     this.mutedResponse = this.muteAfterReject;
-    this.mutedWhy = 'nach abgelehntem end_call';
+    this.mutedWhy = MUTED_AFTER_REJECT;
     this.mutedBytes = 0;
+    this.mutedHeld = [];
     if (this.dupGuard === 'greeting') this.dupGreetingStarted = true;
     else if (this.dupGuard === 'after') {
       this.dupGuard = 'off';
@@ -498,6 +502,7 @@ export class RealtimeBridge implements AudioHandler {
   private onAudio(itemId: string, pcm: Buffer): void {
     if (this.mutedResponse) {
       this.mutedBytes += pcm.length;
+      this.mutedHeld.push({ itemId, buf: pcm });
       return;
     }
     if (!this.stats.firstDeltaAt) {
@@ -547,8 +552,19 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onPartnerText(itemId: string | undefined, text: string): void {
-    if (text) this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
-    else {
+    if (text) {
+      this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
+      // Das Gegenüber hat doch etwas gesagt (die Mitschrift kam ohne „Sprache beginnt“, z. B. als Nachtrag):
+      // Was die KI darauf antwortet, ist kein Nachschub nach dem abgelehnten end_call
+      this.muteAfterReject = false;
+      if (this.mutedResponse && this.mutedWhy === MUTED_AFTER_REJECT) {
+        log.info('Realtime: Mitschrift des Gegenübers trifft ein – die stumm gehaltene Antwort ist doch zu hören');
+        this.mutedResponse = false;
+        const held = this.mutedHeld;
+        this.mutedHeld = [];
+        for (const h of held) this.onAudio(h.itemId, h.buf);
+      }
+    } else {
       log.info(`Realtime: Äußerung ${itemId ?? '?'} ohne Text (Geräusch)`);
       // Vor der Begrüßung war es nur ein Geräusch (Abheben, Rascheln): Darauf antwortet kein Modell von selbst
       this.lateGreeting('Geräusch statt Meldung');
@@ -660,6 +676,7 @@ export class RealtimeBridge implements AudioHandler {
     this.muteNoiseResponse = false;
     this.activeResponse = false;
     if (r.usage) this.addUsage(r.usage);
+    this.mutedHeld = [];
     if (this.mutedResponse) {
       this.mutedResponse = false;
       log.info(`Realtime: Antwort ${r.id ?? '?'} ${this.mutedWhy} stumm gelassen (${Math.round(this.mutedBytes / 2 / (this.live.outputRate / 1000))} ms Audio, Mitschrift ${this.responseHadText ? 'ja' : 'nein'})`);
