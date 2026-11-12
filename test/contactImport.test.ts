@@ -790,3 +790,15 @@ test('Nebenstellen mit 0 in der Nummer bleiben ganz', () => {
   assert.deepEqual(splitNumbers('**701 / 030 1234567').map(normalizeImportNumber), ['**701', '0301234567']);
   assert.deepEqual(splitNumbers('**701 123456').map(normalizeImportNumber), ['**701']);
 });
+
+// ---------------------------------------------------------------- Review-Runde 16
+
+test('Kurze Nebenstelle vor „ / “, Schrägstrich am Ende, lange Notizen', () => {
+  const n = normalizeImportNumber;
+  assert.deepEqual(splitNumbers('Intern 610 / 030 1234569').map(n), [undefined, '0301234569']);
+  assert.deepEqual(splitNumbers('610 / 0171 5550100').map(n), [undefined, '01715550100']);
+  assert.deepEqual(splitNumbers('0171 5550100 / 030 1234567 / **701').map(n), ['01715550100', '0301234567', '**701']);
+  assert.deepEqual(splitNumbers('0171 / 5550100').map(n), ['01715550100']);
+  assert.deepEqual(splitNumbers('0171 / 0221 123456').map(n), ['01710221123456']);
+  assert.equal(n('Bitte nur in dringenden Fällen anrufen, sonst lieber eine Nachricht schreiben, bitte jetzt 0221 1234567'), undefined);
+});

@@ -46,7 +46,9 @@ const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*
 
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
-  let s = phoneChars(String(raw ?? '').slice(0, 80)).replace(/\s+/g, ' ').trim();
+  let s = phoneChars(String(raw ?? '').slice(0, 400)).replace(/\s+/g, ' ').trim();
+  // Längeres ist eine Notiz, keine Nummer; abgeschnitten käme sonst ein Bruchstück als Nummer heraus
+  if (s.length > 80) return undefined;
   // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „(Büro) 030 …“, „Mobil* 0171 …“, „Büro **610“) weg: ab dem
   // ersten +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“) oder * bzw. # direkt vor Ziffer, * oder #
   // (ein * oder # direkt hinter einem Wort gehört zur Bezeichnung: „Mobil*0171 …“, „Cell#0171 …“; ** vor Ziffern nie)
@@ -109,12 +111,19 @@ export function splitNumbers(value: string): string[] {
     .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)|(?<=\*\*\s*\d+)(?:\s*[/(]?\s*(?=\+)|[\s/(]+(?=0\d))/i)
     // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
     // Eine ganze Nummer beginnt mit +, 0, ( oder *; eine Teilnehmernummer nie mit 0.
+    // Links genügt auch Text oder eine kurze Nebenstelle ohne Sterne („Intern 610 / 030 …“), die selbst keine Nummer ergibt.
     .flatMap((p) => {
-      const s = p.split(/\s+\/\s+/);
+      const s = p.replace(/\s*\/\s*$/, '').split(/\s+\/\s+/);
       // (eine Nebenstelle „**610 (Büro)“ zählt als ganze Nummer)
       const complete = (x: string) => x.replace(/\D/g, '').length >= 6 || /\*\*\s*\d/.test(x);
-      const whole = s.length > 1 && s.every(complete) && s.slice(1).every((x) => /^[+(0*]/.test(x.trim()));
-      return whole ? s : [p];
+      const out = [s[0]];
+      for (const x of s.slice(1)) {
+        const left = out[out.length - 1];
+        const separate = /^[+(0*]/.test(x.trim()) && complete(x) && (complete(left) || normalizeImportNumber(left) === undefined);
+        if (separate) out.push(x);
+        else out[out.length - 1] = `${left} / ${x}`;
+      }
+      return out;
     })
     .map((x) => x.trim())
     .filter(Boolean);
