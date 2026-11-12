@@ -24,6 +24,7 @@ import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type Sca
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
 import { formatPlan, planCall } from './ai/plan.js';
+import { createDirector, createJudge, type JudgeContext } from './ai/judge.js';
 import { summarize } from './ai/summary.js';
 import { assessCall } from './ai/assess.js';
 import { Mailer, oauthFrom } from './notify/email.js';
@@ -304,7 +305,17 @@ ${mcp ? str('context') : input.context}` : input.task,
 
   // Spam-Abwehr ab Annahme (Nummernliste): markiert das Gespräch; das Zeitlimit läuft ab der Annahme (onConnected)
   const scamInstructions = scam ? startScam(loadSettings(), str('target'), voice, provider.maleVoices) : undefined;
-  const bridge = new RealtimeBridge({
+  // Das Textmodell entscheidet mit und führt Regie (Einstellungen › Technik); es kennt dafür Auftrag, Plan und das ganze Transkript.
+  // Nicht in der Spam-Abwehr. Bei Agenten-Anrufen führt der Agent Regie, das Textmodell entscheidet nur an den Regelstellen mit
+  const started = current;
+  const judgeContext = (): JudgeContext => ({ task: input.task, plan: started.plan, principal: input.principalName, incoming, entries: transcript, situation: bridge.situation() });
+  const liveJudge = t.liveJudge && !scam;
+  const director =
+    liveJudge && !mcp
+      ? createDirector(active.ask, judgeContext, (hint) => current === started && bridge.directorHint(hint), (message) => log.warn(`Regie: Textmodell fehlgeschlagen (${message.slice(0, 120)})`))
+      : undefined;
+  const bridge: RealtimeBridge = new RealtimeBridge({
+    judge: liveJudge ? createJudge(active.ask, judgeContext) : undefined,
     apiKey,
     createLive: (cfg, events) => provider.createLive(cfg, events),
     model,
@@ -346,6 +357,8 @@ ${mcp ? str('context') : input.context}` : input.task,
       else transcript.push(entry);
       bus.emit('message', { type: 'transcript', entries: transcript });
       if (mcp) gateway.transcript(entry);
+      // Ein Redebeitrag der KI ist fertig: Die Regie sieht sich den Wortwechsel an
+      if (entry.final && entry.speaker === 'ki' && current === started) director?.onAiTurn();
     },
     onUsage: (usage: Usage) => {
       if (current) current.usage = usage;
@@ -361,6 +374,7 @@ ${mcp ? str('context') : input.context}` : input.task,
     onFlagSpam:
       params.scamAllowed === true
         ? (reason) => {
+            director?.stop();
             transcript.push({ speaker: 'system', text: `Spam-Abwehr: ${reason || 'als Werbe-/Betrugsanruf erkannt'}`, final: true });
             bus.emit('message', { type: 'transcript', entries: transcript });
             const s = loadSettings();
@@ -387,7 +401,6 @@ ${mcp ? str('context') : input.context}` : input.task,
   // Ohne Auftrag (Testgespräch) gibt es nichts zu planen. Beim Anrufbeantworter und beim Rückruf an den
   // Inhaber ist der Auftrag schon fest strukturiert; der Plan brachte dort nur Selbstprüfungs-Schleifen am Ende.
   if (input.task.trim() && !incoming && params.plan !== false) {
-    const started = current;
     planCall(active.ask, {
       task: input.task,
       context: str('context') || undefined,
@@ -403,6 +416,7 @@ ${mcp ? str('context') : input.context}` : input.task,
         started.plan = text;
         bridge.updateInstructions(buildInstructions({ ...input, plan: text }), plan.schritte);
         log.info(`Gesprächsplan: ${plan.schritte.length} Schritt(e) – ${plan.schritte.join(' | ')}`);
+        if (mcp) gateway.plan(plan.schritte);
       })
       .catch((err) => log.warn(`Kein Gesprächsplan, KI telefoniert ohne: ${(err as Error).message}`));
   }
@@ -502,7 +516,7 @@ const gateway: McpGateway = new McpGateway({
       bridge.close();
       throw err;
     }
-    return { say: (text, now) => bridge.agentSay(text, now), end: () => bridge.agentEnd() };
+    return { say: (text, now) => bridge.agentSay(text, now), end: () => bridge.agentEnd(), situation: () => bridge.situation() };
   },
   hangup: (reason) => manager.hangup(reason),
   records: store,

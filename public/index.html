@@ -722,6 +722,8 @@
               <label class="field"><span>Sprechgeschwindigkeit</span><input id="t-speed" type="number" min="0.25" max="1.5" step="0.05"><small>0,25 bis 1,5. Standard 1,05.</small></label>
               <label class="field"><span>Lautstärke der KI</span><input id="t-gain" type="number" min="0.2" max="4" step="0.1"><small>Verstärkung Richtung Telefon, mit weichem Begrenzer. Standard 1,5.</small></label>
               <label class="switch span"><span>Gegenüber darf die KI unterbrechen</span><input type="checkbox" id="t-interrupt" role="switch"></label>
+              <label class="switch span"><span>Textmodell entscheidet im Gespräch mit</span><input type="checkbox" id="t-judge" role="switch"></label>
+              <small class="span">An: Das Textmodell kennt das ganze Gespräch und entscheidet an Stellen mit, an denen sonst feste Regeln gelten (Auflegen oder weiter nach der Verabschiedung, kurze Einwürfe, Auftrag erledigt). Außerdem liest es als Regie im Hintergrund mit und gibt der Sprach-KI bei Bedarf einen Hinweis. Kostet einen kurzen Textmodell-Aufruf je Wortwechsel. Aus: Verhalten wie bisher.</small>
               <label class="field"><span>Port der Oberfläche und der MCP-Schnittstelle</span><input id="t-web-port" type="number" min="1024" max="65535" step="1"><small>Nur von diesem Rechner erreichbar (127.0.0.1). Standard 3865. Gilt nach einem Neustart. Ist der Port beim Start belegt, nimmt SIPFunk den nächsten freien und speichert ihn.</small></label>
             </div>
             <div class="subhead" style="margin-top:14px">Nur in der <code>.env</code></div>
@@ -927,7 +929,7 @@ const FORM_FIELDS = {
   scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
   mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history', mcpPlan: 'p-mcp-plan',
-  maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', webPort: 't-web-port',
+  maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', liveJudge: 't-judge', webPort: 't-web-port',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)
 // Die Stimme gehört nicht dazu: Ohne Wahl für den Anruf gilt die Standardstimme der KI-Verbindung

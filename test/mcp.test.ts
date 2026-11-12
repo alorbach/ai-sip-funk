@@ -801,3 +801,27 @@ test('Streamable HTTP: Tools über /mcp, zustandslos; GET wird abgewiesen', asyn
     await new Promise((r) => http.close(r));
   }
 });
+
+test('Kontext für den Agenten: Restzeit und Lage in jeder Antwort, der Plan nur, wenn er das Ziel beim Namen kennt', async () => {
+  const h = harness();
+  h.state.control.situation = () => 'Stille seit 4 s;\nzuletzt sprach die KI';
+  await h.call('Restaurant Sonne', { max_minutes: 2 });
+  assert.doesNotMatch((await h.run('wait_for_events', { timeout_sec: 1 })).text, /Lage jetzt/, 'vor dem Gespräch gibt es keine Lage');
+  h.gw.linePhase('connected');
+  h.state.time += 30_000;
+  h.gw.plan(['Tisch anfragen', 'Namen nennen']);
+  h.gw.transcript({ speaker: 'system', text: 'Stille: Seit 6 s sagt niemand etwas – die KI wurde angestoßen (1/2)', final: true });
+  const r = await h.run('wait_for_events', { timeout_sec: 1 });
+  const lines = r.text.split('\n');
+  assert.match(lines[0], /verbunden seit 30 s, noch höchstens 90 s$/);
+  assert.equal(lines[1], 'Lage jetzt: Stille seit 4 s; zuletzt sprach die KI');
+  assert.match(r.text, /Hinweis: Gesprächsplan der KI: 1\. Tisch anfragen 2\. Namen nennen/);
+  assert.match(r.text, /Hinweis: Stille: Seit 6 s/);
+
+  // Per Nummer angerufen, Kontaktnamen nicht freigegeben: Der Plan könnte den Namen nennen und bleibt deshalb weg
+  const byNumber = harness();
+  await byNumber.call(CONTACTS[0].number);
+  byNumber.gw.linePhase('connected');
+  byNumber.gw.plan(['Im Restaurant Sonne einen Tisch anfragen']);
+  assert.doesNotMatch((await byNumber.run('wait_for_events', { timeout_sec: 1 })).text, /Gesprächsplan|Sonne/);
+});

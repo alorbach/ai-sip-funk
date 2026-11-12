@@ -102,6 +102,8 @@ export interface FormSettings {
   outputGain: string;
   /** Gegenüber darf die KI unterbrechen ('on'|'off') */
   allowInterrupt: string;
+  /** Das Textmodell entscheidet im Gespräch mit und führt im Hintergrund Regie ('on'|'off'), siehe ai/judge.ts */
+  liveJudge: string;
   /** Textmodell für Plan, Zusammenfassung, Einschätzung, Beschwerde */
   summaryModel: string;
   // ---- E-Mail-Versand (Seite „Einstellungen › E-Mail"; .env liefert die Basis; Kennwörter liegen in settings.json) ----
@@ -221,7 +223,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory', 'mcpPlan'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'liveJudge', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory', 'mcpPlan'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -235,6 +237,7 @@ export interface Tuning {
   speechSpeed: number;
   outputGain: number;
   allowInterrupt: boolean;
+  liveJudge: boolean;
   summaryModel: string;
 }
 
@@ -258,6 +261,7 @@ export function tuningFrom(s: FormSettings): Tuning {
     speechSpeed: num(s.speechSpeed, 1.05, 0.25, 1.5),
     outputGain: num(s.outputGain, 1.5, 0.2, 4),
     allowInterrupt: s.allowInterrupt !== 'off',
+    liveJudge: s.liveJudge !== 'off',
     summaryModel: s.summaryModel.trim() || 'gpt-6-luna',
   };
 }
@@ -320,6 +324,7 @@ function envDefaults(): FormSettings {
     speechSpeed: e('AI_SPEECH_SPEED', '1.05'),
     outputGain: e('AI_OUTPUT_GAIN', '1.5'),
     allowInterrupt: onOff(e('AI_ALLOW_INTERRUPT', 'on')),
+    liveJudge: onOff(e('AI_LIVE_JUDGE', 'on')),
     summaryModel: e('OPENAI_SUMMARY_MODEL', 'gpt-6-luna'),
     mailProvider: ['smtp', 'gmail', 'm365'].includes(e('MAIL_PROVIDER', 'smtp').toLowerCase()) ? e('MAIL_PROVIDER', 'smtp').toLowerCase() : 'smtp',
     mailTo: e('NOTIFY_EMAIL_TO'),

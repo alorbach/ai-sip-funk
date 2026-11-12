@@ -350,6 +350,8 @@
     'Lautstärke der KI': 'Volume of the AI',
     'Verstärkung Richtung Telefon, mit weichem Begrenzer. Standard 1,5.': 'Gain towards the phone, with a soft limiter. Default 1.5.',
     'Gegenüber darf die KI unterbrechen': 'The other party may interrupt the AI',
+    'Textmodell entscheidet im Gespräch mit': 'Text model helps decide during the call',
+    'An: Das Textmodell kennt das ganze Gespräch und entscheidet an Stellen mit, an denen sonst feste Regeln gelten (Auflegen oder weiter nach der Verabschiedung, kurze Einwürfe, Auftrag erledigt). Außerdem liest es als Regie im Hintergrund mit und gibt der Sprach-KI bei Bedarf einen Hinweis. Kostet einen kurzen Textmodell-Aufruf je Wortwechsel. Aus: Verhalten wie bisher.': 'On: the text model knows the whole conversation and helps decide where fixed rules would otherwise apply (hang up or continue after the goodbye, short interjections, task completed). It also reads along as a director in the background and gives the voice AI a hint when needed. Costs one short text-model request per exchange. Off: behaviour as before.',
     'Textmodell (Plan, Zusammenfassung, Einschätzung, Beschwerde)': 'Text model (plan, summary, assessment, complaint)',
     'Nur in der <code>.env</code>': 'Only in <code>.env</code>',
     'FRITZ!Box (SIP)': 'FRITZ!Box (SIP)',

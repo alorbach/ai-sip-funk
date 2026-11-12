@@ -20,6 +20,8 @@ export interface AgentEvent {
 export interface AgentCallControl {
   say(text: string, now: boolean): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed';
   end(): 'ending' | 'closed';
+  /** Lage im Gespräch in einem Satz (wer spricht, Stille, Rückfrage offen, Verabschiedung) */
+  situation?(): string;
 }
 
 export interface AgentCallParams {
@@ -441,8 +443,12 @@ export class McpGateway {
   }
 
   private headline(call: AgentCall): string {
-    const dur = call.connectedAt && call.state === 'connected' ? ` seit ${Math.round((this.now() - call.connectedAt) / 1000)} s` : '';
-    return `Anruf ${call.id} an ${call.label}: ${STATE_TEXT[call.state]}${dur}${call.state === 'ended' && call.endReason ? ` (${call.endReason})` : ''}`;
+    const sec = call.connectedAt && call.state === 'connected' ? Math.round((this.now() - call.connectedAt) / 1000) : undefined;
+    const dur = sec === undefined ? '' : ` seit ${sec} s, noch höchstens ${Math.max(0, call.params.maxSeconds - sec)} s`;
+    // Lage im Moment der Abfrage: Was zwischen den Ereignissen gilt (wer spricht, Stille, Verabschiedung), steht in keinem Ereignis
+    const now = sec === undefined ? '' : oneLine(call.control?.situation?.() ?? '');
+    return `Anruf ${call.id} an ${call.label}: ${STATE_TEXT[call.state]}${dur}${call.state === 'ended' && call.endReason ? ` (${call.endReason})` : ''}${now ? `
+Lage jetzt: ${now}` : ''}`;
   }
 
   private eventLine(e: AgentEvent): string {
@@ -511,6 +517,17 @@ export class McpGateway {
     // Rückfragen meldet question(); die Zeile im Transkript wäre dasselbe noch einmal
     if (entry.speaker === 'system' && entry.text.startsWith('Rückfrage an den Agenten:')) return;
     this.push(call, entry.speaker === 'ki' ? 'assistant' : entry.speaker === 'partner' ? 'partner' : 'note', entry.text.trim());
+  }
+
+  /**
+   * Der Gesprächsplan der Sprach-KI ist fertig. Der Agent bekommt die Schritte nur, wenn er das Ziel beim Namen kennt:
+   * Der Plan kann den Kontaktnamen nennen, den ein Agent ohne Freigabe der Kontakte nicht erfahren soll.
+   */
+  plan(steps: string[]): void {
+    const call = this.onLine;
+    if (!call || !steps.length) return;
+    if (call.contactName && call.label !== call.contactName) return;
+    this.push(call, 'note', `Gesprächsplan der KI: ${steps.map((s, i) => `${i + 1}. ${s}`).join(' ')}`);
   }
 
   /** Die Sprach-KI fragt beim Agenten nach. */
