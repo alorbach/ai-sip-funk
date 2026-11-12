@@ -45,6 +45,9 @@ test('Inhabernummer: Vorstellung als Agent ohne KI-Erklärung', () => {
   assert.match(text, /Hi Max, Salve hier/);
   assert.doesNotMatch(text, /Verschweige nie, dass du eine KI bist, auch nicht auf Nachfrage/);
   assert.match(greetingInstruction(input), /Hi Max, Salve hier/);
+  // Verlangt der Auftrag die Vorstellung als KI ausdrücklich (Testanruf über einen Agenten), geht er vor
+  assert.match(text, /verlangt dein Auftrag ausdrücklich, dass du dich als KI vorstellst, tust du es in der Begrüßung trotzdem/);
+  assert.match(greetingInstruction(input), /keine KI-Erklärung, außer dein Auftrag verlangt sie ausdrücklich/);
   assert.match(buildInstructions({ ...input, owner: false }), /Verschweige nie/);
 });
 

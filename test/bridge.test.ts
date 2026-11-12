@@ -110,6 +110,42 @@ test('Begrüßung: Meldet sich das Gegenüber zuerst, grüßt die KI nicht von s
   h.bridge.close();
 });
 
+test('Begrüßung: Geräusch vor der Begrüßung – die KI begrüßt, sobald feststeht, dass nichts gesagt wurde', (t) => {
+  const h = setup(t, { greetingWaitMs: 2000 });
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u1' });
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u1' });
+  h.tick(500);
+  assert.deepEqual(h.creates(), []);
+  h.server({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'u1', transcript: '' });
+  assert.deepEqual(h.creates(), ['GRUSS']);
+  h.say('r0', 'i0', 400, 'Guten Tag');
+  h.tick(10_000);
+  assert.deepEqual(h.creates(), ['GRUSS'], 'nur einmal');
+  h.bridge.close();
+});
+
+test('Begrüßung: Meldung des Gegenübers ohne Antwort der KI – die KI begrüßt nach kurzer Frist selbst', (t) => {
+  const h = setup(t, { greetingWaitMs: 2000 });
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u1' });
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u1' });
+  h.tick(1900);
+  assert.deepEqual(h.creates(), []);
+  h.tick(100);
+  assert.deepEqual(h.creates(), ['GRUSS']);
+  h.bridge.close();
+});
+
+test('Begrüßung: Antwortet die KI auf die Meldung des Gegenübers, kommt keine zweite Begrüßung', (t) => {
+  const h = setup(t, { greetingWaitMs: 2000 });
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u1' });
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u1' });
+  h.say('r0', 'i0', 400, 'Guten Tag');
+  h.server({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'u1', transcript: '' });
+  h.tick(10_000);
+  assert.deepEqual(h.creates(), []);
+  h.bridge.close();
+});
+
 test('Stillstandswächter: stößt nach Stille an, höchstens zweimal, nicht solange das Gegenüber spricht', (t) => {
   const h = setup(t, { stallMs: 3000 });
   greeted(h);

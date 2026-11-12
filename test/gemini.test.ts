@@ -154,6 +154,22 @@ test('Gemini: Geräusch ohne Transkription gilt nach zwei Sekunden als Geräusch
   h.bridge.close();
 });
 
+test('Gemini: Geräusch gleich nach dem Abheben – die KI begrüßt trotzdem von sich aus', (t) => {
+  const h = setup(t, { greetingWaitMs: 2500 });
+  h.start();
+  h.tick(1400);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.tick(1999);
+  assert.deepEqual(h.regie(), [], 'noch offen, ob etwas gesagt wurde');
+  h.tick(1);
+  assert.deepEqual(h.regie().map((r) => r.go), [true]);
+  assert.ok(h.regie()[0].text.includes('GRUSS'));
+  h.say(400, 'Guten Tag');
+  h.tick(10_000);
+  assert.equal(h.regie().length, 1, 'nur eine Begrüßung');
+  h.bridge.close();
+});
+
 test('Gemini: end_call – Ergebnis und Abschiedsanweisung gehen zusammen als Tool-Antwort, danach wird aufgelegt', (t) => {
   const h = setup(t);
   h.start();

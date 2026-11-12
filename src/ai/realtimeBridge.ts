@@ -99,6 +99,8 @@ const PREBUFFER_MAX_WAIT_MS = 500; // spätestens dann loslegen, auch mit wenige
 const LIMIT_KNEE = 24000;
 // So lange darf die KI nach einer Anforderung oder nach dem Satzende des Gegenübers stumm bleiben
 const AUDIO_WATCHDOG_MS = 5000;
+/** Das Gegenüber gab vor der Begrüßung einen Laut von sich: Entsteht so lange nach dessen Ende keine Antwort, begrüßt die KI doch selbst */
+const OPENING_REPLY_MS = 2000;
 // Stillstandswächter: höchstens so oft hintereinander anstoßen, ohne dass das Gegenüber etwas sagt
 const STALL_MAX_NUDGES = 2;
 /** Unterbrechung prüfen statt sofort verwerfen: erst ab so viel Rest-Audio lohnt das Weitersprechen */
@@ -202,6 +204,10 @@ export class RealtimeBridge implements AudioHandler {
   private ask?: { callId: string; timer: NodeJS.Timeout };
   /** Eine Antwort ist gewünscht (Regieanweisung, beantwortete Rückfrage), aber die KI spricht gerade: nach ihrer Antwort anfordern */
   private pendingRespond = false;
+  /** Das Gegenüber war vor der Begrüßung zu hören, eine Antwort der KI darauf gibt es aber noch nicht */
+  private openingPending = false;
+  private openingTimer?: NodeJS.Timeout;
+  private speechStartedAt = 0;
 
   constructor(private opts: RealtimeBridgeOptions) {
     const config: LiveConfig = {
@@ -223,6 +229,7 @@ export class RealtimeBridge implements AudioHandler {
       ready: () => {
         if (!this.ready) {
           this.ready = true;
+          log.info('Realtime: Sitzung bereit');
           this.maybeGreet();
         }
       },
@@ -338,6 +345,7 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private clearTimers(): void {
+    clearTimeout(this.openingTimer);
     clearTimeout(this.hangupTimer);
     clearTimeout(this.endSafetyTimer);
     clearTimeout(this.farewellDecisionTimer);
@@ -430,6 +438,9 @@ export class RealtimeBridge implements AudioHandler {
 
   private onResponseStarted(id?: string): void {
     this.activeResponse = true;
+    // Die KI antwortet auf die Meldung des Gegenübers: Das ist die Begrüßung
+    this.openingPending = false;
+    clearTimeout(this.openingTimer);
     clearTimeout(this.stallTimer);
     this.stallTimer = undefined;
     this.responseFirstItem = undefined;
@@ -485,6 +496,11 @@ export class RealtimeBridge implements AudioHandler {
 
   private onPartnerText(itemId: string | undefined, text: string): void {
     if (text) this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
+    else {
+      log.info(`Realtime: Äußerung ${itemId ?? '?'} ohne Text (Geräusch)`);
+      // Vor der Begrüßung war es nur ein Geräusch (Abheben, Rascheln): Darauf antwortet kein Modell von selbst
+      this.lateGreeting('Geräusch statt Meldung');
+    }
     // Nur die Äußerung zählt, die die Prüfung ausgelöst hat – nicht die verspätete Transkription des Satzes davor
     const fits = (expected?: string) => !expected || !itemId || expected === itemId;
     if (this.farewellDecisionTimer) {
@@ -503,6 +519,8 @@ export class RealtimeBridge implements AudioHandler {
 
   private onSpeechStarted(itemId?: string): void {
     this.partnerSpeaking = true;
+    this.speechStartedAt = Date.now();
+    clearTimeout(this.openingTimer);
     // Das Gegenüber redet: Die Antwort darauf entsteht von selbst und kennt die Regieanweisung schon
     this.pendingRespond = false;
     this.muteNoiseResponse = false;
@@ -517,6 +535,7 @@ export class RealtimeBridge implements AudioHandler {
     this.onSpeechAfterGoodbye(itemId);
     if (!this.greeted) {
       this.greeted = true; // Gegenüber hat sich gemeldet, die Antwort des Modells darauf übernimmt die Begrüßung
+      this.openingPending = true; // … bleibt sie aus, holt lateGreeting die Begrüßung nach
       log.info('Realtime: Gegenüber spricht zuerst, KI antwortet darauf');
     }
     // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
@@ -546,6 +565,13 @@ export class RealtimeBridge implements AudioHandler {
 
   private onSpeechStopped(): void {
     this.partnerSpeaking = false;
+    if (this.speechStartedAt) log.info(`Realtime: Gegenüber war ${Date.now() - this.speechStartedAt} ms zu hören`);
+    this.speechStartedAt = 0;
+    if (this.openingPending) {
+      clearTimeout(this.openingTimer);
+      this.openingTimer = setTimeout(() => this.lateGreeting(`${OPENING_REPLY_MS} ms keine Antwort der KI`), OPENING_REPLY_MS);
+      this.openingTimer.unref();
+    }
     if (this.hold) {
       // Die Transkription kommt kurz nach dem Satzende; bleibt sie aus, gilt das Gesagte als Inhalt
       clearTimeout(this.hold.timer);
@@ -691,10 +717,29 @@ export class RealtimeBridge implements AudioHandler {
     return true;
   }
 
+  /**
+   * Das Gegenüber war vor der Begrüßung zu hören, aber die KI hat darauf nicht geantwortet (ein Geräusch beim Abheben,
+   * ein verschlucktes „Hallo"): Die Begrüßung nachholen, statt zu warten, bis das Gegenüber „Hallo? Hallo?" sagt.
+   */
+  private lateGreeting(why: string): void {
+    if (!this.openingPending) return;
+    clearTimeout(this.openingTimer);
+    // Das Gegenüber redet wieder: Dessen Satzende stellt die Frist neu
+    if (this.partnerSpeaking) return;
+    this.openingPending = false;
+    if (this.closed || this.activeResponse || this.endRequested !== undefined || this.goodbye !== 'none' || this.ask) return;
+    log.info(`Realtime: ${why} – KI begrüßt von sich aus`);
+    this.greet();
+  }
+
   private maybeGreet(): void {
     if (this.closed || this.greeted || !this.ready || !this.connected) return;
     this.greeted = true;
     log.info('Realtime: Gegenüber schweigt, KI begrüßt von sich aus');
+    this.greet();
+  }
+
+  private greet(): void {
     this.greetingResponse = true;
     this.live.respond(this.opts.greetingInstruction);
     this.audioExpected(true, 'Begrüßungsanforderung');
