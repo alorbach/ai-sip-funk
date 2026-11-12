@@ -558,6 +558,21 @@ export function saveSettings(input: Record<string, unknown>, internal: Partial<F
   return merged;
 }
 
+/**
+ * Nur den Port festhalten (SIPFunk ist beim Start auf einen freien Port ausgewichen). Anders als saveSettings schreibt das
+ * keine anderen Werte fest: Was bisher aus der .env kam, kommt weiter von dort. Eine nicht lesbare settings.json bleibt
+ * unangetastet; dann liefert false, und der Port gilt nur für diesen Lauf.
+ */
+export function saveWebPort(port: number): boolean {
+  let data: Record<string, unknown> = {};
+  if (existsSync(SETTINGS_FILE)) {
+    if (settingsBroken()) return false;
+    data = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8').replace(/^\uFEFF/, '')) as Record<string, unknown>;
+  }
+  writeFileAtomic(SETTINGS_FILE, JSON.stringify({ ...data, webPort: String(port) }, null, 2) + '\n');
+  return true;
+}
+
 /** true, wenn es eine settings.json gibt, sie sich aber nicht lesen lässt (dann gelten die Vorgaben aus der .env). */
 export function settingsBroken(): boolean {
   if (!existsSync(SETTINGS_FILE)) return false;

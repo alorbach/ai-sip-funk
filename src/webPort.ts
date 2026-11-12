@@ -77,9 +77,10 @@ export function readPortFile(dataDir: string): number | undefined {
 /**
  * Adresse der laufenden App für den stdio-MCP-Server: ausdrücklich gesetzte SIPFUNK_URL, sonst der Port aus der
  * Datei im Datenordner (SIPFUNK_DATA_DIR; folgt damit jeder Portänderung), sonst WEB_PORT bzw. der Standard.
+ * Ohne SIPFUNK_DATA_DIR gilt der aktuelle Ordner: Aus dem Projektordner gestartet (npm run mcp) ist er der Datenordner.
  */
-export function appBaseUrl(env: Record<string, string | undefined>): string {
+export function appBaseUrl(env: Record<string, string | undefined>, cwd = process.cwd()): string {
   if (env.SIPFUNK_URL?.trim()) return env.SIPFUNK_URL.trim().replace(/\/+$/, '');
-  const fromFile = env.SIPFUNK_DATA_DIR?.trim() ? readPortFile(env.SIPFUNK_DATA_DIR.trim()) : undefined;
+  const fromFile = readPortFile(env.SIPFUNK_DATA_DIR?.trim() || cwd);
   return `http://127.0.0.1:${fromFile ?? parsePort(env.WEB_PORT) ?? DEFAULT_WEB_PORT}`;
 }

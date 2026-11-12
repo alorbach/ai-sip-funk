@@ -614,10 +614,10 @@ Under "Agenten verbinden" (connecting agents) the card "MCP-Schnittstelle" lists
 What applies:
 
 - **Nothing is written without your click.** When the card opens, SIPFunk only reads the files to show the state.
-- **Other entries stay.** SIPFunk adds, replaces or removes only the entry "sipfunk". Indentation, line endings and the order of the file are kept; in JSON files only the notation of individual values can change (for example a one-line list becomes multi-line). In Codex's `config.toml` everything outside the section `[mcp_servers.sipfunk]` stays character for character.
+- **Other entries stay.** SIPFunk adds, replaces or removes only the entry "sipfunk". Indentation, line endings and the order of the file are kept; in JSON files only the notation of individual values can change (for example a one-line list becomes multi-line). In Codex's `config.toml` everything outside the section `[mcp_servers.sipfunk]` stays, including comments and blank lines. The entry "sipfunk" itself is always replaced as a whole; anything you added inside it is afterwards only in the backup copy.
 - **Backup copy.** Before every change SIPFunk puts a time-stamped copy next to the file (`….sipfunk-YYYY-MM-DDThh-mm-ss.bak`); the message after the click names the path. SIPFunk does not clean these copies up.
-- **Claude Code** manages its file itself and rewrites it all the time. SIPFunk therefore does not change it directly but calls the command `claude mcp add` or `claude mcp remove` (for all projects, `--scope user`). If SIPFunk cannot find the command, the message says so; then copy the command under "Von Hand eintragen" and run it in a terminal.
-- **After a port change** the agents with an HTTP entry show "Veraltet"; "Aktualisieren" writes the new address. The Claude Desktop entry stays valid, because its process finds the port itself.
+- **Claude Code** manages its file itself and rewrites it all the time. SIPFunk therefore does not change it directly but calls the command `claude mcp add` or `claude mcp remove` (for all projects, `--scope user`). If SIPFunk cannot find the command, the message says so; then copy the command under "Von Hand eintragen" and run it in a terminal. If you registered SIPFunk earlier without `--scope user` in a single project, that entry takes precedence there; the card points it out when it has a different address, and you remove it with `claude mcp remove sipfunk` in the project folder.
+- **After a port change** the agents with an HTTP entry show "Veraltet"; "Aktualisieren" writes the new address. The stored port counts: if it is stored but SIPFunk has not restarted yet, a note above the list says so, and the entries only work after the restart. The Claude Desktop entry stays valid, because its process finds the port itself.
 - So far only the Claude Code command has been checked against a real installation. The other formats and paths follow the vendors' documentation (as of November 2026); if a vendor changes them, "Von Hand eintragen" helps.
 
 #### Entering by hand
@@ -665,9 +665,9 @@ claude mcp add --transport http --scope user sipfunk http://127.0.0.1:3865/mcp
 { "mcpServers": { "sipfunk": { "url": "http://127.0.0.1:3865/mcp" } } }
 ```
 
-**VS Code (Copilot)** – in a terminal: `code --add-mcp "{\"name\":\"sipfunk\",\"type\":\"http\",\"url\":\"http://127.0.0.1:3865/mcp\"}"`. **Gemini CLI** – `gemini mcp add -t http -s user sipfunk http://127.0.0.1:3865/mcp`. Other agents: enter the address as an MCP server of type "Streamable HTTP", without sign-in.
+**VS Code (Copilot)** – run the command "MCP: Open User Configuration" and add under `servers`: `"sipfunk": { "type": "http", "url": "http://127.0.0.1:3865/mcp" }`. **Gemini CLI** – `gemini mcp add -t http -s user sipfunk http://127.0.0.1:3865/mcp`. Other agents: enter the address as an MCP server of type "Streamable HTTP", without sign-in.
 
-From the project folder (development) the command for the stdio process is `npx tsx /path/to/sipfunk/src/mcp/server.ts`, or `npm run mcp` for short. If you start the process without `SIPFUNK_DATA_DIR`, give the address of the web UI in `SIPFUNK_URL` (e.g. `http://127.0.0.1:3865`); a set `SIPFUNK_URL` always takes precedence. Entries from earlier versions with `SIPFUNK_URL` keep working but do not follow a port change.
+From the project folder (development) the command for the stdio process is `npx tsx /path/to/sipfunk/src/mcp/server.ts`, or `npm run mcp` for short. Without `SIPFUNK_DATA_DIR` the process looks for the file `sipfunk.port` in the current folder (in the project folder that is the data folder); if you start it elsewhere, give the address of the web UI in `SIPFUNK_URL` (e.g. `http://127.0.0.1:3865`); a set `SIPFUNK_URL` always takes precedence. Entries from earlier versions with `SIPFUNK_URL` keep working but do not follow a port change.
 
 After connecting, the agent shows SIPFunk's tools. As long as the interface is switched off, SIPFunk answers every call with a note saying where you switch it on.
 

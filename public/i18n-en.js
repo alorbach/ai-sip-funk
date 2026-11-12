@@ -670,7 +670,6 @@
     'SIPFunk antwortet auf Port {0} nicht. Bitte im Tray-Menü „Web-UI öffnen“ wählen.': 'SIPFunk does not answer on port {0}. Please choose "Open web UI" in the tray menu.',
     'Port {0} war beim Start belegt. SIPFunk läuft jetzt dauerhaft auf Port {1}. Eingetragene KI-Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.': 'Port {0} was in use at start. SIPFunk now runs permanently on port {1}. Please update registered AI agents under "Settings › MCP interface".',
     'In die Datei ~/.cursor/mcp.json eintragen (unter Windows im Benutzerordner). Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.': 'Add to the file ~/.cursor/mcp.json (on Windows in your user folder). If "mcpServers" already exists there, add only the "sipfunk" entry.',
-    'Im Terminal ausführen; VS Code trägt den Server in das Benutzerprofil ein.': 'Run in a terminal; VS Code adds the server to the user profile.',
     'Im Terminal ausführen.': 'Run in a terminal.',
     'In die Datei ~/.gemini/settings.json eintragen. Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.': 'Add to the file ~/.gemini/settings.json. If "mcpServers" already exists there, add only the "sipfunk" entry.',
     'Diese Adresse beim Agenten als MCP-Server vom Typ „Streamable HTTP“ eintragen; eine Anmeldung ist nicht nötig. Wie das geht, steht in der Anleitung des Agenten.': 'Enter this address in the agent as an MCP server of type "Streamable HTTP"; no sign-in is needed. The agent\'s documentation explains how.',
@@ -701,6 +700,11 @@
     'Claude Code lässt sich von hier nicht aufrufen.': 'Claude Code cannot be called from here.',
     'Der Befehl „claude“ wurde nicht gefunden. Bitte den Befehl unten kopieren und im Terminal ausführen.': 'The command "claude" was not found. Please copy the command below and run it in a terminal.',
     'Ohne die Tray-App lässt sich SIPFunk nicht von hier neu starten – bitte von Hand beenden und wieder starten.': 'Without the tray app SIPFunk cannot be restarted from here – please quit and start it by hand.',
+    'Der Port muss eine Zahl von 1024 bis 65535 sein.': 'The port must be a number from 1024 to 65535.',
+    'Die Datei ist nicht in UTF-8 gespeichert – bitte den Eintrag von Hand ergänzen.': 'The file is not stored as UTF-8 – please add the entry by hand.',
+    'In mindestens einem Projekt gibt es einen eigenen Eintrag „sipfunk“ mit anderer Adresse; er hat dort Vorrang. Im Ordner des Projekts mit „claude mcp remove sipfunk“ entfernen.': 'At least one project has its own entry "sipfunk" with a different address; it takes precedence there. Remove it with "claude mcp remove sipfunk" in the project folder.',
+    'In VS Code den Befehl „MCP: Open User Configuration“ ausführen und dort eintragen. Gibt es schon „servers“, nur den Eintrag „sipfunk“ ergänzen.': 'In VS Code run the command "MCP: Open User Configuration" and add it there. If "servers" already exists, add only the "sipfunk" entry.',
+    'Der Eintrag gilt für Port {0}; erreichbar ist SIPFunk dort erst nach einem Neustart.': 'The entry is for port {0}; SIPFunk can only be reached there after a restart.',
     'Es läuft gerade ein Anruf – bitte danach neu starten.': 'A call is in progress – please restart afterwards.',
   };
 

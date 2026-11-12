@@ -58,27 +58,31 @@ function running() {
   }
 }
 
-/** Port der Web-UI der installierten App: den die laufende App abgelegt hat, sonst aus ihrer .env im Datenordner, sonst der Standard. */
-function webPort() {
+/** Mögliche Ports der Web-UI der installierten App: den die laufende App abgelegt hat, den aus ihrer .env, dann die Standardports (neu und bis 1.0.1). */
+function webPorts() {
+  const ports = [];
   try {
     const m = /^(\d{4,5})\s*$/.exec(readFileSync(join(process.env.APPDATA || '', product, 'sipfunk.port'), 'utf8'));
-    if (m) return m[1];
-  } catch { /* App lief noch nie mit dieser Fassung */ }
+    if (m) ports.push(m[1]);
+  } catch { /* App läuft nicht oder ist älter */ }
   try {
     const m = /^\s*WEB_PORT\s*=\s*(\d+)/m.exec(readFileSync(join(process.env.APPDATA || '', product, '.env'), 'utf8'));
-    if (m) return m[1];
-  } catch { /* keine .env: Standard */ }
-  return '3865';
+    if (m) ports.push(m[1]);
+  } catch { /* keine .env */ }
+  return [...new Set([...ports, '3865', '8080'])];
 }
 
 /** Zustand der laufenden App über die lokale Web-UI; null, wenn nichts antwortet. */
 async function phase() {
-  try {
-    const res = await fetch(`http://127.0.0.1:${webPort()}/api/status`, { signal: AbortSignal.timeout(2000) });
-    return (await res.json()).status?.phase ?? '';
-  } catch {
-    return null;
+  for (const port of webPorts()) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/status`, { signal: AbortSignal.timeout(2000) });
+      const phase = (await res.json()).status?.phase;
+      // Nur eine Antwort mit Zustand stammt von SIPFunk (auf dem Port könnte ein anderes Programm laufen)
+      if (typeof phase === 'string') return phase;
+    } catch { /* nächster Port */ }
   }
+  return null;
 }
 
 function setupHooks(off) {

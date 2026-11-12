@@ -118,7 +118,7 @@ Was nicht schiefgehen darf, entscheidet der Code, nicht das Modell:
 
 ## Daten
 
-Alles liegt als Dateien im Datenordner (Projektordner oder `SIPFUNK_DATA_DIR`): `.env`, `settings.json`, `contacts.json`, `transcripts/` (JSON und Markdown je Gespräch), `mail-token.json`, `usage.json` (Monatsverbrauch je KI-Anbieter, 13 Monate), `voice-samples/`. Es gibt keine Datenbank. Protokolle werden beim Start und danach regelmäßig nach der Aufbewahrungsfrist gelöscht. Audio wird nie gespeichert.
+Alles liegt als Dateien im Datenordner (Projektordner oder `SIPFUNK_DATA_DIR`): `.env`, `settings.json`, `contacts.json`, `transcripts/` (JSON und Markdown je Gespräch), `mail-token.json`, `sipfunk.port`, `usage.json` (Monatsverbrauch je KI-Anbieter, 13 Monate), `voice-samples/`. Es gibt keine Datenbank. Protokolle werden beim Start und danach regelmäßig nach der Aufbewahrungsfrist gelöscht. Audio wird nie gespeichert.
 
 ## Tray-App
 

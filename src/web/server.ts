@@ -247,6 +247,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
         // Ein anderer Port, der gerade belegt ist: nicht speichern. Sonst wiche SIPFunk beim Neustart aus und die Seite
         // wechselte auf die Adresse eines fremden Programms.
         const newPort = parsePort(input.webPort);
+        if (typeof input.webPort === 'string' && newPort === undefined) return sendJson(res, 400, { error: 'Der Port muss eine Zahl von 1024 bis 65535 sein.' });
         if (newPort && newPort !== opts.port && String(newPort) !== loadSettings().webPort && !(await portFree(newPort))) {
           return sendJson(res, 400, { error: `Port ${newPort} ist gerade von einem anderen Programm belegt – bitte einen anderen wählen.` });
         }

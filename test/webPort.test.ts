@@ -61,8 +61,33 @@ test('Portdatei: der stdio-Prozess findet den Port der laufenden App', () => {
     assert.equal(appBaseUrl({ SIPFUNK_DATA_DIR: dir }), 'http://127.0.0.1:4124');
     writeFileSync(join(dir, PORT_FILE), 'kaputt');
     assert.equal(appBaseUrl({ SIPFUNK_DATA_DIR: dir, WEB_PORT: '9000' }), 'http://127.0.0.1:9000');
-    assert.equal(appBaseUrl({}), `http://127.0.0.1:${DEFAULT_WEB_PORT}`);
+    // Ohne Datenordner: die Portdatei im aktuellen Ordner (npm run mcp im Projektordner), sonst der Standard
+    writePortFile(dir, 4125);
+    assert.equal(appBaseUrl({}, dir), 'http://127.0.0.1:4125');
+    assert.equal(appBaseUrl({}, join(dir, 'gibtsnicht')), `http://127.0.0.1:${DEFAULT_WEB_PORT}`);
   } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Ausweichen beim Start hält nur den Port fest, nicht die übrigen Vorgaben', async () => {
+  const { loadSettings, saveWebPort } = await import('../src/settings.js');
+  const dir = mkdtempSync(join(tmpdir(), 'sipfunk-set-'));
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    assert.equal(saveWebPort(4300), true);
+    assert.deepEqual(JSON.parse(readFileSync('settings.json', 'utf8')), { webPort: '4300' });
+    assert.equal(loadSettings().webPort, '4300');
+    writeFileSync('settings.json', '{"aiName":"Kim","webPort":"4300"}');
+    assert.equal(saveWebPort(4301), true);
+    assert.deepEqual(JSON.parse(readFileSync('settings.json', 'utf8')), { aiName: 'Kim', webPort: '4301' });
+    // Nicht lesbare Datei: nicht überschreiben
+    writeFileSync('settings.json', '{kaputt');
+    assert.equal(saveWebPort(4302), false);
+    assert.equal(readFileSync('settings.json', 'utf8'), '{kaputt');
+  } finally {
+    process.chdir(cwd);
     rmSync(dir, { recursive: true, force: true });
   }
 });

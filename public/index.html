@@ -1474,11 +1474,15 @@ async function portChanged(port) {
   if (!(await ask(I18N.t('Port {0} gespeichert', port), I18N.t('Der neue Port gilt erst nach einem Neustart von SIPFunk. Diese Seite wechselt danach von selbst auf http://127.0.0.1:{0}. Eingetragene KI-Agenten zeigen unter „MCP-Schnittstelle“ an, ob sie aktualisiert werden müssen.', port), I18N.t('Jetzt neu starten')))) return;
   try { await api('/api/restart', {}); } catch (err) { return toast(err.message, 'error'); }
   toast('SIPFunk startet neu …', 'ok');
-  const target = `http://127.0.0.1:${port}/`;
-  // Erst wechseln, wenn unter der neuen Adresse wirklich SIPFunk antwortet (ein fremdes Programm auf dem Port besteht die Abfrage nicht)
+  // Erst wechseln, wenn unter der neuen Adresse wirklich SIPFunk antwortet (ein fremdes Programm auf dem Port besteht die Abfrage nicht).
+  // Hat inzwischen ein anderes Programm den Port belegt, ist SIPFunk auf einen der nächsten ausgewichen: die auch abfragen.
+  const isSipfunk = async (p) => { try { return (await (await fetch(`http://127.0.0.1:${p}/hello`, { cache: 'no-store', signal: AbortSignal.timeout(1500) })).json()).app === 'sipfunk'; } catch { return false; } };
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 750));
-    try { if ((await (await fetch(target + 'hello', { cache: 'no-store' })).json()).app === 'sipfunk') { location.href = target + location.hash; return; } } catch {}
+    // Erst nach ein paar Runden auch die Nachbarn fragen: Der alte Server beendet sich gerade erst
+    for (const p of [Number(port), ...(i >= 6 ? [1, 2, 3, 4, 5].map((n) => Number(port) + n) : [])]) {
+      if (p !== Number(runningPort) && await isSipfunk(p)) { location.href = `http://127.0.0.1:${p}/${location.hash}`; return; }
+    }
   }
   toast(I18N.t('SIPFunk antwortet auf Port {0} nicht. Bitte im Tray-Menü „Web-UI öffnen“ wählen.', port), 'error');
 }
@@ -2111,7 +2115,7 @@ function mcpSnippet() {
   }
   const stdioJson = { command: c.stdio.command, args: c.stdio.args, env: c.stdio.env };
   if (agent === 'cursor') return { text: JSON.stringify({ mcpServers: { sipfunk: http ? { url: c.httpUrl } : stdioJson } }, null, 2), where: 'In die Datei ~/.cursor/mcp.json eintragen (unter Windows im Benutzerordner). Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.' };
-  if (agent === 'vscode') return { text: `code --add-mcp ${shellArg(JSON.stringify(http ? { name: 'sipfunk', type: 'http', url: c.httpUrl } : { name: 'sipfunk', type: 'stdio', ...stdioJson }))}`, where: 'Im Terminal ausführen; VS Code trägt den Server in das Benutzerprofil ein.' };
+  if (agent === 'vscode') return { text: JSON.stringify({ servers: { sipfunk: http ? { type: 'http', url: c.httpUrl } : { type: 'stdio', ...stdioJson } } }, null, 2), where: 'In VS Code den Befehl „MCP: Open User Configuration“ ausführen und dort eintragen. Gibt es schon „servers“, nur den Eintrag „sipfunk“ ergänzen.' };
   if (agent === 'gemini') return { text: http ? `gemini mcp add -t http -s user sipfunk ${c.httpUrl}` : JSON.stringify({ mcpServers: { sipfunk: stdioJson } }, null, 2), where: http ? 'Im Terminal ausführen.' : 'In die Datei ~/.gemini/settings.json eintragen. Gibt es dort schon „mcpServers“, nur den Eintrag „sipfunk“ ergänzen.' };
   if (agent === 'other') return { text: http ? c.httpUrl : JSON.stringify({ mcpServers: { sipfunk: stdioJson } }, null, 2), where: http ? 'Diese Adresse beim Agenten als MCP-Server vom Typ „Streamable HTTP“ eintragen; eine Anmeldung ist nicht nötig. Wie das geht, steht in der Anleitung des Agenten.' : 'Die meisten Agenten erwarten einen Prozess in dieser Form; wo der Eintrag hingehört, steht in der Anleitung des Agenten.' };
   return {
@@ -2157,7 +2161,7 @@ function renderAgents(list) {
   $('mcp-agents').innerHTML = list.map((a) => {
     const [text, cls] = AGENT_STATES[a.state] || [a.state, ''];
     const acts = a.state === 'missing' ? [['install', 'Einrichten', 'primary']] : a.state === 'stale' ? [['install', 'Aktualisieren', 'primary'], ['remove', 'Entfernen', 'quiet']] : a.state === 'ok' ? [['remove', 'Entfernen', 'quiet']] : [];
-    const note = a.state === 'absent' ? I18N.t('Auf diesem Rechner wurde kein Ordner dieses Agenten gefunden.') : a.state === 'unreadable' ? I18N.t(a.detail || '') : a.state === 'stale' ? I18N.t('Der Eintrag passt nicht mehr zur aktuellen Adresse von SIPFunk.') : '';
+    const note = [a.state === 'absent' ? I18N.t('Auf diesem Rechner wurde kein Ordner dieses Agenten gefunden.') : a.state === 'stale' ? I18N.t('Der Eintrag passt nicht mehr zur aktuellen Adresse von SIPFunk.') : '', a.detail ? I18N.t(a.detail) : ''].filter(Boolean).join(' ');
     return `<li><div class="who"><b data-no-i18n>${esc(a.label)}</b> <span class="pill ${cls}">${esc(text)}</span><small data-no-i18n>${esc(note)}${note && a.state !== 'absent' ? ' ' : ''}${a.state === 'absent' ? '' : esc(a.file)}</small></div><div class="acts">${acts.map(([act, label, c]) => `<button type="button" class="btn small ${c}" data-agent="${esc(a.id)}" data-act="${act}">${label}</button>`).join('')}</div></li>`;
   }).join('');
 }
@@ -2169,8 +2173,11 @@ $('mcp-agents').onclick = async (ev) => {
   try {
     const r = await api('/api/mcp/agents', { id: btn.dataset.agent, action: btn.dataset.act });
     renderAgents(r.agents);
+    // Nichts geändert (z. B. schon in einem anderen Fenster erledigt): Die Liste zeigt den Stand
+    if (!r.changed) return;
+    const pending = mcp.connect && mcp.connect.port !== mcp.connect.runningPort && btn.dataset.act === 'install' ? ' ' + I18N.t('Der Eintrag gilt für Port {0}; erreichbar ist SIPFunk dort erst nach einem Neustart.', mcp.connect.port) : '';
     const done = btn.dataset.act === 'install' ? I18N.t('SIPFunk ist bei {0} eingetragen. {1}', r.agent.label, I18N.t(r.agent.restart)) : I18N.t('Der Eintrag bei {0} ist entfernt. {1}', r.agent.label, I18N.t(r.agent.restart));
-    toast(done + (r.backup ? ' ' + I18N.t('Sicherungskopie: {0}', r.backup) : ''), 'ok');
+    toast(done + pending + (r.backup ? ' ' + I18N.t('Sicherungskopie: {0}', r.backup) : ''), 'ok');
   } catch (err) { toast(err.message, 'error'); loadAgents(); }
 };
 /** Kennung der Anfrage, die schon beantwortet ist, und ob die Antwort gerade unterwegs ist (gegen Doppelklicks) */

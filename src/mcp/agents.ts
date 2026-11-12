@@ -2,7 +2,7 @@
 // Grundsätze: nur auf ausdrücklichen Klick schreiben, fremde Einträge nie anfassen, vor jedem Schreiben eine Sicherungskopie.
 // Claude Code verwaltet seine Datei selbst (und schreibt sie laufend neu): Dort trägt der eigene Befehl „claude mcp“ ein,
 // SIPFunk liest die Datei nur. Formate und Pfade laut Doku der Agenten, Stand November 2026.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -121,6 +121,14 @@ function entryMatches(existing: unknown, expected: Entry): boolean {
   return Object.entries(expected).every(([k, v]) => canonical((existing as Entry)[k]) === canonical(v));
 }
 
+/** Datei als Text lesen. Ist sie nicht in UTF-8 gespeichert, gingen beim Zurückschreiben Zeichen fremder Einträge kaputt: dann nicht anfassen. */
+function readText(file: string): string {
+  const raw = readFileSync(file);
+  const text = raw.toString('utf8');
+  if (!Buffer.from(text, 'utf8').equals(raw)) throw new Error('Die Datei ist nicht in UTF-8 gespeichert – bitte den Eintrag von Hand ergänzen.');
+  return text;
+}
+
 // ---- JSON-Dateien (mcpServers.sipfunk) ----
 
 interface JsonDoc {
@@ -133,8 +141,8 @@ interface JsonDoc {
 
 /** Datei lesen; fehlt sie oder ist sie leer, entsteht ein leeres Dokument. Wirft bei Inhalt, der sich nicht verlustfrei schreiben ließe. */
 function readJsonDoc(file: string): JsonDoc {
-  const raw = existsSync(file) ? readFileSync(file, 'utf8') : '';
-  const bom = raw.startsWith('﻿');
+  const raw = existsSync(file) ? readText(file) : '';
+  const bom = raw.startsWith('\uFEFF');
   const text = bom ? raw.slice(1) : raw;
   const doc: JsonDoc = { data: {}, bom, eol: text.includes('\r\n') ? '\r\n' : '\n', indent: /^([ \t]+)"/m.exec(text)?.[1] ?? '  ', finalNewline: text === '' || text.endsWith('\n') };
   if (!text.trim()) return doc;
@@ -154,10 +162,20 @@ function readJsonDoc(file: string): JsonDoc {
 
 function jsonText(doc: JsonDoc): string {
   const text = JSON.stringify(doc.data, null, doc.indent) + (doc.finalNewline ? '\n' : '');
-  return (doc.bom ? '﻿' : '') + (doc.eol === '\n' ? text : text.replace(/\n/g, doc.eol));
+  return (doc.bom ? '\uFEFF' : '') + (doc.eol === '\n' ? text : text.replace(/\n/g, doc.eol));
 }
 
 const jsonEntry = (doc: JsonDoc): unknown => (doc.data.mcpServers as Record<string, unknown> | undefined)?.[SERVER_NAME];
+
+/** Claude Code legt Einträge ohne „--scope user“ je Projektordner ab (projects.<Ordner>.mcpServers). */
+function projectEntriesDiffer(doc: JsonDoc, expected: Entry): boolean {
+  const projects = doc.data.projects;
+  if (!projects || typeof projects !== 'object') return false;
+  return Object.values(projects as Record<string, unknown>).some((p) => {
+    const entry = ((p as Entry | null)?.mcpServers as Entry | undefined)?.[SERVER_NAME];
+    return entry !== undefined && !entryMatches(entry, expected);
+  });
+}
 
 // ---- TOML (Codex): Abschnitt [mcp_servers.sipfunk] samt Unterabschnitten, rein auf Textebene ----
 
@@ -169,8 +187,8 @@ function tomlHeader(line: string): string[] | undefined {
   return parts.map((p) => p.trim().replace(/^(["'])(.*)\1$/, '$2'));
 }
 const isOurs = (h: string[]): boolean => h[0] === 'mcp_servers' && h[1] === SERVER_NAME;
-/** Beginnt hier eine Tabelle? Auch Schreibweisen, die tomlHeader nicht zerlegen kann, beenden den Abschnitt davor. */
-const TOML_TABLE = /^\s*\[/;
+/** Beginnt hier eine Tabelle? Nur ganze Kopfzeilen zählen, keine Zeile einer mehrzeiligen Liste wie „["a"],“. */
+const TOML_TABLE = { test: (line: string): boolean => tomlHeader(line) !== undefined };
 
 /**
  * Zeilen in „unser Abschnitt“ (samt Unterabschnitten) und den Rest teilen. Leerzeilen direkt nach unseren Werten gehören
@@ -230,7 +248,10 @@ function tomlValue(ours: string[], key: string): string | undefined {
 export function tomlRemove(text: string): string {
   const { ours, rest } = tomlSplit(text);
   if (!ours.length) return text;
-  return rest.join(text.includes('\r\n') ? '\r\n' : '\n');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const out = rest.join(eol);
+  // Stand unser Abschnitt am Ende, gehört der Zeilenumbruch der Zeile davor wieder ans Dateiende
+  return out && /\n$/.test(text) && !/\n$/.test(out) ? out + eol : out;
 }
 
 export function tomlSet(text: string, url: string): string {
@@ -255,12 +276,15 @@ function statusOf(def: AgentDef, env: AgentEnv, target: McpTarget): AgentInfo {
   }
   try {
     if (def.kind === 'toml') {
-      const { ours, rest } = tomlSplit(readFileSync(file, 'utf8'));
+      const { ours, rest } = tomlSplit(readText(file));
       if (tomlUnsupported(rest)) throw new Error('„mcp_servers“ steht dort in einer Schreibweise, die SIPFunk nicht sicher ändern kann – bitte den Eintrag von Hand pflegen.');
       if (ours.length) info.state = tomlValue(ours, 'url') === target.httpUrl ? 'ok' : 'stale';
     } else {
-      const entry = jsonEntry(readJsonDoc(file));
+      const doc = readJsonDoc(file);
+      const entry = jsonEntry(doc);
       if (entry !== undefined) info.state = entryMatches(entry, def.entry(target)) ? 'ok' : 'stale';
+      // Claude Code: Ein Eintrag in einem einzelnen Projekt hat dort Vorrang vor dem für alle Projekte
+      if (def.kind === 'claude-cli' && projectEntriesDiffer(doc, def.entry(target))) info.detail = 'In mindestens einem Projekt gibt es einen eigenen Eintrag „sipfunk“ mit anderer Adresse; er hat dort Vorrang. Im Ordner des Projekts mit „claude mcp remove sipfunk“ entfernen.';
     }
   } catch (err) {
     info.state = 'unreadable';
@@ -288,7 +312,8 @@ function backup(file: string, now: Date): string | undefined {
 function write(file: string, text: string, now: Date): string | undefined {
   mkdirSync(dirname(file), { recursive: true });
   const copy = backup(file, now);
-  writeFileAtomic(file, text);
+  // Ist die Datei eine Verknüpfung (z. B. in einen Ordner mit eigenen Einstellungen), das Ziel ändern statt sie zu ersetzen
+  writeFileAtomic(existsSync(file) ? realpathSync(file) : file, text);
   return copy;
 }
 
@@ -310,7 +335,8 @@ async function runClaude(env: AgentEnv, args: string[]): Promise<{ code: number;
 
 /** Gibt es den Befehl überhaupt? Vor der Sicherungskopie prüfen, damit ein fehlendes Programm keine Kopien hinterlässt. */
 async function findClaude(env: AgentEnv): Promise<void> {
-  await runClaude(env, ['--version']);
+  // Ein Fehlercode heißt hier: Das Programm gibt es nicht (die Shell meldet das je nach Sprache von Windows anders)
+  if ((await runClaude(env, ['--version'])).code !== 0) throw new Error('Der Befehl „claude“ wurde nicht gefunden. Bitte den Befehl unten kopieren und im Terminal ausführen.');
 }
 
 /** Eintrag anlegen oder auf den aktuellen Stand bringen. */
@@ -332,7 +358,7 @@ export async function installAgent(id: string, env: AgentEnv, target: McpTarget,
     const r = await runClaude(env, ['mcp', 'add', '--transport', 'http', '--scope', 'user', SERVER_NAME, target.httpUrl]);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
-    copy = write(file, tomlSet(existsSync(file) ? readFileSync(file, 'utf8') : '', target.httpUrl), now);
+    copy = write(file, tomlSet(existsSync(file) ? readText(file) : '', target.httpUrl), now);
   } else {
     const doc = readJsonDoc(file);
     doc.data.mcpServers = { ...(doc.data.mcpServers as Record<string, unknown> | undefined), [SERVER_NAME]: def.entry(target) };
@@ -356,7 +382,7 @@ export async function removeAgent(id: string, env: AgentEnv, target: McpTarget, 
     const r = await runClaude(env, ['mcp', 'remove', '--scope', 'user', SERVER_NAME]);
     if (r.code !== 0) throw new Error(`Claude Code meldet einen Fehler: ${r.output.trim().slice(0, 300) || `Code ${r.code}`}`);
   } else if (def.kind === 'toml') {
-    copy = write(file, tomlRemove(readFileSync(file, 'utf8')), now);
+    copy = write(file, tomlRemove(readText(file)), now);
   } else {
     const doc = readJsonDoc(file);
     const servers = { ...(doc.data.mcpServers as Record<string, unknown>) };
@@ -372,7 +398,9 @@ export function runCommand(command: string, args: string[], cwd = homedir()): Pr
   return new Promise((resolve, reject) => {
     if (args.some((a) => !/^[\w.:/-]+$/.test(a))) return reject(new Error('Unzulässiges Argument'));
     // Im Benutzerordner starten: Die Windows-Shell sucht ein Programm zuerst im aktuellen Ordner, und das wäre sonst der Datenordner
-    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // Unter Windows als eine Befehlszeile (Node warnt sonst bei Shell plus Argumentliste); die Argumente sind oben geprüft
+    const opts = { cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'] };
+    const child = process.platform === 'win32' ? spawn([command, ...args].join(' '), { ...opts, shell: true }) : spawn(command, args, opts);
     let output = '';
     const timer = setTimeout(() => child.kill(), 20_000);
     child.stdout.on('data', (d) => { output += String(d); });

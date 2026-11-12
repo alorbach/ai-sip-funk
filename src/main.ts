@@ -18,7 +18,7 @@ import { McpGateway, type AgentCallControl } from './mcp/gateway.js';
 import { handleMcpHttp } from './mcp/http.js';
 import { agentStatus, installAgent, removeAgent, userAgentEnv, type McpTarget } from './mcp/agents.js';
 import { existsSync } from 'node:fs';
-import { mcpPolicyFrom, incomingFrom, incomingOverride, loadSettings, saveSettings, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
+import { mcpPolicyFrom, incomingFrom, incomingOverride, loadSettings, saveSettings, saveWebPort, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
 import { localVerdict, lookupTellows, withTellows, type SpamVerdict } from './spamCheck.js';
@@ -60,8 +60,8 @@ if (parsePort(process.env.WEB_PORT) && parsePort(process.env.WEB_PORT) !== wante
 /** Gesetzt, wenn beim Start ausgewichen wurde: der Port, der belegt war */
 const webPortMovedFrom = webPortChoice.moved ? wantedWebPort : undefined;
 if (webPortChoice.moved) {
-  saveSettings({ webPort: String(webPortChoice.port) });
-  log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ab jetzt Port ${webPortChoice.port} (gespeichert). Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
+  const kept = saveWebPort(webPortChoice.port);
+  log.warn(`Web-UI: Port ${wantedWebPort} ist belegt – SIPFunk nutzt ${kept ? 'ab jetzt' : 'für diesen Lauf'} Port ${webPortChoice.port}${kept ? ' (gespeichert)' : ' (nicht gespeichert: settings.json ist nicht lesbar)'}. Eingetragene Agenten bitte unter „Einstellungen › MCP-Schnittstelle“ aktualisieren.`);
 }
 const personas = loadPersonas(join(projectRoot, 'personas'));
 const bus = new EventEmitter();

@@ -167,6 +167,10 @@ test('TOML: alter Eintrag als Prozess mit Unterabschnitt mitten in der Datei, CR
   const commented = '[mcp_servers.sipfunk]\nurl = "alt"\n# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n';
   assert.equal(tomlRemove(commented), '# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n');
   assert.equal(tomlSet(commented, 'http://neu/mcp'), '# eigene Notiz\n\n# GitHub\n[mcp_servers.github]\nurl = "g"\n\n[mcp_servers.sipfunk]\nurl = "http://neu/mcp"\ntool_timeout_sec = 120\n');
+  // Unser Abschnitt am Ende, ohne Leerzeile davor: Die Zeile davor behält ihren Zeilenumbruch
+  assert.equal(tomlRemove('a = 1\n[mcp_servers.sipfunk]\nurl = "x"\n'), 'a = 1\n');
+  // Eine Zeile einer mehrzeiligen Liste ist kein Tabellenkopf
+  assert.equal(tomlRemove('[mcp_servers.sipfunk]\nargs = [\n  ["a"],\n  "b",\n]\n\n[x]\ny = 1\n'), '[x]\ny = 1\n');
   // Der Rest bleibt Zeichen für Zeichen: mehrere Leerzeilen und mehrzeilige Texte in anderen Abschnitten
   const rich = 'a = 1\n\n\n\n[profiles.x]\ninstructions = """\nzeile1\n\n\nzeile2\n"""\n\n\n[[liste]]\nn = 1\n';
   const withOurs = tomlSet(rich, 'http://x/mcp');
@@ -198,6 +202,8 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     // Ohne Befehl: klare Meldung, nichts geschrieben
     await assert.rejects(installAgent('claude-code', s.env, T1, NOW), /nicht aufrufen/);
     await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => { throw new Error('ENOENT'); } }, T1, NOW), /nicht gefunden/);
+    // Deutsches Windows: Die Shell meldet das fehlende Programm mit Code 1 und eigenem Text
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: 'Der Befehl "claude" ist entweder falsch geschrieben oder konnte nicht gefunden werden.' }) }, T1, NOW), /nicht gefunden/);
     assert.equal(readFileSync(file, 'utf8'), original);
     assert.equal(backups(file).length, 0);
     // Mit Befehl: erst den alten Eintrag entfernen, dann neu anlegen; das Schreiben erledigt Claude Code selbst
@@ -218,7 +224,31 @@ test('Claude Code: SIPFunk liest die Datei nur und trägt über den Befehl „cl
     assert.notEqual(rm.backup, r.backup);
     assert.equal(readFileSync(r.backup!, 'utf8'), original);
     assert.equal(backups(file).length, 2);
-    await assert.rejects(installAgent('claude-code', { ...s.env, run: async () => ({ code: 1, output: 'kaputt' }) }, T1, NOW), /kaputt/);
+    await assert.rejects(installAgent('claude-code', { ...s.env, run: async (_c, args) => (args[0] === '--version' ? { code: 0, output: '1.0' } : { code: 1, output: 'kaputt' }) }, T1, NOW), /kaputt/);
+    // Eintrag nur in einem Projekt (früher ohne --scope user angelegt) mit alter Adresse: Hinweis, denn er hat dort Vorrang
+    put(file, JSON.stringify({ mcpServers: { sipfunk: { type: 'http', url: T1.httpUrl } }, projects: { 'C:/x': { mcpServers: { sipfunk: { type: 'http', url: 'http://127.0.0.1:8080/mcp' } } }, 'C:/y': {} } }));
+    const mixed = agentStatus(s.env, T1).find((a) => a.id === 'claude-code')!;
+    assert.equal(mixed.state, 'ok');
+    assert.match(mixed.detail ?? '', /Projekt/);
+    assert.equal(agentStatus(s.env, { ...T1, httpUrl: 'http://127.0.0.1:8080/mcp' }).find((a) => a.id === 'claude-code')!.state, 'stale');
+  } finally { s.done(); }
+});
+
+test('Datei nicht in UTF-8: nicht anfassen, damit Umlaute fremder Einträge nicht kaputtgehen', async () => {
+  const s = sandbox();
+  try {
+    const json = join(s.home, '.cursor', 'mcp.json'), toml = join(s.home, '.codex', 'config.toml');
+    mkdirSync(dirname(json), { recursive: true }); mkdirSync(dirname(toml), { recursive: true });
+    const latin1 = (text: string) => Buffer.from(text, 'latin1');
+    writeFileSync(json, latin1('{"mcpServers":{"büro":{"url":"https://example.org/mcp"}}}'));
+    writeFileSync(toml, latin1('# Büro\nmodel = "x"\n'));
+    for (const [id, file] of [['cursor', json], ['codex', toml]] as const) {
+      const before = readFileSync(file);
+      assert.equal(state(s.env, id), 'unreadable');
+      await assert.rejects(installAgent(id, s.env, T1, NOW), /UTF-8/);
+      assert.ok(readFileSync(file).equals(before));
+      assert.equal(backups(file).length, 0);
+    }
   } finally { s.done(); }
 });
 

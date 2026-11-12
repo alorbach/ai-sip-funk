@@ -118,7 +118,7 @@ What must not go wrong is decided by the code, not by the model:
 
 ## Data
 
-Everything is stored as files in the data folder (project folder or `SIPFUNK_DATA_DIR`): `.env`, `settings.json`, `contacts.json`, `transcripts/` (JSON and Markdown per call), `mail-token.json`, `usage.json` (monthly usage per AI provider, kept for 13 months), `voice-samples/`. There is no database. Logs are deleted at start and periodically afterwards according to the retention period. Audio is never stored.
+Everything is stored as files in the data folder (project folder or `SIPFUNK_DATA_DIR`): `.env`, `settings.json`, `contacts.json`, `transcripts/` (JSON and Markdown per call), `mail-token.json`, `sipfunk.port`, `usage.json` (monthly usage per AI provider, kept for 13 months), `voice-samples/`. There is no database. Logs are deleted at start and periodically afterwards according to the retention period. Audio is never stored.
 
 ## Tray app
 
