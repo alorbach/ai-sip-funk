@@ -129,6 +129,12 @@ export interface FormSettings {
   mailSubject: string;
   /** Text-Vorlage der Benachrichtigungs-Mail; leer = Standard */
   mailBody: string;
+  /** Kontakt-Import: eigener OAuth-Client bei Google (Typ „Desktop-App“) und Microsoft (öffentlicher Client); Geheimnisse liefert nie das Projekt */
+  importGoogleClientId: string;
+  importGoogleClientSecret: string;
+  importMsClientId: string;
+  /** Microsoft-Mandant für den Kontakt-Import, Standard 'common' (private und Firmenkonten) */
+  importMsTenant: string;
   /** Port der Web-UI und der MCP-Schnittstelle auf 127.0.0.1 (1024–65535); wirkt nach einem Neustart. .env (WEB_PORT) liefert die Basis */
   webPort: string;
   // ---- MCP-Schnittstelle für KI-Agenten (Seite „Einstellungen › MCP-Schnittstelle"); bewusst ohne Schalter in der .env ----
@@ -185,7 +191,7 @@ export function mcpPolicyFrom(s: FormSettings): McpPolicy {
 }
 
 /** Felder, die die API nur maskiert zurückgibt; kommt die Maske zurück, bleibt der gespeicherte Wert. */
-export const SECRET_KEYS: (keyof FormSettings)[] = ['smtpPass', 'mailClientSecret'];
+export const SECRET_KEYS: (keyof FormSettings)[] = ['smtpPass', 'mailClientSecret', 'importGoogleClientSecret'];
 export const SECRET_MASK = '••••••••';
 
 /** Mail-Vorlagen: gespeichert wird '' für „Standard“, die UI zeigt dann die eingebaute Vorlage zum Bearbeiten. */
@@ -223,7 +229,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'liveJudge', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory', 'mcpPlan'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'liveJudge', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'importGoogleClientId', 'importGoogleClientSecret', 'importMsClientId', 'importMsTenant', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory', 'mcpPlan'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -340,6 +346,10 @@ function envDefaults(): FormSettings {
     mailUser: e('MAIL_USER'),
     mailSubject: '',
     mailBody: '',
+    importGoogleClientId: '',
+    importGoogleClientSecret: '',
+    importMsClientId: '',
+    importMsTenant: 'common',
     webPort: String(parsePort(e('WEB_PORT')) ?? DEFAULT_WEB_PORT),
     // Bewusst aus und ohne .env-Schalter: Dass ein Agent telefonieren darf, wird in der Oberfläche entschieden
     mcpEnabled: 'off',

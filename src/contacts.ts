@@ -9,6 +9,8 @@ export interface Contact {
   id: string;
   name: string;
   number: string;
+  /** Weitere Nummern derselben Person (z. B. aus dem Adressbuch-Import); zählen bei der Anrufererkennung mit, gewählt wird `number` */
+  numbers?: string[];
   /** true = das ist der Auftraggeber selbst; die KI stellt sich dort nur als „dein Agent" vor */
   owner?: boolean;
   address?: 'sie' | 'du';
@@ -22,11 +24,28 @@ export interface Contact {
 
 export type ContactInput = Partial<Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>>;
 
-/** Nummern vergleichbar machen: +49/0049 -> 0, nur Ziffern (bzw. ** für intern). */
+/**
+ * Nummern vergleichbar machen (bzw. ** für intern): „+49 (0)30 …“, +49 und 0049 -> 0, sonst 00 wie + (Ausland ohne
+ * führende Zeichen), nur Ziffern. So gelten „0043 664 …“ und „+43 664 …“ als dieselbe Nummer.
+ */
 export function numberKey(raw: string): string {
-  const n = normalizeTarget(raw);
+  const n = normalizeTarget(String(raw ?? '').replace(/\(0\)/g, ''));
   if (n.startsWith('**')) return n;
-  return n.replace(/^\+49|^0049/, '0').replace(/\D/g, '');
+  const intl = n.startsWith('+') ? n.slice(1) : n.startsWith('00') ? n.slice(2) : undefined;
+  if (intl === undefined) return n.replace(/\D/g, '');
+  const digits = intl.replace(/\D/g, '');
+  return digits.startsWith('49') ? '0' + digits.slice(2).replace(/^0/, '') : digits;
+}
+
+/** Nur die Hauptnummer (die gewählt wird) vergleichen, nicht die weiteren Nummern */
+export function sameMainNumber(c: Pick<Contact, 'number'>, raw: string): boolean {
+  const key = numberKey(raw);
+  return key !== '' && numberKey(c.number) === key;
+}
+
+/** Hauptnummer und weitere Nummern eines Kontakts */
+export function allNumbers(c: Pick<Contact, 'number' | 'numbers'>): string[] {
+  return [c.number, ...(c.numbers ?? [])];
 }
 
 export class ContactStore {
@@ -73,7 +92,7 @@ export class ContactStore {
 
   findByNumber(raw: string): Contact | undefined {
     const key = numberKey(raw);
-    return key ? this.contacts.find((c) => numberKey(c.number) === key) : undefined;
+    return key ? this.contacts.find((c) => allNumbers(c).some((n) => numberKey(n) === key)) : undefined;
   }
 
   /** Name exakt (ohne Groß/Klein) oder eindeutiger Teilstring. */
@@ -109,6 +128,49 @@ export class ContactStore {
     return updated;
   }
 
+  /**
+   * Import in einem Schritt (eine Schreiboperation): neue Kontakte anlegen und bei vorhandenen nur Nummern ergänzen.
+   * Einstellungen vorhandener Kontakte bleiben unberührt; Einträge, die nicht passen (z. B. Nummer inzwischen vergeben), werden übersprungen.
+   */
+  importMany(create: ContactInput[], addNumbers: { id: string; numbers: string[] }[] = []): { created: number; merged: number; skipped: string[] } {
+    const now = new Date().toISOString();
+    const skipped: string[] = [];
+    let created = 0;
+    let merged = 0;
+    // Scheitert das Speichern, bleibt der Stand im Speicher wie auf der Platte
+    const before = this.contacts;
+    this.contacts = [...before];
+    try {
+      for (const add of addNumbers) {
+        const existing = this.get(add.id);
+        if (!existing) continue;
+        const fresh = add.numbers.filter((n) => !this.findByNumber(n));
+        if (!fresh.length) continue;
+        try {
+          const clean = this.validate({ ...existing, numbers: [...(existing.numbers ?? []), ...fresh] }, existing.id);
+          this.contacts = this.contacts.map((c) => (c.id === existing.id ? { ...existing, numbers: clean.numbers, updatedAt: now } : c));
+          merged++;
+        } catch (err) {
+          skipped.push(`${existing.name}: ${(err as Error).message}`);
+        }
+      }
+      for (const input of create) {
+        try {
+          const clean = this.validate(input);
+          this.contacts.push({ id: randomBytes(5).toString('hex'), ...clean, createdAt: now, updatedAt: now });
+          created++;
+        } catch (err) {
+          skipped.push(`${String(input.name ?? '')}: ${(err as Error).message}`);
+        }
+      }
+      if (created || merged) this.persist();
+    } catch (err) {
+      this.contacts = before;
+      throw err;
+    }
+    return { created, merged, skipped };
+  }
+
   delete(id: string): boolean {
     const before = this.contacts.length;
     this.contacts = this.contacts.filter((c) => c.id !== id);
@@ -122,12 +184,22 @@ export class ContactStore {
     const number = normalizeTarget(String(input.number ?? ''));
     if (!name) throw new Error('Name fehlt');
     if (!number) throw new Error('Nummer fehlt');
-    const dup = this.findByNumber(number);
-    if (dup && dup.id !== selfId) throw new Error(`Nummer ist schon bei „${dup.name}" hinterlegt`);
+    // Weitere Nummern: Liste oder Text mit Komma, Semikolon oder Zeilenumbruch (Formular)
+    const extra = input.numbers as unknown;
+    const rawExtra: unknown[] = Array.isArray(extra) ? extra : typeof extra === 'string' ? extra.split(/[,;\n]/) : [];
+    const numbers: string[] = [];
+    for (const n of rawExtra.map((x) => normalizeTarget(String(x ?? ''))).filter(Boolean)) {
+      if (![number, ...numbers].some((x) => numberKey(x) === numberKey(n))) numbers.push(n);
+    }
+    for (const n of [number, ...numbers]) {
+      const dup = this.findByNumber(n);
+      if (dup && dup.id !== selfId) throw new Error(`Nummer ist schon bei „${dup.name}" hinterlegt`);
+    }
     const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
     return {
       name,
       number,
+      numbers: numbers.length ? numbers : undefined,
       owner: input.owner === true || undefined,
       address: input.address === 'du' ? 'du' : input.address === 'sie' ? 'sie' : undefined,
       persona: str(input.persona),

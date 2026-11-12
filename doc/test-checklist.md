@@ -118,6 +118,14 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 - [ ] Changing the port: under "Einstellungen › Technik" save a different port, "Jetzt neu starten". The page switches to the new address, the tray menu names the new port, the agents' HTTP entries show "Veraltet" and can be updated; Claude Desktop (process) keeps working without a change.
 - [ ] Port in use: quit SIPFunk, occupy the configured port with another program, start SIPFunk. It runs on the next free port, the tray app reports this, and the new port is in the settings.
 
+## 8a. Contact import (needs your own accounts)
+
+- [ ] Google: own Desktop-app client with People API and test user; "Verbinden" opens the sign-in, the page afterwards says "Adressbuch verbunden", "Adressbuch laden" lists the entries with phone numbers. "Trennen" ends access; "Adressbuch laden" then asks to connect again.
+- [ ] Microsoft with a personal account (Outlook.com) and, if available, a work account: app registration with `http://localhost/oauth/callback` and Contacts.Read; sign-in, loading, contacts from subfolders are included.
+- [ ] iCloud: exported vCard file, umlauts in names correct, all numbers there.
+- [ ] Google CSV and Outlook CSV (also a German Outlook export with semicolons).
+- [ ] Duplicates: an existing contact with its style and task stays unchanged; with "fehlende Nummern ergänzen" it only gains further numbers; an incoming call from a further number shows the contact's name.
+
 ## 9. Google Gemini: real phone calls (only a few so far)
 
 **Status.** The Gemini path has so far been tried on only a few real phone calls: on 11 November 2026 the first three (two on the answering machine, one call back to the owner) went through without errors; the introduction as an AI, the task, the goodbye and hanging up all worked. The items below stay open for further calls. Expand the connection "Google Gemini" under "Einstellungen › KI-Verbindungen" and make it the active one ("Diese Verbindung verwenden"), then:

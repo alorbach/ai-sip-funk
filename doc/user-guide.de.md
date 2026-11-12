@@ -500,6 +500,52 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 
 Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer.
 
+Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber.
+
+#### Kontakte importieren
+
+„Kontakte importieren“ auf der Seite „Kontakte“ übernimmt Kontakte mit Telefonnummer aus einem Adressbuch, damit du sie nicht abtippen musst. Quellen:
+
+- **Google-Kontakte** (People API, nur lesend),
+- **Microsoft** (Outlook.com, Microsoft 365; Microsoft Graph, nur lesend),
+- **eine Datei**: vCard (`.vcf`) oder CSV (UTF-8, UTF-16 oder der Windows-Zeichensatz deutscher Outlook- und Excel-Exporte). Das ist der Weg für **Apple iCloud**, das keine offene Schnittstelle für andere Programme anbietet, und für jedes andere Adressbuch oder Handy.
+
+Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („… neu, … mit weiteren Nummern zu vorhandenen Kontakten, … schon vorhanden“). Einzelne Einträge anhaken oder „Alle neuen auswählen“, dann „… Kontakte importieren“. Vor diesem Klick wird nichts geschrieben.
+
+- Angeboten werden nur Einträge mit mindestens einer Telefonnummer; Fax- und Pagernummern fallen weg.
+- Nummern werden in die SIPFunk-Schreibweise gebracht: deutsche mit führender 0 (`+49 (0)30 …` wird `030…`), ausländische mit `+`; Durchwahl-Zusätze wie „ext. 12“ fallen weg.
+- Mehrere Nummern je Eintrag: Die erste (Mobil vor Privat vor Geschäftlich) wird die Nummer, die gewählt wird, die übrigen werden weitere Nummern.
+- **Dubletten:** Ein Eintrag, dessen Nummer schon gespeichert ist (auch als weitere Nummer), ist als „schon vorhanden“ oder „teilweise vorhanden“ markiert und wird nicht importiert. Vorhandene Kontakte werden nie überschrieben. Nur wenn du „Bei vorhandenen Kontakten fehlende Nummern … ergänzen“ anhakst, kommen fehlende Nummern als weitere Nummern zum vorhandenen Kontakt; Name, Stil, Stimme, Auftrag und Notizen bleiben, wie sie sind. Steht dieselbe Nummer bei mehreren Einträgen (gemeinsames Festnetz), markiert die Liste sie mit ⇄, und sie bekommt nur der erste ausgewählte Eintrag. Dein eigener Kontakt („Inhaber“) wird nie ergänzt.
+- **Daten:** Das Adressbuch wird nur im Arbeitsspeicher dieses Rechners verarbeitet und beim Schließen des Dialogs oder nach dem Import verworfen; gespeichert werden nur die Kontakte, die du übernimmst. Die Anmeldung bei Google oder Microsoft erlaubt nur das Lesen der Kontakte und bleibt nur im Arbeitsspeicher (etwa eine Stunde, keine Datei). „Trennen“ verwirft sie sofort (bei Google wird sie zusätzlich widerrufen); nach einem Neustart meldest du dich neu an.
+
+**Was du selbst einrichtest.** SIPFunk ist Open Source und bringt keine eigenen Schlüssel mit. Für Google und Microsoft registrierst du einmal eine eigene App (kostenlos); SIPFunk nutzt dann deine Client-ID. Wer das nicht möchte, nimmt den Dateiimport.
+
+*Google:*
+
+1. In der [Google Cloud Console](https://console.cloud.google.com/) ein Projekt anlegen oder wählen (das Projekt für den Mailversand lässt sich weiterverwenden).
+2. „APIs und Dienste › Bibliothek“: **People API** aktivieren.
+3. „Google Auth Platform“ (OAuth-Zustimmungsbildschirm): Nutzertyp „Extern“, ein App-Name und deine Adresse. Unter „Datenzugriff“ den Bereich `https://www.googleapis.com/auth/contacts.readonly` hinzufügen, unter „Zielgruppe“ dich selbst als Testnutzer eintragen. Die App darf im Status „Test“ bleiben; Google warnt dann, dass die App nicht überprüft ist – es ist deine eigene App, weiter.
+4. „Clients“ (Anmeldedaten): einen OAuth-Client vom Typ **„Desktop-App“** anlegen. Client-ID und Client-Secret im Import-Dialog unter „Einrichtung“ eintragen. Google behandelt das Secret eines Desktop-Clients nicht als vertraulich; SIPFunk speichert es in `settings.json` und zeigt es maskiert. Eine Weiterleitungsadresse muss nicht eingetragen werden: Desktop-Clients nehmen `http://127.0.0.1:<Port>/oauth/callback` von selbst an.
+5. „Verbinden“ öffnet die Google-Anmeldung; danach „Adressbuch laden“.
+
+*Microsoft:*
+
+1. Im [Microsoft Entra Admin Center](https://entra.microsoft.com/) (oder im Azure-Portal) unter „App-Registrierungen“ eine **neue Registrierung** anlegen. Unterstützte Kontotypen: „Konten in einem beliebigen Organisationsverzeichnis und persönliche Microsoft-Konten“ (nötig für Outlook.com) oder nur die eigene Organisation.
+2. Umleitungs-URI: Plattform **„Öffentlicher Client/nativ (mobil und Desktop)“**, Adresse `http://localhost/oauth/callback` – ohne Port. Microsoft ignoriert bei `localhost` den Port, eine Portänderung der Web-UI braucht hier also keine Änderung.
+3. „API-Berechtigungen“: Microsoft Graph › Delegierte Berechtigungen › **Contacts.Read**. In einem Firmen-Mandanten muss eventuell der Administrator zustimmen.
+4. Ein Client-Geheimnis ist nicht nötig. Die „Anwendungs-ID (Client)“ im Import-Dialog eintragen; Mandant `common` (Standard), `consumers` nur für private Konten oder die Mandanten-ID.
+5. „Verbinden“, anmelden, „Adressbuch laden“. SIPFunk liest den Standard-Kontaktordner und die Ordner direkt darunter.
+
+*Apple iCloud und Datei-Exporte:*
+
+- iCloud: auf [icloud.com/contacts](https://www.icloud.com/contacts) alle Kontakte auswählen, dann „vCard exportieren“. Auf dem iPhone kann die Kontakte-App eine Kontaktliste ebenfalls als vCard teilen.
+- Google-Kontakte: „Exportieren“, Format vCard oder Google-CSV.
+- Outlook.com: „Personen › Kontakte verwalten › Kontakte exportieren“ (CSV).
+
+Im Dialog „Datei wählen“. Die Exportdatei danach löschen, wenn du sie nicht mehr brauchst; sie enthält dein ganzes Adressbuch.
+
+*Wenn es nicht klappt:* „People API has not been used in project“ – People API aktivieren (Schritt 2). `AADSTS50011` (Umleitung passt nicht) – Umleitungs-URI der App-Registrierung prüfen. `AADSTS65001` oder „Administratorgenehmigung erforderlich“ – der Administrator muss Contacts.Read zustimmen. „Anmeldung abgelaufen“ – Anmeldung neu starten.
+
 ### 11.2 Protokolle
 
 ![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
