@@ -44,9 +44,12 @@ const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
   let s = String(raw ?? '').slice(0, 80).replace(/\s+/g, ' ').trim();
-  // FRITZ!Box-Nebenstelle, auch mit Zusatz („**610 (Büro)“); ohne die Sterne ginge der Anruf ins öffentliche Netz
-  const internal = /^\*\*\s*(\d+)/.exec(s);
-  if (internal) return '**' + internal[1];
+  // FRITZ!Box-Nebenstelle, auch mit Text davor oder danach („Büro **610“, „**610 (Büro)“); ohne die Sterne ginge der
+  // Anruf ins öffentliche Netz. Andere Sternchen-Angaben („*610“, Dienstcodes) sind keine Rufnummer.
+  if (s.includes('*')) {
+    const internal = /\*\*\s*(\d+)/.exec(s);
+    return internal ? '**' + internal[1] : undefined;
+  }
   // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“) weg: ab dem ersten +, ( oder Ziffer
   const start = s.search(/[+(\d]/);
   if (start < 0) return undefined;

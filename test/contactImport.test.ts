@@ -702,3 +702,13 @@ test('Emoji-Namen mit und ohne Variantenwähler sind derselbe Name (eigene Karte
     assert.equal(applyImport(cands, ['0'], store, { addToExisting: true }).created, 0);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 12
+
+test('Nebenstelle mit Text davor behält die Sterne; andere Sternchen-Angaben sind keine Nummer', () => {
+  assert.equal(normalizeImportNumber('Büro **610'), '**610');
+  assert.equal(normalizeImportNumber('Intern: **610'), '**610');
+  assert.equal(normalizeImportNumber('tel:**610'), '**610');
+  assert.equal(normalizeImportNumber('*610'), undefined);
+  assert.equal(normalizeImportNumber('*31#'), undefined);
+});
