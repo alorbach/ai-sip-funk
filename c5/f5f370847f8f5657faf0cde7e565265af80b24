@@ -1,0 +1,29 @@
+doc/user-guide.de.md
+  s_ddd51a70c3e2b9::t_0ee7aa1cfdf831 518,520
+doc/user-guide.md
+  s_ddd51a70c3e2b9::t_a62b9b18a94bf8 520,522
+public/i18n-en.js
+  s_ddd51a70c3e2b9::t_d099710b22355f 142,144-145
+public/index.html
+  s_ddd51a70c3e2b9::t_affac0431e83c1 951,1418,1420
+src/contactImport.ts
+  s_ddd51a70c3e2b9::t_2e296fc5da6e2a 20-21,469-472,477,479-483,486
+test/contactImport.test.ts
+  s_ddd51a70c3e2b9::t_bd0cec79fca534 1019-1039
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5f5f370847f8f5657faf0cde7e565265af80b24",
+  "prompts": {},
+  "sessions": {
+    "s_ddd51a70c3e2b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1be2cd17-1f2b-433a-be4b-da1c0c0d54db",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
