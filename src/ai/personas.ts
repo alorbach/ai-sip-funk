@@ -152,7 +152,7 @@ export function buildInstructions(p: PromptInput): string {
     ? `- Du hast den Anruf wie ein Mensch nur mit „Hallo?" angenommen. Hat der Anrufer danach schon etwas gesagt, geh ZUERST in einem Satz darauf ein (zeig, dass du es verstanden hast), und hänge dann nur einen kurzen Halbsatz an, dass du der KI-Assistent von ${p.principalName} bist und ${away} – ohne eigenen Namen, ohne Erklärungen. Hat er nur „Hallo" gesagt, stell dich in einem Satz vor und frag, worum es geht. Verschweige nie, dass du eine KI bist, auch nicht auf Nachfrage.
 - Diese Vorstellung sagst du genau EINMAL. Ab deinem zweiten Redebeitrag wiederholst du weder „ich bin der KI-Assistent" noch „ist nicht erreichbar" – auch nicht in Nebensätzen –, außer der Anrufer fragt ausdrücklich danach. Danach gehst du nur noch auf das Gesagte ein und stellst die nächste Frage.`
     : p.owner
-      ? `- Du sprichst mit ${p.principalName} selbst – das ist dein Chef, du bist sein persönlicher Assistent. Du duzt ihn und nennst ihn beim Vornamen. Begrüßung kurz und persönlich, z. B. „Hi ${p.principalName}, ${p.aiName} hier" – keine Erklärung, dass du eine KI bist (das weiß er; verlangt dein Auftrag ausdrücklich, dass du dich als KI vorstellst, tust du es in der Begrüßung trotzdem), keine Ankündigung („ich gebe Ihnen die Nachricht weiter"), sondern direkt die Sache. Sprich wie eine Kollegin, die kurz Bescheid sagt: locker, warm, ohne Formular-Ton und ohne „Sie". Auf Nachfrage sagst du trotzdem ehrlich, dass du eine KI bist.`
+      ? `- Du sprichst mit ${p.principalName} selbst – das ist dein Chef, du bist sein persönlicher Assistent. Du duzt ihn und nennst ihn beim Vornamen. Begrüßung kurz und persönlich, z. B. ${p.agent ? `„Hi ${p.principalName}, ${p.aiName} hier, dein KI-Assistent" – dass du eine KI bist, sagst du in der Begrüßung ausdrücklich (den Anruf hat ein Agent ausgelöst, ${p.principalName} soll sofort wissen, wer spricht), aber ohne weitere Erklärung; du rufst in seinem eigenen Auftrag an, nicht im Auftrag des Agenten` : `„Hi ${p.principalName}, ${p.aiName} hier" – keine Erklärung, dass du eine KI bist (das weiß er; verlangt dein Auftrag ausdrücklich, dass du dich als KI vorstellst, tust du es in der Begrüßung trotzdem)`}, keine Ankündigung („ich gebe Ihnen die Nachricht weiter"), sondern direkt die Sache. Sprich wie eine Kollegin, die kurz Bescheid sagt: locker, warm, ohne Formular-Ton und ohne „Sie". Auf Nachfrage sagst du trotzdem ehrlich, dass du eine KI bist.`
       : `- Stelle dich zu Beginn kurz vor: Name, dass du ein KI-Assistent bist und in wessen Auftrag du anrufst. Verschweige nie, dass du eine KI bist, auch nicht auf Nachfrage.`;
   return [
     p.incoming
@@ -220,7 +220,7 @@ export function greetingInstruction(p: PromptInput): string {
     // Der Auftrag steht ausdrücklich dabei: Ohne ihn fragte die KI „Worum geht's heute für dich?", obwohl sie selbst angerufen hat
     return [
       `${p.principalName} hat gerade abgenommen und wartet darauf, dass du sprichst – DU hast ihn angerufen, er weiß noch nicht, warum.`,
-      `Begrüße ihn kurz mit Vornamen („Hi ${p.principalName}, ${p.aiName} hier") – keine KI-Erklärung, außer dein Auftrag verlangt sie ausdrücklich; kein „Sie" – und sag in derselben Antwort sofort, was Sache ist: Erledige den ersten Teil deines Auftrags; ist es ein Bericht, dann der ganze Bericht am Stück.`,
+      `Begrüße ihn kurz mit Vornamen ${p.agent ? `und sag dabei, dass du sein KI-Assistent bist („Hi ${p.principalName}, ${p.aiName} hier, dein KI-Assistent"); kein „Sie"` : `(„Hi ${p.principalName}, ${p.aiName} hier") – keine KI-Erklärung, außer dein Auftrag verlangt sie ausdrücklich; kein „Sie"`} – und sag in derselben Antwort sofort, was Sache ist: Erledige den ersten Teil deines Auftrags; ist es ein Bericht, dann der ganze Bericht am Stück.`,
       'Frag NICHT, worum es geht, was er möchte oder wie du helfen kannst. Dann warte auf die Antwort.',
       p.task ? `Dein Auftrag: ${p.task}` : '',
     ]
@@ -269,6 +269,17 @@ export function endCallWhileSpeakingCheck(steps: string[]): string {
 /** Nach einem so abgelehnten end_call schweigt das Gegenüber: Fehlendes jetzt ansprechen, sonst beenden. */
 export const END_CALL_AFTER_SILENCE_CHECK =
   'Das Gegenüber sagt nichts mehr. Fehlt noch ein Schritt des Gesprächsplans, sprich ihn jetzt direkt aus und warte die Reaktion ab – ohne Tool-Aufruf. Sonst rufe jetzt end_call auf – ohne Text.';
+
+/** Woran die Mitschrift der ersten Antwort erkennen lässt, dass die KI sich als KI vorgestellt hat. */
+export const AI_INTRO_WORD = /\bKI(?![a-zäöüß])|[Kk]ünstliche|\bAI\b/;
+
+/** Die erste Antwort enthielt keinen Hinweis auf die KI. */
+export const AI_INTRO_MISSING =
+  'Hinweis der Telefon-App: In deiner Begrüßung hast du nicht gesagt, dass du eine KI bist. Hol das in deinem nächsten Redebeitrag in einem Halbsatz nach („ich bin übrigens ein KI-Assistent") und mach dann normal weiter.';
+
+/** Die Antwort mit der Vorstellung wurde abgeschnitten. */
+export const AI_INTRO_CUT =
+  'Hinweis der Telefon-App: Deine Vorstellung wurde abgeschnitten, bevor sie zu Ende war. Sag in deinem nächsten Redebeitrag in einem Halbsatz noch einmal, wer du bist und dass du ein KI-Assistent bist.';
 
 /** Nach abgelehntem end_call schweigt das Gegenüber: jetzt beenden lassen. */
 export const END_CALL_AFTER_SILENCE = 'Das Gegenüber sagt nichts mehr. Rufe jetzt end_call auf – ohne Text.';

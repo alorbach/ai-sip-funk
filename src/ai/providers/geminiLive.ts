@@ -25,11 +25,11 @@ const UTTERANCE_GAP_MS = 700;
 /** Der Server meldete Sprache, aber es kommt keine Transkription: dann war es ein Geräusch */
 const UTTERANCE_EMPTY_MS = 2000;
 /**
- * Meldet der Server das Ende der Sprache selbst (ACTIVITY_END), zählt die Frist oben erst ab dort: Die Mitschrift kommt
+ * Der Server meldet das Ende der Sprache selbst (ACTIVITY_END); die Frist oben zählt erst ab dort: Die Mitschrift kommt
  * erst nach dem Satzende, und ein Satz von mehr als zwei Sekunden galt sonst mitten im Reden als Geräusch.
  * So lange darf eine Äußerung dann höchstens offen bleiben, falls das Ende doch einmal ausbleibt.
  */
-const UTTERANCE_OPEN_MS = 12000;
+const UTTERANCE_OPEN_MS = 8000;
 
 /**
  * Mitschrift der KI bereinigen: Für eine Antwort ohne Sprache liefert die Live API Platzhalter wie „<no speech>“,
@@ -145,8 +145,6 @@ export class GeminiLive implements LiveSession {
   /** Bis dahin zählt Transkription als Nachtrag zur gerade abgeschlossenen Äußerung */
   private lateUntil = 0;
   private utteranceTimer?: NodeJS.Timeout;
-  /** Der Server hat in dieser Sitzung schon einmal ACTIVITY_END geschickt: Dann ist auf das Sprachende Verlass */
-  private sawActivityEnd = false;
   // ---- Was noch hinaus muss ----
   private pendingTools: { id: string; name: string; output: string }[] = [];
   private pendingUpdate?: string;
@@ -200,7 +198,6 @@ export class GeminiLive implements LiveSession {
     const va = msg.voiceActivity as { type?: string } | undefined;
     if (va?.type === 'ACTIVITY_START') this.startUtterance();
     if (va?.type === 'ACTIVITY_END') {
-      this.sawActivityEnd = true;
       if (this.partnerActive) {
         this.stopSpeech('Sprachende laut Gemini');
         // Ab jetzt muss die Mitschrift kommen; bleibt sie aus, war es ein Geräusch
@@ -321,7 +318,8 @@ export class GeminiLive implements LiveSession {
       this.utterance++;
       this.events.speechStarted(`u${this.utterance}`);
     }
-    this.armUtterance(this.inText ? UTTERANCE_GAP_MS : this.sawActivityEnd ? UTTERANCE_OPEN_MS : UTTERANCE_EMPTY_MS);
+    // Der Server meldet das Sprachende selbst (ACTIVITY_END); bis dahin bleibt die Äußerung offen
+    this.armUtterance(this.inText ? UTTERANCE_GAP_MS : UTTERANCE_OPEN_MS);
   }
 
   private stopSpeech(cause: string): void {

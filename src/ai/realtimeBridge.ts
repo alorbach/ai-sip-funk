@@ -8,7 +8,7 @@ import { log } from '../log.js';
 import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isEcho, isFarewell } from './farewell.js';
-import { END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
+import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
 import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
@@ -66,6 +66,8 @@ export interface RealtimeBridgeOptions {
   stallMs: number;
   /** So lange nach Annahme auf das Gegenüber warten, bevor die KI von sich aus begrüßt */
   greetingWaitMs: number;
+  /** true = die erste Antwort muss erkennen lassen, dass eine KI spricht; fehlt das oder wird sie abgeschnitten, holt die KI es nach */
+  requireAiIntro?: boolean;
   /** Reagiert das Gegenüber auf die Begrüßung nicht, spricht die KI nach afterMs von sich aus weiter (Anrufbeantworter: „Hallo?" → Vorstellung) */
   greetingFollowUp?: { afterMs: number; instruction: string };
   onTranscript: (entry: TranscriptEntry) => void;
@@ -129,7 +131,21 @@ const REJECT_SILENCE_MS = 2500;
 const FAREWELL_DECISION_MS = 4000;
 
 const STALL_INSTRUCTION =
-  'Es ist still geworden: Du hast zuletzt gesprochen, und das Gegenüber hat seitdem nichts gesagt. Hast du etwas angekündigt („einen Moment", „ich halte das fest") oder eine Frage vorbereitet, dann stell diese Frage jetzt direkt. Sonst frag in einem kurzen Satz, ob das Gegenüber noch dran ist. Ein Satz, dann warten.';
+  'Es ist still geworden: Du hast zuletzt gesprochen, und das Gegenüber hat seitdem nichts gesagt. Hast du etwas angekündigt („einen Moment", „ich halte das fest") oder eine Frage vorbereitet, dann stell diese Frage jetzt direkt. Sonst knüpf in einem kurzen Satz an das zuletzt Gesagte an (eine kleine Nachfrage dazu); nur wenn dazu nichts passt, frag, ob das Gegenüber noch dran ist. Ein Satz, dann warten.';
+
+/** Das Gegenüber war hörbar, aber die Spracherkennung des Anbieters hat keine Worte gemeldet (Lachen, Räuspern, ein Laut). */
+const SOUND_REACTION =
+  'Hinweis der Telefon-App: Das Gegenüber hat gerade hörbar reagiert, aber ohne Worte – zum Beispiel mit einem Lachen, einem Räuspern oder einem anderen Laut. Konntest du hören, was es war, geh in einem kurzen Satz natürlich darauf ein (bei einem Lachen freust du dich mit) und mach dann mit dem Gespräch weiter. Frag nicht, ob es noch dran ist. Ein Satz, dann warten.';
+/** Ab diesem Pegel (Effektivwert, 16 Bit) gilt das Audio des Gegenübers als hörbarer Laut; Leitungsrauschen liegt weit darunter */
+const SOUND_RMS = 700;
+/** So viel Laut muss zusammenkommen, damit es mehr ist als ein Knacken */
+const SOUND_MIN_MS = 350;
+/** So lange muss es danach wieder ruhig sein, bevor die KI darauf eingeht (der Laut ist dann zu Ende) */
+const SOUND_QUIET_MS = 1200;
+/** So lange nach der eigenen Ausgabe zählt nichts: Das wäre das Echo der KI */
+const SOUND_ECHO_GUARD_MS = 400;
+/** War das Gegenüber in dieser Zeit vor dem Stillstand noch zu hören, wartet der Wächter weiter (höchstens zweimal) */
+const STALL_SOUND_MS = 2500;
 
 export class RealtimeBridge implements AudioHandler {
   private live: LiveSession;
@@ -245,6 +261,17 @@ export class RealtimeBridge implements AudioHandler {
   /** Text und Kennung der zuletzt fertig gemeldeten Antwort der KI */
   private lastAiText = '';
   private lastAiItem = '';
+  // Vorstellung als KI: geprüft an der Mitschrift der ersten Antwort
+  private introChecked = false;
+  private introItem = '';
+  private lastCutItem = '';
+  // Laute ohne Worte (Lachen, Räuspern): Die Spracherkennung des Anbieters meldet sie nicht, die App hört am Pegel mit
+  private lastAiFrameAt = 0;
+  private lastLoudAt = 0;
+  private soundMs = 0;
+  private soundPeak = 0;
+  private soundNudges = 0;
+  private stallDeferred = 0;
   /** true = die Antwort auf ein bloßes Geräusch bleibt stumm (bis sie fertig ist oder das Gegenüber wieder spricht) */
   private muteNoiseResponse = false;
   /** Bis zu diesem Zeitpunkt gilt eine neu beginnende Antwort als Antwort auf einen bloßen Zuhör-Laut und bleibt stumm (0 = aus) */
@@ -368,9 +395,48 @@ export class RealtimeBridge implements AudioHandler {
 
   onRemoteAudio(pcm: Int16Array): void {
     if (!this.ready || !this.connected) return;
+    this.listenForSound(pcm);
     const out = this.toAi.process(pcm);
     if (out.length === 0) return;
     this.live.sendAudio(out);
+  }
+
+  /**
+   * Pegel des Gegenübers mithören: Ein deutlicher Laut, den der Anbieter nicht als Sprache meldet (Lachen nach einem Witz),
+   * ist trotzdem eine Reaktion. Ist er vorbei, bekommt die KI einen Hinweis, statt sechs Sekunden später „Bist du noch dran?" zu fragen.
+   */
+  private listenForSound(pcm: Int16Array): void {
+    const now = Date.now();
+    // Solange die KI spricht (und kurz danach) oder der Anbieter Sprache meldet bzw. schon antwortet, ist nichts zu tun
+    if (this.playing || now - this.lastAiFrameAt < SOUND_ECHO_GUARD_MS || this.partnerSpeaking || this.activeResponse) {
+      this.soundMs = 0;
+      this.soundPeak = 0;
+      return;
+    }
+    let sum = 0;
+    for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
+    const rms = Math.sqrt(sum / Math.max(1, pcm.length));
+    if (rms >= SOUND_RMS) {
+      this.soundMs += pcm.length / (this.callRate / 1000);
+      this.soundPeak = Math.max(this.soundPeak, rms);
+      this.lastLoudAt = now;
+      return;
+    }
+    if (this.soundMs === 0 || now - this.lastLoudAt < SOUND_QUIET_MS) return;
+    const ms = Math.round(this.soundMs);
+    const peak = Math.round(this.soundPeak);
+    this.soundMs = 0;
+    this.soundPeak = 0;
+    if (ms < SOUND_MIN_MS) return;
+    if (this.closed || !this.greeted || this.opts.scam || this.hold || this.ask || this.transferring || this.rejectTimer || this.followUpTimer || this.awaitingAudioSince) return;
+    if (this.goodbye !== 'none' || this.endRequested !== undefined || this.soundNudges >= 2) return;
+    this.soundNudges++;
+    log.info(`Realtime: Laut ohne Worte vom Gegenüber (${ms} ms, Pegel ${peak}) – KI soll darauf eingehen`);
+    clearTimeout(this.stallTimer);
+    this.stallTimer = undefined;
+    this.pendingRespond = false;
+    this.live.respond(SOUND_REACTION);
+    this.audioExpected(true, 'Laut ohne Worte');
   }
 
   nextFrame(): Int16Array | undefined {
@@ -404,6 +470,7 @@ export class RealtimeBridge implements AudioHandler {
       return undefined;
     }
     this.stats.framesPlayed++;
+    this.lastAiFrameAt = Date.now();
     const head = this.queuedItems[0];
     if (head) {
       if (head.id !== this.playItemId) {
@@ -627,6 +694,16 @@ export class RealtimeBridge implements AudioHandler {
     this.kiLive = '';
     this.lastAiText = text;
     this.lastAiItem = itemId;
+    if (this.opts.requireAiIntro && !this.introChecked) {
+      this.introChecked = true;
+      if (!AI_INTRO_WORD.test(text)) {
+        log.warn('Realtime: Die erste Antwort nennt die KI nicht – Nachholen angefordert');
+        this.live.note(AI_INTRO_MISSING);
+      } else if (itemId === this.lastCutItem) {
+        log.warn('Realtime: Die Vorstellung als KI wurde abgeschnitten – Nachholen angefordert');
+        this.live.note(AI_INTRO_CUT);
+      } else this.introItem = itemId;
+    }
     this.opts.onTranscript({ speaker: 'ki', text, final: true, itemId });
   }
 
@@ -687,6 +764,7 @@ export class RealtimeBridge implements AudioHandler {
     }
     // Das Gegenüber reagiert: Die Antwort darauf soll wieder zu hören sein
     this.muteAfterReject = false;
+    this.soundNudges = 0;
     // Spricht es, seit die nachgeholte Begrüßung läuft, ist die nächste Antwort keine Dopplung mehr
     if (this.dupGreetingStarted) this.dupGuard = 'off';
     // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
@@ -876,6 +954,15 @@ export class RealtimeBridge implements AudioHandler {
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;
       if (this.closed || this.activeResponse || this.partnerSpeaking || this.transferring || this.ask || this.goodbye !== 'none' || this.endRequested !== undefined) return;
+      // Eben war noch etwas zu hören (Nebengeräusch, ein Laut ohne Ende): kein Stillstand, weiter warten
+      const sinceLoud = this.lastLoudAt ? Date.now() - this.lastLoudAt : Infinity;
+      if (sinceLoud < STALL_SOUND_MS && this.stallDeferred < 2) {
+        this.stallDeferred++;
+        log.info(`Realtime: Stillstand – das Gegenüber war vor ${sinceLoud} ms noch zu hören, warte weiter (${this.stallDeferred}/2)`);
+        this.armStall();
+        return;
+      }
+      this.stallDeferred = 0;
       if (this.stallNudges >= STALL_MAX_NUDGES) {
         log.warn(`Realtime: Stillstand hält an (${this.stallNudges}x angestoßen, Gegenüber schweigt) – kein weiterer Anstoß`);
         return;
@@ -1176,6 +1263,12 @@ export class RealtimeBridge implements AudioHandler {
   private discardOutput(): void {
     const lostMs = this.outQueue.length * 20;
     if (lostMs >= INTERRUPT_NOTE_MS) {
+      this.lastCutItem = this.playItemId ?? '';
+      if (this.introItem && this.introItem === this.playItemId) {
+        this.introItem = '';
+        log.warn('Realtime: Die Vorstellung als KI wurde abgeschnitten – Nachholen angefordert');
+        this.live.note(AI_INTRO_CUT);
+      }
       // Die Mitschrift der KI nennt den ganzen Satz, auch wenn er abgeschnitten wurde: im Transkript und für den Agenten festhalten
       // Welche Antwort betroffen ist: ihr Anfang, soweit er vorliegt (die Mitschrift nennt sonst den ganzen Satz als gesagt)
       const said = (this.kiLive || (this.lastAiItem === this.playItemId ? this.lastAiText : '')).trim();

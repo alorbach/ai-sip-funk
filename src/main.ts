@@ -273,7 +273,7 @@ function createAiHandler(params: Record<string, unknown>): RealtimeBridge {
     maxCallSeconds: mcp && typeof params.maxSeconds === 'number' ? Math.min(t.maxCallSeconds, params.maxSeconds) : t.maxCallSeconds,
   };
   const instructions = buildInstructions(input);
-  if (input.owner) log.info('KI: Ziel ist eine Inhabernummer – Vorstellung als Agent ohne KI-Erklärung');
+  if (input.owner) log.info(`KI: Ziel ist eine Inhabernummer – ${mcp ? 'Agenten-Anruf, Vorstellung als KI-Assistent' : 'Vorstellung als Agent ohne KI-Erklärung'}`);
   if (incoming) log.info(`KI: Anrufbeantworter für Anruf von ${str('target') || 'unbekannt'}`);
   // Das Modell gehört zur Verbindung; nur ein Anruf über die API, der ausdrücklich eines nennt, weicht davon ab
   let model = active.realtimeModel(typeof params.model === 'string' ? params.model : undefined);
@@ -331,6 +331,8 @@ ${mcp ? str('context') : input.context}` : input.task,
     stallMs: t.stallMs,
     // Beim Anrufbeantworter meldet sich die KI sofort, der Anrufer erwartet eine Ansage
     greetingWaitMs: incoming ? 0 : t.greetingWaitMs,
+    // Ausgehend muss sich die KI als KI zu erkennen geben; nur dem Inhaber selbst gegenüber entfällt das (außer bei Agenten-Anrufen)
+    requireAiIntro: !incoming && !scam && (!input.owner || mcp),
     // Anrufbeantworter: erst nur „Hallo?"; sagt der Anrufer nichts, stellt sich die KI nach kurzer Pause vor
     greetingFollowUp: scam
       ? { afterMs: 3000, instruction: 'Der Anrufer hat nichts gesagt. Sag noch einmal fragend „Hallo? Ist da jemand?" und warte.' }

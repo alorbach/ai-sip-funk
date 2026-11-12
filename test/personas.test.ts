@@ -38,6 +38,14 @@ test('Systemanweisung enthält Grundregeln, Persona und Auftrag', () => {
   assert.match(greetingInstruction(input), /du heißt Alex.*im Auftrag von Max/);
 });
 
+test('Inhabernummer bei einem Agenten-Anruf: Vorstellung als KI-Assistent, im eigenen Auftrag', () => {
+  const input = { persona: personas[0], formal: false, aiName: 'Lara', principalName: 'Max', task: 'Frag nach der Uhrzeit.', owner: true, agent: true, maxCallSeconds: 300 };
+  assert.match(buildInstructions(input), /„Hi Max, Lara hier, dein KI-Assistent" – dass du eine KI bist, sagst du in der Begrüßung ausdrücklich/);
+  assert.match(buildInstructions(input), /du rufst in seinem eigenen Auftrag an, nicht im Auftrag des Agenten/);
+  assert.match(greetingInstruction(input), /sag dabei, dass du sein KI-Assistent bist/);
+  assert.doesNotMatch(greetingInstruction(input), /keine KI-Erklärung/);
+});
+
 test('Ausgewichene Frage: einmal erneut stellen, dann als offen festhalten', () => {
   const text = buildInstructions({ persona: personas[0], formal: true, aiName: 'Alex', principalName: 'Max', task: 'x', maxCallSeconds: 300 });
   assert.match(text, /Weicht das Gegenüber einer Frage aus dem Auftrag aus .* stell deine Frage danach einmal freundlich erneut – bevor du ans Beenden denkst\. Lehnt es ab oder weicht es noch einmal aus, lass es gut sein/);

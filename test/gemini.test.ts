@@ -139,7 +139,7 @@ test('Gemini: Unterbrechung mit Inhalt verwirft den Rest, ein Zuhör-Laut lässt
   h.bridge.close();
 });
 
-test('Gemini: Geräusch ohne Transkription gilt nach zwei Sekunden als Geräusch', (t) => {
+test('Gemini: Geräusch ohne Transkription gilt zwei Sekunden nach dem Sprachende als Geräusch', (t) => {
   const h = setup(t);
   h.start();
   h.say(400, 'Hallo?');
@@ -149,6 +149,9 @@ test('Gemini: Geräusch ohne Transkription gilt nach zwei Sekunden als Geräusch
   assert.equal(h.drain(1000), 1000);
   h.server({ serverContent: { interrupted: true } });
   assert.equal(h.bridge.nextFrame(), undefined);
+  h.tick(3000);
+  assert.equal(h.bridge.nextFrame(), undefined, 'solange der Server kein Sprachende meldet, bleibt die Äußerung offen');
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
   h.tick(2000);
   assert.equal(h.drain(), 3000);
   h.bridge.close();
@@ -254,6 +257,20 @@ test('Gemini: Ein echter Einwurf verwirft den Rest, die KI erfährt davon; ein e
   h.bridge.close();
 });
 
+test('Gemini: Die erste Antwort ohne Hinweis auf die KI – Nachholen angefordert; mit Hinweis nicht', (t) => {
+  for (const [text, expected] of [['Hi Max, Lara hier. Wie spät ist es?', true], ['Hi Max, Lara hier, deine KIAssistentin. Wie spät ist es?', false], ['Guten Tag, ich bin ein KI-Assistent.', false]] as const) {
+    const h = setup(t, { requireAiIntro: true });
+    h.tick(1);
+    h.start();
+    h.say(800, text);
+    assert.equal(h.regie().some((r) => /nicht gesagt, dass du eine KI bist/.test(r.text)), expected, text);
+    h.say(600, 'Danke.');
+    assert.equal(h.regie().filter((r) => /nicht gesagt, dass du eine KI bist/.test(r.text)).length, expected ? 1 : 0, 'nur die erste Antwort wird geprüft');
+    h.bridge.close();
+    t.mock.timers.reset();
+  }
+});
+
 test('Gemini: Lehnt der Server die Sitzung beim Aufbau wegen des Kontingents ab, wird sie mit dem Ausweichmodell neu aufgebaut', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const sockets: FakeSocket[] = [];
@@ -304,6 +321,8 @@ test('Gemini: Geräusch gleich nach dem Abheben – die KI begrüßt trotzdem vo
   h.start();
   h.tick(1400);
   h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.tick(400);
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
   h.tick(1999);
   assert.deepEqual(h.regie(), [], 'noch offen, ob etwas gesagt wurde');
   h.tick(1);
@@ -354,6 +373,7 @@ test('Gemini: Kommt die Mitschrift nach der nachgeholten Begrüßung doch noch, 
   const h = setup(t, { greetingWaitMs: 2500 });
   h.start();
   h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
   h.tick(2000);
   assert.equal(h.regie().length, 1, 'Begrüßung nachgeholt');
   // 300 ms später trifft die Mitschrift ein: Es war doch Sprache, das Modell hat jetzt zwei Auslöser

@@ -500,3 +500,46 @@ test('Echo-Erkennung: dieselben Wörter in derselben Reihenfolge; Fragen, Zahlen
   assert.equal(isEcho('', spoken), false);
   assert.equal(isEcho('von', ''), false);
 });
+
+test('Laut ohne Worte: Nach einem deutlichen Laut und Ruhe geht die KI darauf ein; ein Knacken oder Sprache zählt nicht', (t) => {
+  const h = setup(t);
+  greeted(h);
+  const frame = (level: number) => { h.tick(20); h.bridge.onRemoteAudio(new Int16Array(160).fill(level)); };
+  // kurz nach der eigenen Ausgabe zählt nichts (Echo), danach 600 ms Lachen, dann Ruhe
+  for (let i = 0; i < 25; i++) frame(0);
+  for (let i = 0; i < 30; i++) frame(4000);
+  for (let i = 0; i < 59; i++) frame(20);
+  assert.equal(h.count('response.create'), 0, 'noch nicht lange genug ruhig');
+  for (let i = 0; i < 3; i++) frame(20);
+  assert.equal(h.count('response.create'), 1);
+  assert.match(h.creates()[0], /hörbar reagiert, aber ohne Worte/);
+  h.say('r1', 'i1', 400, 'Schön, dass er dir gefällt!');
+  h.drain();
+  h.ws.sent.length = 0;
+  // ein Knacken von 100 ms: nichts
+  for (let i = 0; i < 25; i++) frame(0);
+  for (let i = 0; i < 5; i++) frame(4000);
+  for (let i = 0; i < 80; i++) frame(20);
+  assert.equal(h.count('response.create'), 0);
+  // der Anbieter meldet Sprache: Das ist kein Laut ohne Worte
+  for (let i = 0; i < 10; i++) frame(4000);
+  h.server({ type: 'input_audio_buffer.speech_started', item_id: 'u1' });
+  for (let i = 0; i < 30; i++) frame(4000);
+  h.server({ type: 'input_audio_buffer.speech_stopped', item_id: 'u1' });
+  h.server({ type: 'response.created', response: { id: 'r2' } });
+  for (let i = 0; i < 80; i++) frame(20);
+  assert.equal(h.count('response.create'), 0);
+  h.bridge.close();
+});
+
+test('Stillstandswächter: War das Gegenüber eben noch zu hören, wartet er weiter', (t) => {
+  const h = setup(t, { stallMs: 3000 });
+  greeted(h);
+  const frame = (level: number) => { h.tick(20); h.bridge.onRemoteAudio(new Int16Array(160).fill(level)); };
+  // anhaltendes Nebengeräusch: nie lange genug ruhig für „Laut ohne Worte", aber auch kein Stillstand
+  for (let i = 0; i < 150; i++) frame(4000);
+  assert.equal(h.count('response.create'), 0, 'nach 3 s kein Anstoß, das Gegenüber ist zu hören');
+  for (let i = 0; i < 400; i++) frame(4000);
+  assert.equal(h.count('response.create'), 1, 'nach zweimal Warten stößt der Wächter doch an');
+  h.bridge.close();
+});
