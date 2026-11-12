@@ -146,6 +146,14 @@ export class RealtimeBridge implements AudioHandler {
   private endCallChecked = false;
   // Nach einem abgelehnten end_call (Sprache + Tool): Schweigt das Gegenüber, muss die KI selbst wieder dran
   private rejectTimer?: NodeJS.Timeout;
+  /** Nach einem abgelehnten end_call soll die KI schweigen: Was sie von sich aus nachschiebt, bleibt stumm, bis das Gegenüber spricht, die Schweigefrist abläuft oder sie ein Tool aufruft */
+  private muteAfterReject = false;
+  /** Die laufende Antwort ist so ein Nachschub; mutedBytes zählt ihr verworfenes Audio (PCM16 in der Rate des Anbieters) */
+  private mutedResponse = false;
+  private mutedBytes = 0;
+  // Messpunkte je Antwort: kam eine Mitschrift, und was hat die Antwort ausgelöst
+  private responseHadText = false;
+  private lastCause = '';
   private kiLive = '';
   private playing = false;
   private firstQueuedAt = 0;
@@ -445,6 +453,9 @@ export class RealtimeBridge implements AudioHandler {
     this.stallTimer = undefined;
     this.responseFirstItem = undefined;
     this.droppedItems = [];
+    this.responseHadText = false;
+    this.mutedResponse = this.muteAfterReject;
+    this.mutedBytes = 0;
     if (this.muteReplyUntil) {
       if (Date.now() < this.muteReplyUntil) this.muteNoiseResponse = true;
       this.muteReplyUntil = 0;
@@ -454,6 +465,10 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onAudio(itemId: string, pcm: Buffer): void {
+    if (this.mutedResponse) {
+      this.mutedBytes += pcm.length;
+      return;
+    }
     if (!this.stats.firstDeltaAt) this.stats.firstDeltaAt = Date.now();
     this.stats.deltas++;
     if (this.awaitingAudioSince) {
@@ -478,6 +493,9 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onAiText(itemId: string, text: string, final: boolean): void {
+    if (text) this.responseHadText = true;
+    // Nicht zu hören, also auch nicht im Transkript
+    if (this.mutedResponse) return;
     if (this.isExtraItem(itemId)) return;
     if (!final) {
       if (this.muteNoiseResponse || (this.hold && itemId !== this.currentItemId)) return;
@@ -538,6 +556,8 @@ export class RealtimeBridge implements AudioHandler {
       this.openingPending = true; // … bleibt sie aus, holt lateGreeting die Begrüßung nach
       log.info('Realtime: Gegenüber spricht zuerst, KI antwortet darauf');
     }
+    // Das Gegenüber reagiert: Die Antwort darauf soll wieder zu hören sein
+    this.muteAfterReject = false;
     // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
     // Dort entscheidet erst die Transkription, ob es Sprache war (siehe decideAfterGoodbye)
     if (this.outQueue.length > 0 && this.endRequested !== undefined) {
@@ -594,6 +614,8 @@ export class RealtimeBridge implements AudioHandler {
     }
     // Das Modell handelt auf das Gesagte hin: Dann war es Inhalt, die Prüfung der Unterbrechung ist entschieden
     if (this.hold) this.resolveHold(undefined);
+    this.muteAfterReject = false;
+    this.lastCause = 'Tool-Ergebnis';
     this.onFunctionCall(name, callId, args);
   }
 
@@ -602,11 +624,16 @@ export class RealtimeBridge implements AudioHandler {
     this.muteNoiseResponse = false;
     this.activeResponse = false;
     if (r.usage) this.addUsage(r.usage);
+    if (this.mutedResponse) {
+      this.mutedResponse = false;
+      log.info(`Realtime: Antwort ${r.id ?? '?'} nach abgelehntem end_call stumm gelassen (${Math.round(this.mutedBytes / 2 / (this.live.outputRate / 1000))} ms Audio, Mitschrift ${this.responseHadText ? 'ja' : 'nein'})`);
+    }
     const st = this.stats;
     if (st.deltas > 0) {
       const genMs = Date.now() - st.firstDeltaAt;
       const audioMs = (st.framesPlayed + this.outQueue.length) * 20;
-      log.info(`Realtime-Antwort: ${st.deltas} Deltas in ${genMs} ms für ${audioMs} ms Audio (${(audioMs / Math.max(genMs, 1)).toFixed(1)}x Echtzeit), Unterläufe ${st.underruns}, max. Puffer ${st.maxQueue * 20} ms, Unterbrechungen ${st.interruptions} (${st.discarded * 20} ms verworfen)`);
+      log.info(`Realtime-Antwort: ${st.deltas} Deltas in ${genMs} ms für ${audioMs} ms Audio (${(audioMs / Math.max(genMs, 1)).toFixed(1)}x Echtzeit), Unterläufe ${st.underruns}, max. Puffer ${st.maxQueue * 20} ms, Unterbrechungen ${st.interruptions} (${st.discarded * 20} ms verworfen); Antwort ${r.id ?? '?'}, Mitschrift ${this.responseHadText ? 'ja' : 'nein'}, Auslöser: ${this.lastCause || 'unbekannt'}`);
+      if (!this.responseHadText) log.warn(`Realtime: Antwort ${r.id ?? '?'} hat Audio ohne Mitschrift – im Transkript fehlt, was die KI hier gesagt hat`);
       if (r.status === 'incomplete') log.warn(`Realtime-Antwort abgeschnitten: ${JSON.stringify(r.statusDetails ?? {})} – Limit max_output_tokens ${this.opts.maxOutputTokens ?? 900}`);
       if (this.greetingResponse && this.opts.greetingFollowUp && r.status === 'completed') {
         // Begrüßung fertig: Sagt das Gegenüber nach dem Ausspielen nichts, spricht die KI weiter
@@ -759,6 +786,7 @@ export class RealtimeBridge implements AudioHandler {
     }
     this.awaitingAudioSince = Date.now();
     this.awaitingLabel = label;
+    this.lastCause = label;
     this.audioWatchdog = setTimeout(() => {
       this.audioWatchdog = undefined;
       if (this.closed || !this.awaitingAudioSince) return;
@@ -894,6 +922,7 @@ export class RealtimeBridge implements AudioHandler {
       // das Gegenüber bekommt erst die Chance zu antworten, die VAD erzeugt die nächste Antwort.
       log.info('Realtime: end_call zusammen mit Sprache – abgelehnt, Gegenüber darf erst antworten');
       this.live.toolOutput(callId, name, END_CALL_WHILE_SPEAKING);
+      this.muteAfterReject = true;
       // Kommt nichts vom Gegenüber, darf das Gespräch nicht bis zum Limit hängen. Die Frist läuft erst,
       // wenn der Satz ausgespielt ist – er liegt hier noch fast vollständig im Puffer.
       const rejectWait = this.outQueue.length * 20 + REJECT_SILENCE_MS;
@@ -910,6 +939,8 @@ export class RealtimeBridge implements AudioHandler {
           return;
         }
         log.info('Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll beenden');
+        this.muteAfterReject = false;
+        this.lastCause = 'Schweigen nach abgelehntem end_call';
         this.live.respond(END_CALL_AFTER_SILENCE);
       };
       this.rejectTimer = setTimeout(onSilence, rejectWait);

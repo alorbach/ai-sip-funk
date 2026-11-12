@@ -205,6 +205,44 @@ test('Gemini: end_call zusammen mit Sprache wird abgelehnt, das Tool-Ergebnis ge
   h.bridge.close();
 });
 
+test('Gemini: Was die KI nach einem abgelehnten end_call von sich aus nachschiebt, bleibt stumm; der Abschied ist wieder zu hören', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  // Dank und end_call in einer Antwort: abgelehnt
+  h.audio(1000);
+  h.server({ serverContent: { outputTranscription: { text: 'Danke dir!' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  // Das Modell redet trotz „Sag jetzt nichts mehr“ weiter, ohne Mitschrift
+  h.audio(2000);
+  h.server({ serverContent: { turnComplete: true } });
+  assert.equal(h.drain(), 1000, 'nur der Dank geht auf die Leitung');
+  assert.deepEqual(h.texts.filter((x) => x.startsWith('ki:')), ['ki: Guten Tag.', 'ki: Danke dir!']);
+  // Das Gegenüber schweigt: Die KI soll beenden, und ihr Abschied ist zu hören
+  h.tick(3000);
+  assert.match(h.regie().at(-1)!.text, /Rufe jetzt end_call auf/);
+  h.server({ toolCall: { functionCalls: [{ id: 'f2', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  h.say(800, 'Bis dann!');
+  assert.equal(h.drain(), 800);
+  h.bridge.close();
+});
+
+test('Gemini: Nach einem abgelehnten end_call ist die Antwort auf das Gegenüber wieder zu hören', (t) => {
+  const h = setup(t);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.audio(1000);
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  assert.equal(h.drain(), 1000);
+  h.server({ serverContent: { inputTranscription: { text: 'Moment, eine Frage noch.' } } });
+  h.tick(700);
+  h.say(600, 'Klar, welche?');
+  assert.equal(h.drain(), 600);
+  h.bridge.close();
+});
+
 test('Gemini: flag_spam reicht die neue Rolle mit dem Tool-Ergebnis nach', (t) => {
   const h = setup(t, { onFlagSpam: () => 'SPAMROLLE' });
   h.start();
