@@ -101,6 +101,8 @@ const LIMIT_KNEE = 24000;
 const AUDIO_WATCHDOG_MS = 5000;
 /** Das Gegenüber gab vor der Begrüßung einen Laut von sich: Entsteht so lange nach dessen Ende keine Antwort, begrüßt die KI doch selbst */
 const OPENING_REPLY_MS = 2000;
+/** Nach einer nachgeholten Begrüßung: Eine Antwort, die so kurz danach von selbst beginnt, ist die zweite Antwort auf denselben Anfang */
+const DUP_AFTER_GREETING_MS = 1500;
 // Stillstandswächter: höchstens so oft hintereinander anstoßen, ohne dass das Gegenüber etwas sagt
 const STALL_MAX_NUDGES = 2;
 /** Unterbrechung prüfen statt sofort verwerfen: erst ab so viel Rest-Audio lohnt das Weitersprechen */
@@ -151,6 +153,17 @@ export class RealtimeBridge implements AudioHandler {
   /** Die laufende Antwort ist so ein Nachschub; mutedBytes zählt ihr verworfenes Audio (PCM16 in der Rate des Anbieters) */
   private mutedResponse = false;
   private mutedBytes = 0;
+  private mutedWhy = '';
+  /**
+   * Nachgeholte Begrüßung (siehe lateGreeting): Kommt die Mitschrift des vermeintlichen Geräuschs doch noch, hat das Modell
+   * zwei Auslöser und antwortet zweimal. 'greeting' = die Begrüßung ist angefordert oder läuft, 'after' = sie ist fertig;
+   * eine Antwort, die bis dupGuardUntil von selbst beginnt, ohne dass das Gegenüber seit Beginn der Begrüßung sprach, bleibt stumm.
+   */
+  private dupGuard: 'off' | 'greeting' | 'after' = 'off';
+  private dupGreetingStarted = false;
+  private dupGuardUntil = 0;
+  /** Zeitpunkt eines Unterlaufs mitten in einer Antwort, bis die Ausgabe wieder läuft */
+  private underrunAt = 0;
   // Messpunkte je Antwort: kam eine Mitschrift, und was hat die Antwort ausgelöst
   private responseHadText = false;
   private lastCause = '';
@@ -171,7 +184,7 @@ export class RealtimeBridge implements AudioHandler {
   private responseFirstItem?: string;
   private droppedItems: string[] = [];
   // Messwerte je Antwort, werden bei response.done geloggt
-  private stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, deltas: 0 };
+  private stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, firstDeltaMs: 0, deltas: 0 };
   // Wächter: Nach einer Anforderung bzw. nach dem Satzende des Gegenübers muss Audio kommen.
   // Am Telefon blieb die KI sonst stumm, ohne dass im Protokoll ein Grund stand.
   private activeResponse = false;
@@ -298,6 +311,10 @@ export class RealtimeBridge implements AudioHandler {
       const waited = this.firstQueuedAt ? Date.now() - this.firstQueuedAt : 0;
       if (this.outQueue.length >= PREBUFFER_FRAMES || (this.outQueue.length > 0 && waited >= PREBUFFER_MAX_WAIT_MS)) {
         this.playing = true;
+        if (this.underrunAt) {
+          log.warn(`Realtime: Ausgabe läuft wieder – Lücke ${Date.now() - this.underrunAt} ms mitten in der Antwort`);
+          this.underrunAt = 0;
+        }
       } else {
         if (this.outQueue.length === 0 && this.endRequested !== undefined && this.goodbye === 'done' && this.connected) this.finishEndCall();
         return undefined;
@@ -308,6 +325,11 @@ export class RealtimeBridge implements AudioHandler {
       this.playing = false;
       this.firstQueuedAt = 0;
       this.stats.underruns++;
+      // Die Antwort entsteht noch: Dann ist das kein Satzende, sondern ein hörbarer Aussetzer
+      if (this.activeResponse && !this.underrunAt) {
+        this.underrunAt = Date.now();
+        log.warn(`Realtime: Unterlauf mitten in der Antwort – Puffer leer nach ${this.stats.framesPlayed * 20} ms, erstes Stück hatte ${this.stats.firstDeltaMs} ms`);
+      }
       if (this.endRequested !== undefined && this.goodbye === 'done' && this.connected) this.finishEndCall();
       this.armStall();
       return undefined;
@@ -455,7 +477,16 @@ export class RealtimeBridge implements AudioHandler {
     this.droppedItems = [];
     this.responseHadText = false;
     this.mutedResponse = this.muteAfterReject;
+    this.mutedWhy = 'nach abgelehntem end_call';
     this.mutedBytes = 0;
+    if (this.dupGuard === 'greeting') this.dupGreetingStarted = true;
+    else if (this.dupGuard === 'after') {
+      this.dupGuard = 'off';
+      if (Date.now() <= this.dupGuardUntil) {
+        this.mutedResponse = true;
+        this.mutedWhy = 'als zweite Antwort auf den Gesprächsbeginn';
+      }
+    }
     if (this.muteReplyUntil) {
       if (Date.now() < this.muteReplyUntil) this.muteNoiseResponse = true;
       this.muteReplyUntil = 0;
@@ -469,7 +500,10 @@ export class RealtimeBridge implements AudioHandler {
       this.mutedBytes += pcm.length;
       return;
     }
-    if (!this.stats.firstDeltaAt) this.stats.firstDeltaAt = Date.now();
+    if (!this.stats.firstDeltaAt) {
+      this.stats.firstDeltaAt = Date.now();
+      this.stats.firstDeltaMs = Math.round(pcm.length / 2 / (this.live.outputRate / 1000));
+    }
     this.stats.deltas++;
     if (this.awaitingAudioSince) {
       log.info(`Realtime: erstes Audio ${Date.now() - this.awaitingAudioSince} ms nach ${this.awaitingLabel}`);
@@ -558,6 +592,8 @@ export class RealtimeBridge implements AudioHandler {
     }
     // Das Gegenüber reagiert: Die Antwort darauf soll wieder zu hören sein
     this.muteAfterReject = false;
+    // Spricht es, seit die nachgeholte Begrüßung läuft, ist die nächste Antwort keine Dopplung mehr
+    if (this.dupGreetingStarted) this.dupGuard = 'off';
     // Gegenüber spricht: laufende KI-Ausgabe sofort verwerfen – außer in der Verabschiedung:
     // Dort entscheidet erst die Transkription, ob es Sprache war (siehe decideAfterGoodbye)
     if (this.outQueue.length > 0 && this.endRequested !== undefined) {
@@ -626,7 +662,13 @@ export class RealtimeBridge implements AudioHandler {
     if (r.usage) this.addUsage(r.usage);
     if (this.mutedResponse) {
       this.mutedResponse = false;
-      log.info(`Realtime: Antwort ${r.id ?? '?'} nach abgelehntem end_call stumm gelassen (${Math.round(this.mutedBytes / 2 / (this.live.outputRate / 1000))} ms Audio, Mitschrift ${this.responseHadText ? 'ja' : 'nein'})`);
+      log.info(`Realtime: Antwort ${r.id ?? '?'} ${this.mutedWhy} stumm gelassen (${Math.round(this.mutedBytes / 2 / (this.live.outputRate / 1000))} ms Audio, Mitschrift ${this.responseHadText ? 'ja' : 'nein'})`);
+    }
+    // Ohne neue Stücke kommt nichts mehr nach: Ein späterer Leerlauf ist das Satzende, kein Aussetzer
+    this.underrunAt = 0;
+    if (this.dupGuard === 'greeting' && this.dupGreetingStarted) {
+      this.dupGuard = 'after';
+      this.dupGuardUntil = Date.now() + DUP_AFTER_GREETING_MS;
     }
     const st = this.stats;
     if (st.deltas > 0) {
@@ -657,7 +699,7 @@ export class RealtimeBridge implements AudioHandler {
       log.info(`Realtime: Begrenzer griff bei ${((100 * this.limitedSamples) / (st.framesPlayed * samplesPerFrame(this.callRate))).toFixed(1)} % der Samples (AI_OUTPUT_GAIN ${this.opts.outputGain})`);
       this.limitedSamples = 0;
     }
-    this.stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, deltas: 0 };
+    this.stats = { underruns: 0, maxQueue: 0, framesPlayed: 0, interruptions: 0, discarded: 0, firstDeltaAt: 0, firstDeltaMs: 0, deltas: 0 };
     if (this.goodbye === 'pending') {
       // Die Antwort mit dem Tool-Aufruf ist fertig; jetzt die Abschlussantwort anfordern
       this.goodbye = 'speaking';
@@ -757,6 +799,8 @@ export class RealtimeBridge implements AudioHandler {
     if (this.closed || this.activeResponse || this.endRequested !== undefined || this.goodbye !== 'none' || this.ask) return;
     log.info(`Realtime: ${why} – KI begrüßt von sich aus`);
     this.greet();
+    this.dupGuard = 'greeting';
+    this.dupGreetingStarted = false;
   }
 
   private maybeGreet(): void {
@@ -787,6 +831,8 @@ export class RealtimeBridge implements AudioHandler {
     this.awaitingAudioSince = Date.now();
     this.awaitingLabel = label;
     this.lastCause = label;
+    // Die App fordert selbst eine Antwort an (Regieanweisung, Wächter): Die ist gewollt und keine Dopplung
+    if (this.dupGuard === 'after') this.dupGuard = 'off';
     this.audioWatchdog = setTimeout(() => {
       this.audioWatchdog = undefined;
       if (this.closed || !this.awaitingAudioSince) return;

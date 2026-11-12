@@ -205,6 +205,43 @@ test('Gemini: end_call zusammen mit Sprache wird abgelehnt, das Tool-Ergebnis ge
   h.bridge.close();
 });
 
+test('Gemini: Kommt die Mitschrift nach der nachgeholten Begrüßung doch noch, bleibt die zweite Antwort stumm', (t) => {
+  const h = setup(t, { greetingWaitMs: 2500 });
+  h.start();
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.tick(2000);
+  assert.equal(h.regie().length, 1, 'Begrüßung nachgeholt');
+  // 300 ms später trifft die Mitschrift ein: Es war doch Sprache, das Modell hat jetzt zwei Auslöser
+  h.tick(300);
+  h.server({ serverContent: { inputTranscription: { text: 'Ja, hallo?' } } });
+  h.say(1000, 'Hi, Lara hier. Wie spät ist es?');
+  h.tick(500);
+  h.say(800, 'Kein Problem, wie spät ist es?');
+  assert.equal(h.drain(), 1000, 'nur die Begrüßung geht auf die Leitung');
+  assert.deepEqual(h.texts.filter((x) => x.startsWith('ki:')), ['ki: Hi, Lara hier. Wie spät ist es?']);
+  // Die Antwort des Gegenübers wird ganz normal beantwortet
+  h.tick(1000);
+  h.server({ serverContent: { inputTranscription: { text: 'Kurz vor zwölf.' } } });
+  h.tick(700);
+  h.say(600, 'Danke dir!');
+  assert.equal(h.drain(), 600);
+  h.bridge.close();
+});
+
+test('Gemini: Antwortet das Gegenüber gleich nach der nachgeholten Begrüßung, ist die Antwort der KI zu hören', (t) => {
+  const h = setup(t, { greetingWaitMs: 2500 });
+  h.start();
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.tick(2000);
+  h.say(1000, 'Hi, Lara hier. Wie spät ist es?');
+  assert.equal(h.drain(), 1000);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ serverContent: { inputTranscription: { text: 'Zwölf.' } } });
+  h.say(600, 'Danke dir!');
+  assert.equal(h.drain(), 600);
+  h.bridge.close();
+});
+
 test('Gemini: Was die KI nach einem abgelehnten end_call von sich aus nachschiebt, bleibt stumm; der Abschied ist wieder zu hören', (t) => {
   const h = setup(t);
   h.start();
