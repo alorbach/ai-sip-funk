@@ -37,47 +37,60 @@ export interface PreviewItem {
 
 const LABEL_ORDER: PhoneLabel[] = ['mobil', 'privat', 'geschäftlich', 'sonstige'];
 
-/**
- * Nummer aus dem Adressbuch in die SIPFunk-Schreibweise bringen: nur Ziffern, deutsche Nummern national mit 0,
- * ausländische mit +. Durchwahl-Zusätze („ext. 12“) und Fremdtext fallen weg; zu kurz oder leer = undefined.
- */
-/** Uhrzeit oder Datum in einem Telefonfeld (Öffnungszeiten, „gültig bis …“) */
+// ---------------------------------------------------------------- Uhrzeiten und Daten in Telefonfeldern
 // Bewusst streng, weil Nummern oft mit Punkten oder Bindestrichen gegliedert sind („0171 12.34.56“, „0171-23-45-67“):
-// Uhrzeit nur mit Doppelpunkt oder „Uhr“; Datum nur mit gültigem Tag und Monat und vierstelligem Jahr (oder „01.01.-“)
+// Uhrzeit nur mit Doppelpunkt, „Uhr“/„h“ oder als Spanne mit Minuten; Datum nur mit gültigem Tag und Monat und
+// vierstelligem Jahr (oder „01.11.-31.03.“). Eine nackte Stundenspanne („08-17“) zählt nur neben einem Wochentag.
 const DAY = '(0?[1-9]|[12]\\d|3[01])';
 const MONTH = '(0?[1-9]|1[0-2])';
 const YEAR = '(19|20)\\d{2}';
 const HOUR = '([01]?\\d|2[0-3])';
-const TIME_OR_DATE = new RegExp(
-  [
-    '\\d{1,2}:\\d{2}',
-    // Zeitspannen und Uhrzeiten mit „Uhr“, Bindestrich, Gedankenstrich oder „bis“ („8-17 Uhr“, „08.00 bis 17.00“, „8.00–17.00“)
-    `${HOUR}([.:][0-5]\\d)?\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}([.:][0-5]\\d)?\\s*uhr`,
-    // Spannen, bei denen eine Seite Minuten hat („8-16.30“, „8.30-17“, „07.30–16.00“)
-    `${HOUR}([.:][0-5]\\d)?\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}[.:][0-5]\\d(?![.\\d])`,
-    `${HOUR}[.:][0-5]\\d\\s*(uhr\\s*)?(-|–|—|bis)\\s*${HOUR}([.:][0-5]\\d)?(?![.\\d])`,
-    `${HOUR}[.:][0-5]\\d\\s*(uhr|h\\b)`,
-    `${DAY}\\.${MONTH}\\.(${YEAR}(?![.\\-/]?\\d)|(?=[\\s-]|$))`,
-    `${DAY}[-/]${MONTH}[-/]${YEAR}(?![.\\-/]?\\d)`,
-    `${YEAR}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])(?![.\\-/]?\\d)`,
-  ]
-    // (eine Uhrzeit mit Doppelpunkt darf direkt an der Nummer hängen: „030 1234567-08:00“)
-    .map((p, i) => (i === 0 ? `${HOUR}:[0-5]\\d(?!\\d)` : `(?<![\\d.\\-])${p}`))
-    .join('|'),
-  'i',
-);
+const MIN = '[.:][0-5]\\d';
+const TO = '\\s*(uhr\\s*)?(-|–|—|bis)\\s*';
+/** Nicht mitten in einer Nummer beginnen: kein Ziffer, Punkt oder „Ziffer-“ davor */
+const FREE = '(?<![\\d.])(?<!\\d-)';
+const TIME_OR_DATE_SOURCE = [
+  // Spannen: „8-17 Uhr“, „08.00 bis 17.00“, „8-16.30“, „8.30-17“, „9:00–17:00“
+  `${HOUR}(${MIN})?${TO}${HOUR}(${MIN})?\\s*uhr`,
+  `${HOUR}(${MIN})?${TO}${HOUR}${MIN}(?![.\\d])`,
+  `${HOUR}${MIN}${TO}${HOUR}(${MIN})?(?![.\\d])`,
+  // einzelne Uhrzeit: „7.30 Uhr“, „9h30“ nicht, „09:00“
+  `${HOUR}${MIN}\\s*(uhr|h\\b)`,
+  `${DAY}\\.${MONTH}\\.(${YEAR}(?![.\\-/]?\\d)|(?![.\\d]))`,
+  `${DAY}[-/]${MONTH}[-/]${YEAR}(?![.\\-/]?\\d)`,
+  `${YEAR}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])(?![.\\-/]?\\d)`,
+]
+  .map((p) => FREE + p)
+  // Uhrzeit mit Doppelpunkt zuletzt, damit eine Spanne „9:00-17“ als Ganzes erkannt wird; sie darf direkt an der
+  // Nummer hängen („030 1234567-08:00“)
+  .concat(`(?<![\\d.])${HOUR}:[0-5]\\d(?!\\d)`)
+  .join('|');
+const TIME_OR_DATE = new RegExp(TIME_OR_DATE_SOURCE, 'i');
+const TIME_OR_DATE_ALL = new RegExp(TIME_OR_DATE_SOURCE, 'gi');
+const WEEKDAY = /(?<![\p{L}])(mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun)\.?(?![\p{L}])/iu;
+const HOUR_RANGE_ALL = new RegExp(`${FREE}${HOUR}\\s*(-|–|—|bis)\\s*${HOUR}(?![\\d.]|:\\d)`, 'gi');
 
 /** Vollbreite und andere Doppelgänger von Ziffern, * und # in die üblichen Zeichen bringen (NFKC plus Rechen-Sternchen) */
 const phoneChars = (s: string) => s.normalize('NFKC').replace(/[∗✱⁎]/g, '*').replace(/♯/g, '#');
 
+/** Ziffern einer Vorwahl- oder Nummerngruppe, national gezählt („+49 (0)221“ = 0221 = 4) */
+const nationalDigits = (s: string) => s.replace(/\(0\)/g, '').replace(/^\s*\(?\s*(\+|00)\d{1,3}\)?/, '0').replace(/\D/g, '').length;
+
+/**
+ * Nummer aus dem Adressbuch in die SIPFunk-Schreibweise bringen: nur Ziffern, deutsche Nummern national mit 0,
+ * ausländische mit +. Bezeichnungen, Uhrzeiten, Daten, Durchwahl-Zusätze („ext. 12“) und sonstiger Text fallen weg;
+ * FRITZ!Box-Nebenstellen behalten ihre Sterne; Dienstcodes und alles, was falsch gewählt würde, ergibt undefined.
+ */
 export function normalizeImportNumber(raw: string): string | undefined {
   // Begrenzen und Leerraum zusammenfassen, bevor gesucht wird (keine langen Laufzeiten bei präparierten Dateien)
   let s = phoneChars(String(raw ?? '').slice(0, 400)).replace(/\s+/g, ' ').trim();
   // Längeres ist eine Notiz, keine Nummer; abgeschnitten käme sonst ein Bruchstück als Nummer heraus
   if (s.length > 80) return undefined;
-  // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „(Büro) 030 …“, „Mobil* 0171 …“, „Büro **610“) weg: ab dem
-  // ersten +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“) oder * bzw. # direkt vor Ziffer, * oder #
-  // (ein * oder # direkt hinter einem Wort gehört zur Bezeichnung: „Mobil*0171 …“, „Cell#0171 …“; ** vor Ziffern nie)
+  // 1. Uhrzeiten und Daten durch einen Trenner ersetzen; neben einem Wochentag auch nackte Stundenspannen („Mo-Fr 8-17“)
+  s = s.replace(TIME_OR_DATE_ALL, ' | ');
+  if (WEEKDAY.test(s)) s = s.replace(HOUR_RANGE_ALL, ' | ');
+  // 2. Anfang der Nummer: erstes +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“), „**“ vor Ziffern oder ein
+  // * bzw. # vor Ziffer, * oder # – außer direkt hinter einem Wort („Mobil*0171 …“, „Cell#0171 …“ = Bezeichnung)
   const start = s.search(/\+|\d|\((?=\s*[+\d])|\*\*(?=\s*\d)|(?<![A-Za-zÄÖÜäöüß]\.?)[*#](?=[\d*#])/);
   if (start < 0) return undefined;
   s = s.slice(start);
@@ -86,35 +99,32 @@ export function normalizeImportNumber(raw: string): string | undefined {
   const internal = /^\*\*\s*(\d+)/.exec(s);
   if (internal) return '**' + internal[1];
   if (/^[*#]/.test(s)) return undefined;
-  // Uhrzeiten und Daten („08:00“, „17.30“, „15.11.2026“, „01.01.-31.12.“, „2027-01-01“) sind keine Nummer: am Anfang
-  // verwerfen, dahinter abschneiden
-  const note = s.search(TIME_OR_DATE);
-  // Steht die Uhrzeit vorn („Mo-Fr 8-17 Uhr Tel. 030 …“), mit dem Rest weitermachen
-  if (note === 0) return normalizeImportNumber(s.slice(TIME_OR_DATE.exec(s)![0].length));
-  if (note > 0) s = s.slice(0, note).replace(/[\s/-]+$/, '');
-  // Hinter der Nummer: Wahlpausen (, ;), Sterne und Rauten, Durchwahl-Zusätze („ext. 12“, „x12“,
-  // „p123“) und sonstiger Text fallen weg
-  const end = s.search(/[,;*#a-z]/i);
+  // Ein Doppelpunkt zwischen Vorwahl und Rufnummer verbindet („030:1234567“); sonst beendet er die Nummer („: Büro“)
+  s = s.replace(/^(\+?[\d()\s-]{2,6}):(?=\s?\d{5})/, '$1 ');
+  // 3. Ende der Nummer: Trenner, Wahlpausen (, ;), Sterne und Rauten, Durchwahl-Zusätze („ext. 12“, „x12“, „p123“),
+  // Doppelpunkt und sonstiger Text
+  const end = s.search(/[|,;:*#a-z]/i);
   if (end >= 0) s = s.slice(0, end);
-  // „ / “ verbindet nur Vorwahl und Rufnummer („0171 / 5550100“, auch gegliedert „0221 / 123 / 4567“); folgen danach
-  // zusammen weniger als fünf Ziffern („/ 8-17“, „/ 08“), ist es keine Rufnummer und fällt weg
-  const slashParts = s.split(/\s+\/\s+/);
-  const tail: string[] = [];
-  for (const p of slashParts.slice(1)) {
-    if (!/^[\d\s()-]+$/.test(p)) break;
-    tail.push(p);
+  s = s.replace(/[\s/\-–]+$/, '');
+  // 4. „ / “ verbindet nur eine Vorwahl mit der Rufnummer („0171 / 5550100“, „+49 (0)221 / 1234567“, gegliedert
+  // „0221 / 123 / 4567“). Ist die Nummer vor dem Schrägstrich schon vollständig (ab sechs Ziffern), ist das Folgende
+  // eine Nebenstelle oder Notiz („030 1234567 / 610“). Sonst kommen Gruppen dazu, bis die Nummer zehn Ziffern hat;
+  // eine kurze Gruppe danach ist wieder eine Nebenstelle („0221 / 1234567 / 610“).
+  const groups = s.split(/\s*\/\s*(?=[\d(])/);
+  if (groups.length > 1 && /\s\/|\/\s/.test(s)) {
+    let joined = groups[0];
+    let count = nationalDigits(joined);
+    if (count < 6) {
+      for (const g of groups.slice(1)) {
+        const d = g.replace(/\D/g, '').length;
+        if (!/^[\d\s()-]+$/.test(g) || (count >= 10 && d <= 3)) break;
+        joined += ' ' + g;
+        count += d;
+      }
+    }
+    s = joined;
   }
-  // Hat die Rufnummer schon fünf Ziffern, ist eine kurze Gruppe danach eine Nebenstelle oder Notiz („/ 610“), kein Teil
-  let tailDigits = 0;
-  const kept: string[] = [];
-  for (const p of tail) {
-    const d = p.replace(/\D/g, '').length;
-    if (tailDigits >= 5 && d <= 3) break;
-    kept.push(p);
-    tailDigits += d;
-  }
-  s = slashParts[0] + (tailDigits >= 5 ? ' ' + kept.join(' ') : '');
-  // „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“ und
+  // 5. „(0)30 …“ am Anfang: die 0 gehört zur Vorwahl; „+49 (0)30 …“: die eingeklammerte 0 entfällt; „(+49) 171 …“ und
   // „(+49 30 1234567)“ behalten das Plus
   s = s.replace(/^\(\s*0\s*\)\s*/, '0').replace(/\(0\)/g, '').replace(/^\(\s*\+\s*(\d{1,3})\s*\)/, '+$1').replace(/^\(\s*(?=\+)/, '');
   const plus = s.startsWith('+');
@@ -132,7 +142,7 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // öffentlich gewählt
   if (!/^[0+]/.test(digits) && count < 5) return undefined;
   // Höchstens 15 Ziffern international (E.164), national mit 0 also höchstens 14: Längeres sind zusammengezogene
-  // Nummern („030 1234567 / 7654321“), die so falsch gewählt würden
+  // Nummern, die so falsch gewählt würden
   return count >= 3 && count <= (digits.startsWith('+') ? 15 : 14) ? digits : undefined;
 }
 

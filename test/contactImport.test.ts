@@ -779,8 +779,8 @@ test('Bezeichnung mit * oder # direkt vor der Nummer, Text nach „ / “, zusam
   assert.deepEqual(splitNumbers('**610 (Büro) / 030 1234567').map(n), ['**610', '0301234567']);
   assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
   assert.deepEqual(splitNumbers('+49 (0)221 / 1234567'), ['+49 (0)221 / 1234567']);
-  assert.equal(n('030 1234567 / 7654321'), undefined);
-  assert.equal(n('+49 30 1234567 / 7654321'), undefined);
+  assert.equal(n('030 1234567 / 7654321'), '0301234567');
+  assert.equal(n('+49 30 1234567 / 7654321'), '0301234567');
   assert.equal(n('0170 12345678'), '017012345678');
 });
 
@@ -907,5 +907,25 @@ test('Gemischte Zeitspannen und Uhrzeit direkt hinter der Nummer', () => {
   assert.deepEqual(nums('030 1234567 8.00\u201317.00'), ['0301234567']);
   assert.deepEqual(nums('030 1234567 8.00 bis 17.00 Uhr'), ['0301234567']);
   assert.deepEqual(nums('030 1234567-08:00'), ['0301234567']);
+  assert.equal(n('030:1234567'), '0301234567');
+});
+
+// ---------------------------------------------------------------- Review-Runde 20 (Neuordnung)
+
+test('Zeit oder Datum vor der Nummer, Stundenlisten, Gruppen nach „ / “, Doppelpunkt', () => {
+  const n = normalizeImportNumber;
+  const nums = (v: string) => splitNumbers(v).map(n).filter(Boolean);
+  assert.equal(n('Mo-Fr 8-17: 030 1234567'), '0301234567');
+  assert.equal(n('Mo-Fr 9:00-17 030 1234567'), '0301234567');
+  assert.equal(n('01.11.-31.03.: 030 1234567'), '0301234567');
+  assert.equal(n('0221 / 12345 / 67'), '02211234567');
+  assert.equal(n('030 1234567 / 610 / 611'), '0301234567');
+  assert.equal(n('0171 5550100 / 610 / 611'), '01715550100');
+  for (const v of ['Mo-Fr 08-17', 'Mo-Fr 08-12, 14-17', 'Mo-Fr 08-12 und 14-17 Uhr']) assert.deepEqual(nums(v), [], v);
+  assert.equal(n('Mo-Fr 8-12 und 14-17 Uhr 030 1234567'), '0301234567');
+  assert.equal(n('0171 / 5550100: Büro'), '01715550100');
+  assert.equal(n('030 1234567: 24h'), '0301234567');
+  assert.equal(n('030 1234567: 2. Etage'), '0301234567');
+  assert.equal(n('030 1234567:12'), '0301234567');
   assert.equal(n('030:1234567'), '0301234567');
 });
