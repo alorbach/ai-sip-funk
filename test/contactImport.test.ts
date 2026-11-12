@@ -499,3 +499,30 @@ test('Gemeinsame Nummer bei gleichem Namen nennt den anderen Eintrag', () => {
     assert.deepEqual(items[0].numbers[0].sharedWith, ['Kim Probe']);
   });
 });
+
+// ---------------------------------------------------------------- Review-Runde 5
+
+test('Eigene Karte des Inhabers wird weder ergänzt noch doppelt angelegt', () => {
+  withStore((store) => {
+    store.create({ name: 'Sam Beispiel', number: '0171 5551700', owner: true });
+    const cands = [{ name: 'Sam Beispiel', numbers: [{ number: '01715551700', label: 'mobil' as const }, { number: '0305551701', label: 'privat' as const }] }];
+    const [item] = buildPreview(cands, store);
+    assert.deepEqual([item.status, item.ownCard, item.mergeable], ['partial', true, undefined]);
+    const r = applyImport(cands, ['0'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged, r.unchanged], [0, 0, 1]);
+    assert.equal(store.list().length, 1);
+  });
+});
+
+test('Zwei Karten derselben Person sind kein gemeinsames Festnetz', () => {
+  withStore((store) => {
+    store.create({ name: 'Erika Muster', number: '0171 5551800' });
+    const cands = fromVcard('BEGIN:VCARD\nFN:Erika Muster\nTEL;TYPE=CELL:0171 5551800\nEND:VCARD\nBEGIN:VCARD\nFN:Erika Muster\nTEL;TYPE=CELL:0171 5551800\nTEL;TYPE=HOME:030 5551801\nEND:VCARD');
+    const items = buildPreview(cands, store);
+    assert.equal(items[1].mergeable, true);
+    const r = applyImport(cands, ['0', '1'], store, { addToExisting: true });
+    assert.deepEqual([r.created, r.merged], [0, 1]);
+    assert.equal(store.findByNumber('030 5551801')?.name, 'Erika Muster');
+    assert.equal(store.list().length, 1);
+  });
+});

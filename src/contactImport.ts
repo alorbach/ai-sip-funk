@@ -27,7 +27,9 @@ export interface PreviewItem {
    * sonst wird beim Import ein neuer Kontakt nur mit den noch unbekannten Nummern angelegt.
    */
   mergeable?: boolean;
-  /** new: es gibt schon einen Kontakt mit genau diesem Namen (andere Nummer) */
+  /** partial: die eigene Karte des Inhabers – wird nicht importiert (weitere eigene Nummern von Hand eintragen) */
+  ownCard?: boolean;
+  /** Es gibt schon einen Kontakt mit genau diesem Namen (andere Nummer); ein Import legt ihn ein zweites Mal an */
   sameName?: boolean;
 }
 
@@ -337,27 +339,40 @@ export function fromFile(name: string, text: string): ImportCandidate[] {
 export function buildPreview(candidates: ImportCandidate[], store: Pick<ContactStore, 'findByNumber' | 'list'>): PreviewItem[] {
   const shared = sharedKeys(candidates);
   const holders = new Map<string, number[]>();
-  candidates.forEach((c, i) => { for (const n of c.numbers) if (shared.has(numberKey(n.number))) holders.set(numberKey(n.number), [...(holders.get(numberKey(n.number)) ?? []), i]); });
+  // Für die Anzeige jede Nummer, die bei mehr als einem Eintrag steht (auch zwei Karten derselben Person): sie bekommt nur der erste gewählte
+  candidates.forEach((c, i) => { for (const n of c.numbers) { const k = numberKey(n.number); const list = holders.get(k); if (list) list.push(i); else holders.set(k, [i]); } });
   const names = new Set(store.list().map((c) => c.name.trim().toLowerCase()));
   return candidates.map((c, i) => {
     const owners = c.numbers.map((n) => store.findByNumber(n.number));
     const numbers = c.numbers.map((n, j) => {
-      const others = holders.get(numberKey(n.number))?.filter((x) => x !== i).map((x) => candidates[x].name);
-      return { ...n, known: owners[j]?.name, shared: shared.has(numberKey(n.number)) || undefined, sharedWith: others?.length ? others.slice(0, 3) : undefined };
+      const list = holders.get(numberKey(n.number)) ?? [];
+      const others: string[] = [];
+      for (const x of list) { if (x !== i) others.push(candidates[x].name); if (others.length >= 3) break; }
+      return { ...n, known: owners[j]?.name, shared: others.length ? true : undefined, sharedWith: others.length ? others : undefined };
     });
     const known = owners.filter((o): o is Contact => !!o);
     const status: PreviewItem['status'] = !known.length ? 'new' : known.length === numbers.length ? 'exists' : 'partial';
     const mergeable = status === 'partial' && canMerge(c, owners, shared);
-    const sameName = status === 'new' && names.has(c.name.trim().toLowerCase()) ? true : undefined;
-    return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, sameName };
+    const ownCard = status === 'partial' && isOwnCard(c, owners) ? true : undefined;
+    const sameName = (status === 'new' || (status === 'partial' && !mergeable)) && names.has(c.name.trim().toLowerCase()) ? true : undefined;
+    return { id: String(i), name: c.name, numbers, status, existing: known[0]?.name, mergeable: mergeable || undefined, ownCard, sameName };
   });
 }
 
 /** Nummern, die bei mehr als einem Eintrag des Adressbuchs stehen */
 function sharedKeys(candidates: ImportCandidate[]): Set<string> {
-  const uses = new Map<string, number>();
-  for (const c of candidates) for (const n of c.numbers) uses.set(numberKey(n.number), (uses.get(numberKey(n.number)) ?? 0) + 1);
-  return new Set([...uses].filter(([, n]) => n > 1).map(([k]) => k));
+  // Zählt nur Einträge mit verschiedenen Namen: zwei Karten derselben Person sind kein gemeinsames Festnetz
+  const holders = new Map<string, Set<string>>();
+  for (const c of candidates) for (const n of c.numbers) {
+    const k = numberKey(n.number);
+    holders.set(k, (holders.get(k) ?? new Set()).add(nameParts(c.name).join(' ')));
+  }
+  return new Set([...holders].filter(([, names]) => names.size > 1).map(([k]) => k));
+}
+
+/** Die eigene Karte des Inhabers: wird weder ergänzt (weitere Inhabernummern hätten Sonderrechte) noch doppelt angelegt */
+function isOwnCard(c: ImportCandidate, owners: (Contact | undefined)[]): boolean {
+  return owners.some((o) => o?.owner && sameperson(c.name, o.name));
 }
 
 const nameParts = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -426,11 +441,11 @@ export function applyImport(
     const existing = owners.find((o): o is Contact => !!o);
     const mergeable = existing && canMerge(c, owners, shared);
     const createNew = !existing || !mergeable;
-    if (!fresh.length) unchanged++;
+    if (!fresh.length || isOwnCard(c, owners)) unchanged++;
     else if (createNew) create.push({ name: c.name, number: fresh[0], numbers: fresh.slice(1) });
     else if (opts.addToExisting) add.push({ id: existing.id, numbers: fresh });
     else unchanged++;
-    if (fresh.length && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
+    if (fresh.length && !isOwnCard(c, owners) && (createNew || opts.addToExisting)) for (const n of fresh) taken.add(numberKey(n));
   }
   const r = store.importMany(create, add);
   return { ...r, unchanged };

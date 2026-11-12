@@ -948,7 +948,7 @@
       <button type="button" class="btn small quiet" id="imp-none">Auswahl aufheben</button>
     </div>
     <div id="imp-list" role="group" aria-label="Einträge im Adressbuch"></div>
-    <p class="hint" style="margin:0">✓ = Nummer schon gespeichert · ⇄ = Nummer steht auch bei den genannten Einträgen; sie bekommt nur der erste ausgewählte in der Liste. „Name schon vorhanden“: Es gibt bereits einen Kontakt mit diesem Namen und anderer Nummer – vor dem Import prüfen, sonst gibt es den Namen zweimal.</p>
+    <p class="hint" style="margin:0">Importierte Kontakte gelten als gespeicherte Kontakte – auch für die Regeln der MCP-Schnittstelle („Nur gespeicherte Kontakte“, Nachfrage nur bei Nummern ohne Kontakt). ✓ = Nummer schon gespeichert · ⇄ = Nummer steht auch bei den genannten Einträgen; sie bekommt nur der erste ausgewählte in der Liste. „Name schon vorhanden“: Es gibt bereits einen Kontakt mit diesem Namen und anderer Nummer – vor dem Import prüfen, sonst gibt es den Namen zweimal.</p>
     <label class="check"><input type="checkbox" id="imp-merge"> Bei vorhandenen Kontakten fehlende Nummern als weitere Nummern ergänzen (Name und Einstellungen bleiben unverändert; nur bei gleichem Namen)</label>
   </div>
   <div class="foot">
@@ -1400,7 +1400,7 @@ function impShow(result) {
   renderImport();
 }
 // Teilweise bekannt: derselbe Mensch nur mit Haken „ergänzen“; ein anderer Mensch wird neu angelegt (ohne die bekannten Nummern)
-function impSelectable(it) { return it.status === 'new' || (it.status === 'partial' && (!it.mergeable || $('imp-merge').checked)); }
+function impSelectable(it) { return it.status === 'new' || (it.status === 'partial' && !it.ownCard && (!it.mergeable || $('imp-merge').checked)); }
 /** Zahl der gewählten Einträge im Knopf; ohne die Liste neu zu zeichnen (sonst ginge der Tastaturfokus verloren) */
 function impCount() {
   const n = [...impSel].filter((id) => { const it = impItems[Number(id)]; return it && impSelectable(it); }).length;
@@ -1415,9 +1415,10 @@ function renderImport() {
   const shown = hits.slice(0, 500);
   $('imp-list').innerHTML = shown.map((it) => {
     const ok = impSelectable(it);
-    const badge = it.status === 'exists' ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span> <span class="hint">${it.mergeable ? ($('imp-merge').checked ? '– wird dort ergänzt' : '– nur mit Haken „ergänzen“ unten') : '– wird neu angelegt, ohne die schon gespeicherten Nummern'}</span>` : it.sameName ? '<span class="badge">Name schon vorhanden</span>' : '';
+    const badge = it.status === 'exists' ? `<span class="badge">schon vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span>` : it.status === 'partial' ? `<span class="badge">teilweise vorhanden</span> <span class="hint" data-no-i18n>${esc(it.existing)}</span> <span class="hint">${it.ownCard ? '– deine eigene Karte; weitere eigene Nummern bitte im Kontakt eintragen' : it.mergeable ? ($('imp-merge').checked ? '– wird dort ergänzt' : '– nur mit Haken „ergänzen“ unten') : '– wird neu angelegt, ohne die schon gespeicherten Nummern'}</span>` : '';
+    const nameBadge = it.sameName ? ' <span class="badge">Name schon vorhanden</span>' : '';
     const nums = it.numbers.map((n) => `${esc(n.number)} (${esc(I18N.t(IMP_LABEL[n.label] || n.label))})${n.known ? ' ✓' : ''}${n.shared ? ` ⇄ ${esc((n.sharedWith || []).join(', '))}` : ''}`).join(' · ');
-    return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
+    return `<label class="imp-row${ok ? '' : ' off'}"><input type="checkbox" data-id="${esc(it.id)}"${impSel.has(it.id) && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span class="n"><span data-no-i18n>${esc(it.name)}</span>${badge}${nameBadge}</span><span class="num" data-no-i18n>${nums}</span></label>`;
   }).join('') + (hits.length > shown.length ? `<div class="empty">${hits.length - shown.length} weitere – bitte die Suche eingrenzen</div>` : '') + (!hits.length && impItems.length ? '<div class="empty">Kein Treffer</div>' : '');
   impCount();
 }
@@ -1454,6 +1455,8 @@ $('imp-file').onchange = async () => {
   const f = $('imp-file').files[0];
   $('imp-file').value = '';
   if (!f) return;
+  // Grenze des Servers (30 MB nach base64-Kodierung)
+  if (f.size > 22_000_000) { toast('Die Datei ist größer als 22 MB. Bitte ohne Fotos exportieren oder in mehrere Dateien teilen.'); return; }
   try {
     // Als Bytes senden: deutsche Outlook-/Excel-CSV ist oft Windows-1252, das erkennt erst der Server
     const bytes = new Uint8Array(await f.arrayBuffer());
