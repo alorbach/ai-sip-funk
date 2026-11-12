@@ -689,6 +689,7 @@
               <label class="field"><span>Höchstens … Anrufe je Tag</span><input id="p-mcp-day" type="number" min="1" max="500" value="30"></label>
               <label class="field"><span>Höchstdauer je Anruf (Minuten)</span><input id="p-mcp-minutes" type="number" min="1" max="60" value="10"><small>Nie länger als das allgemeine Gesprächslimit.</small></label>
               <label class="field adv"><span>Protokolle, die ein Agent lesen darf</span><select id="p-mcp-history"><option value="own">Nur Anrufe, die über MCP gestartet wurden</option><option value="all">Alle Protokolle</option></select></label>
+              <label class="switch span"><span>Gesprächsplan vor Agenten-Anrufen erstellen<small>Aus: Die KI telefoniert nur mit dem Auftrag des Agenten; das spart eine Anfrage an das Textmodell vor dem Abheben. An: Das Textmodell zerlegt den Auftrag in Schritte, und die KI prüft vor dem Auflegen, ob alle erledigt sind. Die Zusammenfassung nach dem Gespräch entsteht in beiden Fällen.</small></span><input type="checkbox" id="p-mcp-plan" role="switch"></label>
               <label class="switch span adv"><span>Agent darf die Namen meiner Kontakte lesen<small>Rufnummern und Notizen bekommt er nie. Einen Kontakt anrufen kann er auch ohne diese Liste, wenn er den Namen kennt.</small></span><input type="checkbox" id="p-mcp-contacts" role="switch"></label>
             </div>
             <div class="subhead" style="margin-top:18px">Agenten verbinden</div>
@@ -925,7 +926,7 @@ const FORM_FIELDS = {
   notifyTray: 'p-notify-tray', notifyEmail: 'p-notify-email', notifyCall: 'p-notify-call',
   scamMode: 'p-scam', scamAccepted: 'p-scam-accepted', scamStyle: 'p-scam-style', scamMaxMinutes: 'p-scam-max', scamNumbers: 'p-scam-numbers', scamName: 'p-scam-name', scamVoice: 'p-scam-voice', scamSpeed: 'p-scam-speed', scamGender: 'p-scam-gender', scamExtra: 'p-scam-extra', scamDisclose: 'p-scam-disclose', ringPopup: 'p-ring-popup', spamLookup: 'p-spam-lookup',
   mailProvider: 'p-mail-provider', mailTo: 'p-mail-to', mailFrom: 'p-mail-from', smtpHost: 'p-smtp-host', smtpPort: 'p-smtp-port', smtpSecure: 'p-smtp-secure', smtpUser: 'p-smtp-user', smtpPass: 'p-smtp-pass', mailClientId: 'p-mail-client-id', mailClientSecret: 'p-mail-client-secret', mailTenant: 'p-mail-tenant', mailUser: 'p-mail-user', mailSubject: 'p-mail-subject', mailBody: 'p-mail-body',
-  mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history',
+  mcpEnabled: 'p-mcp', mcpTargets: 'p-mcp-targets', mcpConfirm: 'p-mcp-confirm', mcpPerHour: 'p-mcp-hour', mcpPerDay: 'p-mcp-day', mcpMaxMinutes: 'p-mcp-minutes', mcpContacts: 'p-mcp-contacts', mcpHistory: 'p-mcp-history', mcpPlan: 'p-mcp-plan',
   maxCallSeconds: 't-max-call', retentionDays: 't-retention', stallMs: 't-stall', vadSilenceMs: 't-vad', vadThreshold: 't-vad-threshold', hangupGraceMs: 't-grace', greetingWaitMs: 't-greet', speechSpeed: 't-speed', outputGain: 't-gain', allowInterrupt: 't-interrupt', webPort: 't-web-port',
 };
 // Dashboard-Vorgaben (speichert „Als Standard speichern“) und alles Übrige (speichert „Speichern“ in den Einstellungen)

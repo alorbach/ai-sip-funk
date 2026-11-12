@@ -493,7 +493,7 @@ const gateway: McpGateway = new McpGateway({
     manager.checkDial(number);
     const s = loadSettings();
     // Name der KI und zusätzliche Hinweise kommen immer aus den Einstellungen des Betreibers, nie vom Agenten
-    const bridge = createAiHandler({ target: number, task: p.task, context: p.context, principal: p.principal, address: p.address ?? '', persona: p.persona ?? '', aiName: s.aiName, personaExtra: s.personaExtra, mcp: true, maxSeconds: p.maxSeconds, agentClient: p.client ?? '' });
+    const bridge = createAiHandler({ target: number, task: p.task, context: p.context, principal: p.principal, address: p.address ?? '', persona: p.persona ?? '', aiName: s.aiName, personaExtra: s.personaExtra, mcp: true, plan: mcpPolicyFrom(s).plan, maxSeconds: p.maxSeconds, agentClient: p.client ?? '' });
     try {
       manager.dial(number, 'ai', bridge);
     } catch (err) {

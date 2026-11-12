@@ -643,6 +643,8 @@
     'Nur Anrufe, die über MCP gestartet wurden': 'Only calls started through MCP',
     'Alle Protokolle': 'All call logs',
     'Agent darf die Namen meiner Kontakte lesen': 'Agent may read the names of my contacts',
+    'Gesprächsplan vor Agenten-Anrufen erstellen': 'Create a call plan before agent calls',
+    'Aus: Die KI telefoniert nur mit dem Auftrag des Agenten; das spart eine Anfrage an das Textmodell vor dem Abheben. An: Das Textmodell zerlegt den Auftrag in Schritte, und die KI prüft vor dem Auflegen, ob alle erledigt sind. Die Zusammenfassung nach dem Gespräch entsteht in beiden Fällen.': 'Off: the AI calls with the agent\'s task only; this saves a request to the text model before the call is answered. On: the text model splits the task into steps, and before hanging up the AI checks whether all are done. The summary after the call is created in both cases.',
     'Rufnummern und Notizen bekommt er nie. Einen Kontakt anrufen kann er auch ohne diese Liste, wenn er den Namen kennt.': 'It never gets phone numbers or notes. It can call a contact without this list if it knows the name.',
     'Agenten verbinden': 'Connecting agents',
     'Agent': 'Agent',

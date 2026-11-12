@@ -28,7 +28,7 @@ const CONTACTS = [
 ];
 const STRANGER = '030 23125 999';
 
-const OPEN: McpPolicy = { enabled: true, targets: 'any', confirm: 'never', perHour: 10, perDay: 30, maxSeconds: 600, contacts: false, history: 'own' };
+const OPEN: McpPolicy = { enabled: true, targets: 'any', confirm: 'never', perHour: 10, perDay: 30, maxSeconds: 600, contacts: false, history: 'own', plan: false };
 
 /** Gateway mit nachgestellter Umgebung; `policy` und `line` lassen sich im Test ändern. */
 function harness(over: Partial<McpPolicy> = {}) {
@@ -90,10 +90,12 @@ const record = (id: string, target: string, origin?: 'mcp'): CallRecord => ({
 // ---- Einstellungen ----
 
 test('Einstellungen: MCP ist ohne ausdrückliches Einschalten aus, Vorgaben sind die vorsichtigen', () => {
-  const p = mcpPolicyFrom({ mcpEnabled: '', mcpTargets: '', mcpConfirm: '', mcpPerHour: '', mcpPerDay: '', mcpMaxMinutes: '', mcpContacts: '', mcpHistory: '' } as FormSettings);
-  assert.deepEqual(p, { enabled: false, targets: 'contacts', confirm: 'always', perHour: 10, perDay: 30, maxSeconds: 600, contacts: false, history: 'own' });
-  const q = mcpPolicyFrom({ mcpEnabled: 'on', mcpTargets: 'any', mcpConfirm: 'unknown', mcpPerHour: '999', mcpPerDay: '0', mcpMaxMinutes: '3', mcpContacts: 'on', mcpHistory: 'all' } as FormSettings);
-  assert.deepEqual(q, { enabled: true, targets: 'any', confirm: 'unknown', perHour: 60, perDay: 1, maxSeconds: 180, contacts: true, history: 'all' });
+  const p = mcpPolicyFrom({ mcpEnabled: '', mcpTargets: '', mcpConfirm: '', mcpPerHour: '', mcpPerDay: '', mcpMaxMinutes: '', mcpContacts: '', mcpHistory: '', mcpPlan: '' } as FormSettings);
+  assert.equal(p.plan, false, 'ohne Angabe kein Gesprächsplan bei Agenten-Anrufen');
+  assert.deepEqual(p, { enabled: false, targets: 'contacts', confirm: 'always', perHour: 10, perDay: 30, maxSeconds: 600, contacts: false, history: 'own', plan: false });
+  const q = mcpPolicyFrom({ mcpEnabled: 'on', mcpTargets: 'any', mcpConfirm: 'unknown', mcpPerHour: '999', mcpPerDay: '0', mcpMaxMinutes: '3', mcpContacts: 'on', mcpHistory: 'all', mcpPlan: 'on' } as FormSettings);
+  assert.equal(q.plan, true);
+  assert.deepEqual(q, { enabled: true, targets: 'any', confirm: 'unknown', perHour: 60, perDay: 1, maxSeconds: 180, contacts: true, history: 'all', plan: true });
 });
 
 // ---- Schalter ----

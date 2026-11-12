@@ -6,6 +6,7 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+- **MCP: the call plan for agent calls can be switched off, default off.** New switch "Gesprächsplan vor Agenten-Anrufen erstellen" (create a call plan before agent calls) under "Einstellungen › MCP-Schnittstelle". When off, the AI calls with the agent's task only; the request to the text model before the call is answered is dropped, and with it the check of the plan steps before hanging up. The summary after the call stays. **Until now the plan was always created; if you want to keep it for agent calls, switch it on.**
 - **The AI starts speaking sooner.** If the other party says nothing after picking up, the AI now greets after 1.5 instead of 2.5 seconds ("Warten nach Abnehmen" under "Einstellungen › Technik"). The new default only applies where the value has not been saved already.
 - **MCP: a direction from the agent still arrives while the call is ending.** If the agent sends `say` while the AI is already saying goodbye, SIPFunk takes the hang-up back and the AI still says it; until now it was rejected with "Das Gespräch wird gerade beendet". It is only rejected once the call has been hung up. The log records every direction with its time.
 - **MCP: asked "what did the agent want?", the AI names the task.** The rule about the agent that started the call made the AI answer that it wanted "nothing in particular".

@@ -6,6 +6,7 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **MCP: Gesprächsplan bei Agenten-Anrufen abschaltbar, Vorgabe aus.** Neuer Schalter „Gesprächsplan vor Agenten-Anrufen erstellen“ unter „Einstellungen › MCP-Schnittstelle“. Ausgeschaltet telefoniert die KI nur mit dem Auftrag des Agenten; die Anfrage an das Textmodell vor dem Abheben entfällt, und mit ihr die Prüfung der Planschritte vor dem Auflegen. Die Zusammenfassung nach dem Gespräch bleibt. **Bisher entstand der Plan immer; wer ihn bei Agenten-Anrufen behalten will, schaltet den Schalter ein.**
 - **Die KI beginnt schneller zu sprechen.** Sagt das Gegenüber nach dem Abheben nichts, begrüßt die KI jetzt nach 1,5 statt 2,5 Sekunden („Warten nach Abnehmen“ unter „Einstellungen › Technik“). Die neue Vorgabe gilt nur, wo der Wert nicht schon gespeichert ist.
 - **MCP: Eine Vorgabe des Agenten kommt auch beim Beenden noch an.** Schickt der Agent `say`, während die KI sich schon verabschiedet, nimmt SIPFunk das Auflegen zurück und die KI spricht die Vorgabe noch aus; bisher wurde sie mit „Das Gespräch wird gerade beendet“ abgelehnt. Abgelehnt wird nur noch, wenn schon aufgelegt ist. Das Log hält jede Vorgabe mit Zeitpunkt fest.
 - **MCP: Auf „Was wollte der Agent?“ nennt die KI den Auftrag.** Die Regel zum auslösenden Agenten ließ die KI antworten, er habe „nichts Bestimmtes“ gewollt.

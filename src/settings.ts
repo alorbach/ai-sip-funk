@@ -146,6 +146,8 @@ export interface FormSettings {
   mcpContacts: string;
   /** Protokolle für den Agenten: 'own' (nur Anrufe, die über MCP ausgelöst wurden) | 'all' */
   mcpHistory: string;
+  /** Gesprächsplan des Textmodells auch bei Agenten-Anrufen: 'on' | 'off' (Vorgabe aus: Der Agent liefert den Auftrag schon ausformuliert) */
+  mcpPlan: string;
 }
 
 /** Was ein KI-Agent über die MCP-Schnittstelle darf; geprüft und begrenzt. */
@@ -158,6 +160,8 @@ export interface McpPolicy {
   maxSeconds: number;
   contacts: boolean;
   history: 'own' | 'all';
+  /** true = vor einem Agenten-Anruf erstellt das Textmodell einen Gesprächsplan */
+  plan: boolean;
 }
 
 export function mcpPolicyFrom(s: FormSettings): McpPolicy {
@@ -174,6 +178,7 @@ export function mcpPolicyFrom(s: FormSettings): McpPolicy {
     maxSeconds: int(s.mcpMaxMinutes, 10, 1, 60) * 60,
     contacts: s.mcpContacts === 'on',
     history: s.mcpHistory === 'all' ? 'all' : 'own',
+    plan: s.mcpPlan === 'on',
   };
 }
 
@@ -216,7 +221,7 @@ export function mailConfigFrom(s: FormSettings): MailConfig {
   };
 }
 
-export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory'];
+export const SETTINGS_KEYS: (keyof FormSettings)[] = ['uiMode', 'uiLang', 'setupDone', 'aiProvider', 'aiConnections', 'aiConnection', 'mode', 'task', 'persona', 'voice', 'address', 'aiName', 'principal', 'personaExtra', 'behaveLength', 'behavePace', 'behaveConfirm', 'behaveSmalltalk', 'model', 'incoming', 'incomingRings', 'incomingTask', 'incomingIdentities', 'incomingProfiles', 'notifyTray', 'notifyEmail', 'notifyCall', 'scamMode', 'scamAccepted', 'scamStyle', 'scamMaxMinutes', 'scamNumbers', 'scamName', 'scamVoice', 'scamSpeed', 'scamGender', 'scamExtra', 'scamDisclose', 'ringPopup', 'spamLookup', 'maxCallSeconds', 'retentionDays', 'stallMs', 'vadSilenceMs', 'vadThreshold', 'hangupGraceMs', 'greetingWaitMs', 'speechSpeed', 'outputGain', 'allowInterrupt', 'summaryModel', 'mailProvider', 'mailTo', 'mailFrom', 'smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass', 'mailClientId', 'mailClientSecret', 'mailTenant', 'mailUser', 'mailSubject', 'mailBody', 'webPort', 'mcpEnabled', 'mcpTargets', 'mcpConfirm', 'mcpPerHour', 'mcpPerDay', 'mcpMaxMinutes', 'mcpContacts', 'mcpHistory', 'mcpPlan'];
 
 /** Technische Werte, geprüft und begrenzt; gelten ab dem nächsten Anruf. */
 export interface Tuning {
@@ -340,6 +345,7 @@ function envDefaults(): FormSettings {
     mcpMaxMinutes: '10',
     mcpContacts: 'off',
     mcpHistory: 'own',
+    mcpPlan: 'off',
   };
 }
 
@@ -624,6 +630,7 @@ function normalize(s: FormSettings): FormSettings {
   if (s.mcpConfirm !== 'never' && s.mcpConfirm !== 'unknown') s.mcpConfirm = 'always';
   if (s.mcpContacts !== 'on') s.mcpContacts = 'off';
   if (s.mcpHistory !== 'all') s.mcpHistory = 'own';
+  if (s.mcpPlan !== 'on') s.mcpPlan = 'off';
   // Die Limits so speichern, wie sie gelten: Die Oberfläche soll nicht 100 zeigen, wenn 60 wirkt
   const mcp = mcpPolicyFrom(s);
   s.mcpPerHour = String(mcp.perHour);
