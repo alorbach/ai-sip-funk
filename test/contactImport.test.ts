@@ -802,3 +802,17 @@ test('Kurze Nebenstelle vor „ / “, Schrägstrich am Ende, lange Notizen', ()
   assert.deepEqual(splitNumbers('0171 / 0221 123456').map(n), ['01710221123456']);
   assert.equal(n('Bitte nur in dringenden Fällen anrufen, sonst lieber eine Nachricht schreiben, bitte jetzt 0221 1234567'), undefined);
 });
+
+test('Dienstcode hinter Satzzeichen bleibt Dienstcode; Uhrzeit und Datum nach „ / “ sind keine Nummer', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('tel:*72 0301234567'), undefined);
+  assert.equal(n('Weiterleitung:*72 +49 30 1234567'), undefined);
+  assert.equal(n('Tel.:*0301234567#'), undefined);
+  assert.equal(n('tel:*123456'), undefined);
+  assert.equal(n('Mobil*0171 5550100'), '01715550100');
+  assert.equal(n('Tel.*030 1234567'), '0301234567');
+  assert.deepEqual(splitNumbers('0171 5550100 / Mo-Fr 08:00-17:00').map(n), ['01715550100']);
+  assert.deepEqual(splitNumbers('030 1234567 / bis 01.01.2027').map(n), ['0301234567']);
+  assert.deepEqual(splitNumbers('030 1234567 / seit 01.2020').map(n), ['0301234567']);
+  assert.deepEqual(splitNumbers('Mobil: 0171 5550100 / Büro: 030 1234567').map(n), ['01715550100', '0301234567']);
+});

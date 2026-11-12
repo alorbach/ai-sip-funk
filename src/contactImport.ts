@@ -52,7 +52,7 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „(Büro) 030 …“, „Mobil* 0171 …“, „Büro **610“) weg: ab dem
   // ersten +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“) oder * bzw. # direkt vor Ziffer, * oder #
   // (ein * oder # direkt hinter einem Wort gehört zur Bezeichnung: „Mobil*0171 …“, „Cell#0171 …“; ** vor Ziffern nie)
-  const start = s.search(/\+|\d|\((?=\s*[+\d])|\*\*(?=\s*\d)|(?<=^|[\s(])[*#](?=[\d*#])/);
+  const start = s.search(/\+|\d|\((?=\s*[+\d])|\*\*(?=\s*\d)|(?<![A-Za-zÄÖÜäöüß]\.?)[*#](?=[\d*#])/);
   if (start < 0) return undefined;
   s = s.slice(start);
   // FRITZ!Box-Nebenstelle („**610“, „**610 (Büro)“): ohne die Sterne ginge der Anruf ins öffentliche Netz.
@@ -106,7 +106,8 @@ export function splitNumbers(value: string): string[] {
   const parts = phoneChars(String(value ?? '').slice(0, 400))
     // „Mobil: 0171 … / Büro: 030 …“, „**610 (Büro) / 030 …“: steht nach „ / “ Text und dann eine ganze Nummer, trennt der
     // Schrägstrich zwei Nummern
-    .replace(/\s+\/\s+(?=[^\d/]*?[^\d\s/][^\d/]*?(?:\+|0\d))/g, ', ')
+    // (eine ganze Nummer, keine Uhrzeit oder kein Datum wie „08:00“ oder „01.01.2027“)
+    .replace(/\s+\/\s+(?=[^\d/]*?[^\d\s/][^\d/]*?(?:\+|0\d)[\d\s()/-]{6,})/g, ', ')
     // Eine Nebenstelle vor oder hinter einer Nummer („030 1234567 **610“, „**610 / 030 1234567“) wird eine eigene Nummer
     .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)|(?<=\*\*\s*\d+)(?:\s*[/(]?\s*(?=\+)|[\s/(]+(?=0\d))/i)
     // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
