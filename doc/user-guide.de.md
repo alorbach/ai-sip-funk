@@ -308,7 +308,7 @@ Die Sprach-KI führt das Gespräch. Sie spricht gut, plant und zählt aber schle
 
 | Stelle | Was das Textmodell tut | Antwortet es nicht rechtzeitig |
 | --- | --- | --- |
-| Die KI will auflegen | Die KI verabschiedet sich sofort. Währenddessen prüft das Textmodell Punkt für Punkt am Transkript, ob vom Auftrag etwas fehlt, das in diesem Gespräch noch geht. Fehlt etwas, nimmt SIPFunk das Auflegen zurück, und die KI spricht den Punkt noch an („Eine Sache noch: …“). Die Selbstprüfung der Sprach-KI gegen den Gesprächsplan entfällt | Das Auflegen wartet höchstens 6 s nach dem Auflegen-Wunsch auf das Urteil; kommt keines, wird aufgelegt, wie die Sprach-KI entschieden hat |
+| Die KI will auflegen | Die KI verabschiedet sich sofort. Währenddessen prüft das Textmodell Punkt für Punkt am Transkript, ob vom Auftrag etwas fehlt, das in diesem Gespräch noch geht. Fehlt etwas, nimmt SIPFunk das Auflegen zurück, und die KI spricht den Punkt noch an („Eine Sache noch: …“). Die Selbstprüfung der Sprach-KI gegen den Gesprächsplan entfällt | Das Auflegen wartet höchstens 8 s nach dem Auflegen-Wunsch auf das Urteil; kommt keines, wird aufgelegt, wie die Sprach-KI entschieden hat |
 | Das Gegenüber sagt nach der Verabschiedung noch etwas | Es entscheidet, ob das nur Abschied oder Dank ist (auflegen) oder noch ein Anliegen (das Gespräch geht weiter) | nach 4 s entscheidet die Wortliste wie bisher |
 | Regie im Hintergrund | Es liest nach jedem Redebeitrag der KI mit und gibt ihr nur bei Bedarf einen Hinweis: eine übergangene Frage, ein Missverständnis, ein vergessener Punkt, eine nicht bemerkte Mailbox. Der Hinweis steht im Transkript als „Hinweis der Regie an die KI: …“ und wirkt, wenn die KI das nächste Mal spricht | es gibt keinen Hinweis |
 

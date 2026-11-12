@@ -255,9 +255,11 @@ test('end_call: Antwortet das Textmodell nicht, wird nach der Frist aufgelegt, w
   h.toolEnd();
   farewell(h);
   h.tick(5000);
-  assert.deepEqual(h.ended, [], 'bis 6 s nach dem end_call wartet das Auflegen');
+  assert.deepEqual(h.ended, [], 'bis 8 s nach dem end_call wartet das Auflegen');
   // (in kleinen Schritten: Die nachgestellte Uhr plant einen Timer, der sich selbst neu stellt, sonst hinter das Ende des Sprungs)
-  for (let i = 0; i < 6; i++) h.tick(250);
+  for (let i = 0; i < 9; i++) h.tick(250);
+  assert.deepEqual(h.ended, []);
+  for (let i = 0; i < 3; i++) h.tick(250);
   assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
   // Ein verspätetes Urteil ändert nichts mehr
   h.asked[0].resolve(['zu spät'] as never);

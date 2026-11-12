@@ -310,7 +310,7 @@ The voice AI conducts the conversation. It speaks well, but it is weak at planni
 
 | Point | What the text model does | If it does not answer in time |
 | --- | --- | --- |
-| The AI wants to hang up | The AI says goodbye at once. Meanwhile the text model checks the transcript point by point for anything from the task that is missing and can still be done in this call. If something is missing, SIPFunk takes back the hang-up and the AI raises the point ("Eine Sache noch: …", one more thing). The voice AI's self-check against the call plan is dropped | Hanging up waits for the verdict for at most 6 s after the AI asked to end; if none arrives, the call ends as the voice AI decided |
+| The AI wants to hang up | The AI says goodbye at once. Meanwhile the text model checks the transcript point by point for anything from the task that is missing and can still be done in this call. If something is missing, SIPFunk takes back the hang-up and the AI raises the point ("Eine Sache noch: …", one more thing). The voice AI's self-check against the call plan is dropped | Hanging up waits for the verdict for at most 8 s after the AI asked to end; if none arrives, the call ends as the voice AI decided |
 | The other party says something after the goodbye | It decides whether that is just a farewell or thanks (hang up) or another matter (the call continues) | after 4 s the word list decides as before |
 | Director in the background | It reads along after each turn of the AI and gives it a hint only when needed: a question that was passed over, a misunderstanding, a forgotten point, a voicemail the AI did not notice. The hint appears in the transcript as "Hinweis der Regie an die KI: …" and takes effect the next time the AI speaks | there is no hint |
 

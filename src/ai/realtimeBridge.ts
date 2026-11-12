@@ -143,9 +143,10 @@ const FAREWELL_DECISION_MS = 4000;
 const JUDGE_FAREWELL_MS = 4000;
 /**
  * end_call: Die Prüfung läuft neben der Verabschiedung her. So lange nach dem end_call wartet das Auflegen höchstens auf ihr
- * Urteil; meist ist es da, bevor Abschiedssatz und Nachhörphase vorbei sind.
+ * Urteil; meist ist es da, bevor Abschiedssatz und Nachhörphase vorbei sind (zusammen sechs bis acht Sekunden; im Simulator
+ * brauchte die Prüfung meist drei bis vier, vereinzelt acht).
  */
-const JUDGE_END_MS = 6000;
+const JUDGE_END_MS = 8000;
 /** end_call mit Sprache: Das Gegenüber ist ohnehin erst dran, die Prüfung läuft nebenher */
 const JUDGE_END_LATER_MS = 8000;
 

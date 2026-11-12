@@ -61,7 +61,7 @@ From a second phone, call your own number, wait for the number of rings, state a
 - [ ] After the goodbye it hangs up within a few seconds.
 - [ ] No long silence in mid-call; if there is one, the AI continues by itself after the stall watchdog time (log: "Stillstand").
 - [ ] With the profile set to "Nur klingeln lassen" or a different number of rings, only this number behaves differently.
-- [ ] Text model during the call (switch under "Technik" on): there is no pause before the goodbye; the verdict arrives before the call is hung up (log: "Textmodell (Auflegen) nach … ms", no "antwortet nicht in 6000 ms"). A farewell the word list does not know ("Ihnen auch einen schönen Feierabend") leads to hanging up; an afterthought ("Ach, eins noch …") does not.
+- [ ] Text model during the call (switch under "Technik" on): there is no pause before the goodbye; the verdict arrives before the call is hung up (log: "Textmodell (Auflegen) nach … ms", no "antwortet nicht in 8000 ms"). A farewell the word list does not know ("Ihnen auch einen schönen Feierabend") leads to hanging up; an afterthought ("Ach, eins noch …") does not.
 - [ ] Director: in an outgoing call with several points, dodge a question and say goodbye early. The transcript shows at most one fitting "Hinweis der Regie an die KI" or a "Prüfung vor dem Auflegen: noch offen", and the AI catches up on the point ("Eine Sache noch: …") without sounding stilted. In a smooth call no hint appears.
 
 ## 4. Assessment and notification
