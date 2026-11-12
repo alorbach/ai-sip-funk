@@ -1,0 +1,61 @@
+electron/main.cjs
+  s_9e7cbef9751112::t_d08099ad8ed570 22,61,162,244-249,251-252
+src/web/server.ts
+  s_9e7cbef9751112::t_f79bb27fc3a46e 69-71,170-174
+  s_9e7cbef9751112::t_fbe6936fcedb1c 19-22,175,226-233,394,399
+src/mcp/agents.ts
+  s_9e7cbef9751112::t_05a878fc9ba1e3 1-335,338-346
+  s_9e7cbef9751112::t_f79bb27fc3a46e 336-337
+.env.example
+  s_9e7cbef9751112::t_9d3d0b73b0ba96 74-75
+  s_9e7cbef9751112::t_d08099ad8ed570 76,187,199
+src/main.ts
+  s_9e7cbef9751112::t_fbe6936fcedb1c 8,53-63,509-510,972-974,1034,1042
+  s_9e7cbef9751112::t_f79bb27fc3a46e 19,501-504,516-517,521-529,1010-1011
+  s_9e7cbef9751112::t_908038f0402842 5
+scripts/install-local.mjs
+  s_9e7cbef9751112::t_d08099ad8ed570 61,63-66,71
+src/config.ts
+  s_9e7cbef9751112::t_fbe6936fcedb1c 3,60
+.env.example.de
+  s_9e7cbef9751112::t_1f302d8159954b 75-76
+  s_9e7cbef9751112::t_d08099ad8ed570 77,188,200
+.gitignore
+  s_9e7cbef9751112::t_d08099ad8ed570 16
+public/index.html
+  s_9e7cbef9751112::t_2081b2ff2a974a 2161
+  s_9e7cbef9751112::t_908038f0402842 283-289,693-697,699,2097,2112-2116,2126-2131,2153-2160,2162-2175
+  s_9e7cbef9751112::t_e90f861ce6a68f 722,927,1459,1463,1468-1484,2224-2231
+test/agents.test.ts
+  s_9e7cbef9751112::t_6db0f2c902062c 1-205
+public/i18n-en.js
+  s_9e7cbef9751112::t_b2c1d3778b58ac 657-704,752-753
+scripts/capture-screenshots.cjs
+  s_9e7cbef9751112::t_fe34f4ef2b5f58 351-352
+  s_9e7cbef9751112::t_2081b2ff2a974a 312-317,348-350,353
+src/settings.ts
+  s_9e7cbef9751112::t_6edc78990179ff 9,130-131,219,333,599-600
+src/webPort.ts
+  s_9e7cbef9751112::t_fbe6936fcedb1c 7-8
+  s_9e7cbef9751112::t_3359671132b1ac 1-6,9-76
+src/mcp/server.ts
+  s_9e7cbef9751112::t_6edc78990179ff 9,12-13
+test/webPort.test.ts
+  s_9e7cbef9751112::t_bde32e1f53d236 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "390ae48d4a14bde4eb8e03c54937116fe67baf24",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
