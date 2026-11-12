@@ -764,3 +764,29 @@ test('Raute oder Stern in der Bezeichnung lassen die Nummer stehen', () => {
   assert.equal(n('* 030 1234567'), '0301234567');
   assert.equal(n('*#06#'), undefined);
 });
+
+// ---------------------------------------------------------------- Review-Runde 15
+
+test('Bezeichnung mit * oder # direkt vor der Nummer, Text nach „ / “, zusammengezogene Nummern', () => {
+  const n = normalizeImportNumber;
+  assert.equal(n('Mobil*0171 5550100'), '01715550100');
+  assert.equal(n('Cell#0171 5550100'), '01715550100');
+  assert.equal(n('Tel.*030 1234567'), '0301234567');
+  assert.equal(n('Mobil*21*0301234567#'), undefined);
+  assert.equal(n('*#06#'), undefined);
+  assert.equal(n('**610'), '**610');
+  assert.deepEqual(splitNumbers('Mobil: 0171 5550100 / Büro: 030 1234567').map(n), ['01715550100', '0301234567']);
+  assert.deepEqual(splitNumbers('**610 (Büro) / 030 1234567').map(n), ['**610', '0301234567']);
+  assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
+  assert.deepEqual(splitNumbers('+49 (0)221 / 1234567'), ['+49 (0)221 / 1234567']);
+  assert.equal(n('030 1234567 / 7654321'), undefined);
+  assert.equal(n('+49 30 1234567 / 7654321'), undefined);
+  assert.equal(n('0170 12345678'), '017012345678');
+});
+
+test('Nebenstellen mit 0 in der Nummer bleiben ganz', () => {
+  for (const ext of ['**701', '**802', '**600', '**100', '**1001']) assert.deepEqual(splitNumbers(ext), [ext]);
+  assert.deepEqual(splitNumbers('030 1234567 **701').map(normalizeImportNumber), ['0301234567', '**701']);
+  assert.deepEqual(splitNumbers('**701 / 030 1234567').map(normalizeImportNumber), ['**701', '0301234567']);
+  assert.deepEqual(splitNumbers('**701 123456').map(normalizeImportNumber), ['**701']);
+});

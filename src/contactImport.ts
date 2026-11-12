@@ -49,7 +49,8 @@ export function normalizeImportNumber(raw: string): string | undefined {
   let s = phoneChars(String(raw ?? '').slice(0, 80)).replace(/\s+/g, ' ').trim();
   // Vorangestellte Bezeichnung („tel:“, „Handy 0171 …“, „(Büro) 030 …“, „Mobil* 0171 …“, „Büro **610“) weg: ab dem
   // ersten +, Ziffer, „(“ vor + oder Ziffer („(0)30 …“, „(+49) …“) oder * bzw. # direkt vor Ziffer, * oder #
-  const start = s.search(/\+|\d|\((?=\s*[+\d])|[*#](?=[\d*#])/);
+  // (ein * oder # direkt hinter einem Wort gehört zur Bezeichnung: „Mobil*0171 …“, „Cell#0171 …“; ** vor Ziffern nie)
+  const start = s.search(/\+|\d|\((?=\s*[+\d])|\*\*(?=\s*\d)|(?<=^|[\s(])[*#](?=[\d*#])/);
   if (start < 0) return undefined;
   s = s.slice(start);
   // FRITZ!Box-Nebenstelle („**610“, „**610 (Büro)“): ohne die Sterne ginge der Anruf ins öffentliche Netz.
@@ -75,7 +76,9 @@ export function normalizeImportNumber(raw: string): string | undefined {
   // Ohne 0 oder + nur Ortsnummern ab fünf Ziffern: eine kurze Nebenstelle ohne Sterne („Intern 610“) würde sonst
   // öffentlich gewählt
   if (!/^[0+]/.test(digits) && count < 5) return undefined;
-  return count >= 3 && count <= 20 ? digits : undefined;
+  // Höchstens 15 Ziffern international (E.164), national mit 0 also höchstens 14: Längeres sind zusammengezogene
+  // Nummern („030 1234567 / 7654321“), die so falsch gewählt würden
+  return count >= 3 && count <= (digits.startsWith('+') ? 15 : 14) ? digits : undefined;
 }
 
 /**
@@ -99,13 +102,18 @@ export function decodeImportFile(buf: Buffer): string {
  */
 export function splitNumbers(value: string): string[] {
   const parts = phoneChars(String(value ?? '').slice(0, 400))
+    // „Mobil: 0171 … / Büro: 030 …“, „**610 (Büro) / 030 …“: steht nach „ / “ Text und dann eine ganze Nummer, trennt der
+    // Schrägstrich zwei Nummern
+    .replace(/\s+\/\s+(?=[^\d/]*?[^\d\s/][^\d/]*?(?:\+|0\d))/g, ', ')
     // Eine Nebenstelle vor oder hinter einer Nummer („030 1234567 **610“, „**610 / 030 1234567“) wird eine eigene Nummer
-    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)|(?<=\*\*\s*\d+)\s*[/(]?\s*(?=\+|0\d)/i)
+    .split(/[,;]|:::|\s+oder\s+|\s+or\s+|\n|(?=\*\*\s*\d)|(?<=\*\*\s*\d+)(?:\s*[/(]?\s*(?=\+)|[\s/(]+(?=0\d))/i)
     // „ / “ trennt nur zwei ganze Nummern; „0171 / 5550100“ und „+49 (0)221 / 1234567“ sind Vorwahl und Rufnummer.
     // Eine ganze Nummer beginnt mit +, 0, ( oder *; eine Teilnehmernummer nie mit 0.
     .flatMap((p) => {
       const s = p.split(/\s+\/\s+/);
-      const whole = s.length > 1 && s.every((x) => x.replace(/\D/g, '').length >= 6) && s.slice(1).every((x) => /^[+(0*]/.test(x.trim()));
+      // (eine Nebenstelle „**610 (Büro)“ zählt als ganze Nummer)
+      const complete = (x: string) => x.replace(/\D/g, '').length >= 6 || /\*\*\s*\d/.test(x);
+      const whole = s.length > 1 && s.every(complete) && s.slice(1).every((x) => /^[+(0*]/.test(x.trim()));
       return whole ? s : [p];
     })
     .map((x) => x.trim())
