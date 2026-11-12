@@ -1,0 +1,25 @@
+src/mcp/agents.ts
+  s_9e7cbef9751112::t_7177d9fcbaa68b 185,292,333-334,336-337,341-342,348,367-368,370,394,422
+public/i18n-en.js
+  s_9e7cbef9751112::t_7177d9fcbaa68b 701-702,760
+src/main.ts
+  s_9e7cbef9751112::t_7177d9fcbaa68b 60-61,66,508
+test/agents.test.ts
+  s_9e7cbef9751112::t_7177d9fcbaa68b 163,213-221,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75ff367bb4a2fd3151ff4583c78a043d51a5315c",
+  "prompts": {},
+  "sessions": {
+    "s_9e7cbef9751112": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21dcb407-8cd9-480b-9e88-161d70119388",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
