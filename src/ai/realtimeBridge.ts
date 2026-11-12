@@ -9,7 +9,7 @@ import { Resampler } from '../rtp/resample.js';
 import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isFarewell } from './farewell.js';
 import { END_CALL_AFTER_SILENCE, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { AGENT_END_NOTE, ASK_NO_ANSWER, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { AGENT_END_NOTE, ASK_NO_ANSWER, INTERRUPTED_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
 import { EMPTY_USAGE, type LiveConfig, type LiveError, type LiveEvents, type LiveResponseDone, type LiveSession, type Usage } from './providers/types.js';
@@ -104,6 +104,10 @@ const OPENING_REPLY_MS = 2000;
 /** Nach einer nachgeholten Begrüßung: Eine Antwort, die so kurz danach von selbst beginnt, ist die zweite Antwort auf denselben Anfang */
 const DUP_AFTER_GREETING_MS = 1500;
 const MUTED_AFTER_REJECT = 'nach abgelehntem end_call';
+/** Ab so viel verworfenem Audio gilt eine Antwort als abgeschnitten (darunter fehlt höchstens ein Wort) */
+const INTERRUPT_NOTE_MS = 1000;
+const CAUSE_AGENT_SAY = 'Regieanweisung des Agenten';
+const CAUSE_ASK_ANSWER = 'Antwort auf die Rückfrage';
 // Stillstandswächter: höchstens so oft hintereinander anstoßen, ohne dass das Gegenüber etwas sagt
 const STALL_MAX_NUDGES = 2;
 /** Unterbrechung prüfen statt sofort verwerfen: erst ab so viel Rest-Audio lohnt das Weitersprechen */
@@ -167,9 +171,12 @@ export class RealtimeBridge implements AudioHandler {
   private dupGuardUntil = 0;
   /** Zeitpunkt eines Unterlaufs mitten in einer Antwort, bis die Ausgabe wieder läuft */
   private underrunAt = 0;
+  private underrunPlayedMs = 0;
   // Messpunkte je Antwort: kam eine Mitschrift, und was hat die Antwort ausgelöst
   private responseHadText = false;
   private lastCause = '';
+  /** Auslöser der zuletzt begonnenen Antwort (ihr Audio liegt als Letztes in der Warteschlange) */
+  private responseCause = '';
   private kiLive = '';
   private playing = false;
   private firstQueuedAt = 0;
@@ -315,7 +322,8 @@ export class RealtimeBridge implements AudioHandler {
       if (this.outQueue.length >= PREBUFFER_FRAMES || (this.outQueue.length > 0 && waited >= PREBUFFER_MAX_WAIT_MS)) {
         this.playing = true;
         if (this.underrunAt) {
-          log.warn(`Realtime: Ausgabe läuft wieder – Lücke ${Date.now() - this.underrunAt} ms mitten in der Antwort`);
+          // Erst jetzt steht fest, dass es ein Aussetzer war und kein Satzende: Es kam noch Audio derselben Antwort nach
+          log.warn(`Realtime: Aussetzer mitten in der Antwort – Puffer leer nach ${this.underrunPlayedMs} ms, Lücke ${Date.now() - this.underrunAt} ms, erstes Stück hatte ${this.stats.firstDeltaMs} ms`);
           this.underrunAt = 0;
         }
       } else {
@@ -328,10 +336,10 @@ export class RealtimeBridge implements AudioHandler {
       this.playing = false;
       this.firstQueuedAt = 0;
       this.stats.underruns++;
-      // Die Antwort entsteht noch: Dann ist das kein Satzende, sondern ein hörbarer Aussetzer
-      if (this.activeResponse && !this.underrunAt) {
+      // Die Antwort entsteht noch (und ist zu hören): möglicherweise ein Aussetzer. Gemeldet wird er erst, wenn Audio nachkommt
+      if (this.activeResponse && !this.mutedResponse && !this.underrunAt) {
         this.underrunAt = Date.now();
-        log.warn(`Realtime: Unterlauf mitten in der Antwort – Puffer leer nach ${this.stats.framesPlayed * 20} ms, erstes Stück hatte ${this.stats.firstDeltaMs} ms`);
+        this.underrunPlayedMs = this.stats.framesPlayed * 20;
       }
       if (this.endRequested !== undefined && this.goodbye === 'done' && this.connected) this.finishEndCall();
       this.armStall();
@@ -408,7 +416,7 @@ export class RealtimeBridge implements AudioHandler {
     }
     this.live.note(agentNote(text));
     if (!now) return 'next';
-    this.requestRespond('Regieanweisung des Agenten');
+    this.requestRespond(CAUSE_AGENT_SAY);
     return 'now';
   }
 
@@ -435,7 +443,7 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(ask.timer);
     this.ask = undefined;
     this.live.toolOutput(ask.callId, ASK_PRINCIPAL_TOOL.name, output);
-    this.requestRespond('Antwort auf die Rückfrage');
+    this.requestRespond(CAUSE_ASK_ANSWER);
   }
 
   /**
@@ -479,6 +487,7 @@ export class RealtimeBridge implements AudioHandler {
     this.responseFirstItem = undefined;
     this.droppedItems = [];
     this.responseHadText = false;
+    this.responseCause = this.lastCause;
     this.mutedResponse = this.muteAfterReject;
     this.mutedWhy = MUTED_AFTER_REJECT;
     this.mutedBytes = 0;
@@ -1073,6 +1082,13 @@ export class RealtimeBridge implements AudioHandler {
 
   /** Laufende KI-Ausgabe verwerfen und der API sagen, bis wohin das Gegenüber sie gehört hat. */
   private discardOutput(): void {
+    const lostMs = this.outQueue.length * 20;
+    if (lostMs >= INTERRUPT_NOTE_MS) {
+      // Die Mitschrift der KI nennt den ganzen Satz, auch wenn er abgeschnitten wurde: im Transkript und für den Agenten festhalten
+      this.opts.onTranscript({ speaker: 'system', text: `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer Antwort wurden nicht mehr gesprochen`, final: true });
+      // Eine Vorgabe des Agenten, die so unterging, ist nicht erledigt
+      if (this.responseCause === CAUSE_AGENT_SAY || this.responseCause === CAUSE_ASK_ANSWER) this.live.note(INTERRUPTED_DIRECTIVE);
+    }
     this.stats.interruptions++;
     this.stats.discarded += this.outQueue.length;
     // Je Item in der Warteschlange: das gerade gespielte bis zur gehörten Stelle, noch nicht begonnene ab 0 ms

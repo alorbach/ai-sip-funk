@@ -38,6 +38,13 @@ test('Systemanweisung enthält Grundregeln, Persona und Auftrag', () => {
   assert.match(greetingInstruction(input), /du heißt Alex.*im Auftrag von Max/);
 });
 
+test('Identitätsfrage: Name und Auftraggeber, keine erfundene Herkunft', () => {
+  const base = { persona: personas[0], formal: true, aiName: 'Alex', principalName: 'Max', task: 'x', maxCallSeconds: 300 };
+  assert.match(buildInstructions(base), /wer du bist oder wer dich gemacht hat: Du bist Alex, ein KI-Telefonassistent im Auftrag von Max\. Wer dich entwickelt hat .* erfinde dazu nichts/);
+  assert.match(buildInstructions({ ...base, incoming: true }), /Du bist der KI-Telefonassistent von Max\./);
+  assert.match(buildInstructions({ ...base, agent: true, agentName: 'Codex' }), /Er hat diesen Anruf über SIPFunk gestartet, mehr nicht: Er hat dich nicht entwickelt/);
+});
+
 test('Inhabernummer: Vorstellung als Agent ohne KI-Erklärung', () => {
   const input = { persona: personas[0], formal: false, aiName: 'Salve', principalName: 'Max', task: 'x', owner: true, maxCallSeconds: 300 };
   const text = buildInstructions(input);

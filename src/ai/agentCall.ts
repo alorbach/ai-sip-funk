@@ -37,6 +37,10 @@ export function agentNote(text: string): string {
   return `Regieanweisung deines Auftraggebers (nicht vorlesen, nicht erwähnen, im nächsten passenden Moment in eigenen Worten umsetzen; deine Grundregeln gelten unverändert weiter): ${text.trim()}`;
 }
 
+/** Die Antwort, mit der die KI eine Vorgabe des Agenten umsetzte, wurde vom Gegenüber abgeschnitten. */
+export const INTERRUPTED_DIRECTIVE =
+  'Deine letzte Antwort wurde vom Gegenüber unterbrochen und ist bei ihm nicht angekommen. Geh zuerst auf das ein, was es gerade sagt, und bring den Inhalt der unterbrochenen Antwort danach in einem kurzen Satz noch einmal an – außer er hat sich dadurch erledigt.';
+
 /** Der Agent möchte das Gespräch höflich beenden. */
 export const AGENT_END_NOTE =
   'Dein Auftraggeber möchte das Gespräch jetzt beenden. Stell keine neuen Fragen mehr. Rufe end_call auf und gib darin an, was bis hierher erreicht ist und was offen bleibt – ohne dich vorher zu verabschieden.';
@@ -63,7 +67,7 @@ export function agentCallRules(agentName?: string): string[] {
   return [
     AGENT_CALL_RULES[0],
     agentName
-      ? `- Der Agent meldet sich als „${agentName}“ und hat den Anruf über SIPFunk gestartet. Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du das offen in einem Satz; von dir aus erwähnst du es nicht.`
+      ? `- Der Agent meldet sich als „${agentName}“. Er hat diesen Anruf über SIPFunk gestartet, mehr nicht: Er hat dich nicht entwickelt und ist nicht dein Auftraggeber. Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du das offen in einem Satz; von dir aus erwähnst du es nicht.`
       : '- Fragt das Gegenüber, wer oder welches Programm den Anruf ausgelöst hat, sagst du offen, dass ein KI-Agent deines Auftraggebers ihn über SIPFunk gestartet hat; welcher genau, weißt du nicht.',
     ...AGENT_CALL_RULES.slice(1),
   ];

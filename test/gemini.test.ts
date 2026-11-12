@@ -154,6 +154,53 @@ test('Gemini: Geräusch ohne Transkription gilt nach zwei Sekunden als Geräusch
   h.bridge.close();
 });
 
+test('Gemini: Meldet der Server das Sprachende, gilt ein langer Satz nicht mitten im Reden als Geräusch', (t) => {
+  const ids: string[] = [];
+  const h = setup(t, { onTranscript: (e) => { if (e.final && e.speaker === 'partner') ids.push(`${e.itemId}: ${e.text}`); } });
+  h.start();
+  h.say(400, 'Hallo?');
+  h.drain();
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  h.server({ serverContent: { inputTranscription: { text: 'Ja, hallo.' } } });
+  h.tick(700);
+  // Zweiter Satz: fünf Sekunden Reden, die Mitschrift kommt erst nach dem Sprachende
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.tick(5000);
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  h.tick(300);
+  h.server({ serverContent: { inputTranscription: { text: 'Das war ein langer Satz.' } } });
+  h.tick(700);
+  assert.deepEqual(ids, ['u1: Ja, hallo.', 'u2: Das war ein langer Satz.']);
+  // Sprachende ohne Mitschrift: nach zwei Sekunden ein Geräusch, die nächste Äußerung zählt neu
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  h.tick(2000);
+  h.server({ serverContent: { inputTranscription: { text: 'Noch da?' } } });
+  h.tick(700);
+  assert.equal(ids[2], 'u4: Noch da?');
+  h.bridge.close();
+});
+
+test('Gemini: Wird die Umsetzung einer Vorgabe des Agenten abgeschnitten, steht das im Transkript und die Vorgabe wird wieder fällig', (t) => {
+  const h = setup(t);
+  h.tick(1); // die nachgestellte Uhr beginnt bei 0, und 0 gilt dem Wächter als „nichts erwartet“
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  assert.equal(h.bridge.agentSay('Stell klar, dass der Termin um 19 Uhr ist.', true), 'now');
+  h.audio(4000);
+  h.server({ serverContent: { outputTranscription: { text: 'Der Termin ist um 19 Uhr.' } } });
+  assert.equal(h.drain(500), 500);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  assert.equal(h.bridge.nextFrame(), undefined, 'der Rest ist verworfen');
+  assert.ok(h.texts.some((x) => /^system: KI unterbrochen: etwa 3,5 s/.test(x)), h.texts.join(' | '));
+  const last = h.regie().at(-1)!;
+  assert.match(last.text, /unterbrochen und ist bei ihm nicht angekommen/);
+  assert.equal(last.go, false, 'nur ein Hinweis, keine zusätzliche Antwort');
+  h.bridge.close();
+});
+
 test('Gemini: Geräusch gleich nach dem Abheben – die KI begrüßt trotzdem von sich aus', (t) => {
   const h = setup(t, { greetingWaitMs: 2500 });
   h.start();
