@@ -1,0 +1,36 @@
+doc/mcp-flow.de.md
+  s_6fdc4cab4533a5::t_ec7af80da8a9a2 1-304
+README.md
+  s_6fdc4cab4533a5::t_0540bd5936cee5 21,29,75,98,134
+doc/user-guide.md
+  s_6fdc4cab4533a5::t_ec7af80da8a9a2 652
+  s_6fdc4cab4533a5::t_cf987a379a029a 7,30-32,140,195,510-511,563-579,641-642,649,666,817,826,837,870-871,957-961
+doc/user-guide.de.md
+  s_6fdc4cab4533a5::t_0b629d908589ca 7,30-32,138,193,508-509,561-577,639-640,647,650,664,815,824,835,868-869,954-958
+doc/mcp-flow.md
+  s_6fdc4cab4533a5::t_ec7af80da8a9a2 1-304
+README.de.md
+  s_6fdc4cab4533a5::t_0540bd5936cee5 27,96,130
+  s_6fdc4cab4533a5::t_bf35b85645e42a 19
+  s_6fdc4cab4533a5::t_2ac96bf6248a98 73
+scripts/capture-screenshots.cjs
+  s_6fdc4cab4533a5::t_4c9f0e6b1e3aba 230-251,379-396,433-434,436,441,445
+  s_6fdc4cab4533a5::t_ac4015d667863e 435
+  s_6fdc4cab4533a5::t_46d1d981ced526 442-444,446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1fffac1d2156668fa3f8f3a53d33107a0d6b3105",
+  "prompts": {},
+  "sessions": {
+    "s_6fdc4cab4533a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a11efd7-d200-422e-a99d-b0c5e1d22fa4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
