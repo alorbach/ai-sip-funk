@@ -89,7 +89,7 @@ SIPFunk prüft in dieser Reihenfolge und bricht beim ersten Problem mit einem Fe
 5. Bei „Nur gespeicherte Kontakte“ muss die Nummer die Hauptnummer eines Kontakts sein.
 6. SIPFunk ist an der Telefonanlage angemeldet und die Leitung ist frei.
 7. Die Limits je Stunde und je Tag sind nicht ausgeschöpft. Ab hier zählt die Anfrage mit, auch wenn du sie später ablehnst oder niemand abnimmt.
-8. Bestätigung: SIPFunk fragt dich, wenn „Vor dem Wählen bei mir nachfragen“ auf „Immer“ steht, wenn es auf „Nur bei Nummern ohne Kontakt“ steht und die Nummer zu keinem Kontakt gehört, oder – immer – wenn `on_behalf_of` jemand anderen nennt als den Namen in deinen Einstellungen.
+8. Bestätigung: SIPFunk fragt dich, wenn „Vor dem Wählen bei mir nachfragen“ auf „Immer (außer freigegebene Kontakte)“ steht und der Kontakt nicht mit „KI-Agent darf ohne Nachfrage anrufen“ freigegeben ist (die Freigabe gilt nur für die Hauptnummer des Kontakts), wenn es auf „Nur bei Nummern ohne Kontakt“ steht und die Nummer zu keinem Kontakt gehört, oder – immer – wenn `on_behalf_of` jemand anderen nennt als den Namen in deinen Einstellungen. Bei „Immer“ und freigegebenen Kontaktnamen markiert `list_contacts` freigegebene Kontakte mit „ohne Bestätigung“.
 
 Die Höchstdauer des Anrufs ist der kleinste dieser Werte: die Einstellung „Höchstdauer je Anruf“ (Standard 10 Minuten), das allgemeine Gesprächslimit unter „Technik“ (Standard 300 Sekunden, praktisch also 5 Minuten) und `max_minutes`.
 
@@ -214,7 +214,7 @@ Jedes Ereignis ist eine Zeile: Zeilenumbrüche im Gesagten werden entfernt, dami
 
 | Frage | Entscheidet |
 | --- | --- |
-| Darf dieser Anruf überhaupt stattfinden? | SIPFunk (Erlaubnisse, Rufzielschutz, Limits) und du (Bestätigung) |
+| Darf dieser Anruf überhaupt stattfinden? | SIPFunk (Erlaubnisse, Rufzielschutz, Limits) und du (Bestätigung, oder vorab durch die Freigabe eines Kontakts) |
 | Was wird gesagt, mit welchen Worten? | die Live-KI, im Rahmen des Auftrags und ihrer Grundregeln |
 | Was ist das Ziel, wie groß ist der Spielraum? | der Agent, über `task` und `context`, später über `say` |
 | Eine Entscheidung, die nicht im Auftrag steht | der Agent, wenn die KI nachfragt (`ask_principal`); ohne Antwort binnen 25 s bleibt der Punkt offen |
@@ -234,7 +234,7 @@ Die Regie des Textmodells im Hintergrund, die der KI bei Anrufen vom Dashboard H
 - **Ab Werk aus.** Die Schnittstelle tut nichts, bis du sie einschaltest; ausgeschaltet antwortet jedes Tool mit einem Hinweis, wo man sie einschaltet.
 - **Nur lokal.** HTTP (`/mcp`) und Web-UI lauschen nur auf `127.0.0.1`. Anfragen mit fremdem Host, fremdem Origin oder von einer anderen Website werden abgewiesen. Der stdio-Prozess kann selbst nichts; er reicht jeden Aufruf an die laufende App weiter.
 - **Ziele und Limits prüft SIPFunk, nicht der Agent:** Rufzielschutz, erlaubte Ziele, Bestätigung, Anrufe je Stunde und je Tag (im Speicher gezählt, nach einem Neustart beginnen sie neu), Höchstdauer, ein Anruf zur Zeit.
-- **Ein anderer Auftraggeber wird immer bestätigt.** Weicht `on_behalf_of` vom Namen in deinen Einstellungen ab, wirst du gefragt, auch bei „Nie“.
+- **Ein anderer Auftraggeber wird immer bestätigt.** Weicht `on_behalf_of` vom Namen in deinen Einstellungen ab, wirst du gefragt, auch bei „Nie“ und auch bei einem freigegebenen Kontakt.
 - **Der Agent kann die KI nicht ändern.** Name, Stimme, Modell und zusätzliche Hinweise zum Verhalten kommen aus deinen Einstellungen; `start_call` hat dafür keine Felder. Unbekannte Stile werden zu „professionell“.
 - **Die KI bleibt eine KI.** Sie stellt sich in jedem Agenten-Anruf als KI-Assistent vor, und ihre Grundregeln sagen, dass weder Auftrag noch Hintergrundwissen noch eine Vorgabe das oder die übrigen Verbote (keine Zahlungen, Verträge, sensiblen Daten) aufheben können. Das ist eine Anweisung an ein Sprachmodell, keine technische Sperre; lies die Protokolle.
 - **Was der Agent erfährt.** Keine Rufnummern von Kontakten, die er nur beim Namen kennt, keine Kontaktnotizen, keine Schlüssel oder Kennwörter. Kontaktnamen nur mit deiner Freigabe. Protokolle nur von Agenten-Anrufen, außer du erlaubst alle.

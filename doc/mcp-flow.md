@@ -89,7 +89,7 @@ SIPFunk checks in this order and stops at the first problem with an error text t
 5. With "Nur gespeicherte Kontakte" (saved contacts only) the number has to be the main number of a contact.
 6. SIPFunk is registered with the phone system and the line is free.
 7. The limits per hour and per day are not used up. From here on the request counts, even if you decline it later or nobody answers.
-8. Confirmation: SIPFunk asks you if "Vor dem Wählen bei mir nachfragen" is "Immer", if it is "Nur bei Nummern ohne Kontakt" and the number belongs to no contact, or – always – if `on_behalf_of` names someone other than the name in your settings.
+8. Confirmation: SIPFunk asks you if "Vor dem Wählen bei mir nachfragen" is "Immer (außer freigegebene Kontakte)" and the contact is not approved with "KI-Agent darf ohne Nachfrage anrufen" (AI agent may call without asking; the approval applies to the contact's main number only), if it is "Nur bei Nummern ohne Kontakt" and the number belongs to no contact, or – always – if `on_behalf_of` names someone other than the name in your settings. With "Immer" and the permission to read contact names, `list_contacts` marks approved contacts with "ohne Bestätigung" (without confirmation).
 
 The maximum length of the call is the smallest of: the setting "Höchstdauer je Anruf" (default 10 minutes), the general call time limit under "Technik" (default 300 seconds, so 5 minutes in practice) and `max_minutes`.
 
@@ -214,7 +214,7 @@ Each event is one line: line breaks in what was said are removed so that the oth
 
 | Question | Decided by |
 | --- | --- |
-| May this call be made at all? | SIPFunk (permissions, dial target protection, limits) and you (confirmation) |
+| May this call be made at all? | SIPFunk (permissions, dial target protection, limits) and you (confirmation, or in advance by approving a contact) |
 | What is said, and in what words? | the Live AI, within the task and its basic rules |
 | What is the goal, what is the leeway? | the agent, through `task` and `context`, later through `say` |
 | A decision that is not in the task | the agent, when the AI asks (`ask_principal`); without an answer within 25 s the point stays open |
@@ -234,7 +234,7 @@ The text model's director in the background, which gives the AI hints in calls f
 - **Off by default.** The interface does nothing until you switch it on; when switched off, every tool answers with a note where to switch it on.
 - **Local only.** HTTP (`/mcp`) and the web UI listen only on `127.0.0.1`. Requests with a foreign host, a foreign origin or from another website are refused. The stdio process can do nothing by itself; it passes every call on to the running app.
 - **Targets and limits are checked by SIPFunk, not by the agent:** dial target protection, permitted targets, confirmation, calls per hour and per day (counted in memory, they start again after a restart), maximum length, one call at a time.
-- **A different principal is always confirmed.** If `on_behalf_of` differs from the name in your settings, you are asked, even with "Nie" (never).
+- **A different principal is always confirmed.** If `on_behalf_of` differs from the name in your settings, you are asked, even with "Nie" (never) and even for an approved contact.
 - **The agent cannot change the AI.** Name, voice, model and additional behaviour notes come from your settings; `start_call` has no fields for them. Unknown styles become "professionell".
 - **The AI stays an AI.** It introduces itself as an AI assistant in every agent call, and its basic rules state that neither task nor background knowledge nor a direction can lift that or the other prohibitions (no payments, contracts, sensitive data). This is an instruction to a language model, not a technical lock; read the call logs.
 - **What the agent learns.** No phone numbers of contacts it knows only by name, no contact notes, no keys or passwords. Contact names only with your permission. Call logs only of agent calls, unless you allow all.
