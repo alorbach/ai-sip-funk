@@ -164,7 +164,7 @@ const JUDGE_END_MS = 8000;
 const JUDGE_END_LATER_MS = 8000;
 
 const STALL_INSTRUCTION =
-  'Es ist still geworden: Du hast zuletzt gesprochen, und das Gegenüber hat seitdem nichts gesagt. Hast du etwas angekündigt („einen Moment", „ich halte das fest") oder eine Frage vorbereitet, dann stell diese Frage jetzt direkt. Sonst knüpf in einem kurzen Satz an das zuletzt Gesagte an (eine kleine Nachfrage dazu); nur wenn dazu nichts passt, frag, ob das Gegenüber noch dran ist. Ein Satz, dann warten.';
+  'Es ist still geworden: Du hast zuletzt gesprochen, und das Gegenüber hat seitdem nichts gesagt. Habt ihr euch schon verabschiedet oder ist aus deiner Sicht alles gesagt, dann frag nicht weiter nach, sondern rufe end_call auf. Hast du etwas angekündigt („einen Moment", „ich halte das fest") oder eine Frage vorbereitet, dann stell diese Frage jetzt direkt. Sonst knüpf in einem kurzen Satz an das zuletzt Gesagte an (eine kleine Nachfrage dazu); nur wenn dazu nichts passt, frag, ob das Gegenüber noch dran ist. Ein Satz, dann warten.';
 
 /** Das Gegenüber war hörbar, aber die Spracherkennung des Anbieters hat keine Worte gemeldet (Lachen, Räuspern, ein Laut). */
 const SOUND_REACTION =

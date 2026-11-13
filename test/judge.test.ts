@@ -1689,3 +1689,23 @@ test('Wächter: Lief die Antwort länger als 5 s ohne Audio und endet sie ohne A
   assert.ok(p.s.nudgeAt > 0, 'der Stillstandswächter ist wieder scharf und stößt die KI an');
   h.bridge.close();
 });
+
+test('Prüfung beim Auflegen: Die Verabschiedung ist nie ein offener Punkt, auch wenn sie im Auftrag steht', async () => {
+  const { onlyFarewell } = await import('../src/ai/judge.js');
+  assert.equal(onlyFarewell('Verabschiede dich jetzt kurz von Max.'), true);
+  assert.equal(onlyFarewell('Verabschiede dich jetzt von Max und beende das Gespräch.'), true);
+  assert.equal(onlyFarewell('Beende das Gespräch höflich.'), true);
+  assert.equal(onlyFarewell('Frag noch, auf welchen Namen reserviert wird.'), false);
+  assert.equal(onlyFarewell('Frag vor dem Verabschieden noch nach der Uhrzeit.'), false, 'ein echter Punkt bleibt, auch wenn „verabschieden" darin vorkommt');
+  assert.equal(onlyFarewell('Sag noch, dass es vier Personen sind, bevor du auflegst.'), false);
+  // Das Textmodell meldet nur die Verabschiedung als offen: Für die Brücke ist dann nichts offen
+  const ctx = { ...CTX, task: 'Frag nach der Uhrzeit. Gib Gelegenheit für ein kurzes Gespräch, bevor du dich verabschiedest.' };
+  let prompt = '';
+  const ask = async (p: string) => { prompt = p; return JSON.stringify({ punkte: [{ punkt: 'Uhrzeit fragen', stand: 'erledigt' }, { punkt: 'verabschieden', stand: 'offen' }], offen: ['Verabschiede dich jetzt kurz von Max.'] }); };
+  const judge = createJudge(ask as never, () => ctx as never);
+  assert.deepEqual(await judge.endCall(), []);
+  assert.match(prompt, /Die Verabschiedung und das Beenden des Gesprächs sind nie ein offener Punkt/);
+  // Ein echter fehlender Punkt daneben bleibt
+  const ask2 = async () => JSON.stringify({ punkte: [], offen: ['Verabschiede dich jetzt.', 'Frag noch nach dem Namen.'] });
+  assert.deepEqual(await createJudge(ask2 as never, () => ctx as never).endCall(), ['Frag noch nach dem Namen.']);
+});

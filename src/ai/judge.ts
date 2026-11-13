@@ -137,6 +137,7 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
           'Maßgeblich sind allein die Zeilen „KI:“ und „Gegenüber:“ im Transkript. Der Gesprächsplan und Zeilen in [App: …] belegen nichts: Die KI hält Punkte oft für gesagt, die sie nur vorhatte. Eine Nachricht gilt nur als überbracht, wenn ihr Inhalt in einer Zeile „KI:“ steht; eine Frage nur als gestellt, wenn sie dort steht.',
           'Es geht nur um Punkte, die wörtlich im Auftrag stehen und fehlen. Erfinde keine neuen Aufgaben: keine Klarstellungen, keine Zusagen, keine weiteren Nachfragen, die der Auftrag nicht verlangt. Was die KI zusätzlich gesagt hat (um Rückruf gebeten, eine Rückrufnummer genannt, etwas angeboten), ist hier kein offener Punkt und wird nicht richtiggestellt. Hat eine andere Person abgenommen und richtet sie die Punkte aus, sind sie damit erledigt.',
           'Nicht als offen zählt, was nicht mehr geht oder nicht mehr passt: falsche Person, Mailbox, klare Absage, das Gegenüber hat sich schon verabschiedet oder hat keine Zeit, es hat die Antwort verweigert oder ist ihr zweimal ausgewichen, oder das Gegenüber möchte nicht mit einer KI sprechen. Was nur im Plan steht, aber sinngemäß erledigt ist, zählt auch nicht.',
+          'Die Verabschiedung und das Beenden des Gesprächs sind nie ein offener Punkt, auch wenn sie im Auftrag stehen („… bevor du dich verabschiedest"): Darum kümmert sich die Telefon-App, die KI verabschiedet sich gerade. Solche Punkte haben den stand „erledigt".',
           'Antworte als JSON. punkte: jeder Punkt des Auftrags einzeln in höchstens sechs Worten, mit stand „erledigt“ (steht so im Transkript), „offen“ (fehlt und geht noch) oder „geht_nicht_mehr“. offen: für jeden Punkt mit stand „offen“ ein kurzer Satz an die KI in der Du-Form, was sie noch sagen oder fragen soll (höchstens drei); leer, wenn nichts mehr zu tun ist.',
         ],
         {
@@ -151,9 +152,17 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
         1500,
         MODEL_TIMEOUT_LONG_MS,
       );
-      return (r.offen ?? []).map((s) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_HINT)).filter(Boolean).slice(0, 3);
+      return (r.offen ?? []).map((s) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_HINT)).filter((s) => s && !onlyFarewell(s)).slice(0, 3);
     },
   };
+}
+
+/**
+ * Ein „offener Punkt", der nur verlangt, sich zu verabschieden oder zu beenden: Das Textmodell meldet ihn, wenn der Auftrag
+ * die Verabschiedung nennt – beim end_call steht sie naturgemäß noch nicht im Transkript. Er hielte das Auflegen auf.
+ */
+export function onlyFarewell(hint: string): boolean {
+  return /verabschied|tschüss|wiederhören|\bbeende|\bbeenden\b|aufleg|leg\w* auf/i.test(hint) && !/\?|\bfrag|\bsag\w* (ihm|ihr|noch|dass)|\bricht\w* /i.test(hint);
 }
 
 /**

@@ -543,3 +543,12 @@ test('Stillstandswächter: War das Gegenüber eben noch zu hören, wartet er wei
   assert.equal(h.count('response.create'), 1, 'nach zweimal Warten stößt der Wächter doch an');
   h.bridge.close();
 });
+
+test('Stillstandswächter: Die Anweisung lässt der KI die Wahl, das Gespräch zu beenden, statt in jedem Fall nachzufragen', (t) => {
+  const h = setup(t, { stallMs: 3000 });
+  greeted(h);
+  h.tick(3000);
+  assert.equal(h.count('response.create'), 1);
+  assert.match(h.creates()[0], /Habt ihr euch schon verabschiedet oder ist aus deiner Sicht alles gesagt, dann frag nicht weiter nach, sondern rufe end_call auf/);
+  h.bridge.close();
+});
