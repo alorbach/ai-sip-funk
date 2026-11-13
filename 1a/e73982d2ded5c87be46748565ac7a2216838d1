@@ -1,0 +1,80 @@
+doc/architecture.de.md
+  s_3a73f3bd2ac3fb::t_f81d7189286782 103
+doc/test-checklist.de.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 113
+test/contacts.test.ts
+  s_3a73f3bd2ac3fb::t_f81d7189286782 39-42
+  s_3a73f3bd2ac3fb::t_66b22491d433b1 35-38,43
+src/mcp/gateway.ts
+  s_3a73f3bd2ac3fb::t_ef505fc998cf0d 46-47
+  s_3a73f3bd2ac3fb::t_9515e7bf19d10d 234-236
+  s_3a73f3bd2ac3fb::t_bd2e92081d70bb 289-290
+  s_3a73f3bd2ac3fb::t_11034893e5983e 278
+  s_3a73f3bd2ac3fb::t_13280bc61f78e2 252
+  s_3a73f3bd2ac3fb::t_acea49a54c408b 229
+  s_3a73f3bd2ac3fb::t_9aeefb3775555d 422
+  s_3a73f3bd2ac3fb::t_6868f1984e3dcf 206-211
+  s_3a73f3bd2ac3fb::t_cfe9381fb688f3 69-71
+  s_3a73f3bd2ac3fb::t_7bc6991b4189a4 197
+src/contacts.ts
+  s_3a73f3bd2ac3fb::t_9b9726eed7efa9 16-17
+  s_3a73f3bd2ac3fb::t_33f65c59704d2e 244
+  s_3a73f3bd2ac3fb::t_f81d7189286782 154-155
+CHANGELOG.de.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 9
+public/index.html
+  s_3a73f3bd2ac3fb::t_961c646f872b4e 708,976,1308,1369
+  s_3a73f3bd2ac3fb::t_f81d7189286782 1360-1362
+doc/architecture.md
+  s_3a73f3bd2ac3fb::t_f81d7189286782 103
+doc/guidelines.md
+  s_3a73f3bd2ac3fb::t_f81d7189286782 111
+doc/user-guide.de.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 501,640
+  s_3a73f3bd2ac3fb::t_c2a136a66ff602 816
+test/mcp.test.ts
+  s_3a73f3bd2ac3fb::t_f9dc480e51f7cd 252
+  s_3a73f3bd2ac3fb::t_66b22491d433b1 24,244-251,253-273
+  s_96d2274d1b9c05::t_7cc7b2e28b3224 274-275
+CHANGELOG.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 9
+doc/test-checklist.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 113
+doc/user-guide.md
+  s_3a73f3bd2ac3fb::t_c2a136a66ff602 818
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 503,642
+doc/guidelines.de.md
+  s_3a73f3bd2ac3fb::t_f81d7189286782 111
+src/main.ts
+  s_3a73f3bd2ac3fb::t_8ea0b625b102f3 509
+public/i18n-en.js
+  s_3a73f3bd2ac3fb::t_961c646f872b4e 192-193,700-701
+examples/skills/sipfunk-anruf/SKILL.md
+  s_3a73f3bd2ac3fb::t_b46152429fa12c 36
+examples/skills/sipfunk-call/SKILL.md
+  s_3a73f3bd2ac3fb::t_3faab467d18041 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ae73982d2ded5c87be46748565ac7a2216838d1",
+  "prompts": {},
+  "sessions": {
+    "s_3a73f3bd2ac3fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4c71ed0-3309-4a73-8f4a-567491189913",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    },
+    "s_96d2274d1b9c05": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8944ecb0-55bf-4f84-a1ad-0eec21d4b478",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
