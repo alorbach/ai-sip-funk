@@ -167,9 +167,9 @@ function writeDemoData(webPort) {
     contact('demo01', 'Max Mustermann (Handy)', '0171 3920012', { owner: true, address: 'du' }),
     contact('demo02', 'Zahnarztpraxis Dr. Beispiel', '030 23125 310', { address: 'sie', persona: 'professionell', notes: 'Sprechzeiten Mo–Fr 8–12 Uhr' }),
     contact('demo03', 'Erika Mustermann', '0171 3920034', { address: 'du', persona: 'herzlich' }),
-    contact('demo04', 'Schornsteinfeger Beispiel', '030 23125 455', { address: 'sie', notes: 'Termin im Frühjahr' }),
+    contact('demo04', 'Schornsteinfeger Beispiel', '030 23125 455', { address: 'sie', notes: 'Termin im Frühjahr', agentDirect: true }),
     contact('demo05', 'Autowerkstatt Muster GmbH', '030 23125 620', { address: 'sie', persona: 'locker' }),
-    contact('demo06', 'Restaurant Sonne', '030 23125 410', { address: 'sie', agentDirect: true }),
+    contact('demo06', 'Restaurant Sonne', '030 23125 410', { address: 'sie' }),
   ], null, 2) + '\n');
 
   const records = [
