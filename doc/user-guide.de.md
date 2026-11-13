@@ -521,7 +521,7 @@ Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („…
 
 **Anmelden mit einem Klick.** Bringt deine SIPFunk-Version eine mitgelieferte App-Registrierung mit, steht im Dialog „bereit – Verbinden öffnet die Anmeldung“. Dann genügt „Verbinden“: Im Browser meldest du dich bei Google oder Microsoft an und erlaubst das Lesen der Kontakte; danach lädt SIPFunk das Adressbuch von selbst. Anmeldung und Abruf laufen direkt zwischen diesem Rechner und dem Anbieter, über den Herausgeber von SIPFunk läuft nichts; auf der Zustimmungsseite steht nur dessen App-Name. Solange Google die mitgelieferte App noch nicht geprüft hat, warnt Google „App nicht überprüft“ (über „Erweitert“ geht es weiter) oder lässt nur eingetragene Testnutzer zu; in einem Firmen-Mandanten von Microsoft muss eventuell der Administrator zustimmen.
 
-**Eigene App (optional).** Fehlt die mitgelieferte App (etwa in einer selbst gebauten Version) oder willst du deine eigene verwenden, registrierst du einmal eine eigene App (kostenlos) und trägst sie unter „Einrichtung“ bzw. „Eigene App verwenden (optional)“ ein; sie hat dann Vorrang. Wer keine Anmeldung möchte, nimmt den Dateiimport.
+**Eigene App (optional).** Fehlt die mitgelieferte App (etwa in einer selbst gebauten Version) oder willst du deine eigene verwenden, registrierst du einmal eine eigene App (kostenlos) und trägst sie unter „Einrichtung“ bzw. „Eigene App verwenden (optional)“ ein; sie hat dann Vorrang. Die Schritte unten stehen kompakt mit direkten Links auch im Dialog unter „Einrichtung“; ein Klick auf einen Wert in Code-Schrift kopiert ihn. Wer keine Anmeldung möchte, nimmt den Dateiimport.
 
 *Google:*
 

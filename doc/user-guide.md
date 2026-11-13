@@ -523,7 +523,7 @@ After loading, SIPFunk shows a list with a search field and a summary ("… neu,
 
 **One-click sign-in.** If your SIPFunk build ships a built-in app registration, the dialog says "bereit – Verbinden öffnet die Anmeldung" (ready – Connect opens the sign-in). Then "Verbinden" (connect) is enough: you sign in to Google or Microsoft in the browser and allow reading your contacts; SIPFunk then loads the address book by itself. Sign-in and download run directly between this computer and the provider, nothing passes through the SIPFunk publisher; the consent page only shows the publisher's app name. As long as Google has not verified the built-in app, Google warns "app not verified" (continue via "Advanced") or admits only listed test users; in a Microsoft work tenant an administrator may have to consent.
 
-**Your own app (optional).** If there is no built-in app (for example in a build of your own) or you want to use your own, register your own app once (free) and enter it under "Einrichtung" (setup) or "Eigene App verwenden (optional)" (use your own app); it then takes precedence. If you do not want to sign in at all, use the file import.
+**Your own app (optional).** If there is no built-in app (for example in a build of your own) or you want to use your own, register your own app once (free) and enter it under "Einrichtung" (setup) or "Eigene App verwenden (optional)" (use your own app); it then takes precedence. The steps below are also in the dialog under "Einrichtung" (setup), compact and with direct links; clicking a value in code font copies it. If you do not want to sign in at all, use the file import.
 
 *Google:*
 

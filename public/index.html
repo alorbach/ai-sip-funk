@@ -221,6 +221,9 @@
   .imp-src .actions { display: flex; gap: 6px; flex-wrap: wrap; }
   .imp-src details summary { cursor: pointer; font-size: 13px; color: var(--text-2); }
   .imp-src details .field { margin-top: 8px; }
+  .imp-guide { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-2); }
+  .imp-guide li { margin-bottom: 4px; }
+  .imp-src details code { cursor: copy; overflow-wrap: anywhere; }
   .imp-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .imp-tools .search { flex: 1 1 200px; width: auto; min-width: 0; }
   #imp-list { border: 1px solid var(--line); border-radius: 10px; max-height: 46vh; overflow: auto; }
@@ -918,7 +921,7 @@
         <div class="hint" id="imp-google-status">nicht eingerichtet</div>
         <div class="actions"><button type="button" class="btn small primary" id="imp-google-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-google-off" style="display:none">Trennen</button></div>
         <details id="imp-google-setup"><summary id="imp-google-sum">Einrichtung</summary>
-          <p class="hint" id="imp-google-hint">Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Anleitung im Handbuch.</p>
+          <p class="hint">Ein Klick auf einen Wert in <code>Code-Schrift</code> kopiert ihn.</p><ol class="imp-guide"><li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener noreferrer">Projekt anlegen</a> (oder oben in der Konsole ein vorhandenes wählen).</li><li><a href="https://console.cloud.google.com/apis/library/people.googleapis.com" target="_blank" rel="noopener noreferrer">People API</a> öffnen, „Aktivieren“.</li><li><a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener noreferrer">Google Auth Platform</a> › „Jetzt starten“: App-Name (z. B. SIPFunk), deine E-Mail-Adresse, Zielgruppe „Extern“, abschließen.</li><li><a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener noreferrer">Zielgruppe</a> › Testnutzer: dein Google-Konto hinzufügen.</li><li><a href="https://console.cloud.google.com/auth/scopes" target="_blank" rel="noopener noreferrer">Datenzugriff</a> › „Bereiche hinzufügen oder entfernen“: <code>https://www.googleapis.com/auth/contacts.readonly</code> manuell hinzufügen, speichern.</li><li><a href="https://console.cloud.google.com/auth/clients/create" target="_blank" rel="noopener noreferrer">Client erstellen</a>: Anwendungstyp „Desktop-App“, Name beliebig, „Erstellen“. Client-ID und Clientschlüssel unten eintragen.</li><li>„Verbinden“. Den Hinweis „Google hat diese App nicht überprüft“ mit „Weiter“ bestätigen – es ist deine eigene App.</li></ol>
           <label class="field"><span>Client-ID</span><input id="p-imp-google-id" autocomplete="off" spellcheck="false"></label>
           <label class="field"><span>Client-Secret</span><input id="p-imp-google-secret" type="password" autocomplete="off"></label>
         </details>
@@ -928,7 +931,7 @@
         <div class="hint" id="imp-ms-status">nicht eingerichtet</div>
         <div class="actions"><button type="button" class="btn small primary" id="imp-ms-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-ms-off" style="display:none">Trennen</button></div>
         <details id="imp-ms-setup"><summary id="imp-ms-sum">Einrichtung</summary>
-          <p class="hint">Eigene App-Registrierung in Microsoft Entra (Plattform „Mobile und Desktop“, Weiterleitung <code>http://localhost/oauth/callback</code>, Berechtigung „Contacts.Read“) und die Client-ID hier eintragen. Anleitung im Handbuch.</p>
+          <ol class="imp-guide"><li><a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener noreferrer">App-Registrierungen</a> (Microsoft Entra) › „Neue Registrierung“: Name beliebig, Kontotypen „Konten in einem beliebigen Organisationsverzeichnis und persönliche Microsoft-Konten“.</li><li>Umleitungs-URI auf derselben Seite: Plattform „Öffentlicher Client/nativ (mobil und Desktop)“, <code>http://localhost/oauth/callback</code>, dann „Registrieren“.</li><li>„API-Berechtigungen“ › „Berechtigung hinzufügen“ › „Microsoft Graph“ › „Delegierte Berechtigungen“: <code>Contacts.Read</code> anhaken, hinzufügen.</li><li>In der „Übersicht“ die „Anwendungs-ID (Client)“ kopieren und unten eintragen. Mandant <code>common</code> lassen (nur Firmenkonten: die Verzeichnis-ID).</li><li>„Verbinden“, anmelden, zustimmen.</li></ol>
           <label class="field"><span>Client-ID</span><input id="p-imp-ms-id" autocomplete="off" spellcheck="false"></label>
           <label class="field"><span>Mandant</span><input id="p-imp-ms-tenant" autocomplete="off" spellcheck="false" placeholder="common"></label>
         </details>
@@ -1464,6 +1467,12 @@ for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
     catch (err) { toast(err.message); }
   };
 }
+// Einrichtungsanleitung: ein Klick auf einen Wert in Code-Schrift kopiert ihn
+$('imp-source').addEventListener('click', async (e) => {
+  const code = e.target.closest('details code');
+  if (!code) return;
+  try { await navigator.clipboard.writeText(code.textContent); toast(I18N.t('Kopiert: {0}', code.textContent), 'ok'); } catch (err) { toast(err.message); }
+});
 $('imp-file-pick').onclick = () => $('imp-file').click();
 $('imp-file').onchange = async () => {
   const f = $('imp-file').files[0];
