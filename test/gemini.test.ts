@@ -294,11 +294,67 @@ test('Gemini: Lehnt der Server die Sitzung beim Aufbau wegen des Kontingents ab,
   assert.deepEqual(errors, [], 'kein Fehler für das Gespräch');
   sockets[1].emit('open');
   assert.equal(sockets[1].sent[0].setup.model, 'models/gemini-3.7-live');
-  // Auch das Ausweichmodell ist am Limit, und es gibt kein weiteres: Jetzt gilt der Fehler
-  sockets[1].emit('close', 1011, Buffer.from('Resource has been exhausted (e.g. check quota).'));
-  assert.equal(sockets.length, 2);
+  // Das Ausweichmodell kennt die Angabe „BLOCKING“ nicht: dasselbe Modell noch einmal, ohne sie
+  assert.equal(sockets[1].sent[0].setup.tools[0].functionDeclarations[0].behavior, 'BLOCKING');
+  sockets[1].emit('close', 1007, Buffer.from('BLOCKING function calls are not supported for this model.'));
+  assert.equal(sockets.length, 3);
+  sockets[2].emit('open');
+  assert.equal(sockets[2].sent[0].setup.model, 'models/gemini-3.7-live');
+  assert.equal('behavior' in sockets[2].sent[0].setup.tools[0].functionDeclarations[0], false);
+  // Es scheitert trotzdem, aus einem anderen Grund, und es gibt kein weiteres: einmal noch das Hauptmodell
+  sockets[2].emit('close', 1007, Buffer.from('Request contains an invalid argument.'));
+  assert.equal(sockets.length, 4);
+  sockets[3].emit('open');
+  assert.equal(sockets[3].sent[0].setup.model, 'models/gemini-3.8-live');
+  assert.equal(sockets[3].sent[0].setup.tools[0].functionDeclarations[0].behavior, 'BLOCKING');
+  assert.deepEqual(models, ['gemini-3.7-live', 'gemini-3.7-live', 'gemini-3.8-live']);
+  assert.deepEqual(errors, []);
+  // Auch das ist wieder am Limit: Jetzt gilt der Fehler
+  sockets[3].emit('close', 1011, Buffer.from('Resource has been exhausted (e.g. check quota).'));
+  assert.equal(sockets.length, 4);
   assert.equal(errors.length, 1);
   bridge.close();
+});
+
+test('Gemini: Ein langer Satz bleibt über die Sicherungsfrist hinaus offen, solange das Gegenüber zu hören ist', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.say(400, 'Wie spät ist es?');
+  h.drain();
+  h.tick(1000);
+  const frame = (level: number) => { h.tick(20); h.bridge.onRemoteAudio(new Int16Array(160).fill(level)); };
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  for (let i = 0; i < 600; i++) frame(4000);
+  assert.equal(h.texts.some((x) => /^partner:/.test(x)), false, 'nach 12 s Reden noch offen');
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  h.server({ serverContent: { inputTranscription: { text: 'Wir haben zehn Uhr dreiundfünfzig, nein, vierundfünfzig.' } } });
+  h.tick(700);
+  assert.equal(h.texts.at(-1), 'partner: Wir haben zehn Uhr dreiundfünfzig, nein, vierundfünfzig.');
+  h.bridge.close();
+});
+
+test('Gemini: Antwortet die KI schon auf den Einwurf, steht der Hinweis auf die abgeschnittene Antwort trotzdem gleich im Transkript', (t) => {
+  const h = setup(t);
+  h.tick(1);
+  h.start();
+  h.say(400, 'Guten Tag.');
+  h.drain();
+  h.audio(4000);
+  h.server({ serverContent: { outputTranscription: { text: 'Zehn Uhr vierundfünfzig also. Wie läuft es bei dir heute?' } } });
+  assert.equal(h.drain(500), 500);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  h.server({ serverContent: { interrupted: true } });
+  h.server({ serverContent: { inputTranscription: { text: 'Kannst du mir noch was erzählen?' } } });
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  // die nächste Antwort läuft schon, wenn der Rest der vorigen verworfen wird
+  h.audio(2000);
+  h.server({ serverContent: { outputTranscription: { text: 'Klar, gern.' } } });
+  h.tick(700);
+  assert.deepEqual(h.texts.slice(-2), ['partner: Kannst du mir noch was erzählen?', 'system: KI unterbrochen: etwa 3,5 s ihrer Antwort, die mit „Zehn Uhr vierundfünfzig also. Wie läuft  …“ begann, wurden nicht mehr gesprochen']);
+  h.server({ serverContent: { turnComplete: true } });
+  assert.equal(h.texts.at(-1), 'ki: Klar, gern.');
+  h.bridge.close();
 });
 
 test('Gemini: Kein Wechsel des Sprachmodells bei einem anderen Fehler und nicht mehr, wenn die Sitzung steht', (t) => {

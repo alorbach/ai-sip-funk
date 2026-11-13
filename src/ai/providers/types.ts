@@ -51,6 +51,10 @@ export interface LiveConfig {
   maxOutputTokens: number;
   /** Namen, die die Transkription kennen soll */
   transcriptionHints: string[];
+  /** Tools ohne Zusatzangaben zum Ablauf anmelden: für Modelle, die solche Angaben ablehnen */
+  plainTools?: boolean;
+  /** Ist das Gegenüber gerade am Pegel zu hören? Hält eine Äußerung offen, deren Ende der Anbieter noch nicht gemeldet hat */
+  partnerAudible?: () => boolean;
   /** Nur für Tests: liefert statt der echten Verbindung einen nachgestellten WebSocket */
   createSocket?: (url: string) => WebSocket;
 }

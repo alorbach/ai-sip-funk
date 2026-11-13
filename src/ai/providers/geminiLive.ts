@@ -30,6 +30,9 @@ const UTTERANCE_EMPTY_MS = 2000;
  * So lange darf eine Äußerung dann höchstens offen bleiben, falls das Ende doch einmal ausbleibt.
  */
 const UTTERANCE_OPEN_MS = 8000;
+/** Ist das Gegenüber nach dieser Frist noch zu hören, redet es noch: weiter offen halten, höchstens aber so lange */
+const UTTERANCE_OPEN_MAX_MS = 30_000;
+const UTTERANCE_OPEN_STEP_MS = 1000;
 
 /**
  * Mitschrift der KI bereinigen: Für eine Antwort ohne Sprache liefert die Live API Platzhalter wie „<no speech>“,
@@ -62,14 +65,15 @@ export function geminiSystemText(config: Pick<LiveConfig, 'instructions' | 'spee
 }
 
 /** Tool-Definitionen ins Format der Gemini API; Funktionen ohne Parameter bekommen kein (leeres) Schema. */
-export function geminiTools(tools: readonly LiveTool[]): object[] {
+export function geminiTools(tools: readonly LiveTool[], plain = false): object[] {
   return [
     {
       functionDeclarations: tools.map((t) => {
         const props = (t.parameters as { properties?: object }).properties;
         const hasParams = props && Object.keys(props).length > 0;
-        // BLOCKING: Das Modell wartet auf das Ergebnis, statt währenddessen weiterzusprechen
-        return { name: t.name, description: t.description, ...(hasParams ? { parameters: t.parameters } : {}), behavior: 'BLOCKING' };
+        // BLOCKING: Das Modell wartet auf das Ergebnis, statt währenddessen weiterzusprechen. Manche Modelle lehnen die
+        // Angabe ab (bei ihnen ist das Warten ohnehin der Normalfall): Dann bleibt sie weg
+        return { name: t.name, description: t.description, ...(hasParams ? { parameters: t.parameters } : {}), ...(plain ? {} : { behavior: 'BLOCKING' }) };
       }),
     },
   ];
@@ -85,7 +89,7 @@ export function geminiSetup(config: LiveConfig): object {
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice } } },
       },
       systemInstruction: { parts: [{ text: geminiSystemText(config) }] },
-      tools: geminiTools(config.tools),
+      tools: geminiTools(config.tools, config.plainTools),
       realtimeInputConfig: {
         automaticActivityDetection: {
           // Telefon: lieber etwas unempfindlicher, damit Rascheln und Atmen nicht als Sprache gelten
@@ -145,6 +149,7 @@ export class GeminiLive implements LiveSession {
   /** Bis dahin zählt Transkription als Nachtrag zur gerade abgeschlossenen Äußerung */
   private lateUntil = 0;
   private utteranceTimer?: NodeJS.Timeout;
+  private utteranceSince = 0;
   // ---- Was noch hinaus muss ----
   private pendingTools: { id: string; name: string; output: string }[] = [];
   private pendingUpdate?: string;
@@ -316,10 +321,22 @@ export class GeminiLive implements LiveSession {
       this.stoppedSent = false;
       this.inText = '';
       this.utterance++;
+      this.utteranceSince = Date.now();
       this.events.speechStarted(`u${this.utterance}`);
     }
     // Der Server meldet das Sprachende selbst (ACTIVITY_END); bis dahin bleibt die Äußerung offen
-    this.armUtterance(this.inText ? UTTERANCE_GAP_MS : UTTERANCE_OPEN_MS);
+    if (this.inText) this.armUtterance(UTTERANCE_GAP_MS);
+    else this.armOpen(UTTERANCE_OPEN_MS);
+  }
+
+  /** Sicherung für ein ausbleibendes Sprachende: Wer nach der Frist noch zu hören ist, redet noch (ein langer Satz). */
+  private armOpen(ms: number): void {
+    clearTimeout(this.utteranceTimer);
+    this.utteranceTimer = setTimeout(() => {
+      if (!this.closed && this.config.partnerAudible?.() && Date.now() - this.utteranceSince < UTTERANCE_OPEN_MAX_MS) this.armOpen(UTTERANCE_OPEN_STEP_MS);
+      else this.finishUtterance();
+    }, ms);
+    this.utteranceTimer.unref();
   }
 
   private stopSpeech(cause: string): void {

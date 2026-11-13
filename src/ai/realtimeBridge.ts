@@ -166,6 +166,10 @@ const SOUND_REACTION =
   'Hinweis der Telefon-App: Das Gegenüber hat gerade hörbar reagiert, aber ohne Worte – zum Beispiel mit einem Lachen, einem Räuspern oder einem anderen Laut. Konntest du hören, was es war, geh in einem kurzen Satz natürlich darauf ein (bei einem Lachen freust du dich mit) und mach dann mit dem Gespräch weiter. Frag nicht, ob es noch dran ist. Ein Satz, dann warten.';
 /** Ab diesem Pegel (Effektivwert, 16 Bit) gilt das Audio des Gegenübers als hörbarer Laut; Leitungsrauschen liegt weit darunter */
 const SOUND_RMS = 700;
+/** So lange nach dem letzten lauten Stück gilt das Gegenüber noch als „redet gerade" */
+const HEARD_RECENT_MS = 1000;
+/** Ablehnung der Angabe, dass die KI auf Tool-Ergebnisse wartet (kennen nicht alle Modelle) */
+const TOOL_BEHAVIOR_REJECTED = /BLOCKING function calls are not supported/i;
 /** So viel Laut muss zusammenkommen, damit es mehr ist als ein Knacken */
 const SOUND_MIN_MS = 350;
 /** So lange muss es danach wieder ruhig sein, bevor die KI darauf eingeht (der Laut ist dann zu Ende) */
@@ -180,6 +184,13 @@ export class RealtimeBridge implements AudioHandler {
   /** Baut eine Sitzung mit dem genannten Modell auf (auch erneut, mit einem Ausweichmodell) */
   private connectLive: (model: string) => LiveSession;
   private fallbackModels: string[];
+  private primaryModel = '';
+  private currentModel = '';
+  /** Die laufende Sitzung ist schon ein Ausweichmodell */
+  private onFallback = false;
+  private primaryRetried = false;
+  /** Tools ohne die Angabe zum Ablauf anmelden (das laufende Modell lehnt sie ab) */
+  private plainTools = false;
   private ready = false;
   private closed = false;
   private connected = false;
@@ -299,6 +310,8 @@ export class RealtimeBridge implements AudioHandler {
   // Laute ohne Worte (Lachen, Räuspern): Die Spracherkennung des Anbieters meldet sie nicht, die App hört am Pegel mit
   private lastAiFrameAt = 0;
   private lastLoudAt = 0;
+  /** Zuletzt war das Gegenüber am Pegel zu hören – auch während der Anbieter Sprache meldet */
+  private lastHeardAt = 0;
   private soundMs = 0;
   private soundPeak = 0;
   private soundNudges = 0;
@@ -362,6 +375,7 @@ export class RealtimeBridge implements AudioHandler {
       maxOutputTokens: opts.maxOutputTokens ?? 900,
       transcriptionHints: opts.transcriptionHints ?? [],
       createSocket: opts.createSocket,
+      partnerAudible: () => this.lastHeardAt > 0 && Date.now() - this.lastHeardAt < HEARD_RECENT_MS,
     };
     const events: LiveEvents = {
       open: () => log.info(`Realtime: verbunden (${config.model})`),
@@ -399,8 +413,11 @@ export class RealtimeBridge implements AudioHandler {
       },
     };
     this.fallbackModels = [...(opts.fallbackModels ?? [])];
+    this.primaryModel = opts.model;
     this.connectLive = (model) => {
       config.model = model;
+      config.plainTools = this.plainTools;
+      this.currentModel = model;
       // Die Anweisungen können sich bis hierher geändert haben (Gesprächsplan)
       config.instructions = this.opts.instructions;
       // Meldungen einer abgelösten Sitzung (ihr „geschlossen“ nach dem Wechsel) gehen niemanden mehr an
@@ -418,14 +435,38 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   /**
-   * Der Anbieter hat die Sitzung abgelehnt oder geschlossen, bevor sie stand, und der Grund ist ein Limit (Kontingent,
-   * Überlast): mit dem nächsten Ausweichmodell neu aufbauen. Liefert false, wenn das nicht geht – dann gilt der Fehler.
+   * Der Anbieter hat die Sitzung abgelehnt oder geschlossen, bevor sie stand: neu aufbauen, solange es einen Weg gibt.
+   * Liefert false, wenn das nicht geht – dann gilt der Fehler. Die Wege der Reihe nach:
+   * - Das Modell lehnt die Angabe zum Ablauf der Tools ab: dasselbe Modell ohne sie.
+   * - Das Hauptmodell meldet ein Limit (Kontingent, Überlast): das nächste Ausweichmodell. Ein Ausweichmodell, das
+   *   scheitert, macht dem nächsten Platz, gleich aus welchem Grund – es darf den Anruf nicht kosten.
+   * - Kein Ausweichmodell mehr: einmal noch das Hauptmodell (ein Limit ist oft nach einem Augenblick vorbei).
    * Nach der Bestätigung der Sitzung wird nicht mehr gewechselt: Das Gespräch hinge am alten Verlauf.
    */
   private switchModel(reason: string): boolean {
-    if (this.closed || this.ready || !this.fallbackModels.length || !isLimitError(reason)) return false;
-    const next = this.fallbackModels.shift()!;
-    log.warn(`Realtime: ${this.live.label} lehnt die Sitzung ab (${reason.replace(/\s+/g, ' ').slice(0, 80)}) – baue sie mit dem Ausweichmodell ${next} neu auf`);
+    if (this.closed || this.ready) return false;
+    let next: string;
+    let how: string;
+    if (!this.plainTools && TOOL_BEHAVIOR_REJECTED.test(reason)) {
+      this.plainTools = true;
+      next = this.currentModel;
+      how = `baue sie mit ${next} ohne die Angabe zum Ablauf der Tools neu auf`;
+    } else if (!this.onFallback && !isLimitError(reason)) {
+      return false;
+    } else if (this.fallbackModels.length) {
+      next = this.fallbackModels.shift()!;
+      this.onFallback = true;
+      this.plainTools = false;
+      how = `baue sie mit dem Ausweichmodell ${next} neu auf`;
+    } else if (this.onFallback && !this.primaryRetried) {
+      this.primaryRetried = true;
+      this.plainTools = false;
+      next = this.primaryModel;
+      how = `kein weiteres Ausweichmodell, versuche es noch einmal mit ${next}`;
+    } else {
+      return false;
+    }
+    log.warn(`Realtime: ${this.live.label} lehnt die Sitzung ab (${reason.replace(/\s+/g, ' ').slice(0, 80)}) – ${how}`);
     const old = this.live;
     this.live = this.connectLive(next);
     try {
@@ -464,15 +505,17 @@ export class RealtimeBridge implements AudioHandler {
    */
   private listenForSound(pcm: Int16Array): void {
     const now = Date.now();
+    const echo = this.playing || now - this.lastAiFrameAt < SOUND_ECHO_GUARD_MS;
+    let sum = 0;
+    for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
+    const rms = Math.sqrt(sum / Math.max(1, pcm.length));
+    if (!echo && rms >= SOUND_RMS) this.lastHeardAt = now;
     // Solange die KI spricht (und kurz danach) oder der Anbieter Sprache meldet bzw. schon antwortet, ist nichts zu tun
-    if (this.playing || now - this.lastAiFrameAt < SOUND_ECHO_GUARD_MS || this.partnerSpeaking || this.activeResponse) {
+    if (echo || this.partnerSpeaking || this.activeResponse) {
       this.soundMs = 0;
       this.soundPeak = 0;
       return;
     }
-    let sum = 0;
-    for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
-    const rms = Math.sqrt(sum / Math.max(1, pcm.length));
     if (rms >= SOUND_RMS) {
       this.soundMs += pcm.length / (this.callRate / 1000);
       this.soundPeak = Math.max(this.soundPeak, rms);
@@ -1569,11 +1612,14 @@ export class RealtimeBridge implements AudioHandler {
       }
       // Die Mitschrift der KI nennt den ganzen Satz, auch wenn er abgeschnitten wurde: im Transkript und für den Agenten festhalten
       // Welche Antwort betroffen ist: ihr Anfang, soweit er vorliegt (die Mitschrift nennt sonst den ganzen Satz als gesagt)
-      const said = (this.kiLive || (this.lastAiItem === this.playItemId ? this.lastAiText : '')).trim();
+      // Steht ihr Text schon im Transkript (verworfen wird oft erst, wenn feststeht, was das Gegenüber sagte), ist sie fertig
+      const textOut = this.lastAiItem !== '' && this.lastAiItem === this.playItemId;
+      const said = (textOut ? this.lastAiText : this.kiLive).trim();
       const which = said ? `, die mit „${said.slice(0, 40)}${said.length > 40 ? ' …' : ''}“ begann,` : '';
       const note = `KI unterbrochen: etwa ${(lostMs / 1000).toFixed(1).replace('.', ',')} s ihrer Antwort${which} wurden nicht mehr gesprochen`;
-      // Der Text der Antwort kommt erst, wenn sie endet: Der Hinweis gehört dahinter, nicht davor. Jede Unterbrechung bekommt ihren eigenen
-      if (this.activeResponse) this.interruptNotes.push(note);
+      // Der Text der Antwort kommt erst, wenn sie endet: Der Hinweis gehört dahinter, nicht davor. Jede Unterbrechung bekommt ihren eigenen.
+      // Ist er schon da, kommt der Hinweis sofort – sonst stünde er erst hinter der nächsten Antwort, die gerade läuft
+      if (this.activeResponse && !textOut) this.interruptNotes.push(note);
       else this.opts.onTranscript({ speaker: 'system', text: note, final: true });
       // Das Modell hält den Satz sonst für gesagt und erklärt sich die Rückfrage des Gegenübers mit einer Verbindungsstörung.
       // Eine Vorgabe des Agenten, die so unterging, ist nicht erledigt. Beim Beenden bleibt es dabei.
