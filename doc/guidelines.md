@@ -8,12 +8,12 @@ These guidelines describe what SIPFunk is meant for and what it is not. They com
 
 ## 1. Principles
 
-1. **Transparency.** The AI introduces itself as an AI in every call and does not deny it when asked. The only, deliberately limited exception is the spam defence without AI disclosure (section 6), which the operator switches on explicitly and at their own risk.
+1. **Transparency.** The AI introduces itself as an AI in every call and does not deny it when asked. The only, deliberately limited exception is the spam defence without AI disclosure (section 6), which the operator switches on explicitly and at their own risk. (In calls from the dashboard to your own number the AI skips the explanation, since you know it anyway.)
 2. **A human remains responsible.** Every outgoing call is triggered and confirmed by you (dialog in the web UI) or by an AI agent for which you have deliberately switched on the MCP interface. Even then you are the caller: the agent is your tool, not your representative, and you answer for what it triggers (section 9). The AI on the phone never decides by itself whom to call.
 3. **Data minimisation.** No audio is stored. Transcripts are kept only as long as they are needed ("Protokolle aufbewahren" under Einstellungen › Technik). Background knowledge for the AI contains only what it needs for the task.
 4. **No decisions of consequence.** The AI concludes no contracts, pays nothing, orders nothing, passes on no sensitive data (health, payment, ID, passwords) and accepts none. What the task does not cover it takes back as a question.
 5. **No deception about identity.** The AI does not pose as a real person. "Im Auftrag von" (on behalf of) is your name or your company's name, not that of a third party.
-6. **Local and private.** The web UI is reachable only from your own computer. Call content goes only to the provider of the active AI connection (OpenAI or Google Gemini). Credentials stay in the data folder. Neither phone numbers nor keys belong in chats, tickets or screenshots.
+6. **Local and private.** The web UI is reachable only from your own computer. During the call, its content goes only to the provider of the active AI connection (OpenAI or Google Gemini); notification mails and AI agents are covered in the legal notes, section 3. Credentials stay in the data folder. Neither phone numbers nor keys belong in chats, tickets or screenshots.
 
 ---
 

@@ -16,7 +16,7 @@ SIPFunk is software you run yourself. There is no service provider between you a
 - **Controller** under the GDPR for the processing of the call data (if the GDPR applies at all, section 3).
 - **Provider and deployer** of an AI system within the meaning of the AI Act, as far as it applies (section 2), because you assemble the system yourself and use it.
 
-The AI provider you select in the settings (OpenAI, or Google with Gemini) processes speech and text on your behalf but is not your contracting party towards the people called. It is a processor within the meaning of the GDPR only if you have concluded the agreement required for that (section 3.5). Call content only ever goes to the selected provider.
+The AI provider you select in the settings (OpenAI, or Google with Gemini) processes speech and text on your behalf but is not your contracting party towards the people called. It is a processor within the meaning of the GDPR only if you have concluded the agreement required for that (section 3.5). During the call, its content goes only to the selected provider; further recipients after or alongside the call (mail provider, the provider of an AI agent, tellows) are listed in section 3.
 
 **AI agents (MCP interface).** If an AI agent triggers the call through the MCP interface (user guide, chapter 13), these roles do not change: the agent is a tool that you switched on and instructed. The call is attributed to you as if you had clicked "Anrufen" yourself, even if the agent misunderstood the task or read it out of someone else's content. Three points are added: (1) The transparency obligation (section 2.1) is still met by the voice AI, which introduces itself as an AI; an agent has no switch for that, and the AI's basic rules take precedence over its directions. That is not a technical guarantee; you remain responsible. (2) The agent reads along the call as text; the content thereby goes to a further recipient, the provider of your agent. The same applies to it as to the AI provider of the call (section 3.5), and it belongs in the information given to the data subjects where such information is owed (section 3.4). (3) An agent makes series of calls easy. The prohibitions in section 5.1 apply regardless of who or what triggers the call; the limits of the interface do not replace consent.
 
@@ -28,7 +28,7 @@ The AI provider you select in the settings (OpenAI, or Google with Gemini) proce
 
 AI systems that interact directly with natural persons have to be designed so that the persons are informed that they are interacting with an AI, **unless this is obvious from the circumstances and the context of use to a reasonably well-informed, observant person.** The obligation has applied since 2 August 2026; the amending Regulation (EU) 2026/1744 ("Digital Omnibus") did not shift it. The Commission's guidelines on Art. 50 of 20 July 2026 (non-binding) read the exception narrowly and require the notice at the latest at the first interaction, on the phone spoken at the beginning, an honest answer to any question about the nature of the counterpart and, for agents, also stating on whose behalf they act.
 
-**Standard operation of SIPFunk:** on every outgoing call the AI expressly introduces itself as an AI assistant and does not deny it when asked. On the answering machine it first answers with just "Hallo?" and identifies itself as an AI assistant in its next turn (after 2.5 s at the latest, unprompted); the notice therefore comes at the beginning, but not in the first word. The call back to yourself omits the explanation because the fact is obvious to you; when asked, the AI says so anyway. By today's understanding this meets the transparency obligation.
+**Standard operation of SIPFunk:** on every outgoing call the AI expressly introduces itself as an AI assistant and does not deny it when asked. On the answering machine it first answers with just "Hallo?" and identifies itself as an AI assistant in its next turn (after 2.5 s at the latest, unprompted); the notice therefore comes at the beginning, but not in the first word. Calls from the dashboard to your own number and the call back to yourself omit the explanation because the fact is obvious to you; when asked, the AI says so anyway. In a call started by an AI agent the AI introduces itself as an AI assistant to you as well. By today's understanding this meets the transparency obligation.
 
 **Spam defence:** here, too, the AI identifies itself by default. If the operator switches AI disclosure off, it deliberately omits the notice (section 6).
 
@@ -92,7 +92,7 @@ OpenAI processes audio and text. For business use you need a **data processing a
 
 Which provider is selected is shown in the settings under "AI connections" and recorded per call in the log. Name the provider you actually use in your privacy information.
 
-Mail providers (Gmail, Microsoft 365, your SMTP provider) receive summary and transcript by e-mail. For companies the same applies here: a processing agreement with the mail provider, usually covered by the business customer contracts.
+Mail providers (Gmail, Microsoft 365, your SMTP provider) receive the summary and a shortened conversation by e-mail. For companies the same applies here: a processing agreement with the mail provider, usually covered by the business customer contracts.
 
 If the lookup of unknown numbers is switched on (off by default), the caller's number is transmitted to tellows while the phone is ringing. In business operation this needs a legal basis too.
 
@@ -136,7 +136,7 @@ For advertising calls the number must not be withheld (§ 120 Telecommunications
 
 ### 5.3 Emergency and special numbers
 
-SIPFunk blocks 110, 112, 115, 116xxx, 118xx, 0900, 0137/0138, 0180, 019x and international numbers. This protects against costs and against misuse of emergency numbers (§ 145 StGB). The block is deliberately not configurable.
+SIPFunk blocks 110, 112, 115, 116xxx, 118xx, 0900, 0137/0138, 0180, 019x, call-by-call prefixes (010xx) and international numbers. This protects against costs and against misuse of emergency numbers (§ 145 StGB). The block is deliberately not configurable.
 
 ### 5.4 Transfer (SIP REFER) and call back
 

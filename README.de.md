@@ -24,7 +24,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent. Das Programm meldet sich wie ein IP
 - **Beschwerde-Entwurf** für die Bundesnetzagentur aus dem Protokoll eines Spam-Anrufs.
 - **Kontakte und Protokolle.** Kontakte mit Notizen als Hintergrundwissen, mit ihren Telefonnummern importierbar aus Google, Microsoft (Outlook, Microsoft 365) oder einer vCard-/CSV-Datei (z. B. Apple iCloud); für Google und Microsoft genügt mit der mitgelieferten App-Registrierung ein Klick auf „Verbinden“, sonst registrierst du einmal eine eigene App (Handbuch, Abschnitt 11.1); je Gespräch Transkript, Zusammenfassung, Ergebnis und Kostenschätzung. Es wird kein Audio gespeichert, Protokolle werden nach einer einstellbaren Frist gelöscht.
 - **Simulator.** `npm run sim` spielt Gespräche im Textmodus durch, ohne jemanden anzurufen (nur mit OpenAI).
-- **MCP-Schnittstelle für KI-Agenten.** Ein Agent wie Codex, Claude Code oder Claude Desktop kann für dich telefonieren: Er startet den Anruf mit einem Auftrag, liest mit, was gesagt wird, gibt der KI am Telefon Vorgaben und holt das Ergebnis ab; fehlt eine Entscheidung, fragt die KI am Telefon beim Agenten nach. Standardmäßig aus; in der Web-UI legst du fest, wen ein Agent anrufen darf, ob und wann du einen Anruf vor dem Wählen bestätigst (immer, nur bei Nummern ohne Kontakt, nie), und die Limits.
+- **MCP-Schnittstelle für KI-Agenten.** Ein Agent wie Codex, Claude Code oder Claude Desktop kann für dich telefonieren: Er startet den Anruf mit einem Auftrag, liest mit, was gesagt wird, gibt der KI am Telefon Vorgaben und holt das Ergebnis ab; fehlt eine Entscheidung, fragt die KI am Telefon beim Agenten nach. Standardmäßig aus; in der Web-UI legst du fest, wen ein Agent anrufen darf, ob und wann du einen Anruf vor dem Wählen bestätigst (immer außer bei Kontakten, die du einzeln freigibst, nur bei Nummern ohne Kontakt, nie), und die Limits.
 
 ## Voraussetzungen
 
@@ -108,7 +108,7 @@ Hinweis des Autors: SIPFunk ist ein guter Verwendungszweck für vorhandenes Open
 - Google Gemini ist erst in wenigen echten Telefonaten erprobt (erste Gespräche am 11.11.2026); OpenAI bleibt der erprobte Standard. Prüfe die Protokolle der ersten Gespräche mit Gemini genau.
 - Mit Gemini dauert ein Gespräch höchstens neun Minuten, die Sprechgeschwindigkeit lässt sich nicht einstellen, ein spät fertiger Gesprächsplan und der Wechsel in die Spam-Abwehr erreichen die KI nur als nachgereichte Anweisung (schwächer als bei OpenAI), das Zu-Ende-Sprechen nach einem bloßen „Mhm“ klappt seltener, und der Simulator steht nicht zur Verfügung. Einzelheiten im [Handbuch, Abschnitt 6.2](doc/user-guide.de.md#62-ki-verbindungen).
 - Ein Gespräch gleichzeitig; während eines Gesprächs ist die Nebenstelle besetzt.
-- Deutsch: Web-UI, Anweisungen an die KI und Rufnummernregeln sind auf Deutschland ausgelegt. Notruf, Sonder-, Mehrwert- und Auslandsnummern sind gesperrt.
+- Deutsch: Die Gespräche (Anweisungen an die KI) und die Rufnummernregeln sind auf Deutschland ausgelegt; die Web-UI gibt es auf Deutsch und Englisch. Notruf, Sonder-, Mehrwert- und Auslandsnummern sowie Call-by-Call-Vorwahlen sind gesperrt.
 - Keine Tastentöne (DTMF), also keine Sprachmenüs; keine Übernahme des Gesprächs per Mikrofon.
 - SIP über UDP ohne Verschlüsselung, gedacht für das eigene LAN.
 - Die Web-UI ist nur an `127.0.0.1` gebunden und hat keine Anmeldung. Nicht ins Netz freigeben.
@@ -130,7 +130,7 @@ FRITZ!Box ist eine Marke der AVM GmbH, OpenAI eine Marke von OpenAI, Google und 
 - [Ablauf eines Agenten-Anrufs](doc/mcp-flow.de.md): wie ein Anruf eines KI-Agenten über MCP Schritt für Schritt abläuft.
 - [Mitarbeit](CONTRIBUTING.de.md), [Sicherheit](SECURITY.de.md) und [Änderungen](CHANGELOG.de.md).
 
-Alle Dokumente gibt es auch auf Englisch, siehe [README.md](README.md). Die Software selbst (Web-UI, Anweisungen an die KI) ist deutsch.
+Alle Dokumente gibt es auch auf Englisch, siehe [README.md](README.md). Die Web-UI gibt es auf Deutsch und Englisch; die Anweisungen an die KI sind deutsch.
 
 ## Entwicklung
 
@@ -142,7 +142,7 @@ npm run typecheck
 npm test
 ```
 
-Die Tests laufen offline gegen eine simulierte Telefonanlage auf localhost; sie rufen niemanden an und brauchen keinen API-Schlüssel.
+Die Tests laufen offline gegen eine simulierte Telefonanlage auf localhost; sie rufen niemanden an und brauchen keinen API-Schlüssel. Weitere Befehle für die Entwicklung stehen in [CONTRIBUTING.de.md](CONTRIBUTING.de.md).
 
 ## Lizenz
 

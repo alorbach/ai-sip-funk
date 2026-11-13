@@ -47,6 +47,8 @@ Getestet wird nur mit eigenen Nummern und Nebenstellen oder mit eingeweihten Per
 - [ ] Bestätigungsdialog zeigt die Nummer; erst „Jetzt wählen“ startet.
 - [ ] Die KI stellt sich vor, arbeitet beide Teile des Auftrags ab und legt nach der Verabschiedung selbst auf.
 - [ ] Unterbrechen funktioniert; ein Husten oder „mhm“ schneidet den Satz nicht ab.
+- [ ] Einen langen Satz wirklich unterbrechen: Im Transkript steht „KI unterbrochen: …“, und die KI wiederholt das Ende kurz, wenn es noch wichtig ist. Nach einem Satz der KI schweigen: „Stille: …“ erscheint, und die KI macht weiter. Ohne Worte lachen: Die KI geht kurz darauf ein.
+- [ ] Ausweichmodelle (nur wenn tatsächlich ein Limit oder eine Überlast auftritt): Das Log nennt den Wechsel zum Ausweichmodell, und der Anruf kommt trotzdem zustande.
 - [ ] Transkript läuft live mit; „Mithören“ gibt beide Seiten wieder.
 - [ ] Protokoll enthält Gesprächsplan, Ergebnis laut KI, Zusammenfassung und Kosten.
 - [ ] Eine gesperrte Nummer (z. B. 0900 …) wird abgelehnt.
@@ -86,10 +88,12 @@ Direkt nach Punkt 3.
 
 Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräch ist für Kontakte ausgeschaltet; dieser Teil braucht also ein Telefon, dessen Nummer nicht in den Kontakten steht, oder den Simulator (`npm run sim -- strom bank`). Der Listentreffer funktioniert auch mit einem Kontakt.
 
-- [ ] Schalter an: Der Dialog kommt nur beim ersten Mal, das Datum steht danach neben dem Schalter.
-- [ ] `settings.json` von Hand auf `"scamMode": "on"` ohne `scamAccepted`, Neustart: Die Web-UI zeigt „aus“.
 - [ ] KI-Kennung an, Abwehr an (ohne Bestätigungsdialog): Spam-Anruf aus der Liste – die KI stellt sich als KI-Assistent vor, nennt keinen Namen und wimmelt ab.
-- [ ] KI-Kennung aus: roter Warnkasten sichtbar; der Dialog erscheint, „Abbrechen“ stellt den Schalter zurück.
+- [ ] KI-Kennung aus: roter Warnkasten sichtbar; der Dialog erscheint, „Abbrechen“ stellt den Schalter zurück. Nach dem Bestätigen kommt der Dialog nicht wieder, und das Datum steht neben dem Schalter.
+- [ ] KI-Kennung aus: `settings.json` von Hand auf `"scamMode": "on"` ohne `scamAccepted`, Neustart: Die Web-UI zeigt „aus“.
+
+Die folgenden Punkte mit ausgeschalteter KI-Kennung:
+
 - [ ] **Erkennung im Gespräch** (Liste leer, einen Werbeanruf spielen): Begrüßung zunächst als KI-Assistent, nach ein bis zwei Sätzen Werbung Wechsel zur Privatperson ohne KI-Nennung; keine Zustimmung, keine Daten; Transkript enthält „Spam-Abwehr: <Grund>“; kein Rückruf.
 - [ ] **Listentreffer** (eigene Mobilnummer in die Liste): Begrüßung sofort als Privatperson mit Rollenname, Stimme und Tempo der Rolle.
 - [ ] **Rückwechsel** (Nummer in der Liste, echtes Anliegen vortragen): Die KI wechselt in den Assistenten-Modus, stellt sich als KI vor und nimmt das Anliegen auf.
@@ -100,6 +104,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 ## 7. Simulator
 
+- [ ] `npm run sim -- ausweichen vergessen`: Die KI beantwortet eine ausweichende Gegenfrage kurz und stellt ihre Frage einmal erneut; einen vergessenen Punkt spricht sie vor dem Auflegen noch an.
 - [ ] `npm run sim` läuft durch; die Berichte in `sim-results/` zeigen keine schweren Fehler (Daten genannt, „Ja“ gesagt, KI-Nennung im Spam-Modus).
 
 ## 8. Verteilung und MCP
@@ -113,6 +118,8 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 - [ ] Im selben Kontakt „KI-Agent darf ohne Nachfrage anrufen“ anhaken (die Liste zeigt „Agent ohne Nachfrage“): `start_call` an ihn wählt ohne Bestätigungsdialog; ein Kontakt ohne Haken fragt weiter nach.
 - [ ] MCP im Gespräch: `wait_for_events` liefert, was du am Telefon sagst und was die KI sagt; eine Vorgabe mit `say` setzt die KI um; `end_call` lässt sie sich verabschieden; `get_call_result` liefert Ergebnis, Zusammenfassung und Transkript. Der Anruf steht unter „Anrufe“ mit „Von KI-Agent“.
 - [ ] MCP-Rückfrage: Auftrag mit engem Spielraum geben und am Telefon etwas anderes anbieten. Die KI sagt „Einen Moment bitte, ich frage kurz nach“, der Agent bekommt die Rückfrage, seine Antwort mit `say` kommt am Telefon an. Ohne Antwort macht die KI nach etwa 25 Sekunden weiter.
+- [ ] MCP-Regeln der KI: Am Telefon etwas fragen, das der Auftrag nicht beantwortet (z. B. ob die Daten weitergegeben werden) – die KI fragt beim Agenten nach oder sagt, dass sie es nicht weiß, und sagt nichts zu. „Das darf ich nicht sagen“ der KI löst keine Rückfrage aus. Eine mit `say` geschickte Kennnummer oder ein Passwort wird am Telefon nicht angesagt.
+- [ ] MCP an die eigene Inhabernummer: Die KI stellt sich als KI-Assistent vor. Mit „Gesprächsplan vor Agenten-Anrufen erstellen“ an sieht der Agent „Gesprächsplan der KI: …“; aus (Standard) gibt es keinen Plan-Hinweis.
 - [ ] MCP-Sperren: Mit der Einstellung „Nur gespeicherte Kontakte“ lehnt `start_call` eine Nummer ohne Kontakt ab; „Ablehnen“ im Dialog und eine unbeantwortete Anfrage (zwei Minuten) wählen nicht; nach dem Limit je Stunde lehnt `start_call` ab.
 - [ ] MCP aus der installierten App: Konfiguration aus „Agenten verbinden“ kopieren, für Codex oder Claude Code über HTTP, für Claude Desktop als Prozess; der Agent zeigt die acht Tools.
 - [ ] Agenten mit einem Klick: Unter „Agenten verbinden“ bei einem installierten Agenten „Einrichten“ wählen. Die Meldung nennt die Sicherungskopie, die übrigen Einträge der Datei sind unverändert, und der Agent zeigt nach Neustart bzw. neuer Sitzung die acht Tools. „Entfernen“ nimmt nur den Eintrag „sipfunk“ heraus. Je Agent einmal prüfen (Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI, Copilot CLI).

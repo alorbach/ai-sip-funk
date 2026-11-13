@@ -14,7 +14,7 @@ SIPFunk ist eine Software, die du selbst betreibst. Es gibt keinen Dienstanbiete
 - **Verantwortlicher** nach DSGVO für die Verarbeitung der Gesprächsdaten (sofern die DSGVO überhaupt greift, Abschnitt 3).
 - **Anbieter und Betreiber** eines KI-Systems im Sinne der KI-Verordnung, soweit sie anwendbar ist (Abschnitt 2), denn du setzt das System selbst zusammen und nutzt es.
 
-Der KI-Anbieter, den du in den Einstellungen wählst (OpenAI oder Google mit Gemini), verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertragspartner gegenüber den Angerufenen. Auftragsverarbeiter im Sinne der DSGVO ist er nur, wenn du den dafür nötigen Vertrag abgeschlossen hast (Abschnitt 3.5). Gesprächsinhalte gehen immer nur an den gewählten Anbieter.
+Der KI-Anbieter, den du in den Einstellungen wählst (OpenAI oder Google mit Gemini), verarbeitet Sprache und Text in deinem Auftrag, ist aber nicht dein Vertragspartner gegenüber den Angerufenen. Auftragsverarbeiter im Sinne der DSGVO ist er nur, wenn du den dafür nötigen Vertrag abgeschlossen hast (Abschnitt 3.5). Im Gespräch gehen die Inhalte nur an den gewählten Anbieter; weitere Empfänger nach oder neben dem Gespräch (Mail-Anbieter, Anbieter eines KI-Agenten, tellows) stehen in Abschnitt 3.
 
 **KI-Agenten (MCP-Schnittstelle).** Löst ein KI-Agent den Anruf über die MCP-Schnittstelle aus (Handbuch, Kapitel 13), ändert das an diesen Rollen nichts: Der Agent ist ein Werkzeug, das du eingeschaltet und beauftragt hast. Der Anruf wird dir zugerechnet, als hättest du selbst auf „Anrufen“ geklickt, auch wenn der Agent den Auftrag falsch verstanden oder aus fremden Inhalten herausgelesen hat. Drei Punkte kommen hinzu: (1) Die Transparenzpflicht (Abschnitt 2.1) erfüllt weiterhin die Sprach-KI, die sich als KI vorstellt; ein Agent hat dafür keinen Schalter, und die Grundregeln der KI gehen seinen Vorgaben vor. Eine technische Garantie ist das nicht; verantwortlich bleibst du. (2) Der Agent liest das Gespräch als Text mit; die Inhalte gehen damit an einen weiteren Empfänger, den Anbieter deines Agenten. Für ihn gilt dasselbe wie für den KI-Anbieter des Gesprächs (Abschnitt 3.5), und er gehört in die Information der Betroffenen, wo eine geschuldet ist (Abschnitt 3.4). (3) Ein Agent macht Serien von Anrufen leicht. Die Verbote aus Abschnitt 5.1 gelten unabhängig davon, wer oder was den Anruf auslöst; die Limits der Schnittstelle ersetzen keine Einwilligung.
 
@@ -26,7 +26,7 @@ Der KI-Anbieter, den du in den Einstellungen wählst (OpenAI oder Google mit Gem
 
 KI-Systeme, die direkt mit natürlichen Personen interagieren, müssen so gestaltet sein, dass die Personen informiert werden, dass sie mit einer KI interagieren, **es sei denn, das ist aus den Umständen und dem Nutzungskontext für eine vernünftige, aufmerksame Person offensichtlich.** Die Pflicht gilt seit dem 2. August 2026; die Änderungsverordnung (EU) 2026/1744 („Digital Omnibus“) hat daran nichts verschoben. Die Leitlinien der Kommission zu Art. 50 vom 20. Juli 2026 (unverbindlich) legen die Ausnahme eng aus und verlangen den Hinweis spätestens bei der ersten Interaktion, am Telefon gesprochen zu Beginn, eine ehrliche Antwort auf jede Frage nach der Natur des Gegenübers und bei Agenten zusätzlich die Angabe, für wen sie handeln.
 
-**Standardbetrieb von SIPFunk:** Die KI stellt sich bei jedem ausgehenden Anruf ausdrücklich als KI-Assistent vor und bestreitet es auch auf Nachfrage nicht. Am Anrufbeantworter meldet sie sich zunächst nur mit „Hallo?“ und gibt sich in ihrem nächsten Beitrag als KI-Assistent zu erkennen (spätestens nach 2,5 s von selbst); der Hinweis kommt also zu Beginn, aber nicht im ersten Wort. Der Rückruf an dich selbst („dein Agent“) lässt die Erklärung weg, weil der Umstand dir offensichtlich ist; auf Nachfrage sagt die KI es trotzdem. Damit ist die Transparenzpflicht nach heutigem Verständnis erfüllt.
+**Standardbetrieb von SIPFunk:** Die KI stellt sich bei jedem ausgehenden Anruf ausdrücklich als KI-Assistent vor und bestreitet es auch auf Nachfrage nicht. Am Anrufbeantworter meldet sie sich zunächst nur mit „Hallo?“ und gibt sich in ihrem nächsten Beitrag als KI-Assistent zu erkennen (spätestens nach 2,5 s von selbst); der Hinweis kommt also zu Beginn, aber nicht im ersten Wort. Anrufe vom Dashboard an deine eigene Nummer und der Rückruf an dich selbst lassen die Erklärung weg, weil der Umstand dir offensichtlich ist; auf Nachfrage sagt die KI es trotzdem. Bei einem Anruf, den ein KI-Agent gestartet hat, stellt sich die KI auch dir gegenüber als KI-Assistent vor. Damit ist die Transparenzpflicht nach heutigem Verständnis erfüllt.
 
 **Spam-Abwehr:** Auch hier gibt sich die KI standardmäßig zu erkennen. Schaltet der Betreiber die KI-Kennung aus, verzichtet sie bewusst auf den Hinweis (Abschnitt 6).
 
@@ -90,7 +90,7 @@ OpenAI verarbeitet Audio und Text. Für den geschäftlichen Einsatz brauchst du 
 
 Welcher Anbieter gewählt ist, steht in den Einstellungen unter „KI-Verbindungen“ und je Gespräch im Protokoll. Nenne in deiner Datenschutzinformation den Anbieter, den du tatsächlich verwendest.
 
-Mail-Anbieter (Gmail, Microsoft 365, dein SMTP-Anbieter) erhalten Zusammenfassung und Transkript per E-Mail. Für Firmen gilt auch hier: Auftragsverarbeitung mit dem Mail-Anbieter, meist durch die Geschäftskundenverträge abgedeckt.
+Mail-Anbieter (Gmail, Microsoft 365, dein SMTP-Anbieter) erhalten die Zusammenfassung und einen gekürzten Gesprächsverlauf per E-Mail. Für Firmen gilt auch hier: Auftragsverarbeitung mit dem Mail-Anbieter, meist durch die Geschäftskundenverträge abgedeckt.
 
 Ist das Nachschlagen unbekannter Nummern eingeschaltet (standardmäßig aus), wird die Anrufernummer beim Klingeln an tellows übermittelt. Im geschäftlichen Betrieb braucht auch das eine Rechtsgrundlage.
 
@@ -134,7 +134,7 @@ Bei Werbeanrufen darf die Rufnummer nicht unterdrückt werden (§ 120 TKG). SIPF
 
 ### 5.3 Notruf und Sondernummern
 
-SIPFunk sperrt 110, 112, 115, 116xxx, 118xx, 0900, 0137/0138, 0180, 019x und Auslandsnummern. Das schützt vor Kosten und vor Missbrauch des Notrufs (§ 145 StGB). Die Sperre ist absichtlich nicht konfigurierbar.
+SIPFunk sperrt 110, 112, 115, 116xxx, 118xx, 0900, 0137/0138, 0180, 019x, Call-by-Call-Vorwahlen (010xx) und Auslandsnummern. Das schützt vor Kosten und vor Missbrauch des Notrufs (§ 145 StGB). Die Sperre ist absichtlich nicht konfigurierbar.
 
 ### 5.4 Durchstellen (SIP REFER) und Rückruf
 

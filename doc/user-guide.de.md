@@ -2,7 +2,7 @@
 
 English: [user-guide.md](user-guide.md)
 
-Begriffe und Schaltflächen entsprechen der deutschen Web-UI. Beispielnamen, Rufnummern und Adressen in diesem Handbuch sind erfunden.
+Begriffe und Schaltflächen entsprechen der deutschen Web-UI. Die Oberfläche gibt es auch auf Englisch (Abschnitt 5.2). Beispielnamen, Rufnummern und Adressen in diesem Handbuch sind erfunden.
 
 Weitere Dokumente: [Richtlinien für den Einsatz](guidelines.de.md) · [Rechtliche Aspekte](legal.de.md) · [Architektur](architecture.de.md) · [Manuelle Testliste](test-checklist.de.md) · [Ablauf eines Agenten-Anrufs](mcp-flow.de.md).
 
@@ -19,7 +19,7 @@ SIPFunk ist ein lokaler KI-Telefonassistent für die FRITZ!Box. Das Programm mel
 - dich danach **benachrichtigen** (Tray-Hinweis, E-Mail, bei wichtigen Anrufen ein Rückruf mit Durchstellen zum Anrufer),
 - optional **Werbe- und Betrugsanrufe abwimmeln oder hinhalten** (Spam-Abwehr, nur nach ausdrücklicher Bestätigung, Kapitel 10).
 
-Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zum gewählten KI-Anbieter, OpenAI oder Google (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, zu tellows, wenn du das Nachschlagen einschaltest, und zu Google oder Microsoft, während du von dort Kontakte importierst. Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
+Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zum gewählten KI-Anbieter, OpenAI oder Google (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, zu tellows, wenn du das Nachschlagen einschaltest, zu Google oder Microsoft, während du von dort Kontakte importierst, und, nur wenn du im Mail-Assistenten auf „Automatisch einrichten“ klickst, zu Mozillas Thunderbird-Datenbank und zu einem DNS-Server, mit der Domain deiner Mailadresse (Abschnitt 9.3). Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
 
 Grenzen: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig. SIPFunk arbeitet mit der OpenAI-Realtime-API oder der Gemini Live API (Abschnitt 6.2). Es wird kein Audio aufgezeichnet; gespeichert werden Transkripte (Text), Zusammenfassungen und Metadaten.
 
@@ -47,7 +47,7 @@ Mehr dazu in der [Architektur](architecture.de.md).
 
 ## 3. FRITZ!Box einrichten
 
-1. FRITZ!Box-Oberfläche öffnen → **Telefonie → Telefoniegeräte → Gerät einrichten → Telefon (mit und ohne Anrufbeantworter) → LAN/WLAN (IP-Telefon)**.
+1. FRITZ!Box-Oberfläche öffnen → **Telefonie → Telefoniegeräte → Neues Gerät einrichten → Telefon (mit und ohne Anrufbeantworter) → LAN/WLAN (IP-Telefon)**.
 2. Benutzername und Kennwort vergeben. Diese Daten kommen später in die `.env` (`SIP_USER`, `SIP_PASSWORD`). **Nie in Chats, Tickets oder Screenshots weitergeben.**
 3. **Ausgehende Rufnummer** wählen (mit dieser Nummer ruft die KI an).
 4. **Ankommende Rufe:** alle Rufnummern zuordnen, bei denen die KI klingeln bzw. abnehmen soll. Ohne Zuordnung bekommt SIPFunk den Anruf gar nicht zu sehen.
@@ -134,7 +134,9 @@ Erfolgreich ist der Test, wenn die Registrierung klappt, das Telefon klingelt, d
 
 Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungsstatus und der Schalter „Einfach / Erweitert“ (Kapitel 5.1); die zuletzt geöffnete Seite wird gemerkt. Sobald ein Anruf läuft, erscheint darunter die Gesprächsleiste mit Phase (wählt, klingelt, eingehender Anruf, verbunden), Name oder Nummer des Gegenübers, Dauer, Codec, „Mithören“ und „Auflegen“; außerdem pulsiert ein Punkt am Reiter „Dashboard“. Bei einem klingelnden eingehenden Anruf stehen dort zusätzlich die Knöpfe aus Kapitel 8.
 
-- **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll.
+**Mithören** in der Gesprächsleiste spielt beide Gesprächsseiten im Browser ab (nur live, keine Aufzeichnung). Mit `LIVE_LISTEN_ENABLED=false` ist die Funktion aus.
+
+- **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll (nur in der Stufe „Erweitert“).
 - **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“, „Spam-Abwehr“ und „Von KI-Agent“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
 - **Einstellungen**: die Abschnitte KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, MCP-Schnittstelle und Technik (nur in der Stufe „Erweitert“). Die Abschnittsliste links arbeitet wie Reiter: Rechts steht nur die Karte des gewählten Abschnitts, und die Auswahl wird gemerkt. „Speichern“ (oder Strg+S) unter der Liste speichert weiterhin alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. Ausnahme sind Änderungen an KI-Verbindungen: Sie gelten sofort, ohne „Speichern“ (Abschnitt 6.2). „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Im Abschnitt „Technik“ stehen außerdem zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
@@ -150,12 +152,12 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 | Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, KI-Verbindung, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
 | Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
 | KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text) | – |
-| KI-Verbindungen | Liste der Verbindungen zum Aufklappen, Hinzufügen, Umbenennen, Umschalten und Entfernen, Standardstimme mit Hörprobe, Sprachmodell, Textmodell, Schlüssel, „Verbindung testen“, Verbrauch in diesem Monat, Hinweise zu Gemini | eigene Modell-IDs, tatsächliche Kosten laut OpenAI (Admin-Schlüssel) |
+| KI-Verbindungen | Liste der Verbindungen zum Aufklappen, Hinzufügen, Umbenennen, Umschalten und Entfernen, Standardstimme mit Hörprobe, Sprachmodell, Textmodell, Ausweich-Sprach- und -Textmodelle, Schlüssel, „Verbindung testen“, Verbrauch in diesem Monat, Hinweise zu Gemini | eigene Modell-IDs, tatsächliche Kosten laut OpenAI (Admin-Schlüssel) |
 | Anrufbeantworter | an/aus, Klingelzahl, eigene Rufnummern (Nummer, Name, Person, Firma oder Familie) | allgemeiner Auftrag, Details je Rufnummer (Annahme, Klingelzahl, Anrede, Stil, Stimme, Auftrag, Benachrichtigungen) |
 | Benachrichtigungen | Tray, E-Mail, Rückruf, Pop-up beim Klingeln | Hinweis auf die Regeln je Rufnummer |
 | E-Mail-Versand | Postfach, Passwort, „Automatisch einrichten“, Empfänger, Prüfen und Probe-Mail | Versandweg (SMTP/OAuth), Server, Port, Verschlüsselung, Absender, OAuth-Client, Mail-Vorlagen |
 | Spam-Abwehr | an/aus, KI-Kennung an/aus (aus nur mit Bestätigung), Verhalten | Minuten, Name, Stimme, Geschlecht, Tempo und Anweisungen der Rolle, Nummernliste, tellows-Abfrage |
-| MCP-Schnittstelle | an/aus, erlaubte Ziele, Bestätigung vor dem Wählen, Limits, Konfiguration für Agenten zum Kopieren | Protokolle und Kontaktnamen für Agenten, Verbindung über HTTP oder als Prozess |
+| MCP-Schnittstelle | an/aus, erlaubte Ziele, Bestätigung vor dem Wählen, Limits, Gesprächsplan vor Agenten-Anrufen an/aus, Konfiguration für Agenten zum Kopieren | Protokolle und Kontaktnamen für Agenten, Verbindung über HTTP oder als Prozess |
 | Technik | – | der ganze Abschnitt samt den `.env`-Angaben |
 
 Zwei Ausnahmen halten sichtbar, was gerade zählt: Steht die Art des Anrufs nicht auf „KI-Gespräch“, ist sie auch in „Einfach“ zu sehen, und wer per OAuth sendet, sieht den Versandweg.
@@ -166,15 +168,12 @@ Web-UI, Pop-up beim Klingeln und Tray-Menü gibt es auf Deutsch und Englisch. �
 
 Drei Dinge bleiben unabhängig davon deutsch: Die KI spricht am Telefon Deutsch (Aufträge, Hinweise zum Verhalten und Kontakt-Notizen also auf Deutsch schreiben), Systemprotokoll und Gesprächsergebnisse kommen unübersetzt vom Server, und die Mail-Vorlagen behalten ihre deutschen Variablennamen.
 
-
-**Mithören** in der Gesprächsleiste spielt beide Gesprächsseiten im Browser ab (nur live, keine Aufzeichnung). Mit `LIVE_LISTEN_ENABLED=false` ist die Funktion aus.
-
 ---
 
 ## 6. Ausgehende Anrufe
 
-1. **Rufnummer** eingeben oder Kontakt wählen. Erlaubt sind deutsche Festnetz- und Mobilnummern (auch `+49…`) und interne Nebenstellen (`**610`). Gesperrt sind Notruf (110, 112), 115, 116…, 118…, 0900, 0137/0138, 0180, 019… und das Ausland. Die Sperre gilt auch für MCP-Aufrufe und lässt sich nicht einstellen.
-2. **Audio „KI-Gespräch“**, dann den **Auftrag** in normaler Sprache schreiben. Gute Aufträge sagen, wer vermutlich abnimmt, was gefragt oder ausgerichtet werden soll und was die KI dafür wissen muss:
+1. **Rufnummer** eingeben oder Kontakt wählen. Erlaubt sind deutsche Festnetz- und Mobilnummern (auch `+49…`) und interne Nebenstellen (`**610`). Gesperrt sind Notruf (110, 112), 115, 116…, 118…, 0900, 0137/0138, 0180, 019…, Call-by-Call-Vorwahlen (010…) und das Ausland. Die Sperre gilt auch für MCP-Aufrufe und lässt sich nicht einstellen.
+2. Die **Art des Anrufs** steht auf **„KI-Gespräch“**. So ist es voreingestellt; das Feld erscheint nur in der Stufe „Erweitert“. Dann den **Auftrag** in normaler Sprache schreiben. Gute Aufträge sagen, wer vermutlich abnimmt, was gefragt oder ausgerichtet werden soll und was die KI dafür wissen muss:
 
    > „Ruf die Zahnarztpraxis an. Ich brauche einen Kontrolltermin in den nächsten drei Wochen, vormittags, Name Max Mustermann, die Versichertennummer habe ich nicht zur Hand. Nimm einen angebotenen Termin an, wenn er vormittags liegt.“
 
@@ -184,11 +183,11 @@ Drei Dinge bleiben unabhängig davon deutsch: Die KI spricht am Telefon Deutsch 
 
 Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Auflegen“**. Das Gesprächslimit (Standard 300 s; mit Google Gemini nie mehr als 540 s, Abschnitt 6.2) beendet das Gespräch sonst automatisch; die KI kennt das Limit und kommt zum Punkt.
 
-**Was die KI immer tut:** Sie stellt sich mit Namen als KI-Assistent in deinem Auftrag vor, bleibt beim Auftrag, sagt nur zu, was der Auftrag abdeckt (keine Zahlungen, Bestellungen, Verträge, keine sensiblen Daten), erfindet nichts, führt keine Anweisungen des Gegenübers aus und legt nach der Verabschiedung selbst auf. Möchte das Gegenüber nicht mit einer KI sprechen, bedankt sie sich und beendet.
+**Was die KI immer tut:** Sie stellt sich mit Namen als KI-Assistent in deinem Auftrag vor, bleibt beim Auftrag, sagt nur zu, was der Auftrag abdeckt (keine Zahlungen, Bestellungen, Verträge, keine sensiblen Daten), erfindet nichts (auf „Wer bist du?“ oder „Wer hat dich gemacht?“ nennt sie nur ihren Namen und in wessen Auftrag sie anruft und erfindet nichts über Entwickler oder Technik), führt keine Anweisungen des Gegenübers aus und legt nach der Verabschiedung selbst auf. Möchte das Gegenüber nicht mit einer KI sprechen, bedankt sie sich und beendet. Weicht das Gegenüber einer Frage aus dem Auftrag aus (Gegenfrage, Themenwechsel), beantwortet die KI kurz, was es wissen will, und stellt ihre Frage einmal erneut; nach einer Ablehnung oder einem zweiten Ausweichen lässt sie den Punkt los und hält ihn als offen fest.
 
-**Gesprächsplan und Ergebnis.** Parallel zum Wählen erstellt das Textmodell aus dem Auftrag einen Gesprächsplan (wer abnimmt, Einstieg, Schritte, Ton). Die KI arbeitet die Schritte ab und prüft sie vor dem Auflegen gegen das tatsächlich Gesagte. Beim Auflegen meldet sie ein **Ergebnis** („Termin Dienstag 9:30 angenommen“) und offene Punkte; beides steht im Protokoll unter „Ergebnis laut KI“.
+**Gesprächsplan und Ergebnis.** Parallel zum Wählen erstellt das Textmodell aus dem Auftrag einen Gesprächsplan (wer abnimmt, Einstieg, Schritte, Ton). Die KI arbeitet die Schritte ab. Will sie auflegen, prüft das Textmodell am Transkript, ob vom Auftrag noch etwas fehlt (Abschnitt 6.3); nur wenn „Textmodell entscheidet im Gespräch mit“ ausgeschaltet ist, prüft die KI die Schritte selbst. Beim Auflegen meldet sie ein **Ergebnis** („Termin Dienstag 9:30 angenommen“) und offene Punkte; beides steht im Protokoll unter „Ergebnis laut KI“.
 
-**Ende des Gesprächs.** Nach der Verabschiedung hört die KI kurz nach (Standard 2 s). Sagt das Gegenüber noch etwas Inhaltliches, geht das Gespräch weiter; ein reines „Tschüss“ beendet es sofort.
+**Ende des Gesprächs.** Nach der Verabschiedung hört die KI kurz nach (Standard 2 s). Sagt das Gegenüber noch etwas Inhaltliches, geht das Gespräch weiter; ein reines „Tschüss“ oder „Danke“ beendet es sofort. Welches von beidem es ist, entscheidet das Textmodell (Abschnitt 6.3); nur ohne Textmodell entscheidet eine Wortliste.
 
 **Inhabernummer.** Rufst du dich selbst an (Kontakt mit Kennzeichen „Inhaber“ oder Nummer in `OWNER_NUMBERS`), meldet sich die KI persönlich mit Du und Vornamen, ohne KI-Erklärung. Auf Nachfrage sagt sie trotzdem, dass sie eine KI ist. Ausnahme sind Anrufe, die ein KI-Agent startet: Dort sagt dir die KI in der Begrüßung, dass sie dein KI-Assistent ist (Kapitel 13). Auf Nachfrage des Gegenübers nennt die KI bei anderen Anrufen diese Nummer als Rückrufnummer.
 
@@ -206,7 +205,7 @@ Unter „Einstellungen › KI-Assistent“ legst du fest, wie die KI Gespräche 
 | --- | --- | --- |
 | Antwortlänge | Standard · Knapp · Ausführlicher | höchstens zwei kurze Sätze je Redebeitrag · möglichst ein Satz · bis zu drei Sätze |
 | Gesprächstempo | Standard · Zügig · Geduldig | passt sich dem Gegenüber an · ohne Umschweife zur Sache · ruhig, mit Zeit für Pausen und Wiederholungen |
-| Namen, Nummern und Termine | Standard · Immer wiederholen · Nicht wiederholen | fragt nach, wenn etwas unklar ist · wiederholt sie einmal zur Bestätigung · wiederholt nichts |
+| Namen, Nummern und Termine | Standard · Immer zur Bestätigung wiederholen · Nicht wiederholen | fragt nach, wenn etwas unklar ist · wiederholt sie einmal zur Bestätigung · wiederholt nichts |
 | Small Talk | Standard · Keiner · Gern ein, zwei Sätze | wie es der Stil vorgibt · gleich zur Sache · kurzer Small Talk, wenn das Gegenüber dafür offen ist |
 
 Den Tonfall selbst bestimmt weiterhin der **Stil** auf dem Dashboard. **Zusätzliche Hinweise zum Verhalten** ist ein mehrzeiliges Freitextfeld für alles Übrige („Bei Handwerkern immer nach einem Kostenrahmen fragen“). Die Grundregeln der KI (ehrlich als KI auftreten, nichts erfinden, keine Zusagen außerhalb des Auftrags, eine Frage auf einmal) gehen allen Vorgaben vor.
@@ -220,7 +219,7 @@ Unter „Einstellungen › KI-Verbindungen“ (in beiden Stufen sichtbar, „Ein
 Eine Verbindung ist die aktive. Sie übernimmt alles: das Gespräch selbst, Gesprächsplan, Zusammenfassung, Einschätzung, Beschwerde-Entwurf und Hörproben. Was am Telefon gesagt wird, geht an ihren Anbieter und an keinen anderen. Zwischen den Verbindungen schaltest du bei Bedarf um, an drei Stellen:
 
 - in der Karte: die Verbindung in der Liste aufklappen und auf „Diese Verbindung verwenden“ klicken,
-- auf dem Dashboard: das Feld „KI-Verbindung“, das dort das frühere Modell-Feld ersetzt,
+- auf dem Dashboard: das Feld „KI-Verbindung“,
 - in Schritt 3 des Einrichtungsassistenten („KI-Verbindung“).
 
 | | OpenAI | Google Gemini |
@@ -232,13 +231,13 @@ Eine Verbindung ist die aktive. Sie übernimmt alles: das Gespräch selbst, Gesp
 | Stimmen | marin, cedar und acht weitere | 30 eigene Stimmen (z. B. Kore, Puck, Zephyr) |
 | Stand | erprobter Standard | erst in wenigen echten Telefonaten erprobt (erste Gespräche am 11.11.2026) |
 
-![Einstellungen › KI-Verbindungen: die Liste der Verbindungen, die aktive OpenAI-Verbindung aufgeklappt mit Standardstimme, Modellen, Schlüssel und Verbindungstest; darunter der Verbrauch](images/settings-provider.de.png)
+![Einstellungen › KI-Verbindungen: die Liste der Verbindungen, die aktive OpenAI-Verbindung aufgeklappt mit Standardstimme, Modellen, Ausweichmodellen und Schlüssel](images/settings-provider.de.png)
 
 **Stand von Gemini.** Der Gemini-Weg ist erst in wenigen echten Telefonaten erprobt. Am 11. November 2026 liefen die ersten drei Gespräche über Google Gemini, zwei am Anrufbeantworter und ein Rückruf an den Inhaber; sie liefen ohne Fehler durch: Vorstellung als KI, Auftrag, Verabschiedung und Auflegen funktionierten. OpenAI bleibt der erprobte Standard. Prüfe die Protokolle deiner ersten Gespräche mit Gemini weiterhin genau. Die Einzelheiten des Protokolls folgen Googles Dokumentation mit Stand 11. November 2026.
 
 **Verbindungen verwalten.** Die Karte zeigt die Verbindungen als Liste zum Aufklappen. Jede Verbindung ist eine Zeile mit Name, Anbieter · Sprachmodell · Standardstimme, wenn nötig der Kennzeichnung „Schlüssel fehlt“ und bei der aktiven Verbindung „✓ aktiv“. Ein Klick auf die Zeile (oder Enter bzw. die Leertaste, wenn sie den Fokus hat) klappt die Einstellungen dieser Verbindung an Ort und Stelle auf, ein zweiter Klick klappt sie wieder zu. Mehrere Verbindungen können gleichzeitig aufgeklappt sein; beim ersten Öffnen der Seite ist die aktive aufgeklappt.
 
-Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standardstimme“ (mit „Probe hören“), „Sprachmodell für Anrufe“, „Textmodell“, in der Stufe „Erweitert“ zusätzlich je eine „Eigene Modell-ID“, „Modelle aktualisieren“, den Zustand des Schlüssels, „API-Schlüssel“, „Schlüssel prüfen und speichern“, „Verbindung testen“, „Diese Verbindung verwenden“ (bei der aktiven steht stattdessen „Diese Verbindung führt die Gespräche.“) und „Verbindung entfernen“. Ein gemeinsames Formular unter der Liste, dessen Felder beim Klick auf eine Verbindung mit deren Werten überschrieben wurden, gibt es nicht mehr. Eingaben, die noch nicht gespeichert sind (z. B. ein eingetippter Schlüssel), bleiben stehen, wenn du eine andere Verbindung auf- oder zuklappst.
+Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standardstimme“ (mit „Probe hören“), „Sprachmodell für Anrufe“, „Textmodell“, in der Stufe „Erweitert“ zusätzlich je eine „Eigene Modell-ID“, „Modelle aktualisieren“, den Zustand des Schlüssels, „API-Schlüssel“, „Schlüssel prüfen und speichern“, „Verbindung testen“, „Diese Verbindung verwenden“ (bei der aktiven steht stattdessen „Diese Verbindung führt die Gespräche.“) und „Verbindung entfernen“. Eingaben, die noch nicht gespeichert sind (z. B. ein eingetippter Schlüssel), bleiben stehen, wenn du eine andere Verbindung auf- oder zuklappst.
 
 „Aufgeklappt“ und „aktiv“ sind verschiedene Dinge: Aufgeklappt heißt, die Einstellungen der Verbindung sind zu sehen; aktiv heißt, sie führt die Gespräche („✓ aktiv“).
 
@@ -256,13 +255,13 @@ Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standards
 3. die Standardstimme der aktiven Verbindung,
 4. ist an der Verbindung noch keine gewählt: die frühere allgemeine Stimme (aus älteren Versionen bzw. `AI_VOICE` in der `.env`), sonst die erste Stimme des Anbieters.
 
-Das Feld „Stimme“ auf dem Dashboard steht standardmäßig auf der Standardstimme der aktiven Verbindung (z. B. „– Standard: marin –“) und gilt nur für den nächsten Anruf von dort. „Als Standard speichern“ auf dem Dashboard merkt Auftrag, Stil und Anrede (und die Art des Anrufs), aber nicht mehr die Stimme: Die Standardstimme stellst du an der Verbindung ein. Beim Update ändert sich nichts von selbst: Gespeicherte Verbindungen, Schlüssel und Modelle bleiben, und eine Verbindung ohne eigene Standardstimme benutzt weiter die bisher gespeicherte allgemeine Stimme, sofern sie zu ihrem Anbieter gehört.
+Das Feld „Stimme“ auf dem Dashboard steht standardmäßig auf der Standardstimme der aktiven Verbindung (z. B. „– Standard: marin –“) und gilt nur für den nächsten Anruf von dort. „Als Standard speichern“ auf dem Dashboard merkt Auftrag, Stil und Anrede (und die Art des Anrufs), aber nicht die Stimme: Die Standardstimme stellst du an der Verbindung ein. (Updates lassen gespeicherte Verbindungen, Schlüssel und Modelle unverändert.)
 
 **Modelle.** Jede Verbindung hat ihr eigenes Sprachmodell und ihr eigenes Textmodell; die Felder stehen in ihrem aufgeklappten Bereich. Die Auswahl kommt vom Anbieter der Verbindung: SIPFunk fragt mit dem Schlüssel der Verbindung ab, welche Modelle das Konto anbietet, und teilt sie in Sprachmodelle (OpenAI: Realtime, Gemini: Live) und Textmodelle. Embedding-, Bild-, Video-, Such-, Moderations- und reine Audio-Modelle erscheinen nicht. Oben stehen die laufend gepflegten Namen, das neueste zuerst; darunter unter „Fest datierte Versionen“ die Modelle mit Datum im Namen. Geladen wird, wenn du die Karte öffnest oder eine Verbindung aufklappst; beim Anbieter gefragt wird höchstens alle sechs Stunden. **Modelle aktualisieren** fragt sofort neu, mit dem Schlüssel dieser Verbindung. Der Schlüssel bleibt dabei im Hintergrundprogramm und erscheint weder in der Oberfläche noch im Protokoll.
 
 - **Sprachmodell für Anrufe**: das Live-Modell, das spricht und zuhört, bei ausgehenden Anrufen und am Anrufbeantworter. „(Standard)“ kennzeichnet die Vorgabe (`gpt-realtime-2.1` bei OpenAI, `gemini-3.8-live` bei Gemini), „(günstig)“ die OpenAI-Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 15); alle anderen stehen ohne Zusatz da, ihre Preise nennt der Anbieter.
 - **Textmodell**: schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna` bei OpenAI und `gemini-3.5-flash-lite` bei Gemini.
-- **Ausweich-Sprachmodelle** und **Ausweich-Textmodelle**: zwei Listen der Modelle deines Kontos zum Ankreuzen (höchstens sechs je Liste; sie füllen sich mit „Modelle aktualisieren“). Meldet das Textmodell ein Limit oder eine Überlastung (etwa 429 oder 503), antwortet das nächste angekreuzte Modell, in der Reihenfolge der Liste; das Log nennt, welches geantwortet hat. Lehnt der Anbieter ein Gespräch schon beim Aufbau der Sprachsitzung aus so einem Grund ab, baut SIPFunk sie mit dem nächsten angekreuzten Sprachmodell neu auf; Protokoll und Kosten nennen dann dieses Modell. Im laufenden Gespräch wird nicht gewechselt, und bei anderen Fehlern (falscher Schlüssel, unbekanntes Modell) auch nicht. Ohne Häkchen bleibt alles wie bisher. Ein Ausweichmodell kann teurer sein als das eingestellte.
+- **Ausweich-Sprachmodelle** und **Ausweich-Textmodelle**: zwei Listen der Modelle deines Kontos zum Ankreuzen (höchstens sechs je Liste; sie füllen sich mit „Modelle aktualisieren“). Meldet das Textmodell ein Limit oder eine Überlastung (etwa 429 oder 503) oder antwortet es nicht rechtzeitig (beim Gesprächsplan nach acht Sekunden je Modell), antwortet das nächste angekreuzte Modell, in der Reihenfolge der Liste; das Log nennt, welches geantwortet hat. Lehnt der Anbieter ein Gespräch schon beim Aufbau der Sprachsitzung aus so einem Grund ab, baut SIPFunk sie mit dem nächsten angekreuzten Sprachmodell neu auf; Protokoll und Kosten nennen dann dieses Modell. Fällt beim Aufbau ein Ausweich-Sprachmodell aus, gleich aus welchem Grund, kommt das nächste dran; ist keines mehr übrig, wird das eingestellte Modell noch einmal versucht. Im laufenden Gespräch wird nicht gewechselt, und beim eingestellten Modell auch bei anderen Fehlern nicht (falscher Schlüssel, unbekanntes Modell). Ohne Häkchen bleibt alles wie bisher. Ein Ausweichmodell kann teurer sein als das eingestellte.
 - **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen OpenAI-Modells, für unbekannte Gemini-Modelle mit denen von `gemini-3.8-live`. Eine Modell-ID, die zum anderen Anbieter gehört, wird nicht angenommen.
 
 Eine Verbindung ohne eigenes Modell benutzt die Vorgabe ihres Anbieters: `OPENAI_MODEL` und `OPENAI_SUMMARY_MODEL` bzw. `GEMINI_MODEL` und `GEMINI_SUMMARY_MODEL` aus der `.env`, sonst die eingebaute Vorgabe aus der Tabelle oben. Ein Anruf über die API (Kapitel 13) darf weiterhin ein Sprachmodell nennen; ein Modell eines anderen Anbieters wird ignoriert, und es gilt das Modell der aktiven Verbindung.
@@ -271,7 +270,7 @@ Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgele
 
 **Schlüssel.** Jede Verbindung hat ihren eigenen Schlüssel. Klapp die Verbindung auf, trag den Schlüssel unter „API-Schlüssel“ ein und klick auf „Schlüssel prüfen und speichern“. Den Schlüssel nimmt nur die lokale Web-UI auf `127.0.0.1` entgegen; er wird einmal beim Anbieter geprüft und in die `.env` im Datenordner geschrieben. Die API liefert ihn nie zurück, und er steht in keinem Log; die Oberfläche zeigt nur, ob ein Schlüssel hinterlegt ist. Die beiden mitgelieferten Verbindungen benutzen `OPENAI_API_KEY` und `GEMINI_API_KEY`; jede weitere Verbindung benutzt `AI_KEY_<ID>`, wobei ID die Kennung der Verbindung in Großbuchstaben ist. Diese Variable schreibt die Web-UI; von Hand bearbeitest du sie normalerweise nicht. Für Gespräche wird immer nur der Schlüssel der aktiven Verbindung verwendet.
 
-**Wo es gespeichert ist.** Die Liste der Verbindungen steht in der `settings.json` als `aiConnections` (eine JSON-Liste aus `{id, name, provider, model, textModel, voice}`), die Kennung der aktiven als `aiConnection`. `aiProvider` spiegelt nur noch den Anbieter der aktiven Verbindung; `AI_PROVIDER` in der `.env` bestimmt weiterhin, welche der beiden mitgelieferten Verbindungen anfangs aktiv ist. Schlüssel stehen nur in der `.env`.
+**Wo es gespeichert ist.** Die Liste der Verbindungen steht in der `settings.json` als `aiConnections` (je Verbindung: Kennung, Name, Anbieter, Sprach- und Textmodell, Ausweichmodelle und Standardstimme), die Kennung der aktiven als `aiConnection`. `aiProvider` spiegelt nur noch den Anbieter der aktiven Verbindung; `AI_PROVIDER` in der `.env` bestimmt weiterhin, welche der beiden mitgelieferten Verbindungen anfangs aktiv ist. Schlüssel stehen nur in der `.env`.
 
 **Nach dem Umschalten.** Modelle und Standardstimme gehören zur Verbindung und wechseln mit ihr; die Meldung nach dem Umschalten nennt die Stimme, die jetzt gilt. Stimmen gehören zu einem Anbieter: Eine Stimme des anderen Anbieters, die bei einem Kontakt, im Profil einer eigenen Rufnummer oder als „Stimme der Rolle“ der Spam-Abwehr gespeichert ist, wird ignoriert, und es gilt die Standardstimme der aktiven Verbindung.
 
@@ -283,7 +282,7 @@ Lässt sich die Liste nicht laden (kein Schlüssel, kein Netz, Schlüssel abgele
 
 Ein Telefonat ist damit nicht geprüft.
 
-**Was mit Gemini anders ist.** Die Karte zeigt diese Hinweise unter der Liste, wenn die aktive oder eine aufgeklappte Verbindung zu Gemini gehört. SIPFunk nutzt die Gemini Live API mit dem Modell `gemini-3.8-live`: Audio geht als PCM mit 16 kHz zu Google und kommt als PCM mit 24 kHz zurück; es wird auf die 8 oder 16 kHz des Telefons umgerechnet. Es gelten diese Einschränkungen:
+**Was mit Gemini anders ist.** Gehört die aktive oder eine aufgeklappte Verbindung zu Gemini, zeigt die Karte die wichtigsten Hinweise unter der Liste (neun Minuten, Sprechgeschwindigkeit, nachgereichte Anweisungen, abgebrochene Antworten, Kostenschätzung, Simulator); die übrigen Punkte unten gelten ebenfalls. SIPFunk nutzt die Gemini Live API mit dem Modell `gemini-3.8-live`: Audio geht als PCM mit 16 kHz zu Google und kommt als PCM mit 24 kHz zurück; es wird auf die 8 oder 16 kHz des Telefons umgerechnet. Es gelten diese Einschränkungen:
 
 - Ein Gespräch dauert höchstens neun Minuten (540 s), gleich welches Gesprächslimit eingestellt ist. Die Live API trennt eine Verbindung nach etwa zehn Minuten, und eine Fortsetzung der Sitzung ist nicht eingebaut.
 - Die Sprechgeschwindigkeit lässt sich nicht einstellen; die KI bekommt sie nur als Hinweis. Die Obergrenze für Ausgabe-Token je Antwort wird nicht angewendet.
@@ -351,7 +350,7 @@ Die FRITZ!Box übermittelt, welche deiner Nummern gewählt wurde. Unter „Einst
 - **Annahme auf dieser Nummer** und **Annahme beim … Klingeln**: überstimmen den allgemeinen Schalter und die allgemeine Klingelzahl nur für diese Nummer.
 - **Anrede, Stil, Stimme**: abweichend vom Standard, sonst „– Standard –“. Bei der Stimme ist der Standard die Standardstimme der aktiven KI-Verbindung; eine hier gewählte Stimme zählt nur, wenn sie zum Anbieter der aktiven Verbindung gehört (Rangfolge in Abschnitt 6.2).
 - **Auftrag** und **Zusätzliche Hinweise**: nur für Anrufe auf dieser Nummer; leer = die allgemeinen Vorgaben.
-- **Hinweis im Tray, E-Mail, Rückruf**: je Kanal „allgemeine Einstellung“, „Aus“, „Nur bei wichtigen Anrufen“ oder „Bei allen Anrufen“. So kann die Firmennummer bei jedem Anruf mailen, aber nie zurückrufen, während die private Nummer nur bei wichtigen Anrufen meldet.
+- **Hinweis im Tray, E-Mail, Mich auf der Inhabernummer anrufen**: je Kanal „allgemeine Einstellung“, „Aus“, „Nur bei wichtigen Anrufen“ oder „Bei allen Anrufen“. So kann die Firmennummer bei jedem Anruf mailen, aber nie zurückrufen, während die private Nummer nur bei wichtigen Anrufen meldet.
 
 Ohne Profil meldet sich die KI überall als Assistent von „Im Auftrag von“.
 
@@ -365,8 +364,8 @@ Keine Zusagen in deinem Namen, keine Auskünfte außer aus dem Hintergrundwissen
 
 Solange ein Anruf klingelt, zeigt die Tray-App unten rechts ein kleines Fenster (abschaltbar unter „Einstellungen › Benachrichtigungen“): Anrufer, für welche deiner Nummern er anruft, eine **Einschätzung der Nummer** und drei Knöpfe. Dieselben Knöpfe erscheinen in der Gesprächsleiste der Web-UI.
 
-- **Einschätzung**: „Kontakt“, „Auf deiner Spam-Liste“, „Schon als Spam abgewehrt“ (frühere Gespräche), „Auffällige Nummer“ (Ausland, 0900, 0137/0138, 0180, 0800, 032), sonst „Unbekannte Nummer“. Mit dem Schalter **„Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen“** (Einstellungen › Spam-Abwehr, standardmäßig aus) kommt der tellows-Score dazu: ab 7 „Spam-Verdacht“, 6 „Auffällig“, bis 4 mit Eintrag „Eher seriös“. Die Abfrage überträgt die Anrufernummer an tellows; Kontakte und Nummern von deiner Liste werden nie abgefragt.
-- **In die Spam-Falle**: nimmt sofort an, und die Spam-Abwehr übernimmt (Verhalten und Zeitlimit wie in der Spam-Abwehr eingestellt). Funktioniert auch, wenn der Anrufbeantworter für diese Nummer aus ist. Voraussetzung ist die eingeschaltete KI-Kennung oder die einmalige Risiko-Bestätigung aus Abschnitt 10.3; der Schalter der Spam-Abwehr selbst muss dafür nicht an sein. Mit KI-Kennung tritt die KI auch in der Spam-Falle offen als KI auf.
+- **Einschätzung**: „Kontakt“, „Auf deiner Spam-Liste“, „Schon als Spam abgewehrt“ (frühere Gespräche), „Auffällige Nummer“ (Ausland, 0900, 0137/0138, 0180, 0800, 032, 118), „Nummer unterdrückt“ (es wurde keine Nummer übermittelt, also gibt es nichts einzuschätzen), sonst „Unbekannte Nummer“. Mit dem Schalter **„Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen“** (Einstellungen › Spam-Abwehr, standardmäßig aus) kommt der tellows-Score dazu: ab 7 „Spam-Verdacht“, 6 „Auffällig“, bis 4 mit Eintrag „Eher seriös“. Die Abfrage überträgt die Anrufernummer an tellows; Kontakte und Nummern von deiner Liste werden nie abgefragt.
+- **In die Spam-Falle**: nimmt sofort an, und die Spam-Abwehr übernimmt (Verhalten und Zeitlimit wie in der Spam-Abwehr eingestellt). Funktioniert auch, wenn der Anrufbeantworter für diese Nummer aus ist. Voraussetzung ist die eingeschaltete KI-Kennung oder die einmalige Risiko-Bestätigung aus Abschnitt 10.3 und ein hinterlegter Schlüssel der aktiven KI-Verbindung (sonst ist der Knopf ausgegraut); der Schalter der Spam-Abwehr selbst muss dafür nicht an sein. Mit KI-Kennung tritt die KI auch in der Spam-Falle offen als KI auf.
 - **KI jetzt annehmen**: nimmt sofort normal als Assistent an, ohne die Klingelzahl abzuwarten.
 - **Klingeln lassen**: Die KI nimmt diesen einen Anruf nicht an; du kannst selbst abheben.
 
@@ -380,7 +379,7 @@ Nach jedem angenommenen Anruf erstellt das Textmodell die Zusammenfassung und sc
 
 | Schalter | Was passiert |
 | --- | --- |
-| **Hinweis im Tray** (bei allen Anrufen) | Windows-Benachrichtigung „Anruf von …“ bzw. „Wichtiger Anruf von …“ mit Kurzzeile; nur in der Tray-App |
+| **Hinweis im Tray** (bei allen Anrufen) | Windows-Benachrichtigung „Anruf von …“, „Wichtiger Anruf von …“ bzw. nach einem Spam-Abwehr-Gespräch „Spam-Anruf von …“ mit Kurzzeile; nur in der Tray-App |
 | **E-Mail mit Zusammenfassung** (bei allen Anrufen) | Kompakte Mail an den eingestellten Empfänger, Aufbau siehe 9.2 |
 | **Mich auf der Inhabernummer anrufen** (nur bei wichtigen Anrufen) | Die KI ruft dich an und berichtet, siehe 9.1 |
 
@@ -430,7 +429,7 @@ Regeln: Eine Zeile, deren Variablen alle leer sind, entfällt; ein Absatz (durch
 Alles unter „Einstellungen › E-Mail-Versand“. Die `MAIL_*`- und `SMTP_*`-Variablen der `.env` liefern nur Startwerte; gespeicherte Kennwörter liegen in `settings.json` im Datenordner, und die Web-UI zeigt sie nur maskiert.
 
 1. **Versandweg** wählen: „SMTP mit Passwort“ (alle Anbieter), „Gmail“ oder „Microsoft 365 / Outlook“ (Anmeldung per OAuth, kein Passwort).
-2. **SMTP**: Postfach eintragen und **„Automatisch einrichten“** klicken. SIPFunk sucht Server, Port und Verschlüsselung in dieser Reihenfolge: eingebaute Liste bekannter Anbieter, die Thunderbird-Datenbank (ISPDB), die MX-Einträge der Domain (Microsoft 365 und Google Workspace werden erkannt) und zuletzt `smtp.<domain>`/`mail.<domain>` mit Verbindungsprobe. Dann das Passwort eintragen; viele Anbieter verlangen ein **App-Passwort** statt des Kontopassworts. Verlangt der Anbieter OAuth, stellt der Knopf den Versandweg um.
+2. **SMTP**: Postfach eintragen und **„Automatisch einrichten“** klicken. SIPFunk sucht Server, Port und Verschlüsselung in dieser Reihenfolge: eingebaute Liste bekannter Anbieter, die Thunderbird-Datenbank (ISPDB), die MX-Einträge der Domain (Microsoft 365 und Google Workspace werden erkannt) und zuletzt `smtp.<domain>`/`mail.<domain>` mit Verbindungsprobe. Dafür verlässt nur die Domain des Postfachs deinen Rechner (zur Thunderbird-Datenbank von Mozilla und in der DNS-Abfrage), nie die Adresse selbst oder ein Passwort; der Einrichtungsassistent (Schritt 6) nutzt dieselbe Suche. Dann das Passwort eintragen; viele Anbieter verlangen ein **App-Passwort** statt des Kontopassworts. Verlangt der Anbieter OAuth, stellt der Knopf den Versandweg um.
 3. **OAuth**: Postfach, Client-ID (und Secret) eintragen, speichern, **„Mail-Konto verbinden“** (Anmeldung im Browser; der Zugang landet in `mail-token.json`). Gmail: OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console. Microsoft 365: App-Registrierung in Entra, Plattform „Mobile- und Desktopanwendungen“, Redirect `http://127.0.0.1:3865/oauth/callback` (mit dem Port der Web-UI, Abschnitt 14.3), Berechtigung `SMTP.Send`, SMTP-AUTH für das Postfach erlaubt; Mandant = Mandanten-ID oder `common`.
 4. **„Verbindung prüfen“** meldet sich beim Server an, ohne etwas zu senden; **„Probe-Mail senden“** schickt eine Mail im Aufbau der Benachrichtigung mit Beispieldaten. Beide speichern vorher die Einstellungen.
 
@@ -499,7 +498,7 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 
 ![Kontakte](images/contacts.de.png)
 
-Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer. Mit **„KI-Agent darf ohne Nachfrage anrufen“** gibst du einen Kontakt für die MCP-Schnittstelle frei: Ein Agent wählt ihn, ohne dass du den Anruf bestätigen musst, auch wenn dort „Immer“ nachfragen eingestellt ist (Abschnitt 13.2). In der Liste steht dann „Agent ohne Nachfrage“.
+Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis; bei Anrufen eines KI-Agenten bekommt sie keine Notizen, Abschnitt 13.2). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer. Mit **„KI-Agent darf ohne Nachfrage anrufen“** gibst du einen Kontakt für die MCP-Schnittstelle frei: Ein Agent wählt ihn, ohne dass du den Anruf bestätigen musst, auch wenn dort „Immer“ nachfragen eingestellt ist (Abschnitt 13.2). In der Liste steht dann „Agent ohne Nachfrage“. Änderst du die Nummer des Kontakts, ist die Freigabe aufgehoben; setz das Häkchen für die neue Nummer erneut.
 
 Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber. Für die MCP-Freigabe „Nur gespeicherte Kontakte“ zählt nur diese Nummer; eine weitere Nummer kann ein Agent also nicht anrufen.
 
@@ -532,7 +531,7 @@ Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („…
 2. „APIs und Dienste › Bibliothek“: **People API** aktivieren.
 3. „Google Auth Platform“ (OAuth-Zustimmungsbildschirm): Nutzertyp „Extern“, ein App-Name und deine Adresse. Unter „Datenzugriff“ den Bereich `https://www.googleapis.com/auth/contacts.readonly` hinzufügen, unter „Zielgruppe“ dich selbst als Testnutzer eintragen. Die App darf im Status „Test“ bleiben; Google warnt dann, dass die App nicht überprüft ist – es ist deine eigene App, weiter.
 4. „Clients“ (Anmeldedaten): einen OAuth-Client vom Typ **„Desktop-App“** anlegen. Client-ID und Client-Secret im Import-Dialog unter „Einrichtung“ eintragen. Google behandelt das Secret eines Desktop-Clients nicht als vertraulich; SIPFunk speichert es in `settings.json` und zeigt es maskiert. Eine Weiterleitungsadresse muss nicht eingetragen werden: Desktop-Clients nehmen `http://127.0.0.1:<Port>/oauth/callback` von selbst an.
-5. „Verbinden“ öffnet die Google-Anmeldung; danach „Adressbuch laden“.
+5. „Verbinden“ öffnet die Google-Anmeldung; danach lädt SIPFunk das Adressbuch selbst („Adressbuch laden“ lädt es bei Bedarf neu).
 
 *Microsoft:*
 
@@ -540,7 +539,7 @@ Nach dem Laden zeigt SIPFunk eine Liste mit Suchfeld und eine Übersicht („…
 2. Umleitungs-URI: Plattform **„Öffentlicher Client/nativ (mobil und Desktop)“**, Adresse `http://localhost/oauth/callback` – ohne Port. Microsoft ignoriert bei `localhost` den Port, eine Portänderung der Web-UI braucht hier also keine Änderung.
 3. „API-Berechtigungen“: Microsoft Graph › Delegierte Berechtigungen › **Contacts.Read**. In einem Firmen-Mandanten muss eventuell der Administrator zustimmen.
 4. Ein Client-Geheimnis ist nicht nötig. Die „Anwendungs-ID (Client)“ im Import-Dialog eintragen; Mandant `common` (Standard), `consumers` nur für private Konten oder die Mandanten-ID.
-5. „Verbinden“, anmelden, „Adressbuch laden“. SIPFunk liest den Standard-Kontaktordner, die weiteren Kontaktordner und deren Unterordner (eine Ebene).
+5. „Verbinden“, anmelden; SIPFunk lädt das Adressbuch dann selbst. SIPFunk liest den Standard-Kontaktordner, die weiteren Kontaktordner und deren Unterordner (eine Ebene).
 
 *Apple iCloud und Datei-Exporte:*
 
@@ -591,10 +590,11 @@ Der Datenordner ist beim Start aus dem Repository der Projektordner, bei der ins
 | `sipfunk.log`, `sipfunk-JJJJ-MM-TT.log` | Betriebslog mit Rufnummern (nur Tray-App; sonst steht das Log im Terminal). Je Tag eine Datei; ältere als die Aufbewahrungsfrist der Protokolle werden gelöscht | ja |
 | `usage.json` | Monatsverbrauch je KI-Anbieter: Zahl der Gespräche, Sekunden, geschätzte Kosten; die letzten 13 Monate (Abschnitt 6.2) | nein |
 | `autostart.flag` | nur installierte Tray-App: merkt, dass der Autostart beim ersten Start eingerichtet wurde, damit ein Update ihn nicht wieder einschaltet (Abschnitt 4.3) | nein |
+| `sipfunk.port` | Port der laufenden App; wird beim Beenden entfernt (Abschnitt 14.3) | nein |
 | `voice-samples/` | zwischengespeicherte Hörproben (MP3; bei Gemini WAV im Unterordner `gemini/`) | nein |
 | `sim-results/` | Berichte des Simulators (im Projektordner) | nein, sofern die Szenarien erfunden sind |
 
-Alle stehen in der `.gitignore`. Beim Sichern des Rechners den Datenordner mitsichern, aber verschlüsselt.
+Beim Start aus dem Repository stehen die Dateien im Projektordner in der `.gitignore`; `autostart.flag` gibt es nur im Datenordner der installierten App. Beim Sichern des Rechners den Datenordner mitsichern, aber verschlüsselt.
 
 ---
 
@@ -645,7 +645,7 @@ Was bei einem Agenten-Anruf Schritt für Schritt passiert – Rollen, Ereignisse
 Am Telefon spricht nicht der Agent, sondern die Sprach-KI von SIPFunk, über die aktive KI-Verbindung und mit der Stimme, die dort eingestellt ist. Sie führt das Gespräch selbstständig nach dem Auftrag, genau wie bei einem Anruf vom Dashboard. Der Agent sitzt daneben:
 
 - Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund) und Hinweise zum Ablauf: der Gesprächsplan der KI, Unterbrechungen, Stille, Laute ohne Worte, die Prüfung vor dem Auflegen und das Ergebnis laut KI. Solange das Gespräch verbunden ist, nennt jede Antwort außerdem Dauer, Restzeit und die Lage im Moment der Abfrage (wer gerade spricht, wie lange es still ist, ob die KI auf ihn wartet oder sich verabschiedet). So kennt er jederzeit das ganze Gespräch.
-- Er **kann das Auflegen zurücknehmen**: Meldet ein Hinweis das Ergebnis laut KI, verabschiedet sie sich gerade. Fehlt aus Sicht des Agenten noch etwas, nimmt eine Vorgabe das Auflegen zurück, solange nicht aufgelegt ist. Ob vom Auftrag etwas fehlt, prüft zur selben Zeit auch das Textmodell (Abschnitt 6.3) und nimmt das Auflegen notfalls selbst zurück; der Agent muss nicht eingreifen, und die KI wartet nicht auf ihn. Ein Beenden, das der Agent selbst verlangt hat (`end_call`), prüft das Textmodell dagegen nie und nimmt es nie zurück, auch nicht, wenn die KI sich schon von selbst verabschiedet hatte; sagt das Gegenüber danach noch etwas, geht das Gespräch weiter, und auch der nächste end_call der KI wird nicht geprüft. Nur eine eigene Vorgabe (`say`) nimmt das Beenden zurück; danach wird die nächste Verabschiedung der KI wieder wie jede andere geprüft.
+- Er **kann das Auflegen zurücknehmen**: Meldet ein Hinweis das Ergebnis laut KI, verabschiedet sie sich gerade. Fehlt aus Sicht des Agenten noch etwas, nimmt eine Vorgabe (`say`) das Auflegen zurück, solange nicht aufgelegt ist. Der Agent muss darauf nicht achten: Zur selben Zeit prüft das Textmodell, ob vom Auftrag etwas fehlt, und nimmt das Auflegen notfalls selbst zurück (Abschnitt 6.3); die KI wartet nicht auf den Agenten. Ein Beenden, das der Agent mit `end_call` verlangt hat, prüft das Textmodell nie und nimmt es nie zurück; nur ein neues `say` des Agenten zieht es zurück. Einzelheiten: [Ablauf eines Agenten-Anrufs](mcp-flow.de.md#38-das-gespräch-beenden).
 - Er **gibt Vorgaben**: „Sag, dass auch 19:30 Uhr passt.“ Die KI formuliert selbst und setzt die Vorgabe im nächsten passenden Moment um, ohne jemandem ins Wort zu fallen.
 - Die KI **fragt beim Agenten nach**, wenn ihr eine Entscheidung fehlt, von der das Ergebnis abhängt, oder wenn das Gegenüber etwas über den Agenten, den Anruf oder den Auftrag fragt, das sie nicht beantworten kann. Sie sagt dem Gegenüber „Einen Moment bitte, ich frage kurz nach“ und wartet bis zu 25 Sekunden auf die Antwort des Agenten; so lange ist es still in der Leitung. Kommt keine, sagt sie, dass du dich dazu meldest, und hält den Punkt als offen fest.
 
@@ -659,7 +659,7 @@ Unter „Einstellungen › MCP-Schnittstelle“:
 | --- | --- | --- |
 | KI-Agenten dürfen über MCP telefonieren | aus | Hauptschalter. Ausgeschaltet lehnt SIPFunk jeden Tool-Aufruf mit einem Hinweis ab; der Agent sieht dann auch keinen Status, keine Kontakte und keine Protokolle. Schaltest du aus, während eine Anfrage auf deine Bestätigung wartet, verfällt sie. Ein Gespräch, das schon läuft, führt die KI allein zu Ende (die Höchstdauer gilt); auflegen kannst du es wie jedes andere in der Web-UI. |
 | Wen ein Agent anrufen darf | Nur gespeicherte Kontakte | „Nur gespeicherte Kontakte“: Der Agent kann nur Nummern anrufen, die du als Kontakt angelegt hast. „Kontakte und jede erlaubte Nummer“: zusätzlich jede Nummer, die auch das Dashboard wählen darf. Notruf, Sonder-, Mehrwert- und Auslandsnummern und Call-by-Call bleiben in beiden Fällen gesperrt (Kapitel 6). |
-| Vor dem Wählen bei mir nachfragen | Immer (außer freigegebene Kontakte) | „Immer“: Jeder Anruf wartet auf dein Ja, außer bei Kontakten, bei denen du „KI-Agent darf ohne Nachfrage anrufen“ angehakt hast (Abschnitt 11): Die wählt der Agent sofort, und zwar nur über die Nummer, die gewählt wird, nicht über weitere Nummern. Darf der Agent die Namen deiner Kontakte lesen, markiert `list_contacts` sie mit „ohne Bestätigung“. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. Unabhängig davon fragt SIPFunk immer nach, wenn der Agent einen anderen Auftraggeber angibt als den, der in deinen Einstellungen steht. |
+| Vor dem Wählen bei mir nachfragen | Immer (außer freigegebene Kontakte) | „Immer“: Jeder Anruf wartet auf dein Ja, außer bei Kontakten, bei denen du „KI-Agent darf ohne Nachfrage anrufen“ angehakt hast (Abschnitt 11): Die wählt der Agent sofort, und zwar nur über die Nummer, die gewählt wird, nicht über weitere Nummern; änderst du diese Nummer, ist das Häkchen weg. Darf der Agent die Namen deiner Kontakte lesen, markiert `list_contacts` sie mit „ohne Bestätigung“. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. Unabhängig davon fragt SIPFunk immer nach, wenn der Agent einen anderen Auftraggeber angibt als den, der in deinen Einstellungen steht. |
 | Höchstens … Anrufe je Stunde / je Tag | 10 / 30 | Gezählt wird jede angenommene Anfrage, auch eine, die du abgelehnt hast oder bei der niemand abnahm. Der Zähler beginnt mit einem Neustart von SIPFunk neu. |
 | Höchstdauer je Anruf (Minuten) | 10 | Danach legt SIPFunk auf. Nie länger als das allgemeine Gesprächslimit (Einstellungen › Technik, Standard 300 s, also 5 Minuten, solange du es nicht erhöhst) und die Grenze des KI-Anbieters. |
 | Protokolle, die ein Agent lesen darf (Erweitert) | Nur Anrufe, die über MCP gestartet wurden | Mit „Alle Protokolle“ kann der Agent auch deine übrigen Gespräche und die des Anrufbeantworters lesen, samt den Rufnummern, die zu keinem Kontakt gehören. |
@@ -772,8 +772,8 @@ Alle Tools antworten mit Text, auf Deutsch (auch die Sprach-KI spricht Deutsch).
 | `list_contacts` | – | Namen der Kontakte, ohne Nummern. Nur mit der Freigabe „Agent darf die Namen meiner Kontakte lesen“ |
 | `start_call` | `target` (Kontaktname oder Rufnummer), `task` (Auftrag, höchstens 2000 Zeichen), optional `context` (Hintergrundwissen, höchstens 6000 Zeichen), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; kann die Höchstdauer nur verkürzen) | `call_id` und der Zustand: „angefragt“ (wartet auf deine Bestätigung) oder „wählt“ |
 | `wait_for_events` | `call_id`, `after` (Nummer des letzten bekannten Ereignisses), `timeout_sec` (1–50, Vorgabe 25) | Blockiert, bis es Neues gibt oder die Zeit abläuft. Liefert den Zustand mit Dauer und Restzeit, im Gespräch die Zeile „Lage jetzt“ (wer spricht, Stille, Rückfrage offen, Verabschiedung), die neuen Ereignisse mit Nummer (`Gegenüber`, `KI`, `Zustand`, `Hinweis`, `RÜCKFRAGE der KI an dich`), eine offene Rückfrage und die Nummer für den nächsten Aufruf. Ohne `after` kommt der ganze bisherige Verlauf |
-| `say` | `call_id`, `text` (höchstens 600 Zeichen), `when` (`now` Vorgabe, `next`) | Übergibt eine Vorgabe an die Sprach-KI. Wartet sie auf die Antwort einer Rückfrage, ist `text` die Antwort. `now`: so bald wie möglich aussprechen; `next`: beim nächsten eigenen Redebeitrag berücksichtigen |
-| `end_call` | `call_id`, `mode` (`polite` Vorgabe, `now`) | `polite`: Die KI verabschiedet sich, meldet ihr Ergebnis und legt auf. `now`: sofort auflegen. Eine Anfrage, die noch auf Bestätigung wartet, wird zurückgezogen |
+| `say` | `call_id`, `text` (höchstens 600 Zeichen), `when` (`now` Vorgabe, `next`) | Übergibt eine Vorgabe an die Sprach-KI. Wartet sie auf die Antwort einer Rückfrage, die der Agent schon gelesen hat, ist `text` die Antwort; kam die Rückfrage erst nach seiner letzten Abfrage, nennt die Antwort von `say` sie, und der Agent beantwortet sie mit einem zweiten `say`. `now`: so bald wie möglich aussprechen; `next`: beim nächsten eigenen Redebeitrag berücksichtigen |
+| `end_call` | `call_id`, `mode` (`polite` Vorgabe, `now`) | `polite`: Die KI verabschiedet sich, meldet ihr Ergebnis und legt auf. `now`: sofort auflegen. Beim Wählen oder Klingeln wird in beiden Modi sofort aufgelegt. Eine Anfrage, die noch auf Bestätigung wartet, wird zurückgezogen |
 | `get_call_result` | `call_id` oder `record_id` (der Zeitstempel am Zeilenanfang aus `list_calls`) | Zustand und Grund des Endes, Ergebnis laut KI (erreicht, offen), Zusammenfassung, Transkript. Kam kein Gespräch zustande, steht das dort |
 | `list_calls` | – | Gespeicherte Protokolle mit Kurzfassung, je nach Einstellung nur die über MCP gestarteten oder alle |
 
@@ -823,7 +823,7 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 - **Der Agent hört nichts.** Er bekommt Text: die Transkription des Gegenübers und den Wortlaut der KI, jeweils erst, wenn eine Äußerung fertig ist. Tonfall und Hintergrundgeräusche erreichen ihn nicht; Stille, Laute ohne Worte und Unterbrechungen nur als Hinweis. Die Transkription kann Namen und Zahlen falsch wiedergeben.
 - **Den Gesprächsplan sieht der Agent nur, wenn er das Ziel beim Namen kennt.** Der Plan kann den Namen des Kontakts nennen. Hat der Agent eine Rufnummer gewählt, die zu einem Kontakt gehört, und darf er die Kontaktnamen nicht lesen, bleibt der Plan deshalb weg. (Einen Plan gibt es nur, wenn „Gesprächsplan vor Agenten-Anrufen erstellen“ an ist.)
 - **Vorgaben wirken mit Verzögerung.** Zwischen einer Äußerung am Telefon und der Reaktion des Agenten liegen mehrere Sekunden. Die KI wartet darauf nicht, außer sie hat selbst nachgefragt. Eine Vorgabe kann deshalb zu spät kommen; schreib den Spielraum lieber in den Auftrag.
-- **Vorgaben sind Inhalte, kein Wortlaut.** Die KI formuliert selbst und bleibt bei ihren Grundregeln.
+- **Vorgaben sind Inhalte, kein Wortlaut.** Die KI formuliert selbst und bleibt bei ihren Grundregeln. Antworten des Agenten gibt sie mit ihren Einschränkungen weiter und macht daraus keine Zusage. Kennnummern (Steuer-, Ausweis-, Konto- oder Kartennummern), Passwörter und Codes sagt sie am Telefon nicht an, auch wenn der Agent sie schickt, denn am Telefon ist nicht geprüft, wer spricht.
 - **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
 - **Mit Gemini** erreichen Vorgaben die KI als nachgereichte Anweisung im Gesprächsverlauf; das wirkt schwächer als bei OpenAI (Abschnitt 6.2).
 - **Wartezeit der Clients.** `wait_for_events` blockiert höchstens 50 Sekunden. Codex bricht Tool-Aufrufe ohne `tool_timeout_sec` nach 60 Sekunden ab.
@@ -832,7 +832,7 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 ### 13.7 Sicherheit
 
 - **Nur lokal.** Der Server lauscht nur auf `127.0.0.1`, auf demselben Port wie die Web-UI. Anfragen mit fremdem Host oder fremder Herkunft (eine Webseite in deinem Browser) werden abgewiesen. Gib den Port nicht frei.
-- **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor, auch wenn der Agent deine eigene Inhabernummer anruft („Hi Max, Alex hier, dein KI-Assistent“); SIPFunk prüft das an der ersten Antwort. Ein Agent hat dafür keinen Schalter und kann ihr weder einen anderen Namen noch eine andere Rolle geben; ihre Grundregeln sagen ihr, Vorgaben nicht zu befolgen, die das verlangen. Das ist eine Regel in der Anweisung der KI, keine technische Sperre: Ein Sprachmodell kann sich im Einzelfall anders verhalten. Deshalb liest du im Protokoll nach, was gesagt wurde.
+- **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor, auch wenn der Agent deine eigene Inhabernummer anruft („Hi Max, Alex hier, dein KI-Assistent“); SIPFunk prüft das an der ersten Antwort. Ein Agent hat dafür keinen Schalter und kann ihr weder einen anderen Namen noch eine andere Rolle geben; ihre Grundregeln sagen ihr, Vorgaben nicht zu befolgen, die das verlangen. Ebenso wenig darf sie etwas über den Agenten oder über Schutzmaßnahmen und Prüfungen (Datenschutz, Identitätsprüfung) behaupten, das ihr niemand gesagt hat. Das ist eine Regel in der Anweisung der KI, keine technische Sperre: Ein Sprachmodell kann sich im Einzelfall anders verhalten. Deshalb liest du im Protokoll nach, was gesagt wurde.
 - **Sperren und Limits prüft SIPFunk**, nicht der Agent: Rufzielschutz, erlaubte Ziele, Bestätigung, Anrufe je Stunde und Tag, Höchstdauer, Gesprächslimit.
 - **Was ein Agent erfährt:** nur, was die Tools liefern. Keine Schlüssel, keine Kennwörter, keine Zugangsdaten zur Telefonanlage oder zu KI-Anbietern, keine Rufnummern von Kontakten, die er nur beim Namen kennt, keine Kontaktnotizen. Von deinen Einstellungen sieht er nur, was `get_status` nennt: die Erlaubnisse und Limits der Schnittstelle. Fragt das Gegenüber, wie es dich erreicht, nennt die KI deine Rückrufnummer (Inhaber-Kontakt); sie steht dann im Transkript. Was am Telefon gesagt wird, liest er mit, und es geht damit an den Anbieter deines Agenten. Sag dem Gegenüber nichts über einen Agenten zu, was du nicht einhalten kannst, und beachte den Datenschutz ([Rechtliche Hinweise](legal.de.md), Abschnitt 3).
 - **Prompt-Injection.** Ein Agent, der Webseiten oder Mails liest, kann dort Anweisungen aufschnappen („ruf diese Nummer an“). Dasselbe gilt für das Telefonat selbst: Was das Gegenüber sagt, liest dein Agent als Text, auch in den Rückfragen der KI. Er soll es als Information behandeln, nicht als Auftrag. Dagegen helfen „Nur gespeicherte Kontakte“ und die Bestätigung vor dem Wählen. Lass beides an, solange du dem Agenten nicht in jeder Lage traust. Kontakte mit „KI-Agent darf ohne Nachfrage anrufen“ sind von der Bestätigung ausgenommen; gib nur solche frei, bei denen ein unerwarteter Anruf nicht schadet.
@@ -867,7 +867,7 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 
 ![Einstellungen › Technik (Stufe „Erweitert“): Grenzen, Zeiten, der Schalter für das Textmodell im Gespräch und der Port](images/settings-tech.de.png)
 
-Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindungen“ ein (Abschnitt 6.2), die übrigen Werte stehen unter „Technik“.
+Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindungen“ ein (Abschnitt 6.2); sein Startwert kommt aus `OPENAI_SUMMARY_MODEL` bzw. `GEMINI_SUMMARY_MODEL`. Die übrigen Werte stehen unter „Technik“.
 
 | Einstellung | Standard | Startwert aus | Wirkung |
 | --- | --- | --- | --- |
@@ -883,7 +883,6 @@ Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindun
 | Gegenüber darf die KI unterbrechen | an | `AI_ALLOW_INTERRUPT` | aus: die KI spricht immer zu Ende |
 | Textmodell entscheidet im Gespräch mit | an | `AI_LIVE_JUDGE` | Prüfung beim Auflegen, Entscheidung nach der Verabschiedung und Regie im Hintergrund durch das Textmodell (Abschnitt 6.3); aus: Verhalten wie bisher |
 | Port der Oberfläche und der MCP-Schnittstelle | 3865 | `WEB_PORT` | Port auf 127.0.0.1 für Web-UI und `/mcp`; gilt nach einem Neustart (Abschnitt 14.3) |
-| Textmodell | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | Plan, Zusammenfassung, Einschätzung, Beschwerde |
 
 Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwerte kommen aus `AI_*` (Dashboard, KI-Assistent), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` und `AI_VOICE` (KI-Verbindungen; `AI_VOICE` ist nur noch der Startwert für Verbindungen ohne eigene Standardstimme), `INCOMING_*` (Anrufbeantworter), `NOTIFY_*` und `RING_POPUP` (Benachrichtigungen), `MAIL_*` und `SMTP_*` (E-Mail) sowie `SCAM_NUMBERS` und `SPAM_LOOKUP` (Spam-Abwehr).
 
@@ -891,7 +890,7 @@ Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwer
 
 ### 14.3 Port der Web-UI
 
-Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf `127.0.0.1`. Standard ist 3865. Wer SIPFunk schon vor dieser Fassung eingerichtet hat, behält seinen bisherigen Port (meist 8080), sofern in der `.env` eine Zeile `WEB_PORT=…` steht; bei der installierten App ist das immer so. Ohne diese Zeile gilt ab jetzt 3865, und eingetragene Agenten zeigen „Veraltet“.
+Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf `127.0.0.1`. Standard ist 3865. Wer SIPFunk schon vor Version 1.0.1 eingerichtet hat, behält seinen bisherigen Port (meist 8080), sofern in der `.env` eine Zeile `WEB_PORT=…` steht; bei der installierten App ist das immer so. Ohne diese Zeile gilt seit 1.0.1 der Port 3865, und eingetragene Agenten zeigen „Veraltet“.
 
 - **Ändern**: „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“), speichern. Erlaubt sind 1024 bis 65535; einen Port, den gerade ein anderes Programm belegt, nimmt die Oberfläche nicht an. Der neue Port gilt nach einem Neustart; mit der Tray-App bietet die Oberfläche „Jetzt neu starten“ an und wechselt danach von selbst auf die neue Adresse. Ohne Tray-App (`npm start`) SIPFunk von Hand beenden und wieder starten.
 - **Port belegt**: Ist der eingestellte Port beim Start von einem anderen Programm belegt, nimmt SIPFunk den nächsten freien darüber und speichert ihn als neue Einstellung. Das steht im Log, die Tray-App zeigt einen Hinweis, und die Oberfläche meldet es beim nächsten Öffnen. Die Adresse ändert sich danach nicht wieder von selbst, solange der neue Port frei bleibt.
@@ -914,7 +913,7 @@ Telefonkosten fallen nach deinem Tarif an (der Rückruf an dich ist ein normaler
 
 ## 16. Fehlersuche
 
-Das Log (im Terminal, auf dem Dashboard unter „Protokoll“, bei der Tray-App zusätzlich `sipfunk.log` im Datenordner) ist die erste Anlaufstelle.
+Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stufe „Erweitert“), bei der Tray-App zusätzlich `sipfunk.log` im Datenordner) ist die erste Anlaufstelle.
 
 | Symptom | Prüfen |
 | --- | --- |
@@ -922,7 +921,7 @@ Das Log (im Terminal, auf dem Dashboard unter „Protokoll“, bei der Tray-App 
 | Keine Registrierung an der Box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; Firewall für die UDP-Ports; Box-Oberfläche: ist das IP-Telefon angemeldet? |
 | Nebenstelle klingelt nicht | Rufnummer in der Box der Nebenstelle zugeordnet? |
 | KI nimmt nicht ab | Anrufbeantworter an? Profil der Nummer auf „aus“? Läuft gerade ein anderes Gespräch? |
-| KI spricht nicht / Stille nach Annahme | Log „Realtime: verbunden“, „erstes Audio nach … ms“; Schlüssel der aktiven KI-Verbindung, Modellzugriff, Internet; „Verbindung testen“ unter „Einstellungen › KI-Verbindungen“ prüft Schlüssel, Sprachmodell und Live-Verbindung |
+| KI spricht nicht / Stille nach Annahme | Log „Realtime: verbunden“, „erstes Audio … ms nach …“; Schlüssel der aktiven KI-Verbindung, Modellzugriff, Internet; „Verbindung testen“ unter „Einstellungen › KI-Verbindungen“ prüft Schlüssel, Sprachmodell und Live-Verbindung |
 | Falsche Stimme nach dem Umschalten der KI-Verbindung | Nach dem Umschalten gilt die Standardstimme der neuen Verbindung: die Verbindung unter „Einstellungen › KI-Verbindungen“ aufklappen und dort die „Standardstimme“ wählen. Stimmen des anderen Anbieters (Kontakt, Profil einer eigenen Rufnummer, Spam-Rolle) werden ignoriert. Modelle und Standardstimme gehören zur Verbindung (Abschnitt 6.2) |
 | Gespräch endet nach neun Minuten | mit Google Gemini dauert ein Gespräch höchstens 540 s, gleich was das Gesprächslimit sagt (Abschnitt 6.2) |
 | Stimme abgehackt | Log „RTP: Gegenstelle sendet …“, „Unterläufe“; `AUDIO_HD=false` testen; WLAN vermeiden |
@@ -951,6 +950,12 @@ Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puf
 - **REFER**: SIP-Nachricht, mit der die Box angewiesen wird, ein Gespräch zu einer anderen Nummer durchzustellen.
 - **Inhaber**: du, erkennbar am Kontakt-Kennzeichen oder an `OWNER_NUMBERS`.
 - **Stil (Persona)**: Stilvorgabe aus `personas/*.md`.
+- **`.env`**: Textdatei im Datenordner, in der deine Zugangsdaten stehen, etwa das SIP-Kennwort und die API-Schlüssel. Der Einrichtungsassistent füllt sie für dich; „Einstellungen (.env) bearbeiten“ im Tray-Menü öffnet sie. Nie weitergeben.
+- **Datenordner**: der Ordner, in dem SIPFunk Einstellungen, Kontakte, Protokolle und die `.env` ablegt. Bei der installierten Tray-App ist es `%APPDATA%\SIPFunk` (Abschnitt 11.3).
+- **Port**: eine Zahl, die dem Rechner sagt, für welches Programm eine Verbindung bestimmt ist. Die Web-UI lauscht standardmäßig auf Port 3865 (Abschnitt 14.3).
+- **SMTP**: der übliche Weg, E-Mails zu verschicken. SIPFunk nutzt ihn für die Benachrichtigungs-Mail (Abschnitt 9.3).
+- **OAuth**: eine Anmeldung, bei der du dich im Browser bei Google oder Microsoft anmeldest und SIPFunk den Zugriff erlaubst, ohne ihm dein Passwort zu geben.
+- **Token**: ein kleines Stück Text oder Audio; die KI-Anbieter messen den Verbrauch in Token und rechnen danach ab (Kapitel 15). Das Wort bezeichnet auch die Berechtigung, die OAuth ausstellt (`mail-token.json`).
 - **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen. Bei SIPFunk: Anrufe starten, mitlesen, Vorgaben machen (Kapitel 13, [Ablauf eines Agenten-Anrufs](mcp-flow.de.md)).
 - **Sprach-KI / Live-KI**: das Sprachmodell, das am Telefon spricht (Realtime bzw. Live API).
 - **Textmodell**: das Modell der KI-Verbindung, das Plan, Zusammenfassung und Einschätzung schreibt und im Gespräch mitentscheidet (Abschnitt 6.3).

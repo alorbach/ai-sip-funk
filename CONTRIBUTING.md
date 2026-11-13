@@ -27,6 +27,7 @@ SIPFunk is a small project by a single developer. Bug reports and improvements a
 - Small, self-contained changes with a commit message that says what changes for the user. UI, AI instructions, code comments and commit messages are German; the documentation is set up for several languages: English without a suffix (`user-guide.md`), every translation with its language code before the extension (`user-guide.de.md`, `.env.example.de`). If you change a document, change all versions; a new language is added as another set of files with its code and linked in the table in the README.
 - No new dependencies without a good reason. SIP, RTP and G.711 are deliberately implemented in-house and kept lean.
 - Examples in code, tests and documentation use made-up names and reserved example values (`example.com`, `192.0.2.x`, phone numbers from the ranges the Bundesnetzagentur reserves for film and television), never real ones.
+- Further commands: `npm run dev` (server with automatic restart on changes), `npm run tray` (build and start the tray app), `npm run build`, `npm run mcp` (the MCP stdio process), `npm run icons`, `npm run dist:win` (installer); a single test file with `node --import tsx --test test/<name>.test.ts`. CI runs on Windows with Node 22; `engines` requires Node 20.12 or later.
 - What can only be checked on the phone is listed in [doc/test-checklist.md](doc/test-checklist.md). Say what you checked on a real line and what you did not.
 
 ## Tests and releases on GitHub

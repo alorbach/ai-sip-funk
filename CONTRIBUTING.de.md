@@ -27,6 +27,7 @@ SIPFunk ist ein kleines Projekt eines einzelnen Entwicklers. Fehlerberichte und 
 - Kleine, in sich geschlossene Änderungen mit einer Commit-Meldung, die sagt, was sich für den Benutzer ändert. Oberfläche, Anweisungen an die KI, Kommentare und Commit-Meldungen sind deutsch; die Dokumentation ist mehrsprachig angelegt: Englisch ohne Zusatz (`user-guide.md`), jede Übersetzung mit Sprachkürzel vor der Endung (`user-guide.de.md`, `.env.example.de`). Wer ein Dokument ändert, ändert alle Fassungen; eine neue Sprache kommt als weiterer Satz von Dateien mit ihrem Kürzel dazu und wird in der Tabelle im README verlinkt.
 - Keine neuen Abhängigkeiten ohne guten Grund. SIP, RTP und G.711 sind absichtlich selbst und schlank umgesetzt.
 - Beispiele in Code, Tests und Dokumentation verwenden erfundene Namen und reservierte Beispielwerte (`example.com`, `192.0.2.x`, Rufnummern aus den für Film und Fernsehen reservierten Bereichen der Bundesnetzagentur), nie echte.
+- Weitere Befehle: `npm run dev` (Server, startet bei Änderungen neu), `npm run tray` (Tray-App bauen und starten), `npm run build`, `npm run mcp` (der MCP-stdio-Prozess), `npm run icons`, `npm run dist:win` (Installer); eine einzelne Testdatei mit `node --import tsx --test test/<name>.test.ts`. Die CI läuft unter Windows mit Node 22; `engines` verlangt Node 20.12 oder neuer.
 - Was sich nur am Telefon prüfen lässt, steht in [doc/test-checklist.de.md](doc/test-checklist.de.md). Schreib dazu, was du am echten Anschluss geprüft hast und was nicht.
 
 ## Tests und Releases auf GitHub

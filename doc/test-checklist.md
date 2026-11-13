@@ -47,6 +47,8 @@ From the dashboard, call your own mobile number or an internal extension with a 
 - [ ] The confirmation dialog shows the number; only "Jetzt wählen" starts the call.
 - [ ] The AI introduces itself, works through both parts of the task and hangs up itself after saying goodbye.
 - [ ] Interrupting works; a cough or "mhm" does not cut the sentence off.
+- [ ] Interrupt a long sentence for real: the transcript shows "KI unterbrochen: …", and the AI briefly repeats the end if it still matters. Stay silent after the AI has spoken: "Stille: …" appears and the AI picks up again. Laugh without words: the AI responds briefly.
+- [ ] Fallback models (only if a limit or overload actually occurs): the log names the switch to the fallback model, and the call still comes about.
 - [ ] The transcript runs live; "Mithören" plays both sides.
 - [ ] The log contains call plan, result according to the AI, summary and cost.
 - [ ] A blocked number (e.g. 0900 …) is rejected.
@@ -86,10 +88,12 @@ Directly after item 3.
 
 Read [legal.md](legal.md), section 6, first. Detection during the call is disabled for contacts; this part therefore needs a phone whose number is not in the contacts, or the simulator (`npm run sim -- strom bank`). The list match also works with a contact.
 
-- [ ] Switch on: the dialog only appears the first time, afterwards the date is shown next to the switch.
-- [ ] Set `"scamMode": "on"` in `settings.json` by hand without `scamAccepted`, restart: the web UI shows "off".
 - [ ] AI disclosure on, defence on (no confirmation dialog): spam call from the list – the AI introduces itself as an AI assistant, gives no name and fends the caller off.
-- [ ] AI disclosure off: red warning box visible; the dialog appears, "Abbrechen" (cancel) puts the switch back.
+- [ ] AI disclosure off: red warning box visible; the dialog appears, "Abbrechen" (cancel) puts the switch back. After confirming, the dialog does not appear again and the date is shown next to the switch.
+- [ ] AI disclosure off: set `"scamMode": "on"` in `settings.json` by hand without `scamAccepted`, restart: the web UI shows "off".
+
+The following points with AI disclosure off:
+
 - [ ] **Detection during the call** (list empty, play an advertising call): greeting as AI assistant at first, after a sentence or two of advertising a switch to the private person without mentioning AI; no consent, no data; the transcript contains "Spam-Abwehr: <reason>"; no call back.
 - [ ] **List match** (own mobile number on the list): greeting as a private person right away, with the role's name, voice and rate.
 - [ ] **Switch back** (number on the list, state a genuine request): the AI switches to assistant mode, introduces itself as an AI and takes down the request.
@@ -100,6 +104,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 
 ## 7. Simulator
 
+- [ ] `npm run sim -- ausweichen vergessen`: the AI answers a dodging counter-question briefly and asks its question once more; it raises a forgotten point before hanging up.
 - [ ] `npm run sim` runs through; the reports in `sim-results/` show no serious errors (data given, "yes" said, AI mentioned in spam mode).
 
 ## 8. Distribution and MCP
@@ -113,6 +118,8 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 - [ ] Tick "KI-Agent darf ohne Nachfrage anrufen" in the same contact (the list shows "Agent ohne Nachfrage"): `start_call` to it dials without a confirmation dialog; a contact without the tick still asks.
 - [ ] MCP during the call: `wait_for_events` returns what you say on the phone and what the AI says; the AI acts on a direction given with `say`; `end_call` makes it say goodbye; `get_call_result` returns result, summary and transcript. The call is listed under "Anrufe" with "Von KI-Agent".
 - [ ] MCP question: give a task with narrow leeway and offer something else on the phone. The AI says "Einen Moment bitte, ich frage kurz nach", the agent gets the question, its answer with `say` arrives on the phone. Without an answer the AI carries on after about 25 seconds.
+- [ ] MCP rules for the AI: on the phone ask something the task does not answer (e.g. whether the data is passed on) – the AI asks the agent or says it does not know, and promises nothing. "Das darf ich nicht sagen" from the AI triggers no question to the agent. An identification number or password sent with `say` is not read out on the phone.
+- [ ] MCP to your own owner number: the AI introduces itself as an AI assistant. With "Gesprächsplan vor Agenten-Anrufen erstellen" on, the agent sees "Gesprächsplan der KI: …"; with it off (default) there is no plan note.
 - [ ] MCP blocks: with the setting "Nur gespeicherte Kontakte", `start_call` refuses a number without a contact; "Ablehnen" in the dialog and an unanswered request (two minutes) do not dial; after the limit per hour `start_call` refuses.
 - [ ] MCP from the installed app: copy the configuration from "Agenten verbinden", for Codex or Claude Code over HTTP, for Claude Desktop as a process; the agent shows the eight tools.
 - [ ] Agents with one click: under "Agenten verbinden" choose "Einrichten" for an installed agent. The message names the backup copy, the other entries in the file are unchanged, and after a restart or new session the agent shows the eight tools. "Entfernen" takes out only the entry "sipfunk". Check once per agent (Claude Code, Claude Desktop, Codex, Cursor, Gemini CLI, Copilot CLI).

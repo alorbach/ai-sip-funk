@@ -2,7 +2,7 @@
 
 Deutsch: [user-guide.de.md](user-guide.de.md)
 
-The web UI is German. This guide quotes labels and buttons as they appear on screen and adds a translation in parentheses on first use. Example names, phone numbers and addresses in this guide are made up.
+The web UI comes in German and English (section 5.2). This guide quotes the German label of a button or field and, in parentheses, the label of the English interface. Example names, phone numbers and addresses in this guide are made up.
 
 Further documents: [Usage guidelines](guidelines.md) · [Legal aspects](legal.md) · [Architecture](architecture.md) · [Manual test checklist](test-checklist.md) · [How an agent call works](mcp-flow.md).
 
@@ -19,7 +19,7 @@ SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the b
 - **notify** you afterwards (tray notification, e-mail, for important calls a call back with the option to be put through to the caller),
 - optionally **brush off or stall advertising and scam callers** (spam defence, only after explicit confirmation, chapter 10).
 
-Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, to tellows if you switch on the lookup, and to Google or Microsoft while you import contacts from there. The web UI is reachable only from the same computer (127.0.0.1).
+Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, to tellows if you switch on the lookup, to Google or Microsoft while you import contacts from there, and, only when you click "Automatisch einrichten" (set up automatically) in the mail setup, to Mozilla's Thunderbird database and to a DNS server, with the domain of your mail address (section 9.3). The web UI is reachable only from the same computer (127.0.0.1).
 
 Limits: one user, one extension, one call at a time. SIPFunk works with the OpenAI Realtime API or the Gemini Live API (section 6.2). The AI speaks German with callers. No audio is recorded; what is stored are transcripts (text), summaries and metadata.
 
@@ -49,7 +49,7 @@ More in the [architecture](architecture.md).
 
 The box UI is quoted in German as it is the language most installations use.
 
-1. Open the FRITZ!Box UI → **Telefonie → Telefoniegeräte → Gerät einrichten → Telefon (mit und ohne Anrufbeantworter) → LAN/WLAN (IP-Telefon)**.
+1. Open the FRITZ!Box UI → **Telefonie → Telefoniegeräte → Neues Gerät einrichten → Telefon (mit und ohne Anrufbeantworter) → LAN/WLAN (IP-Telefon)**.
 2. Assign a user name and password. These go into `.env` later (`SIP_USER`, `SIP_PASSWORD`). **Never share them in chats, tickets or screenshots.**
 3. Choose the **outgoing number** (the AI calls with this number).
 4. **Incoming calls:** assign all numbers on which the AI should ring or pick up. Without the assignment SIPFunk never sees the call.
@@ -136,7 +136,9 @@ The test has passed when registration works, the phone rings, the tone is audibl
 
 The header is always visible: the four pages on the left, the connection status and the switch "Einfach / Erweitert" (chapter 5.1) on the right; the page you opened last is remembered. As soon as a call is running, the call bar appears below with the phase (dialling, ringing, incoming call, connected), name or number of the other party, duration, codec, "Mithören" (listen in) and "Auflegen" (hang up); a dot pulses on the "Dashboard" tab. While an incoming call is ringing, the buttons from chapter 8 are shown there too.
 
-- **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll").
+**Mithören** (listen in) in the call bar plays both sides of the call in the browser (live only, no recording). `LIVE_LISTEN_ENABLED=false` switches the feature off.
+
+- **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll"; level "Erweitert" only).
 - **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you), "Spam-Abwehr" (spam defence) and "Von KI-Agent" (by AI agent). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
 - **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence), MCP-Schnittstelle (MCP interface) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
@@ -152,12 +154,12 @@ The switch at the top right of every page sets how much the web UI shows. It app
 | Dashboard | number, task, style, voice with sample, form of address, AI connection, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), system log, codec and RTP counters, token usage |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
 | KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text) | – |
-| KI-Verbindungen | expandable list of connections, add, rename, switch and remove, default voice with sample, voice model, text model, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | custom model IDs, actual costs according to OpenAI (admin key) |
+| KI-Verbindungen | expandable list of connections, add, rename, switch and remove, default voice with sample, voice model, text model, fallback voice and text models, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | custom model IDs, actual costs according to OpenAI (admin key) |
 | Anrufbeantworter | on/off, number of rings, own numbers (number, name, person, company or family) | general task, per-number details (answering, rings, address, style, voice, task, notifications) |
 | Benachrichtigungen | tray, e-mail, call back, pop-up while ringing | note on per-number rules |
 | E-Mail-Versand | mailbox, password, "Automatisch einrichten", recipient, check and test mail | delivery method (SMTP/OAuth), server, port, encryption, sender, OAuth client, mail templates |
 | Spam-Abwehr | on/off, AI disclosure on/off (off only with confirmation), behaviour | minutes, name, voice, gender, speed and instructions of the role, number list, tellows lookup |
-| MCP-Schnittstelle | on/off, permitted targets, confirmation before dialling, limits, configuration for agents to copy | call logs and contact names for agents, connection over HTTP or as a process |
+| MCP-Schnittstelle | on/off, permitted targets, confirmation before dialling, limits, call plan before agent calls on/off, configuration for agents to copy | call logs and contact names for agents, connection over HTTP or as a process |
 | Technik | – | the whole section including the `.env` information |
 
 Two exceptions keep things visible when they matter: if the type of call is not "KI-Gespräch", it is shown in "Einfach" too, and whoever sends mail via OAuth sees the delivery method.
@@ -168,29 +170,26 @@ The web UI, the pop-up while ringing and the tray menu are available in German a
 
 Three things stay German whatever you choose: the AI speaks German on the phone (so tasks, behaviour notes and contact notes should be written in German), the system log and call results come from the server untranslated, and the e-mail templates keep their German variable names.
 
-
-**Mithören** in the call bar plays both sides of the call in the browser (live only, no recording). `LIVE_LISTEN_ENABLED=false` switches the feature off.
-
 ---
 
 ## 6. Outgoing calls
 
-1. Enter a **Rufnummer** (number) or pick a contact. Allowed are German landline and mobile numbers (also `+49…`) and internal extensions (`**610`). Blocked are emergency numbers (110, 112), 115, 116…, 118…, 0900, 0137/0138, 0180, 019… and anything abroad. The block also applies to MCP calls and cannot be configured.
-2. Audio **"KI-Gespräch"** (AI call), then write the **Auftrag** (task) in plain language, in German since the AI will speak German. Good tasks say who will probably pick up, what should be asked or passed on, and what the AI needs to know:
+1. Enter a **Rufnummer** (number) or pick a contact. Allowed are German landline and mobile numbers (also `+49…`) and internal extensions (`**610`). Blocked are emergency numbers (110, 112), 115, 116…, 118…, 0900, 0137/0138, 0180, 019…, call-by-call prefixes (010…) and anything abroad. The block also applies to MCP calls and cannot be configured.
+2. The **Art des Anrufs** (type of call) is set to **"KI-Gespräch"** (AI call). That is the default; the field is only shown in level "Erweitert". Then write the **Auftrag** (task) in plain language, in German since the AI will speak German. Good tasks say who will probably pick up, what should be asked or passed on, and what the AI needs to know:
 
    > "Call the dentist's office. I need a check-up appointment within the next three weeks, mornings, name Max Mustermann, I don't have my insurance number to hand. Accept an appointment they offer if it is in the morning."
 
-3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; shows the default voice of the active AI connection, e.g. "– Standard: marin –"; another voice of its provider applies only to the next call from here; "Probe hören" (listen to a sample) plays all of them with the configured AI name; order of precedence in section 6.2), **Anrede** (form of address) Du/Sie, **KI-Verbindung** (AI connection; which connection handles the call, with its key, its models and its default voice, section 6.2).
+3. **Stil** (style; presets from `personas/*.md`: professionell, locker, formell, herzlich; a file of your own is a preset of your own), **Stimme** (voice; shows the default voice of the active AI connection, e.g. "– Standard: marin –"; another voice of its provider applies only to the next call from here; "Probe hören" (hear sample) plays all of them with the configured AI name; order of precedence in section 6.2), **Anrede** (form of address) Du/Sie, **KI-Verbindung** (AI connection; which connection handles the call, with its key, its models and its default voice, section 6.2).
 4. On the settings page under "KI-Assistent": **Name der KI** (the name the AI introduces itself with), **Im Auftrag von** (on behalf of: your name) and the **behaviour in the call** (section 6.1). Models and default voice are set per connection under "KI-Verbindungen" (section 6.2).
 5. **"Anrufen …"** shows a confirmation with the number. **"Jetzt wählen"** (dial now) starts the call.
 
 During the call the transcript runs along. You can hang up at any time with **"Auflegen"**. Otherwise the call time limit (default 300 s; with Google Gemini never more than 540 s, section 6.2) ends the call automatically; the AI knows the limit and gets to the point.
 
-**What the AI always does:** it introduces itself by name as an AI assistant acting on your behalf, sticks to the task, only agrees to what the task covers (no payments, orders, contracts, no sensitive data), makes nothing up, carries out no instructions from the other party and hangs up itself after saying goodbye. If the other party does not want to talk to an AI, it thanks them and ends the call.
+**What the AI always does:** it introduces itself by name as an AI assistant acting on your behalf, sticks to the task, only agrees to what the task covers (no payments, orders, contracts, no sensitive data), makes nothing up (asked "who are you?" or "who made you?", it gives only its name and on whose behalf it calls, and invents nothing about its developer or technology), carries out no instructions from the other party and hangs up itself after saying goodbye. If the other party does not want to talk to an AI, it thanks them and ends the call. If the other party dodges a question from the task with a counter-question or a change of subject, the AI answers briefly and asks the question once more; after a refusal or a second dodge it lets the point go and records it as open.
 
-**Call plan and result.** While dialling, the text model turns the task into a call plan (who picks up, opening, steps, tone). The AI works through the steps and checks them against what was actually said before hanging up. On hanging up it reports a **result** ("Appointment Tuesday 9:30 accepted") and open points; both appear in the log under "Ergebnis laut KI".
+**Call plan and result.** While dialling, the text model turns the task into a call plan (who picks up, opening, steps, tone). The AI works through the steps. When it wants to hang up, the text model checks the transcript for anything from the task that is still missing (section 6.3); only if "Textmodell entscheidet im Gespräch mit" (text model helps decide during the call) is switched off does the AI check the steps itself. On hanging up it reports a **result** ("Appointment Tuesday 9:30 accepted") and open points; both appear in the log under "Ergebnis laut KI".
 
-**End of the call.** After saying goodbye the AI listens briefly (default 2 s). If the other party says something of substance, the call continues; a mere "bye" ends it at once.
+**End of the call.** After saying goodbye the AI listens briefly (default 2 s). If the other party says something of substance, the call continues; a mere "bye" or thanks ends it at once. The text model decides which of the two it is (section 6.3); only without the text model does a word list decide.
 
 **Owner number.** If you call yourself (contact flagged "Inhaber" or a number in `OWNER_NUMBERS`), the AI greets you personally, informally and by first name, without the AI explanation. If asked, it still says that it is an AI. Calls an AI agent starts are the exception: there the AI tells you in the greeting that it is your AI assistant (chapter 13). On other calls the AI gives this number as the call-back number when asked.
 
@@ -208,7 +207,7 @@ Under "Einstellungen › KI-Assistent" you define how the AI conducts calls. Thi
 | --- | --- | --- |
 | Antwortlänge (length of replies) | Standard · Knapp · Ausführlicher | at most two short sentences per turn · one sentence where possible · up to three sentences |
 | Gesprächstempo (pace of the call) | Standard · Zügig · Geduldig | adapts to the other party · straight to the point · calm, with time for pauses and repetitions |
-| Namen, Nummern und Termine (names, numbers and dates) | Standard · Immer wiederholen · Nicht wiederholen | asks when something is unclear · repeats them once to confirm · repeats nothing |
+| Namen, Nummern und Termine (names, numbers and dates) | Standard · Immer zur Bestätigung wiederholen · Nicht wiederholen | asks when something is unclear · repeats them once to confirm · repeats nothing |
 | Small Talk | Standard · Keiner · Gern ein, zwei Sätze | as the style suggests · straight to business · a little small talk if the other party is open to it |
 
 The tone itself is still set by the **Stil** (style) on the dashboard. **Zusätzliche Hinweise zum Verhalten** (additional behaviour notes) is a multi-line free text field for everything else; write it in German, because it goes into the German instructions. The basic rules of the AI (being honest about being an AI, inventing nothing, no commitments beyond the task, one question at a time) take precedence over all of these.
@@ -222,7 +221,7 @@ Under "Einstellungen › KI-Verbindungen" (AI connections; visible in both level
 One connection is the active one. It handles everything: the call itself, call plan, summary, assessment, complaint draft and voice samples. Call content goes to its provider and to no other. You switch between the connections when needed, in three places:
 
 - in the card: expand the connection in the list and click "Diese Verbindung verwenden" (use this connection),
-- on the dashboard: the field "KI-Verbindung" (AI connection), which replaces the former model field there,
+- on the dashboard: the field "KI-Verbindung" (AI connection),
 - in step 3 of the setup assistant ("KI-Verbindung").
 
 | | OpenAI | Google Gemini |
@@ -234,13 +233,13 @@ One connection is the active one. It handles everything: the call itself, call p
 | Voices | marin, cedar and eight more | 30 voices of its own (e.g. Kore, Puck, Zephyr) |
 | Status | tested default | so far tried on only a few real phone calls (first calls on 11 November 2026) |
 
-![Settings › AI connections: the list of connections, the active OpenAI connection expanded with default voice, models, key and connection test; below it the usage](images/settings-provider.en.png)
+![Settings › AI connections: the list of connections, the active OpenAI connection expanded with default voice, models, fallback models and key](images/settings-provider.en.png)
 
 **Status of Gemini.** The Gemini path has so far been tried on only a few real phone calls. On 11 November 2026 the first three calls ran over Google Gemini, two on the answering machine and one call back to the owner; they went through without errors: the introduction as an AI, the task, the goodbye and hanging up all worked. OpenAI remains the tested default. Keep checking the logs of your first calls with Gemini carefully. The protocol details follow Google's documentation as of 11 November 2026.
 
-**Managing connections.** The card shows the connections as an expandable list. Each connection is a row with its name, provider · voice model · default voice, where applicable the tag "Schlüssel fehlt" (key missing) and, on the active connection, "✓ aktiv" (active). A click on the row (or Enter or the space bar while it has the focus) expands the settings of that connection in place, a second click collapses them again. Several connections can be expanded at the same time; when the page is first opened, the active one is expanded.
+**Managing connections.** The card shows the connections as an expandable list. Each connection is a row with its name, provider · voice model · default voice, where applicable the tag "Schlüssel fehlt" (key is missing) and, on the active connection, "✓ aktiv" (active). A click on the row (or Enter or the space bar while it has the focus) expands the settings of that connection in place, a second click collapses them again. Several connections can be expanded at the same time; when the page is first opened, the active one is expanded.
 
-Each connection has its own fields: "Name der Verbindung" (name of the connection), "Standardstimme" (default voice, with "Probe hören" – listen to a sample), "Sprachmodell für Anrufe" (voice model for calls), "Textmodell" (text model), in level "Erweitert" additionally one "Eigene Modell-ID" (custom model ID) each, "Modelle aktualisieren" (refresh models), the state of the key, "API-Schlüssel" (API key), "Schlüssel prüfen und speichern" (check key and save), "Verbindung testen" (test connection), "Diese Verbindung verwenden" (use this connection; the active one shows "Diese Verbindung führt die Gespräche." – this connection handles the calls – instead) and "Verbindung entfernen" (remove connection). The shared form below the list, whose fields were overwritten with a connection's values when you clicked it, no longer exists. Input that is not saved yet (e.g. a key you have typed) stays in place when you expand or collapse another connection.
+Each connection has its own fields: "Name der Verbindung" (name of the connection), "Standardstimme" (default voice, with "Probe hören" – hear sample), "Sprachmodell für Anrufe" (voice model for calls), "Textmodell" (text model), in level "Erweitert" additionally one "Eigene Modell-ID" (custom model ID) each, "Modelle aktualisieren" (refresh models), the state of the key, "API-Schlüssel" (API key), "Schlüssel prüfen und speichern" (check key and save), "Verbindung testen" (test connection), "Diese Verbindung verwenden" (use this connection; the active one shows "Diese Verbindung führt die Gespräche." – this connection handles the calls – instead) and "Verbindung entfernen" (remove connection). Input that is not saved yet (e.g. a key you have typed) stays in place when you expand or collapse another connection.
 
 "Expanded" and "active" are different things: expanded means the settings of the connection are visible; active means it handles the calls ("✓ aktiv").
 
@@ -258,13 +257,13 @@ Changes to connections – adding, renaming, default voice, choosing models, swi
 3. the default voice of the active connection,
 4. if none has been chosen on the connection yet: the former general voice (from older versions or `AI_VOICE` in `.env`), otherwise the provider's first voice.
 
-The field "Stimme" on the dashboard shows the default voice of the active connection by default (e.g. "– Standard: marin –") and applies only to the next call from there. "Als Standard speichern" on the dashboard remembers task, style and form of address (and the type of call), but no longer the voice: the default voice is set on the connection. Nothing changes by itself on update: saved connections, keys and models stay, and a connection without a default voice of its own keeps using the previously saved general voice, provided it belongs to its provider.
+The field "Stimme" on the dashboard shows the default voice of the active connection by default (e.g. "– Standard: marin –") and applies only to the next call from there. "Als Standard speichern" on the dashboard remembers task, style and form of address (and the type of call), but not the voice: the default voice is set on the connection. (Updates leave saved connections, keys and models unchanged.)
 
 **Models.** Each connection has its own voice model and text model; the fields are in its expanded area. The choice comes from the provider of the connection: SIPFunk uses the key of the connection to ask which models the account offers and splits them into voice models (OpenAI: Realtime, Gemini: Live) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded when you open the card or expand a connection, and the provider is asked at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once, with the key of that connection. The key stays in the background program and appears neither in the interface nor in the log.
 
 - **Sprachmodell für Anrufe** (voice model for calls): the live model that speaks and listens, for outgoing calls and the answering machine. "(Standard)" marks the default (`gpt-realtime-2.1` with OpenAI, `gemini-3.8-live` with Gemini), "(günstig)" (cheaper) the OpenAI models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and the provider publishes their prices.
 - **Textmodell** (text model): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna` with OpenAI and `gemini-3.5-flash-lite` with Gemini.
-- **Ausweich-Sprachmodelle** (fallback voice models) and **Ausweich-Textmodelle** (fallback text models): two lists of the models of your account to tick (at most six per list; "Modelle aktualisieren" fills them). If the text model reports a limit or an overload (such as 429 or 503), the next ticked model answers, in the order of the list; the log names the one that answered. If the provider rejects a call for such a reason while the voice session is being set up, SIPFunk sets it up again with the next ticked voice model; call log and costs then name that model. There is no switch during a running call, and none for other errors (wrong key, unknown model). Without a tick everything stays as before. A fallback model can cost more than the configured one.
+- **Ausweich-Sprachmodelle** (fallback voice models) and **Ausweich-Textmodelle** (fallback text models): two lists of the models of your account to tick (at most six per list; "Modelle aktualisieren" fills them). If the text model reports a limit or an overload (such as 429 or 503) or does not answer in time (for the call plan after eight seconds per model), the next ticked model answers, in the order of the list; the log names the one that answered. If the provider rejects a call for such a reason while the voice session is being set up, SIPFunk sets it up again with the next ticked voice model; call log and costs then name that model. If a fallback voice model fails during setup, whatever the reason, the next one follows; when none is left, the configured model is tried once more. There is no switch during a running call, and none for other errors of the configured model (wrong key, unknown model). Without a tick everything stays as before. A fallback model can cost more than the configured one.
 - **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large OpenAI model, for unknown Gemini models those of `gemini-3.8-live`. A model ID that belongs to the other provider is not accepted.
 
 A connection without a model of its own uses the default of its provider: `OPENAI_MODEL` and `OPENAI_SUMMARY_MODEL` or `GEMINI_MODEL` and `GEMINI_SUMMARY_MODEL` from `.env`, otherwise the built-in default from the table above. A call started through the API may still name a voice model; a model of another provider is ignored and the model of the active connection is used.
@@ -273,7 +272,7 @@ If the list cannot be loaded (no key, no network, key rejected), the reason is s
 
 **Key.** Every connection has its own key. Expand the connection, enter the key under "API-Schlüssel" (API key) and click "Schlüssel prüfen und speichern" (check key and save). The key is accepted only by the local web UI on `127.0.0.1`, checked once with the provider and written to `.env` in the data folder. It is never returned by the API and never logged; the interface only shows whether a key is stored. The two built-in connections use `OPENAI_API_KEY` and `GEMINI_API_KEY`; every further connection uses `AI_KEY_<ID>`, where ID is the connection's id in upper case. The web UI writes that variable; you normally do not edit it by hand. Calls only ever use the key of the active connection.
 
-**Where it is stored.** The list of connections is in `settings.json` as `aiConnections` (a JSON list of `{id, name, provider, model, textModel, voice}`), the id of the active one as `aiConnection`. `aiProvider` now just mirrors the provider of the active connection; `AI_PROVIDER` in `.env` still decides which of the two built-in connections is active at first. Keys are stored in `.env` only.
+**Where it is stored.** The list of connections is in `settings.json` as `aiConnections` (per connection: id, name, provider, voice and text model, fallback models and default voice), the id of the active one as `aiConnection`. `aiProvider` now just mirrors the provider of the active connection; `AI_PROVIDER` in `.env` still decides which of the two built-in connections is active at first. Keys are stored in `.env` only.
 
 **After switching.** Models and default voice are part of the connection and change with it; the message after switching names the voice that now applies. Voices belong to a provider: a voice of the other provider that is saved for a contact, in the profile of an own number or as "Stimme der Rolle" of the spam defence is ignored, and the default voice of the active connection is used.
 
@@ -285,7 +284,7 @@ If the list cannot be loaded (no key, no network, key rejected), the reason is s
 
 The test does not check an actual phone call.
 
-**What is different with Gemini.** The card shows these notes below the list when the active connection or an expanded one belongs to Gemini. SIPFunk uses the Gemini Live API with the model `gemini-3.8-live`: audio goes to Google as 16 kHz PCM and comes back as 24 kHz PCM, which is resampled to the 8 or 16 kHz of the phone. The following limitations apply:
+**What is different with Gemini.** When the active connection or an expanded one belongs to Gemini, the card shows the main notes below the list (nine minutes, speaking rate, follow-up instructions, cut-off answers, cost estimate, simulator); the other points below apply as well. SIPFunk uses the Gemini Live API with the model `gemini-3.8-live`: audio goes to Google as 16 kHz PCM and comes back as 24 kHz PCM, which is resampled to the 8 or 16 kHz of the phone. The following limitations apply:
 
 - A call lasts nine minutes (540 s) at most, whatever call time limit is configured. The Live API drops a connection after about ten minutes, and session resumption is not implemented.
 - The speaking rate cannot be set; it is only passed to the AI as a hint. The limit on output tokens per answer is not applied.
@@ -327,7 +326,7 @@ The voice AI conducts the conversation. It speaks well, but it is weak at planni
 
 ### 7.1 Switching it on
 
-"Einstellungen › Anrufbeantworter" → **"KI nimmt eingehende Anrufe an (allgemein)"** (AI answers incoming calls, general), **"Annahme beim … Klingeln"** (answer on the n-th ring; default: the 5th, calculated at about 5 s per ring), then **"Speichern"**. Alternatively via the tray menu or `INCOMING_ENABLED=on`. When switched off, the extension only rings along without picking up; during a running call it is busy.
+"Einstellungen › Anrufbeantworter" → **"KI nimmt eingehende Anrufe an (allgemein)"** (AI answers incoming calls, general), **"Annahme beim … Klingeln"** (answer on ring number …; default: the 5th, calculated at about 5 s per ring), then **"Speichern"**. Alternatively via the tray menu or `INCOMING_ENABLED=on`. When switched off, the extension only rings along without picking up; during a running call it is busy.
 
 The answering machine uses the active AI connection (section 6.2) with its key, its models and its default voice. The connection to the AI provider is set up while the phone is still ringing so that the AI speaks without delay.
 
@@ -367,9 +366,9 @@ No commitments in your name, no information other than from the background knowl
 
 While a call is ringing, the tray app shows a small window at the bottom right (can be switched off under "Einstellungen › Benachrichtigungen"): the caller, which of your numbers they are calling, an **assessment of the number** and three buttons. The same buttons appear in the call bar of the web UI.
 
-- **Assessment**: "Kontakt" (contact), "Auf deiner Spam-Liste" (on your spam list), "Schon als Spam abgewehrt" (already fended off as spam; earlier calls), "Auffällige Nummer" (conspicuous number: abroad, 0900, 0137/0138, 0180, 0800, 032), otherwise "Unbekannte Nummer" (unknown number). With the switch **"Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen"** (look up unknown numbers at tellows.de; Einstellungen › Spam-Abwehr, off by default) the tellows score is added: 7 and above "Spam-Verdacht" (suspected spam), 6 "Auffällig" (conspicuous), up to 4 with an entry "Eher seriös" (probably legitimate). The lookup sends the caller's number to tellows; contacts and numbers on your list are never looked up.
-- **In die Spam-Falle** (into the spam trap): answers immediately, and the spam defence takes over (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires AI disclosure to be switched on or the one-time risk confirmation from section 10.3; the spam defence switch itself does not need to be on. With AI disclosure the AI openly acts as an AI in the spam trap, too.
-- **KI jetzt annehmen** (AI answer now): answers immediately as the normal assistant without waiting for the number of rings.
+- **Assessment**: "Kontakt" (contact), "Auf deiner Spam-Liste" (on your spam list), "Schon als Spam abgewehrt" (already fended off as spam; earlier calls), "Auffällige Nummer" (suspicious number: abroad, 0900, 0137/0138, 0180, 0800, 032, 118), "Nummer unterdrückt" (number withheld: no number was transmitted, so there is nothing to assess), otherwise "Unbekannte Nummer" (unknown number). With the switch **"Unbekannte Nummern beim Klingeln bei tellows.de nachschlagen"** (look up unknown numbers at tellows.de; Einstellungen › Spam-Abwehr, off by default) the tellows score is added: 7 and above "Spam-Verdacht" (suspected spam), 6 "Auffällig" (suspicious), up to 4 with an entry "Eher seriös" (probably legitimate). The lookup sends the caller's number to tellows; contacts and numbers on your list are never looked up.
+- **In die Spam-Falle** (send to spam trap): answers immediately, and the spam defence takes over (behaviour and time limit as set in the spam defence). Also works when the answering machine is off for this number. It requires AI disclosure to be switched on or the one-time risk confirmation from section 10.3, and a stored key for the active AI connection (otherwise the button is greyed out); the spam defence switch itself does not need to be on. With AI disclosure the AI openly acts as an AI in the spam trap, too.
+- **KI jetzt annehmen** (AI answers now): answers immediately as the normal assistant without waiting for the number of rings.
 - **Klingeln lassen** (let it ring): the AI does not answer this one call; you can pick up yourself.
 
 Calls are only diverted at the press of a button, never automatically.
@@ -382,7 +381,7 @@ After every answered call the text model writes the summary and assesses whether
 
 | Switch | What happens |
 | --- | --- |
-| **Hinweis im Tray** (for all calls) | Windows notification "Anruf von …" or "Wichtiger Anruf von …" with a short line; tray app only |
+| **Hinweis im Tray** (for all calls) | Windows notification "Anruf von …", "Wichtiger Anruf von …" or, after a spam defence call, "Spam-Anruf von …" with a short line; tray app only |
 | **E-Mail mit Zusammenfassung** (for all calls) | compact mail to the configured recipient, layout in 9.2 |
 | **Mich auf der Inhabernummer anrufen** (important calls only) | the AI calls you and reports, see 9.1 |
 
@@ -432,7 +431,7 @@ Rules: a line whose variables are all empty is dropped; a paragraph (separated b
 Everything is under "Einstellungen › E-Mail-Versand". The `MAIL_*` and `SMTP_*` variables in `.env` only provide initial values; saved passwords are stored in `settings.json` in the data folder, and the web UI only shows them masked.
 
 1. Choose the **Versandweg** (delivery method): "SMTP mit Passwort" (all providers), "Gmail" or "Microsoft 365 / Outlook" (sign-in via OAuth, no password).
-2. **SMTP**: enter the mailbox and click **"Automatisch einrichten"** (set up automatically). SIPFunk looks for server, port and encryption in this order: a built-in list of well-known providers, the Thunderbird database (ISPDB), the MX records of the domain (Microsoft 365 and Google Workspace are recognised) and finally `smtp.<domain>`/`mail.<domain>` with a connection probe. Then enter the password; many providers require an **app password** instead of the account password. If the provider requires OAuth, the button switches the delivery method.
+2. **SMTP**: enter the mailbox and click **"Automatisch einrichten"** (set up automatically). SIPFunk looks for server, port and encryption in this order: a built-in list of well-known providers, the Thunderbird database (ISPDB), the MX records of the domain (Microsoft 365 and Google Workspace are recognised) and finally `smtp.<domain>`/`mail.<domain>` with a connection probe. Only the domain of the mailbox leaves your computer for this (to Mozilla's Thunderbird database and in the DNS query), never the address itself or a password; the setup assistant (step 6) uses the same lookup. Then enter the password; many providers require an **app password** instead of the account password. If the provider requires OAuth, the button switches the delivery method.
 3. **OAuth**: enter mailbox, client ID (and secret), save, then **"Mail-Konto verbinden"** (connect mail account; sign-in in the browser, the access token ends up in `mail-token.json`). Gmail: OAuth client of type "Desktop app" in the Google Cloud Console. Microsoft 365: app registration in Entra, platform "Mobile and desktop applications", redirect `http://127.0.0.1:3865/oauth/callback` (with the port of the web UI, section 14.3), permission `SMTP.Send`, SMTP AUTH enabled for the mailbox; tenant = tenant ID or `common`.
 4. **"Verbindung prüfen"** (check connection) signs in to the server without sending anything; **"Probe-Mail senden"** sends a mail in the notification layout with sample data. Both save the settings first.
 
@@ -501,7 +500,7 @@ Logs of such calls carry the tag "Spam-Abwehr". They never count as important; t
 
 ![Contacts](images/contacts.en.png)
 
-Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked). The flag **"Inhaber"** marks your own number. With **"KI-Agent darf ohne Nachfrage anrufen"** (AI agent may call without asking) you approve a contact for the MCP interface: an agent dials it without you having to confirm the call, even when asking is set to "Immer" there (section 13.2). The list then shows "Agent ohne Nachfrage" (agent without asking).
+Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked; in calls started by an AI agent it gets no notes, section 13.2). The flag **"Inhaber"** marks your own number. With **"KI-Agent darf ohne Nachfrage anrufen"** (AI agent may call without asking) you approve a contact for the MCP interface: an agent dials it without you having to confirm the call, even when asking is set to "Immer" there (section 13.2). The list then shows "Agent ohne Nachfrage" (agent without asking). If you change the contact's number, the approval is removed; tick it again for the new number.
 
 A contact can have **further numbers** ("Weitere Nummern", separated by commas), for example a landline next to the mobile number. They count when a call comes in and for duplicates; the number above is always the one dialled. For the MCP permission "Nur gespeicherte Kontakte" only that number counts, so an agent cannot call a further number.
 
@@ -534,7 +533,7 @@ After loading, SIPFunk shows a list with a search field and a summary ("… neu,
 2. "APIs & Services › Library": enable **People API**.
 3. "Google Auth Platform" (OAuth consent screen): user type "External", an app name and your address. Under "Data access" add the scope `https://www.googleapis.com/auth/contacts.readonly`, under "Audience" add yourself as a test user. The app may stay in "Testing" status; Google then shows a warning that the app is not verified – it is your own app, continue.
 4. "Clients" (credentials): create an OAuth client of type **"Desktop app"**. Enter client ID and client secret in the import dialog under "Einrichtung" (setup). Google does not treat the secret of a desktop client as confidential; SIPFunk stores it in `settings.json` and shows it masked. A redirect address does not have to be entered: desktop clients accept `http://127.0.0.1:<port>/oauth/callback` automatically.
-5. "Verbinden" (connect) opens the Google sign-in; afterwards click "Adressbuch laden" (load address book).
+5. "Verbinden" (connect) opens the Google sign-in; afterwards SIPFunk loads the address book by itself ("Adressbuch laden", load address book, reloads it when needed).
 
 *Microsoft:*
 
@@ -542,7 +541,7 @@ After loading, SIPFunk shows a list with a search field and a summary ("… neu,
 2. Redirect URI: platform **"Public client/native (mobile & desktop)"**, address `http://localhost/oauth/callback` – without a port. Microsoft ignores the port for `localhost`, so a port change of the web UI needs no change here.
 3. "API permissions": Microsoft Graph › Delegated permissions › **Contacts.Read**. In a company tenant the administrator may have to consent.
 4. No client secret is needed. Enter the "Application (client) ID" in the import dialog; tenant `common` (default), `consumers` for personal accounts only, or your tenant ID.
-5. "Verbinden", sign in, "Adressbuch laden". SIPFunk reads the default contacts folder, the other contact folders and their subfolders (one level).
+5. "Verbinden", sign in; SIPFunk then loads the address book by itself. SIPFunk reads the default contacts folder, the other contact folders and their subfolders (one level).
 
 *Apple iCloud and file exports:*
 
@@ -593,10 +592,11 @@ The data folder is the project folder when starting from the repository, and `%A
 | `sipfunk.log`, `sipfunk-YYYY-MM-DD.log` | operating log with phone numbers (tray app only; otherwise the log is in the terminal). One file per day; files older than the log retention period are deleted | yes |
 | `usage.json` | monthly usage per AI provider: number of calls, seconds, estimated cost; the last 13 months (section 6.2) | no |
 | `autostart.flag` | installed tray app only: notes that autostart was set up on first start, so that an update does not switch it on again (section 4.3) | no |
+| `sipfunk.port` | port of the running app; removed when it quits (section 14.3) | no |
 | `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 
-All of them are listed in `.gitignore`. When backing up the computer, include the data folder, but encrypted.
+When you start from the repository, the files in the project folder are listed in `.gitignore`; `autostart.flag` only exists in the data folder of the installed app. When backing up the computer, include the data folder, but encrypted.
 
 ---
 
@@ -647,7 +647,7 @@ What happens in an agent call step by step – roles, events, questions, ending,
 The agent does not speak on the phone. SIPFunk's voice AI does, over the active AI connection and with the voice set there. It conducts the call by itself according to the task, exactly as in a call from the dashboard. The agent sits next to it:
 
 - It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason) and notes on what is going on: the AI's call plan, interruptions, silence, sounds without words, the check before hanging up and the result according to the AI. While the call is connected, every answer also states the duration, the time left and the situation at the moment of the request (who is speaking, how long it has been silent, whether the AI is waiting for the agent or saying goodbye). So the agent knows the whole conversation at any time.
-- It **can take back the hang-up**: when a note reports the result according to the AI, the AI is saying goodbye. If the agent thinks something is still missing, an instruction takes back the hang-up as long as the call has not ended. Whether something from the task is missing is checked at the same time by the text model as well (section 6.3), which takes back the hang-up itself if need be; the agent does not have to step in, and the AI does not wait for the agent. An end that the agent itself requested (`end_call`), on the other hand, is never checked by the text model and never taken back by it, not even if the AI had already started saying goodbye on its own; if the other party says something afterwards, the call continues, and the AI's next `end_call` is not checked either. Only the agent's own direction (`say`) takes the end back; after that the AI's next goodbye is checked like any other.
+- It **can take back the hang-up**: when a note reports the result according to the AI, the AI is saying goodbye. If the agent thinks something is still missing, a direction (`say`) takes back the hang-up as long as the call has not ended. The agent does not have to watch for this: at the same time the text model checks whether anything from the task is missing and takes back the hang-up itself if need be (section 6.3); the AI does not wait for the agent. An end that the agent requested with `end_call` is never checked or taken back by the text model; only a new `say` from the agent withdraws it. Details: [How an agent call works](mcp-flow.md#38-ending-the-call).
 - It **gives directions**: "Say that 7:30 pm is fine too." The AI words it itself and acts on the direction at the next suitable moment, without talking over anyone.
 - The AI **asks the agent** when it lacks a decision the result depends on, or when the other party asks something about the agent, the call or the task that it cannot answer. It tells the other party "Einen Moment bitte, ich frage kurz nach" (one moment please, I will just check) and waits up to 25 seconds for the agent's answer; meanwhile the line is silent. If none comes, it says that you will get back about it and records the point as open.
 
@@ -661,7 +661,7 @@ Under "Einstellungen › MCP-Schnittstelle":
 | --- | --- | --- |
 | KI-Agenten dürfen über MCP telefonieren (AI agents may make calls through MCP) | off | Main switch. When off, SIPFunk refuses every tool call with a note; the agent then sees no status, no contacts and no call logs either. If you switch it off while a request is waiting for your confirmation, the request lapses. A call that is already running is finished by the AI on its own (the maximum length applies); you can hang it up in the web UI like any other. |
 | Wen ein Agent anrufen darf (who an agent may call) | Nur gespeicherte Kontakte (saved contacts only) | "Nur gespeicherte Kontakte": the agent can only call numbers you have saved as a contact. "Kontakte und jede erlaubte Nummer" (contacts and any permitted number): in addition any number the dashboard may dial. Emergency, special, premium-rate and foreign numbers and call-by-call prefixes stay blocked in both cases (chapter 6). |
-| Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (außer freigegebene Kontakte) (always, except approved contacts) | "Immer": every call waits for your yes, except for contacts where you ticked "KI-Agent darf ohne Nachfrage anrufen" (AI agent may call without asking; section 11): the agent dials those at once, and only through the number that is dialled, not through further numbers. If the agent may read the names of your contacts, `list_contacts` marks them with "ohne Bestätigung" (without confirmation). "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. Regardless of this, SIPFunk always asks when the agent states a different principal from the one in your settings. |
+| Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (außer freigegebene Kontakte) (always, except approved contacts) | "Immer": every call waits for your yes, except for contacts where you ticked "KI-Agent darf ohne Nachfrage anrufen" (AI agent may call without asking; section 11): the agent dials those at once, and only through the number that is dialled, not through further numbers; if you change that number, the tick is removed. If the agent may read the names of your contacts, `list_contacts` marks them with "ohne Bestätigung" (without confirmation). "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. Regardless of this, SIPFunk always asks when the agent states a different principal from the one in your settings. |
 | Höchstens … Anrufe je Stunde / je Tag (at most … calls per hour / per day) | 10 / 30 | Every accepted request counts, including one you declined or one nobody answered. The counter starts again when SIPFunk restarts. |
 | Höchstdauer je Anruf (Minuten) (maximum length per call, minutes) | 10 | After that SIPFunk hangs up. Never longer than the general call time limit (Einstellungen › Technik, default 300 s, so 5 minutes unless you raise it) and the limit of the AI provider. |
 | Protokolle, die ein Agent lesen darf (call logs an agent may read; advanced) | Nur Anrufe, die über MCP gestartet wurden (only calls started through MCP) | With "Alle Protokolle" (all call logs) the agent can also read your other calls and those of the answering machine, including the phone numbers that belong to no contact. |
@@ -774,8 +774,8 @@ All tools answer with text, in German (the voice AI speaks German too). Errors (
 | `list_contacts` | – | Names of the contacts, without numbers. Only with the permission "Agent darf die Namen meiner Kontakte lesen" |
 | `start_call` | `target` (contact name or phone number), `task` (at most 2000 characters), optional `context` (background knowledge, at most 6000 characters), `on_behalf_of`, `address` (`sie`/`du`), `persona` (`professionell`, `locker`, `formell`, `herzlich`), `max_minutes` (1–60; can only shorten the maximum length) | `call_id` and the state: requested (waiting for your confirmation) or dialling |
 | `wait_for_events` | `call_id`, `after` (number of the last known event), `timeout_sec` (1–50, default 25) | Blocks until there is something new or the time is up. Returns the state with duration and time left, during the call the line "Lage jetzt" (situation now: who is speaking, silence, open question, goodbye), the new events with their number (`Gegenüber` = other party, `KI` = the AI, `Zustand` = state, `Hinweis` = note, `RÜCKFRAGE der KI an dich` = the AI's question to you), an open question and the number for the next call. Without `after` the whole course so far is returned |
-| `say` | `call_id`, `text` (at most 600 characters), `when` (`now` default, `next`) | Hands a direction to the voice AI. If it is waiting for the answer to a question, `text` is that answer. `now`: say it as soon as possible; `next`: take it into account the next time the AI speaks |
-| `end_call` | `call_id`, `mode` (`polite` default, `now`) | `polite`: the AI says goodbye, reports its result and hangs up. `now`: hang up immediately. A request still waiting for confirmation is withdrawn |
+| `say` | `call_id`, `text` (at most 600 characters), `when` (`now` default, `next`) | Hands a direction to the voice AI. If it is waiting for the answer to a question that the agent has already read, `text` is that answer; if the question came in after the agent last fetched events, the answer of `say` quotes it and the agent answers it with a second `say`. `now`: say it as soon as possible; `next`: take it into account the next time the AI speaks |
+| `end_call` | `call_id`, `mode` (`polite` default, `now`) | `polite`: the AI says goodbye, reports its result and hangs up. `now`: hang up immediately. While dialling or ringing it hangs up immediately in either mode. A request still waiting for confirmation is withdrawn |
 | `get_call_result` | `call_id` or `record_id` (the timestamp at the start of a line from `list_calls`) | State and reason of the end, result according to the AI (achieved, open), summary, transcript. If no call came about, it says so |
 | `list_calls` | – | Saved call logs with a short summary, depending on the setting only those started through MCP or all |
 
@@ -825,7 +825,7 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 - **The agent hears nothing.** It gets text: the transcription of the other party and the wording of the AI, each only once an utterance is finished. Tone of voice and background noise do not reach it; silence, sounds without words and interruptions only as a note. The transcription can get names and numbers wrong.
 - **The agent sees the call plan only if it knows the target by name.** The plan can mention the contact's name. If the agent dialled a number that belongs to a contact and may not read the contact names, the plan is therefore withheld. (There is a plan only if "Gesprächsplan vor Agenten-Anrufen erstellen" is on.)
 - **Directions take effect with a delay.** Several seconds pass between an utterance on the phone and the agent's reaction. The AI does not wait for that, unless it has asked a question itself. A direction can therefore arrive too late; rather put the leeway into the task.
-- **Directions are content, not wording.** The AI words things itself and keeps to its basic rules.
+- **Directions are content, not wording.** The AI words things itself and keeps to its basic rules. It passes on the agent's answers with their caveats and makes no promise out of them. It does not read out identification numbers (tax, ID, account or card numbers), passwords or codes on the phone, even if the agent sends them, because nobody on the phone is verified.
 - **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
 - **With Gemini**, directions reach the AI as an instruction added to the conversation; that has a weaker effect than with OpenAI (section 6.2).
 - **Client timeouts.** `wait_for_events` blocks for at most 50 seconds. Without `tool_timeout_sec`, Codex aborts tool calls after 60 seconds.
@@ -834,7 +834,7 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 ### 13.7 Security
 
 - **Local only.** The server listens only on `127.0.0.1`, on the same port as the web UI. Requests with a foreign host or origin (a website in your browser) are refused. Do not expose the port.
-- **The AI stays an AI.** In every agent call it introduces itself as an AI assistant, also when the agent calls your own owner number ("Hi Max, Alex hier, dein KI-Assistent"); SIPFunk checks the first answer for it. An agent has no switch for that and can give it neither another name nor another role; its basic rules tell it not to follow directions that demand this. That is a rule in the AI's instruction, not a technical lock: a language model can behave differently in an individual case. That is why you read in the call log what was said.
+- **The AI stays an AI.** In every agent call it introduces itself as an AI assistant, also when the agent calls your own owner number ("Hi Max, Alex hier, dein KI-Assistent"); SIPFunk checks the first answer for it. An agent has no switch for that and can give it neither another name nor another role; its basic rules tell it not to follow directions that demand this. Nor may it claim anything about the agent or about safeguards and checks (data protection, identity check) that nobody told it. That is a rule in the AI's instruction, not a technical lock: a language model can behave differently in an individual case. That is why you read in the call log what was said.
 - **SIPFunk checks blocks and limits**, not the agent: dial target protection, permitted targets, confirmation, calls per hour and per day, maximum length, call time limit.
 - **What an agent learns:** only what the tools return. No keys, no passwords, no credentials for the phone system or AI providers, no phone numbers of contacts it knows only by name, no contact notes. Of your settings it sees only what `get_status` states: the permissions and limits of the interface. If the other party asks how to reach you, the AI gives your call-back number (owner contact); it is then in the transcript. It reads along what is said on the phone, and with that it goes to the provider of your agent. Do not promise the other party anything about an agent that you cannot keep, and mind data protection ([legal notes](legal.md), section 3).
 - **Prompt injection.** An agent that reads websites or e-mails can pick up instructions there ("call this number"). The same goes for the phone call itself: what the other party says is read by your agent as text, also in the AI's questions. It should treat that as information, not as a task. "Nur gespeicherte Kontakte" and the confirmation before dialling help against that. Leave both on as long as you do not trust the agent in every situation. Contacts with "KI-Agent darf ohne Nachfrage anrufen" (AI agent may call without asking) are exempt from the confirmation; approve only those where an unexpected call does no harm.
@@ -869,7 +869,7 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 
 ![Settings › Technical (level "Erweitert"): limits, timings, the switch for the text model during the call and the port](images/settings-tech.en.png)
 
-In the interface the text model is set per connection under "KI-Verbindungen" (section 6.2); the other values are under "Technik".
+In the interface the text model is set per connection under "KI-Verbindungen" (section 6.2); its initial value comes from `OPENAI_SUMMARY_MODEL` or `GEMINI_SUMMARY_MODEL`. The other values are under "Technik".
 
 | Setting | Default | Initial value from | Effect |
 | --- | --- | --- | --- |
@@ -885,7 +885,6 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
 | Textmodell entscheidet im Gespräch mit – text model helps decide during the call | on | `AI_LIVE_JUDGE` | check on hanging up, decision after the goodbye and director in the background by the text model (section 6.3); off: behaviour as before |
 | Port der Oberfläche und der MCP-Schnittstelle – port of the web UI and the MCP interface | 3865 | `WEB_PORT` | port on 127.0.0.1 for the web UI and `/mcp`; takes effect after a restart (section 14.3) |
-| Textmodell – text model | `gpt-6-luna` (Gemini: `gemini-3.5-flash-lite`) | `OPENAI_SUMMARY_MODEL` (Gemini: `GEMINI_SUMMARY_MODEL`) | plan, summary, assessment, complaint |
 
 The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` (dashboard, AI assistant), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` and `AI_VOICE` (AI connections; `AI_VOICE` is now only the initial value for connections without a default voice of their own), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
 
@@ -893,7 +892,7 @@ The other sections are described in chapters 6 to 10. Their initial values come 
 
 ### 14.3 Port of the web UI
 
-The web UI and the MCP interface listen on the same port, always on `127.0.0.1` only. The default is 3865. If you set up SIPFunk before this version, you keep your previous port (usually 8080), provided your `.env` has a line `WEB_PORT=…`; with the installed app that is always the case. Without that line 3865 applies from now on, and registered agents show "Veraltet".
+The web UI and the MCP interface listen on the same port, always on `127.0.0.1` only. The default is 3865. If you set up SIPFunk before version 1.0.1, you keep your previous port (usually 8080), provided your `.env` has a line `WEB_PORT=…`; with the installed app that is always the case. Without that line 3865 applies since 1.0.1, and registered agents show "Veraltet".
 
 - **Changing it**: "Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle" (level "Erweitert"), then save. Allowed values are 1024 to 65535; the web UI does not accept a port that another program is using at that moment. The new port takes effect after a restart; with the tray app the web UI offers "Jetzt neu starten" (restart now) and then switches to the new address by itself. Without the tray app (`npm start`), quit SIPFunk and start it again by hand.
 - **Port in use**: if the configured port is taken by another program at start, SIPFunk takes the next free one above it and stores it as the new setting. This is written to the log, the tray app shows a notification, and the web UI says so the next time it is opened. After that the address does not change by itself again as long as the new port stays free.
@@ -916,7 +915,7 @@ Call charges apply according to your tariff (the call back to you is a normal ou
 
 ## 16. Troubleshooting
 
-The log (in the terminal, on the dashboard under "Protokoll", and for the tray app additionally `sipfunk.log` in the data folder) is the first place to look. Log messages are German; the quoted fragments below are what to search for.
+The log (in the terminal, on the dashboard in the card "Systemprotokoll" (system log; level "Erweitert"), and for the tray app additionally `sipfunk.log` in the data folder) is the first place to look. Log messages are German; the quoted fragments below are what to search for.
 
 | Symptom | Check |
 | --- | --- |
@@ -924,7 +923,7 @@ The log (in the terminal, on the dashboard under "Protokoll", and for the tray a
 | No registration with the box | `SIP_USER`/`SIP_PASSWORD`, `SIP_SERVER`; firewall for the UDP ports; box UI: is the IP phone registered? |
 | Extension does not ring | is the number assigned to the extension in the box? |
 | AI does not pick up | answering machine on? Profile of the number set to off? Is another call running? |
-| AI does not speak / silence after pick-up | log "Realtime: verbunden", "erstes Audio nach … ms"; key of the active AI connection, model access, internet; "Verbindung testen" under "Einstellungen › KI-Verbindungen" checks key, voice model and live connection |
+| AI does not speak / silence after pick-up | log "Realtime: verbunden", "erstes Audio … ms nach …"; key of the active AI connection, model access, internet; "Verbindung testen" under "Einstellungen › KI-Verbindungen" checks key, voice model and live connection |
 | Wrong voice after switching the AI connection | after switching, the default voice of the new connection applies: expand the connection under "Einstellungen › KI-Verbindungen" and choose its "Standardstimme" (default voice) there. Voices of the other provider (contact, profile of an own number, spam role) are ignored. Models and default voice belong to the connection (section 6.2) |
 | Call ends after nine minutes | with Google Gemini a call lasts 540 s at most, whatever the call time limit says (section 6.2) |
 | Choppy voice | log "RTP: Gegenstelle sendet …", "Unterläufe"; try `AUDIO_HD=false`; avoid Wi-Fi |
@@ -953,6 +952,12 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 - **REFER**: SIP message instructing the box to transfer a call to another number.
 - **Inhaber (owner)**: you, recognised by the contact flag or by `OWNER_NUMBERS`.
 - **Stil (persona)**: style preset from `personas/*.md`.
+- **`.env`**: text file in the data folder that holds your secrets, such as the SIP password and the API keys. The setup assistant fills it for you; "Einstellungen (.env) bearbeiten" in the tray menu opens it. Never share it.
+- **Data folder** (Datenordner): the folder where SIPFunk keeps your settings, contacts, logs and the `.env`. For the installed tray app it is `%APPDATA%\SIPFunk` (section 11.3).
+- **Port**: a number that tells the computer which program a connection is meant for. The web UI listens on port 3865 by default (section 14.3).
+- **SMTP**: the standard way to send e-mail. SIPFunk uses it for the notification mail (section 9.3).
+- **OAuth**: a sign-in where you log in at Google or Microsoft in the browser and allow SIPFunk access, without giving it your password.
+- **Token**: a small piece of text or audio; the AI providers measure usage and bill in tokens (chapter 15). The word also names the permission that OAuth hands out (`mail-token.json`).
 - **Anrufbeantworter**: answering machine. **Spam-Abwehr**: spam defence. **Auftrag**: the task you give the AI.
 - **MCP**: Model Context Protocol, an interface through which AI agents call tools. In SIPFunk: start calls, read along, give directions (chapter 13, [How an agent call works](mcp-flow.md)).
 - **Voice AI / Live AI** (Sprach-KI, Live-KI): the voice model that speaks on the phone (Realtime or Live API).

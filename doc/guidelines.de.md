@@ -8,12 +8,12 @@ Diese Richtlinien beschreiben, wie SIPFunk gedacht ist und wofür nicht. Sie erg
 
 ## 1. Grundsätze
 
-1. **Transparenz.** Die KI stellt sich in jedem Gespräch als KI vor und bestreitet es auch auf Nachfrage nicht. Einzige, bewusst eingeschränkte Ausnahme ist die Spam-Abwehr ohne KI-Kennung (Abschnitt 6), die der Betreiber ausdrücklich auf eigenes Risiko einschaltet.
+1. **Transparenz.** Die KI stellt sich in jedem Gespräch als KI vor und bestreitet es auch auf Nachfrage nicht. Einzige, bewusst eingeschränkte Ausnahme ist die Spam-Abwehr ohne KI-Kennung (Abschnitt 6), die der Betreiber ausdrücklich auf eigenes Risiko einschaltet. (Bei Anrufen vom Dashboard an deine eigene Nummer lässt die KI die Erklärung weg, weil du es ohnehin weißt.)
 2. **Ein Mensch bleibt verantwortlich.** Jeder ausgehende Anruf wird von dir ausgelöst und bestätigt (Web-UI-Dialog) oder von einem KI-Agenten, für den du die MCP-Schnittstelle bewusst eingeschaltet hast. Auch dann bist du der Anrufer: Der Agent ist dein Werkzeug, nicht dein Stellvertreter, und was er auslöst, verantwortest du (Abschnitt 9). Die KI am Telefon entscheidet nie selbst, wen sie anruft.
 3. **Datensparsamkeit.** Es wird kein Audio gespeichert. Transkripte werden nur so lange aufbewahrt, wie sie gebraucht werden („Protokolle aufbewahren“ unter Einstellungen › Technik). Hintergrundwissen für die KI enthält nur, was sie für den Auftrag braucht.
 4. **Keine Entscheidungen mit Tragweite.** Die KI schließt keine Verträge, zahlt nichts, bestellt nichts, gibt keine sensiblen Daten (Gesundheit, Zahlung, Ausweis, Passwörter) weiter und nimmt keine an. Was der Auftrag nicht abdeckt, nimmt sie als Frage mit.
 5. **Keine Täuschung über Identität.** Die KI gibt sich nicht als eine reale Person aus. „Im Auftrag von“ ist dein Name oder der Name deiner Firma, nicht der eines Dritten.
-6. **Lokal und privat.** Die Web-UI ist nur auf dem eigenen Rechner erreichbar. Gesprächsinhalte gehen nur an den Anbieter der aktiven KI-Verbindung (OpenAI oder Google Gemini). Zugangsdaten bleiben im Datenordner. Weder Rufnummern noch Schlüssel gehören in Chats, Tickets oder Screenshots.
+6. **Lokal und privat.** Die Web-UI ist nur auf dem eigenen Rechner erreichbar. Im Gespräch gehen die Inhalte nur an den Anbieter der aktiven KI-Verbindung (OpenAI oder Google Gemini); Benachrichtigungs-Mails und KI-Agenten behandeln die rechtlichen Hinweise, Abschnitt 3. Zugangsdaten bleiben im Datenordner. Weder Rufnummern noch Schlüssel gehören in Chats, Tickets oder Screenshots.
 
 ---
 

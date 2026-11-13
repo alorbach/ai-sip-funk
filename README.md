@@ -26,7 +26,7 @@ SIPFunk is a local AI phone assistant. It registers with a FRITZ!Box like an IP 
 - **Complaint draft** for the German Federal Network Agency (Bundesnetzagentur) from the log of a spam call.
 - **Contacts and call logs.** Contacts with notes as background knowledge, importable with their phone numbers from Google, Microsoft (Outlook, Microsoft 365) or a vCard/CSV file (e.g. Apple iCloud); for Google and Microsoft one click on "Verbinden" (connect) is enough with the built-in app registration, otherwise you register your own app once (user guide, section 11.1); per call a transcript, summary, result and cost estimate. No audio is stored, logs are deleted after a configurable period.
 - **Simulator.** `npm run sim` plays through conversations in text mode without calling anyone (OpenAI only).
-- **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result; when a decision is missing, the AI on the phone asks the agent back. Off by default; in the web UI you set whom an agent may call, whether and when you confirm a call before it is dialled (always, only for numbers without a contact, never), and the limits.
+- **MCP interface for AI agents.** An agent such as Codex, Claude Code or Claude Desktop can make a call for you: it starts the call with a task, reads along what is said, gives the AI on the phone directions, and fetches the result; when a decision is missing, the AI on the phone asks the agent back. Off by default; in the web UI you set whom an agent may call, whether and when you confirm a call before it is dialled (always except contacts you approve one by one, only for numbers without a contact, never), and the limits.
 
 ## Requirements
 
@@ -110,7 +110,7 @@ A note from the author: SIPFunk is a good use for existing OpenAI API credit, fo
 - Google Gemini has so far been tried on only a few real phone calls (first calls on 11 November 2026); OpenAI remains the tested default. Check the logs of your first calls with Gemini carefully.
 - With Gemini a call lasts nine minutes at most, the speaking rate cannot be set, a late call plan and the switch into spam defence reach the AI only as follow-up instructions (weaker than with OpenAI), finishing a sentence after a mere "mhm" works less often, and the simulator is not available. Details in the [user guide, section 6.2](doc/user-guide.md#62-ai-connections).
 - One call at a time; during a call the extension is busy.
-- German: web UI, AI instructions and dialling rules are built for Germany. Emergency, special, premium-rate and international numbers are blocked.
+- German: the calls (AI instructions) and the dialling rules are built for Germany; the web UI is available in German and English. Emergency, special, premium-rate and international numbers and call-by-call prefixes are blocked.
 - No touch tones (DTMF), hence no phone menus; no taking over the call by microphone.
 - SIP over UDP without encryption, intended for your own LAN.
 - The web UI is bound to `127.0.0.1` only and has no login. Do not expose it to a network.
@@ -146,7 +146,7 @@ npm run typecheck
 npm test
 ```
 
-The tests run offline against a simulated phone system on localhost; they call no one and need no API key.
+The tests run offline against a simulated phone system on localhost; they call no one and need no API key. Further commands for development are listed in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
