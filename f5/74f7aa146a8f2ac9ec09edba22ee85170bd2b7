@@ -1,0 +1,61 @@
+src/main.ts
+  s_a8e29f4c6e0134::t_0e8a27222354be 35,1006-1007,1011,1015,1026
+doc/legal.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 67
+doc/user-guide.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 522-524
+doc/user-guide.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 524-526
+doc/legal.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 65
+CONTRIBUTING.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 38
+public/i18n-en.js
+  s_a8e29f4c6e0134::t_92d8037bfbf07c 141-144
+README.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 27
+doc/test-checklist.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 123
+.github/workflows/release.yml
+  s_a8e29f4c6e0134::t_58d5424b84f558 90-104
+test/contactImport.test.ts
+  s_a8e29f4c6e0134::t_40364dffe45887 10,175,779-806
+  s_a8e29f4c6e0134::t_1fa9216044edfe 355
+  s_a8e29f4c6e0134::t_7d1afe49739aac 807
+doc/test-checklist.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 123
+.gitignore
+  s_a8e29f4c6e0134::t_58d5424b84f558 12
+package.json
+  s_a8e29f4c6e0134::t_58d5424b84f558 82
+CHANGELOG.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 9
+src/contactSources.ts
+  s_a8e29f4c6e0134::t_235374a5c7827f 5,11-43,83,86-87
+README.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 25
+CONTRIBUTING.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 38
+CHANGELOG.de.md
+  s_a8e29f4c6e0134::t_57e3dc832a6f3a 9
+public/index.html
+  s_a8e29f4c6e0134::t_f704b1d12819ad 1392-1394,1396,1449-1450,1453-1454
+  s_a8e29f4c6e0134::t_92d8037bfbf07c 920,930,1382-1383,1386,1446-1447,1451-1452,1455-1458
+  s_a8e29f4c6e0134::t_8a42b81f4e591a 1434,1443
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f574f7aa146a8f2ac9ec09edba22ee85170bd2b7",
+  "prompts": {},
+  "sessions": {
+    "s_a8e29f4c6e0134": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8205f9aa-6fc5-4df9-9081-c1aac2da091f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
