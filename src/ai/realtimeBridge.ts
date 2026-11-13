@@ -10,7 +10,7 @@ import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isEcho, isFarewell } from './farewell.js';
 import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, OUTCOME_PREFIX, type CallJudge } from './judge.js';
 import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { AGENT_END_NOTE, AGENT_END_WITHDRAWN, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { ASK_INSTEAD, dodgesAgentQuestion, AGENT_END_NOTE, AGENT_END_WITHDRAWN, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
@@ -82,6 +82,8 @@ export interface RealtimeBridgeOptions {
   onFlagSpam?: (reason: string) => string;
   /** Anruf eines KI-Agenten (MCP): Die KI darf per Tool ask_principal beim Agenten nachfragen; hier kommt die Frage an */
   onAskAgent?: (question: string) => void;
+  /** Name, unter dem sich der Agent meldet (z. B. „Codex“): Fragen nach ihm sind Fragen zum Anruf */
+  agentName?: string;
   onError: (message: string) => void;
   /** Gespräch ist angenommen (z. B. Start des Spam-Zeitlimits) */
   onConnected?: () => void;
@@ -122,6 +124,9 @@ const MUTED_AFTER_REJECT = 'nach abgelehntem end_call';
 const INTERRUPT_NOTE_MS = 1000;
 const CAUSE_AGENT_SAY = 'Regieanweisung des Agenten';
 const CAUSE_ASK_ANSWER = 'Antwort auf die Rückfrage';
+const CAUSE_ASK_NUDGE = 'Rückfrage nachholen';
+/** So oft je Gespräch wird die KI daran erinnert, beim Agenten nachzufragen, statt „weiß ich nicht" zu sagen */
+const ASK_NUDGE_MAX = 2;
 // Stillstandswächter: höchstens so oft hintereinander anstoßen, ohne dass das Gegenüber etwas sagt
 const STALL_MAX_NUDGES = 2;
 /** Unterbrechung prüfen statt sofort verwerfen: erst ab so viel Rest-Audio lohnt das Weitersprechen */
@@ -167,7 +172,7 @@ const SOUND_REACTION =
 /** Ab diesem Pegel (Effektivwert, 16 Bit) gilt das Audio des Gegenübers als hörbarer Laut; Leitungsrauschen liegt weit darunter */
 const SOUND_RMS = 700;
 /** So lange nach dem letzten lauten Stück gilt das Gegenüber noch als „redet gerade" */
-const HEARD_RECENT_MS = 1000;
+const HEARD_RECENT_MS = 2500;
 /** Ablehnung der Angabe, dass die KI auf Tool-Ergebnisse wartet (kennen nicht alle Modelle) */
 const TOOL_BEHAVIOR_REJECTED = /BLOCKING function calls are not supported/i;
 /** So viel Laut muss zusammenkommen, damit es mehr ist als ein Knacken */
@@ -303,6 +308,10 @@ export class RealtimeBridge implements AudioHandler {
   /** Text und Kennung der zuletzt fertig gemeldeten Antwort der KI */
   private lastAiText = '';
   private lastAiItem = '';
+  /** Letzte Äußerung des Gegenübers, und die, zu der die Rückfrage an den Agenten schon gestellt oder angemahnt ist */
+  private lastPartnerText = '';
+  private askHandledFor = '';
+  private askNudges = 0;
   // Vorstellung als KI: geprüft an der Mitschrift der ersten Antwort
   private introChecked = false;
   private introItem = '';
@@ -917,6 +926,23 @@ export class RealtimeBridge implements AudioHandler {
       } else this.introItem = itemId;
     }
     this.opts.onTranscript({ speaker: 'ki', text, final: true, itemId });
+    this.checkDodge(text);
+  }
+
+  /**
+   * Agenten-Anruf: Die KI sagt auf eine Frage zum Agenten oder zum Anruf „das weiß ich nicht", obwohl sie nachfragen
+   * könnte (die Regel dazu befolgt das Sprachmodell nicht zuverlässig). Dann holt sie die Rückfrage gleich im Anschluss nach.
+   */
+  private checkDodge(text: string): void {
+    if (!this.opts.onAskAgent || this.ask || this.askNudges >= ASK_NUDGE_MAX) return;
+    if (this.endRequested !== undefined || this.goodbye !== 'none') return;
+    const question = this.lastPartnerText;
+    if (!question || question === this.askHandledFor || !dodgesAgentQuestion(text, question, this.opts.agentName)) return;
+    this.askHandledFor = question;
+    this.askNudges++;
+    log.info('Realtime: KI weicht einer Frage zum Agenten aus – Rückfrage wird nachgeholt');
+    this.live.note(ASK_INSTEAD);
+    this.requestRespond(CAUSE_ASK_NUDGE);
   }
 
   private onPartnerText(itemId: string | undefined, text: string): void {
@@ -928,6 +954,7 @@ export class RealtimeBridge implements AudioHandler {
     }
     if (text) {
       this.partnerTurns++;
+      this.lastPartnerText = text;
       this.opts.onTranscript({ speaker: 'partner', text, final: true, itemId: String(itemId) });
       // Das Gegenüber hat doch etwas gesagt (die Mitschrift kam ohne „Sprache beginnt“, z. B. als Nachtrag):
       // Was die KI darauf antwortet, ist kein Nachschub nach dem abgelehnten end_call
@@ -1362,6 +1389,7 @@ export class RealtimeBridge implements AudioHandler {
         this.live.toolOutput(this.ask.callId, name, ASK_REPLACED);
       }
       log.info('Realtime: ask_principal – Rückfrage an den Agenten, warte auf die Antwort');
+      this.askHandledFor = this.lastPartnerText;
       clearTimeout(this.stallTimer);
       this.stallTimer = undefined;
       // Bis zur Antwort des Agenten wird kein Audio erwartet und keine weitere Antwort angefordert

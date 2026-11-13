@@ -874,3 +874,112 @@ test('Gemini: Nachzügler nach end_call sind ein Nachtrag, geteilte und fremde P
   assert.deepEqual(h.ended, ['KI hat das Gespräch beendet'], 'der Nachtrag hält das Auflegen nicht auf');
   h.bridge.close();
 });
+
+// ---- Agenten-Anruf: Rückfrage an den Agenten, wenn das Gegenüber etwas über ihn wissen will ----
+
+function agentCall(t: TestContext) {
+  const asked: string[] = [];
+  const h = setup(t, { onAskAgent: (q) => asked.push(q), agentName: 'Codex' });
+  h.tick(1);
+  h.start();
+  h.say(400, 'Hi Max, Lara hier, dein KI-Assistent. Wie spät ist es?');
+  h.drain();
+  const heard = (text: string) => {
+    h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+    h.server({ serverContent: { inputTranscription: { text } } });
+    h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+    h.tick(700);
+  };
+  const nudges = () => h.regie().filter((r) => /Du hast dem Gegenüber eben gesagt, dass du etwas über den Agenten/.test(r.text)).length;
+  const answers = () => h.ws.sent.filter((m) => m.toolResponse).map((m) => JSON.stringify(m.toolResponse));
+  return { ...h, asked, heard, nudges, answers };
+}
+
+test('Agenten-Anruf: Weicht die KI einer Frage zum Agenten aus, holt sie die Rückfrage nach; die Antwort des Agenten kommt an', (t) => {
+  const h = agentCall(t);
+  h.heard('Und was hat Codex vorher gemacht?');
+  h.say(1500, 'Das kann ich dir leider nicht genau sagen, dazu liegen mir keine weiteren Informationen vor.');
+  assert.equal(h.nudges(), 1);
+  assert.equal(h.regie().at(-1)!.go, true, 'die KI spricht gleich im Anschluss weiter');
+  // Die KI kündigt die Rückfrage an und stellt sie
+  h.audio(800);
+  h.server({ serverContent: { outputTranscription: { text: 'Ich frage aber gern kurz nach, einen Moment.' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'a1', name: 'ask_principal', args: { frage: 'Was hat Codex vor dem Anruf gemacht?' } }] } });
+  assert.deepEqual(h.asked, ['Was hat Codex vor dem Anruf gemacht?']);
+  assert.equal(h.answers().length, 0, 'die KI wartet auf den Agenten');
+  assert.equal(h.bridge.agentSay('Er hat einen Prompt für die Analyse erstellt.'), 'answered');
+  assert.equal(h.answers().length, 1);
+  assert.match(h.answers()[0], /Antwort deines Auftraggebers: Er hat einen Prompt für die Analyse erstellt\./);
+  // Sie gibt die Antwort weiter; dass sie darüber hinaus nichts weiß, löst keine zweite Rückfrage zur selben Frage aus
+  h.say(2000, 'Codex hat davor einen Prompt für die Analyse erstellt. Mehr weiß ich dazu nicht.');
+  assert.equal(h.nudges(), 1);
+  assert.deepEqual(h.texts.filter((x) => /^ki:/.test(x)).slice(-3), ['ki: Das kann ich dir leider nicht genau sagen, dazu liegen mir keine weiteren Informationen vor.', 'ki: Ich frage aber gern kurz nach, einen Moment.', 'ki: Codex hat davor einen Prompt für die Analyse erstellt. Mehr weiß ich dazu nicht.']);
+  h.bridge.close();
+});
+
+test('Agenten-Anruf: Fragt die KI von selbst nach und der Agent antwortet nicht, macht sie ohne weiter – ohne zweite Rückfrage', (t) => {
+  const h = agentCall(t);
+  h.heard('Woran arbeitet der Agent gerade?');
+  h.audio(800);
+  h.server({ serverContent: { outputTranscription: { text: 'Einen Moment bitte, ich frage kurz nach.' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'a1', name: 'ask_principal', args: { frage: 'Woran arbeitest du gerade?' } }] } });
+  assert.equal(h.asked.length, 1);
+  h.tick(24_999);
+  assert.equal(h.answers().length, 0);
+  h.tick(1);
+  assert.equal(h.answers().length, 1);
+  assert.match(h.answers()[0], /nicht rechtzeitig geantwortet/);
+  assert.ok(h.texts.includes('system: Rückfrage an den Agenten blieb ohne Antwort'));
+  h.say(2000, 'Das kann ich dir gerade leider nicht sagen, ich habe keine Antwort bekommen. Dein Agent meldet sich dazu.');
+  assert.equal(h.nudges(), 0);
+  assert.equal(h.asked.length, 1);
+  h.bridge.close();
+});
+
+test('Agenten-Anruf: Gewöhnliche Fragen bleiben ohne Rückfrage; ohne Agenten gibt es die Sicherung nicht', (t) => {
+  const h = agentCall(t);
+  h.heard('Wie wird denn das Wetter morgen?');
+  h.say(1200, 'Das weiß ich leider nicht.');
+  h.heard('Und wer hat den Anruf gestartet?');
+  h.say(1200, 'Ein KI-Agent namens Codex hat ihn über SIPFunk gestartet.');
+  h.heard('Alles klar, danke.');
+  h.say(800, 'Gern.');
+  assert.equal(h.nudges(), 0);
+  assert.equal(h.asked.length, 0);
+  h.bridge.close();
+  t.mock.timers.reset();
+  const plain = setup(t);
+  plain.tick(1);
+  plain.start();
+  plain.say(400, 'Guten Tag.');
+  plain.drain();
+  plain.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  plain.server({ serverContent: { inputTranscription: { text: 'Wer hat den Anruf gestartet?' } } });
+  plain.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  plain.tick(700);
+  plain.say(1200, 'Das weiß ich leider nicht.');
+  assert.equal(plain.regie().some((r) => /ask_principal/.test(r.text)), false);
+  plain.bridge.close();
+});
+
+test('Agenten-Anruf: Die Sicherung greift nicht während des Beendens und höchstens zweimal je Gespräch', (t) => {
+  const h = agentCall(t);
+  for (const q of ['Was hat Codex vorher gemacht?', 'Und woran arbeitet der Agent sonst?', 'Und was macht Codex danach?']) {
+    h.heard(q);
+    h.say(1200, 'Dazu habe ich keine Informationen.');
+    h.drain();
+  }
+  assert.equal(h.nudges(), 2);
+  h.bridge.close();
+});
+
+test('Ausweichen bei Fragen zum Agenten: „weiß ich nicht" zählt nur, wenn die Frage den Agenten, den Anruf oder den Auftrag betraf', async () => {
+  const { dodgesAgentQuestion } = await import('../src/ai/agentCall.js');
+  const q = 'Cool, und was hat Codex vorher gemacht?';
+  assert.equal(dodgesAgentQuestion('Das kann ich dir leider nicht genau sagen, da mir dazu keine weiteren Informationen vorliegen.', q, 'Codex'), true);
+  assert.equal(dodgesAgentQuestion('Darüber liegen mir keine Informationen vor.', 'Was hat er davor gemacht, der Agent?'), true);
+  assert.equal(dodgesAgentQuestion('Mehr kann ich dir dazu gar nicht sagen.', 'Warum wurde ich angerufen?'), true);
+  assert.equal(dodgesAgentQuestion('Das weiß ich leider nicht.', 'Wie wird das Wetter?', 'Codex'), false);
+  assert.equal(dodgesAgentQuestion('Codex hat den Anruf gestartet.', q, 'Codex'), false);
+  assert.equal(dodgesAgentQuestion('Das weiß ich nicht.', q), false, 'ohne bekannten Agentennamen ist „Codex" kein Hinweis');
+});

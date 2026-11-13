@@ -416,7 +416,9 @@ test('Systemanweisung: Agenten-Anrufe bekommen die Regeln zu Regieanweisung, Rü
   assert.match(agent, /Du verschweigst nie, dass du eine KI bist/);
   assert.match(agent, /Verschweige nie, dass du eine KI bist, auch nicht auf Nachfrage/); // die allgemeine Grundregel bleibt
   // Direkte Fragen des Gegenübers zum Anruf gehen an den Agenten; wer angerufen hat, weiß die KI selbst
-  assert.match(agent, /direkte Frage zu diesem Anruf oder zum Auftrag/);
+  assert.match(agent, /Fragt das Gegenüber etwas über den Agenten, diesen Anruf oder den Auftrag, das du aus Auftrag und Hintergrundwissen nicht beantworten kannst/);
+  assert.match(agent, /sag sofort „Einen Moment bitte, ich frage kurz nach" und rufe ask_principal mit der Frage auf, ohne dass man dich darum bitten muss/);
+  assert.match(agent, /Kommt keine Antwort oder weiß es der Agent selbst nicht, sagst du das offen/);
   assert.match(agent, /welcher genau, weißt du nicht/);
   const named = buildInstructions({ ...base, agent: true, agentName: agentLabel('codex-mcp-client/1.2') });
   assert.match(named, /Der Agent meldet sich als „Codex“/);

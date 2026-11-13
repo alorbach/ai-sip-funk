@@ -391,6 +391,7 @@ ${mcp ? str('context') : input.context}` : input.task,
         : undefined,
     // Agenten-Anruf: Die KI darf beim Agenten nachfragen (Tool ask_principal)
     onAskAgent: mcp ? (question) => gateway.question(question) : undefined,
+    agentName: mcp ? agentLabel(str('agentClient')) : undefined,
     onConnected: scam ? () => armSpamLimit(loadSettings()) : undefined,
     onError: (message) => {
       bus.emit('message', { type: 'aiError', message });
