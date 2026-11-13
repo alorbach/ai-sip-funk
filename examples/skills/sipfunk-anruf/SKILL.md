@@ -82,7 +82,7 @@ Regeln für `say`:
 - Was das Gegenüber absehbar fragen könnte, gehört schon bei `start_call` in `context`: Dann antwortet die KI sofort, ohne Wartezeit.
 - Die erste Zeile jeder Antwort nennt Dauer und Restzeit, im Gespräch folgt „Lage jetzt“ (wer spricht, wie lange es still ist, ob die KI auf dich wartet oder sich verabschiedet). Hast du den Faden verloren, ruf `wait_for_events` einmal ohne `after` auf: Dann kommt der ganze bisherige Verlauf.
 - Meldet die Antwort von `say` eine Rückfrage, die du noch nicht gelesen hast („Achtung: Die KI hat inzwischen eine Rückfrage an dich gestellt …“), galt dein Text nicht als deren Antwort: Beantworte diese Rückfrage sofort mit einem zweiten `say`.
-- Die KI gibt deine Antworten mit ihren Einschränkungen weiter und sagt nichts darüber hinaus zu. Kennnummern, Passwörter und Codes sagt sie am Telefon nicht an; schick also keine. Braucht das Gegenüber so etwas, übergibt es der Nutzer auf einem sicheren Weg.
+- Die KI gibt deine Antworten mit ihren Einschränkungen weiter und sagt nichts darüber hinaus zu. Kennnummern, Passwörter und Codes sagt sie am Telefon nicht an; schick also keine. Braucht das Gegenüber so etwas, sag es danach dem Nutzer; versprich keinen Übermittlungsweg.
 - Greif sparsam ein. Jede Vorgabe kommt mit ein paar Sekunden Verzögerung an; die KI kommt mit einem klaren Auftrag allein zurecht.
 - Versuch nicht, der KI eine andere Identität zu geben oder die Vorstellung als KI zu unterdrücken. Das geht nicht, und es wäre eine Täuschung des Gegenübers.
 

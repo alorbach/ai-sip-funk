@@ -571,7 +571,7 @@ Neben den Zeilen der KI und des Gegenübers enthält das Transkript klein gesetz
 | „Das Gegenüber war zu hören, aber ohne Worte …“ | ein Lachen oder Laut ohne Worte; die KI geht darauf ein |
 | „Die KI hat sich in der Begrüßung nicht als KI vorgestellt …“ | die Prüfung der KI-Kennung; die KI holt die Vorstellung nach |
 | „Gegenüber hat noch etwas gesagt – Gespräch geht weiter“ | nach der Verabschiedung kam vom Gegenüber noch ein Anliegen |
-| „Rückfrage an den Agenten: …“, „… blieb ohne Antwort“, „Vorgabe des Agenten während des Beendens …“ | nur bei Agenten-Anrufen (Kapitel 13) |
+| „Rückfrage an den Agenten: …“, „… blieb ohne Antwort“, „Vorgabe des Agenten während des Beendens …“, „Vorgabe des Agenten noch nicht gesprochen …“, „Eine Vorgabe des Agenten wurde nicht mehr gesprochen“ | nur bei Agenten-Anrufen (Kapitel 13) |
 | „Spam-Abwehr: …“ | die KI ist in die Spam-Abwehr gewechselt (Kapitel 10) |
 
 Automatische Löschung nach der eingestellten Frist (Standard 7 Tage, „Einstellungen › Technik“); von Hand auf der Seite „Anrufe“.

@@ -573,7 +573,7 @@ Besides the lines of the AI and the other party, the transcript contains notes f
 | "Das Gegenüber war zu hören, aber ohne Worte …" | a laugh or a sound without words; the AI responds to it |
 | "Die KI hat sich in der Begrüßung nicht als KI vorgestellt …" | the check of the AI disclosure; the AI makes up for it |
 | "Gegenüber hat noch etwas gesagt – Gespräch geht weiter" | after the goodbye the other party raised something new |
-| "Rückfrage an den Agenten: …", "… blieb ohne Antwort", "Vorgabe des Agenten während des Beendens …" | agent calls only (chapter 13) |
+| "Rückfrage an den Agenten: …", "… blieb ohne Antwort", "Vorgabe des Agenten während des Beendens …", "Vorgabe des Agenten noch nicht gesprochen …", "Eine Vorgabe des Agenten wurde nicht mehr gesprochen" | agent calls only (chapter 13) |
 | "Spam-Abwehr: …" | the AI switched to the spam defence (chapter 10) |
 
 Logs are deleted automatically after the configured period (default 7 days, "Einstellungen › Technik"); manually on the "Anrufe" page.

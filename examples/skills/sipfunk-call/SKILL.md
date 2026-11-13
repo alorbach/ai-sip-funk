@@ -82,7 +82,7 @@ Rules for `say`:
 - Whatever the other party is likely to ask belongs in `context` of `start_call`: then the AI answers at once, without waiting.
 - The first line of every answer states the duration and the time left; during the call "Lage jetzt" follows (who is speaking, how long it has been silent, whether the AI is waiting for you or saying goodbye). If you have lost the thread, call `wait_for_events` once without `after`: you then get the whole course so far.
 - If the answer of `say` reports a question you have not read yet ("Achtung: Die KI hat inzwischen eine Rückfrage an dich gestellt …"), your text was not taken as its answer: answer that question at once with a second `say`.
-- The AI passes on your answers with their caveats and promises nothing beyond them. It does not read out identification numbers, passwords or codes on the phone, so do not send any; if the other party needs one, the user hands it over by a secure route.
+- The AI passes on your answers with their caveats and promises nothing beyond them. It does not read out identification numbers, passwords or codes on the phone, so do not send any. If the other party needs one, tell the user afterwards; do not promise a way of delivery.
 - Step in sparingly. Every direction arrives with a delay of a few seconds; with a clear task the AI manages on its own.
 - Do not try to give the AI another identity or to suppress its introduction as an AI. That does not work, and it would deceive the other party.
 
