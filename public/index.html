@@ -917,7 +917,7 @@
         <h4>Google-Kontakte</h4>
         <div class="hint" id="imp-google-status">nicht eingerichtet</div>
         <div class="actions"><button type="button" class="btn small primary" id="imp-google-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-google-off" style="display:none">Trennen</button></div>
-        <details id="imp-google-setup"><summary>Einrichtung</summary>
+        <details id="imp-google-setup"><summary id="imp-google-sum">Einrichtung</summary>
           <p class="hint" id="imp-google-hint">Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Anleitung im Handbuch.</p>
           <label class="field"><span>Client-ID</span><input id="p-imp-google-id" autocomplete="off" spellcheck="false"></label>
           <label class="field"><span>Client-Secret</span><input id="p-imp-google-secret" type="password" autocomplete="off"></label>
@@ -927,7 +927,7 @@
         <h4>Microsoft (Outlook, Microsoft 365)</h4>
         <div class="hint" id="imp-ms-status">nicht eingerichtet</div>
         <div class="actions"><button type="button" class="btn small primary" id="imp-ms-load">Verbinden</button><button type="button" class="btn small quiet" id="imp-ms-off" style="display:none">Trennen</button></div>
-        <details id="imp-ms-setup"><summary>Einrichtung</summary>
+        <details id="imp-ms-setup"><summary id="imp-ms-sum">Einrichtung</summary>
           <p class="hint">Eigene App-Registrierung in Microsoft Entra (Plattform „Mobile und Desktop“, Weiterleitung <code>http://localhost/oauth/callback</code>, Berechtigung „Contacts.Read“) und die Client-ID hier eintragen. Anleitung im Handbuch.</p>
           <label class="field"><span>Client-ID</span><input id="p-imp-ms-id" autocomplete="off" spellcheck="false"></label>
           <label class="field"><span>Mandant</span><input id="p-imp-ms-tenant" autocomplete="off" spellcheck="false" placeholder="common"></label>
@@ -1379,16 +1379,21 @@ async function refreshImport() {
     const st = await api('/api/contacts/import/status');
     for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
       const s = st[p];
-      $(`imp-${id}-status`).textContent = s.connected ? 'verbunden' : s.configured ? 'eingerichtet, nicht verbunden' : 'nicht eingerichtet';
+      // builtin: die mitgelieferte SIPFunk-App, „Verbinden“ reicht; die Einrichtung ist dann nur für eine eigene App
+      $(`imp-${id}-status`).textContent = s.connected ? 'verbunden' : s.builtin ? 'bereit – Verbinden öffnet die Anmeldung' : s.configured ? 'eigene App eingerichtet, nicht verbunden' : 'nicht eingerichtet';
       $(`imp-${id}-load`).textContent = s.connected ? 'Adressbuch laden' : 'Verbinden';
       $(`imp-${id}-off`).style.display = s.connected ? '' : 'none';
+      $(`imp-${id}-sum`).textContent = s.builtin ? 'Eigene App verwenden (optional)' : 'Einrichtung';
       if (!s.configured) $(`imp-${id}-setup`).open = true;
     }
-    $('imp-google-hint').textContent = `Eigenen OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console anlegen, die People API aktivieren und Client-ID und Secret hier eintragen. Weiterleitung: ${st.redirect.google}. Anleitung im Handbuch.`;
     return st;
   } catch (err) { toast(err.message); }
 }
+// Warten auf die Anmeldung: je Anbieter höchstens eine Abfrage; eine angezeigte Vorschau beendet alle
+const impPolls = {};
+function impStopPolls() { for (const k of Object.keys(impPolls)) { clearInterval(impPolls[k]); delete impPolls[k]; } }
 function impShow(result) {
+  if (result) impStopPolls();
   // Kam die Antwort erst nach dem Schließen des Dialogs, die Vorschau gleich wieder verwerfen
   if (result && !$('import-dialog').open) { api('/api/contacts/import/discard', { token: result.token }).catch(() => {}); return; }
   $('imp-source').hidden = !!result; $('imp-result').hidden = !result;
@@ -1426,7 +1431,7 @@ $('contact-import').onclick = async () => { impShow(null); $('import-dialog').sh
 $('imp-close').onclick = () => $('import-dialog').close();
 // Vorschau im Server verwerfen (nur die eigene; eine neuere aus einem anderen Tab bleibt)
 function impDiscard() { if (impToken) api('/api/contacts/import/discard', { token: impToken }).catch(() => {}); impShow(null); }
-$('import-dialog').onclose = impDiscard;
+$('import-dialog').onclose = () => { impStopPolls(); impDiscard(); };
 $('imp-back').onclick = () => { impDiscard(); refreshImport(); };
 for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
   $(`imp-${id}-load`).onclick = async () => {
@@ -1435,13 +1440,22 @@ for (const [p, id] of [['google', 'google'], ['microsoft', 'ms']]) {
     try {
       await saveKeys(IMPORT_KEYS);
       const st = await refreshImport();
-      if (st?.[p].connected) { impShow(await api('/api/contacts/import/load', { provider: p })); return; }
+      if (st?.[p].connected) { impStopPolls(); impShow(await api('/api/contacts/import/load', { provider: p })); return; }
       const r = await api('/api/contacts/import/login', { provider: p });
       window.open(r.url, '_blank', 'noopener');
-      toast('Anmeldung im neuen Fenster abschließen, danach hier „Adressbuch laden“.', 'warn');
-      // Nach der Anmeldung wechselt der Knopf von selbst auf „Adressbuch laden“
+      toast('Anmeldung im neuen Fenster abschließen – danach lädt SIPFunk das Adressbuch von selbst.', 'warn');
+      // Nach der Anmeldung das Adressbuch von selbst laden, solange der Dialog noch die Quellenauswahl zeigt
       let tries = 0;
-      const poll = setInterval(async () => { const s = await refreshImport(); if (s?.[p].connected || ++tries > 60 || !$('import-dialog').open) clearInterval(poll); }, 3000);
+      clearInterval(impPolls[p]);
+      const poll = impPolls[p] = setInterval(async () => {
+        if (!$('import-dialog').open || ++tries > 60) { clearInterval(poll); return; }
+        const s = await refreshImport();
+        if (!s?.[p].connected || impPolls[p] !== poll) return;
+        clearInterval(poll); delete impPolls[p];
+        if ($('import-dialog').open && $('imp-result').hidden) {
+          try { impShow(await api('/api/contacts/import/load', { provider: p })); } catch (err) { toast(err.message); }
+        }
+      }, 3000);
     } catch (err) { toast(err.message); }
     finally { btn.disabled = false; }
   };
