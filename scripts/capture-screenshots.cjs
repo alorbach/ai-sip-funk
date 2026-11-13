@@ -227,6 +227,28 @@ function writeDemoData(webPort) {
         ['partner', 'Ja, der ist fertig. Abholen geht heute bis achtzehn Uhr, das macht zweihundertvierundachtzig Euro.'],
       ],
     }),
+    // Anruf eines KI-Agenten über MCP (erfunden): Rückfrage an den Agenten und Hinweise der App im Transkript
+    demoRecord(isoAgo(0, 7, 40), 118, '03023125410', {
+      origin: 'mcp',
+      task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.',
+      persona: { persona: 'professionell', voice: 'marin', address: 'sie' },
+      outcome: { result: 'Tisch für vier Personen am Freitag um 19:30 Uhr auf den Namen Mustermann reserviert; ein Kinderstuhl steht bereit.', open: '' },
+      summary: 'Restaurant Sonne: Tisch für vier am Freitag um 19:30 Uhr reserviert (19 Uhr war voll), Kinderstuhl zugesagt.',
+      costUsd: 0.31,
+      entries: [
+        ['partner', 'Restaurant Sonne, guten Abend.'],
+        ['ki', 'Guten Abend, hier ist Alex, der KI-Assistent von Max Mustermann. Ich möchte einen Tisch für vier Personen am Freitag um 19 Uhr reservieren.'],
+        ['partner', 'Um 19 Uhr sind wir leider voll. Um 20 Uhr hätte ich noch etwas.'],
+        ['ki', 'Einen Moment bitte, ich frage kurz nach.'],
+        ['system', 'Rückfrage an den Agenten: 19 Uhr ist voll, angeboten wird 20 Uhr. Passt das, oder soll ich nach einer anderen Zeit fragen?'],
+        ['ki', 'Danke fürs Warten. 20 Uhr ist uns leider zu spät. Ginge auch 19:30 Uhr?'],
+        ['partner', 'Halb acht geht, ja.'],
+        ['ki', 'Wunderbar, dann bitte auf den Namen Mustermann. Wäre auch ein Kinderstuhl möglich?'],
+        ['partner', 'Ja, den stellen wir hin.'],
+        ['ki', 'Vielen Dank, dann bis Freitag. Auf Wiederhören.'],
+        ['system', 'Ergebnis laut KI: Tisch für vier Personen am Freitag um 19:30 Uhr auf den Namen Mustermann reserviert; ein Kinderstuhl steht bereit.'],
+      ],
+    }),
   ];
   for (const r of records) fs.writeFileSync(path.join(dataDir, 'transcripts', `${r.id}.json`), JSON.stringify(r, null, 2) + '\n');
 
@@ -354,6 +376,24 @@ const SHOTS = [
   // Anfrage eines Agenten, wie sie der Bestätigungsdialog zeigt (erfundene Daten, es wird nichts gewählt)
   { name: 'mcp-confirm', hash: 'dashboard', mode: 'easy', height: 760, after: `renderMcp({ pending: { id: 'demo', number: '03023125410', contact: 'Restaurant Sonne', principal: 'Max Mustermann', ownPrincipal: true, context: 'Anlass ist ein Geburtstag. Ein Gast braucht einen Kinderstuhl.', task: 'Reserviere einen Tisch für vier Personen am Freitag um 19 Uhr auf den Namen Mustermann. 19:30 Uhr geht auch, später nicht.' } })` },
   { name: 'setup', hash: 'dashboard', mode: 'easy', height: 760, after: `openSetup(0)` },
+  // Protokoll des Agenten-Anrufs (Zeile mit dem erfundenen Restaurant-Anruf wählen; die Zusammenfassung wird nicht übersetzt)
+  { name: 'calls-agent', hash: 'calls', mode: 'easy', height: 980, after: `(() => { const row = [...document.querySelectorAll('#page-calls .call.row')].find((r) => r.querySelector('.t')?.textContent.includes('Restaurant Sonne')); if (row) row.click(); })()` },
+  // Port wie in der Doku (die Demo läuft auf einem freien Port)
+  { name: 'settings-tech', hash: 'settings', mode: 'advanced', height: 1100, section: 'settings-tech', after: `(() => { $('t-web-port').value = '3865'; })()` },
+  // Import-Dialog mit einer erfundenen Vorschau (es wird nichts geladen und nichts importiert)
+  { name: 'contacts-import', hash: 'contacts', mode: 'easy', height: 820, after: `(async () => {
+    $('contact-import').click();
+    await new Promise((r) => setTimeout(r, 800));
+    const n = (number, label, extra) => ({ number, label, ...extra });
+    impShow({ token: 'demo', counts: { total: 5, new: 3, partial: 1, exists: 1 }, items: [
+      { id: '0', name: 'Anna Beispiel', status: 'new', numbers: [n('0171 3920056', 'mobil'), n('030 23125 721', 'privat')] },
+      { id: '1', name: 'Bäckerei Muster', status: 'new', numbers: [n('030 23125 733', 'geschäftlich')] },
+      { id: '2', name: 'Erika Mustermann', status: 'partial', existing: 'Erika Mustermann', mergeable: true, numbers: [n('0171 3920034', 'mobil', { known: true }), n('030 23125 748', 'privat')] },
+      { id: '3', name: 'Lukas Beispiel', status: 'new', numbers: [n('0171 3920078', 'mobil')] },
+      { id: '4', name: 'Zahnarztpraxis Dr. Beispiel', status: 'exists', existing: 'Zahnarztpraxis Dr. Beispiel', numbers: [n('030 23125 310', 'geschäftlich', { known: true })] },
+    ] });
+    impSel = new Set(['0', '1', '3']); renderImport();
+  })()` },
 ];
 
 async function setSettings(port, values) {
@@ -390,11 +430,20 @@ async function capture(port, lang, shot) {
     await sleep(900);
     // Abschnitt der Einstellungen wählen (es ist immer nur eine Karte zu sehen) und Platz für die feste Kopfzeile lassen
     if (shot.section) await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`);
-    if (shot.after) await win.webContents.executeJavaScript(`Promise.resolve(${shot.after}).then(() => true, () => false)`);
+    if (shot.after) {
+      const r = await win.webContents.executeJavaScript(`Promise.resolve(${shot.after}).then(() => true, (e) => String(e && e.stack || e))`);
+      if (r !== true) process.stderr.write(`[${shot.name}.${lang}] Fehler im Nachlauf: ${r}\n`);
+    }
     await sleep(900);
     // Nachgeladene Inhalte (Modell-Liste, Verbrauch) verschieben die Seite: noch einmal an die Stelle springen
     if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`); await sleep(300); }
     step('nehme auf');
+    // Ein verstecktes Fenster zeichnet Änderungen im Dialog nicht immer neu: vor der Aufnahme neu zeichnen lassen
+    win.setContentSize(1280, shot.height + 1);
+    await sleep(200);
+    win.setContentSize(1280, shot.height);
+    win.webContents.invalidate();
+    await sleep(400);
     const image = await win.webContents.capturePage();
     const file = path.join(outDir, `${shot.name}.${lang}.png`);
     fs.writeFileSync(file, image.toPNG());

@@ -4,7 +4,7 @@ Deutsch: [user-guide.de.md](user-guide.de.md)
 
 The web UI is German. This guide quotes labels and buttons as they appear on screen and adds a translation in parentheses on first use. Example names, phone numbers and addresses in this guide are made up.
 
-Further documents: [Usage guidelines](guidelines.md) · [Legal aspects](legal.md) · [Architecture](architecture.md) · [Manual test checklist](test-checklist.md).
+Further documents: [Usage guidelines](guidelines.md) · [Legal aspects](legal.md) · [Architecture](architecture.md) · [Manual test checklist](test-checklist.md) · [How an agent call works](mcp-flow.md).
 
 Contents: [1 Overview](#1-what-sipfunk-is) · [2 Requirements](#2-requirements) · [3 FRITZ!Box](#3-setting-up-the-fritzbox) · [4 Installation](#4-installation-and-first-start) · [5 Web UI](#5-the-web-ui-at-a-glance) · [6 Outgoing calls](#6-outgoing-calls) · [7 Answering machine](#7-answering-machine) · [8 Pop-up while ringing](#8-pop-up-while-ringing) · [9 Notifications](#9-notifications-after-an-answered-call) · [10 Spam defence](#10-spam-defence) · [11 Contacts, logs, data](#11-contacts-call-logs-data) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-interface) · [14 Settings](#14-settings-overview) · [15 Cost](#15-cost) · [16 Troubleshooting](#16-troubleshooting) · [17 Glossary](#17-glossary)
 
@@ -27,8 +27,9 @@ Limits: one user, one extension, one call at a time. SIPFunk works with the Open
 
 1. The FRITZ!Box sends the call audio as G.711 (HD at 16 kHz if the box offers it, otherwise 8 kHz) to SIPFunk.
 2. SIPFunk converts it to the PCM format of the provider (OpenAI: 24 kHz in both directions; Gemini: 16 kHz to Google, 24 kHz back) and streams it to the live speech model; the answer comes back as audio and goes to the box in real time.
-3. The AI receives a system instruction (ground rules, style, your task, background knowledge) and up to three tools: `end_call` (end the call and report a result), `transfer_call` during the call back to you (put through), and `flag_spam` when the spam defence is active.
-4. After the call a text model writes a summary and, for answering machine calls, an assessment "important/unimportant".
+3. The AI receives a system instruction (ground rules, style, your task, background knowledge) and up to three tools: `end_call` (end the call and report a result), `transfer_call` during the call back to you (put through), and `flag_spam` when the spam defence is active. In calls started by an AI agent it has `ask_principal` (ask the agent) instead of the last two (chapter 13).
+4. During the call the text model of the same AI connection helps decide at a few points: whether anything from the task is missing before hanging up, whether a word after the goodbye is only a farewell, and as a director in the background (section 6.3).
+5. After the call a text model writes a summary and, for answering machine calls, an assessment "important/unimportant".
 
 More in the [architecture](architecture.md).
 
@@ -136,7 +137,7 @@ The test has passed when registration works, the phone rings, the tone is audibl
 The header is always visible: the four pages on the left, the connection status and the switch "Einfach / Erweitert" (chapter 5.1) on the right; the page you opened last is remembered. As soon as a call is running, the call bar appears below with the phase (dialling, ringing, incoming call, connected), name or number of the other party, duration, codec, "Mithören" (listen in) and "Auflegen" (hang up); a dot pulses on the "Dashboard" tab. While an incoming call is ringing, the buttons from chapter 8 are shown there too.
 
 - **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll").
-- **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you) and "Spam-Abwehr" (spam defence). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
+- **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you), "Spam-Abwehr" (spam defence) and "Von KI-Agent" (by AI agent). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
 - **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence), MCP-Schnittstelle (MCP interface) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
 
@@ -191,7 +192,7 @@ During the call the transcript runs along. You can hang up at any time with **"A
 
 **End of the call.** After saying goodbye the AI listens briefly (default 2 s). If the other party says something of substance, the call continues; a mere "bye" ends it at once.
 
-**Owner number.** If you call yourself (contact flagged "Inhaber" or a number in `OWNER_NUMBERS`), the AI greets you personally, informally and by first name, without the AI explanation. If asked, it still says that it is an AI. On other calls the AI gives this number as the call-back number when asked.
+**Owner number.** If you call yourself (contact flagged "Inhaber" or a number in `OWNER_NUMBERS`), the AI greets you personally, informally and by first name, without the AI explanation. If asked, it still says that it is an AI. Calls an AI agent starts are the exception: there the AI tells you in the greeting that it is your AI assistant (chapter 13). On other calls the AI gives this number as the call-back number when asked.
 
 ---
 
@@ -506,6 +507,8 @@ A contact can have **further numbers** ("Weitere Nummern", separated by commas),
 
 #### Importing contacts
 
+![Import dialog with the preview of a loaded address book: three new entries selected, one partly there, one already there](images/contacts-import.en.png)
+
 "Kontakte importieren" (import contacts) on the "Kontakte" page takes contacts with phone numbers from an address book, so you do not have to type them. Sources:
 
 - **Google Contacts** (People API, read-only),
@@ -556,6 +559,23 @@ In the dialog, "Datei wählen" (choose file; up to 22 MB, save larger exports wi
 ![Calls with transcript, result and summary](images/calls.en.png)
 
 Every AI call that was actually connected is saved in `transcripts/` as JSON and Markdown: time, number, own number dialled, duration, codec, reason for ending, AI provider and model, task, call plan, result according to the AI, transcript (text, no audio), usage, cost estimate, summary, spam defence tag. Calls that were never connected (not answered, busy) produce no log.
+
+![Log of an agent call: tag "Von KI-Agent", the AI's question to the agent and the result according to the AI in the transcript](images/calls-agent.en.png)
+
+Besides the lines of the AI and the other party, the transcript contains notes from SIPFunk in small print. They show what happened in the call apart from the words:
+
+| Note (beginning) | Meaning |
+| --- | --- |
+| "Ergebnis laut KI: …" | the AI wants to end the call and reports its result and open points |
+| "Prüfung vor dem Auflegen: noch offen – …" | the text model found something from the task missing on hanging up; with "– Gespräch geht weiter" the hang-up was taken back (section 6.3) |
+| "Hinweis der Regie an die KI: …" | hint from the text model's director to the AI (section 6.3) |
+| "KI unterbrochen: etwa … s ihrer Antwort … wurden nicht mehr gesprochen" | the other party cut in; the part of the answer named was not heard |
+| "Stille: Seit … s sagt niemand etwas – die KI wurde angestoßen" | the stall watchdog nudged the AI |
+| "Das Gegenüber war zu hören, aber ohne Worte …" | a laugh or a sound without words; the AI responds to it |
+| "Die KI hat sich in der Begrüßung nicht als KI vorgestellt …" | the check of the AI disclosure; the AI makes up for it |
+| "Gegenüber hat noch etwas gesagt – Gespräch geht weiter" | after the goodbye the other party raised something new |
+| "Rückfrage an den Agenten: …", "… blieb ohne Antwort", "Vorgabe des Agenten während des Beendens …" | agent calls only (chapter 13) |
+| "Spam-Abwehr: …" | the AI switched to the spam defence (chapter 10) |
 
 Logs are deleted automatically after the configured period (default 7 days, "Einstellungen › Technik"); manually on the "Anrufe" page.
 
@@ -618,16 +638,18 @@ Through the MCP interface (Model Context Protocol) an AI agent such as Codex, Cl
 
 The interface is **switched off by default**. You switch it on under "Einstellungen › MCP-Schnittstelle" (settings › MCP interface) and decide there what an agent may do.
 
+What happens in an agent call step by step – roles, events, questions, ending, safeguards, with a sequence diagram and an example – is described in [How an agent call works](mcp-flow.md).
+
 ![Settings › MCP interface: switch, permitted targets, confirmation, limits and the configuration to copy](images/settings-mcp.en.png)
 
 ### 13.1 How an agent call works
 
 The agent does not speak on the phone. SIPFunk's voice AI does, over the active AI connection and with the voice set there. It conducts the call by itself according to the task, exactly as in a call from the dashboard. The agent sits next to it:
 
-- It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason) and notes on what is going on: the AI's call plan, interruptions, silence, sounds without words, the check before hanging up and the result according to the AI. Every answer also states the duration, the time left and the situation at the moment of the request (who is speaking, how long it has been silent, whether the AI is waiting for the agent or saying goodbye). So the agent knows the whole conversation at any time.
+- It **reads along**: every finished utterance of the other party and of the AI arrives as an event, together with the state of the call (waiting for confirmation, dialling, ringing, connected, ended with the reason) and notes on what is going on: the AI's call plan, interruptions, silence, sounds without words, the check before hanging up and the result according to the AI. While the call is connected, every answer also states the duration, the time left and the situation at the moment of the request (who is speaking, how long it has been silent, whether the AI is waiting for the agent or saying goodbye). So the agent knows the whole conversation at any time.
 - It **can take back the hang-up**: when a note reports the result according to the AI, the AI is saying goodbye. If the agent thinks something is still missing, an instruction takes back the hang-up as long as the call has not ended. Whether something from the task is missing is checked at the same time by the text model as well (section 6.3), which takes back the hang-up itself if need be; the agent does not have to step in, and the AI does not wait for the agent. An end that the agent itself requested (`end_call`), on the other hand, is never checked by the text model and never taken back by it, not even if the AI had already started saying goodbye on its own; if the other party says something afterwards, the call continues, and the AI's next `end_call` is not checked either. Only the agent's own direction (`say`) takes the end back; after that the AI's next goodbye is checked like any other.
 - It **gives directions**: "Say that 7:30 pm is fine too." The AI words it itself and acts on the direction at the next suitable moment, without talking over anyone.
-- The AI **asks the agent** when it lacks a decision the result depends on. It tells the other party "Einen Moment bitte, ich frage kurz nach" (one moment please, I will just check) and waits up to 25 seconds for the agent's answer. If none comes, it says that you will get back about it and records the point as open.
+- The AI **asks the agent** when it lacks a decision the result depends on, or when the other party asks something about the agent, the call or the task that it cannot answer. It tells the other party "Einen Moment bitte, ich frage kurz nach" (one moment please, I will just check) and waits up to 25 seconds for the agent's answer; meanwhile the line is silent. If none comes, it says that you will get back about it and records the point as open.
 
 Why this way, and not word for word from the agent? An agent needs several seconds for every move (model call, tool call, transport). If every sentence on the phone had to come from it first, there would be a pause after each sentence, and people hang up during such pauses. In guided operation the voice AI answers immediately, and the agent steps in only where something has to be decided. The more precisely the task states the leeway ("7:30 pm is fine too, not later"), the less often it has to ask.
 
@@ -641,7 +663,7 @@ Under "Einstellungen › MCP-Schnittstelle":
 | Wen ein Agent anrufen darf (who an agent may call) | Nur gespeicherte Kontakte (saved contacts only) | "Nur gespeicherte Kontakte": the agent can only call numbers you have saved as a contact. "Kontakte und jede erlaubte Nummer" (contacts and any permitted number): in addition any number the dashboard may dial. Emergency, special, premium-rate and foreign numbers and call-by-call prefixes stay blocked in both cases (chapter 6). |
 | Vor dem Wählen bei mir nachfragen (ask me before dialling) | Immer (always) | "Immer": every call waits for your yes. "Nur bei Nummern ohne Kontakt" (only for numbers without a contact): contacts are called without asking. "Nie" (never): the agent dials immediately. Regardless of this, SIPFunk always asks when the agent states a different principal from the one in your settings. |
 | Höchstens … Anrufe je Stunde / je Tag (at most … calls per hour / per day) | 10 / 30 | Every accepted request counts, including one you declined or one nobody answered. The counter starts again when SIPFunk restarts. |
-| Höchstdauer je Anruf (Minuten) (maximum length per call, minutes) | 10 | After that SIPFunk hangs up. Never longer than the general call time limit (Einstellungen › Technik) and the limit of the AI provider. |
+| Höchstdauer je Anruf (Minuten) (maximum length per call, minutes) | 10 | After that SIPFunk hangs up. Never longer than the general call time limit (Einstellungen › Technik, default 300 s, so 5 minutes unless you raise it) and the limit of the AI provider. |
 | Protokolle, die ein Agent lesen darf (call logs an agent may read; advanced) | Nur Anrufe, die über MCP gestartet wurden (only calls started through MCP) | With "Alle Protokolle" (all call logs) the agent can also read your other calls and those of the answering machine, including the phone numbers that belong to no contact. |
 | Gesprächsplan vor Agenten-Anrufen erstellen (create a call plan before agent calls) | off | Off: the AI calls with the task the agent passes along only. This saves a request to the text model while the phone is ringing, and a limit or outage of the text model does not affect the call. On: the text model splits the task into steps as for your own calls, which guide the AI. Whether anything is still missing on hanging up is checked by the text model independently of this (section 6.3); only when the switch "Textmodell entscheidet im Gespräch mit" is off does the voice AI check the steps itself. The summary after the call is created in both cases. |
 | Agent darf die Namen meiner Kontakte lesen (agent may read the names of my contacts; advanced) | off | When on, `list_contacts` returns the names. An agent never gets phone numbers or notes of contacts; if it names a contact, SIPFunk dials the number without showing it. Without this permission it does not learn a name from the tools the other way round either: if it calls a number that belongs to a contact, the answers of the tools keep to the number, and call logs show only "ein gespeicherter Kontakt" (a saved contact) instead of a name or number. The AI on the phone does know the contact's name, however, and may say it in the call; the agent reads along what is said. In agent calls the AI on the phone therefore does not get the contact's notes as background knowledge either, because the agent reads along what it says; from earlier calls it knows only what the agent itself may read. Whatever the AI needs to know for the call, the agent passes in `context`. |
@@ -792,7 +814,7 @@ Prerequisites: the interface is switched on, "Restaurant Sonne" is a contact, th
    The agent answers at once with `say`: `text: "20 Uhr ist zu spät. Frag nach 19:30 Uhr, sonst nach Samstag um 19 Uhr."`
 6. **Keep reading along.** The AI passes that on, the restaurant offers 7:30 pm, the AI accepts (the task covers that) and gives the name.
 7. **Add a direction** (if needed): `say` with `text: "Frag noch, ob ein Kinderstuhl möglich ist."` The AI asks the question as soon as it is its turn again.
-8. **End.** When everything is done, the AI ends the call by itself. The agent can also trigger this with `end_call`; the AI then says goodbye and hangs up. `wait_for_events` reports `beendet (KI hat das Gespräch beendet)`.
+8. **End.** When everything is done, the AI ends the call by itself. The agent can also trigger this with `end_call`; the AI then says goodbye and hangs up. `wait_for_events` reports `beendet (aufgelegt)`; why SIPFunk hung up is shown by the notes before it ("Ergebnis laut KI: …").
 9. **Result.** `get_call_result` returns the result according to the AI (table for four on Friday at 7:30 pm in the name of Mustermann, a high chair will be ready), the summary and the transcript. The agent reports to you.
 
 An example skill that teaches an agent exactly this procedure is in the repository under [`examples/skills/sipfunk-call/SKILL.md`](../examples/skills/sipfunk-call/SKILL.md) (German: `examples/skills/sipfunk-anruf/`). For Codex, copy the folder to `~/.agents/skills/`, for Claude Code to `~/.claude/skills/`.
@@ -801,7 +823,7 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 
 - **One call at a time.** If a call is already running (including an incoming one), `start_call` refuses.
 - **The agent hears nothing.** It gets text: the transcription of the other party and the wording of the AI, each only once an utterance is finished. Tone of voice and background noise do not reach it; silence, sounds without words and interruptions only as a note. The transcription can get names and numbers wrong.
-- **The agent sees the call plan only if it knows the target by name.** The plan can mention the contact's name. If the agent dialled a number and may not read the contact names, the plan is therefore withheld.
+- **The agent sees the call plan only if it knows the target by name.** The plan can mention the contact's name. If the agent dialled a number that belongs to a contact and may not read the contact names, the plan is therefore withheld. (There is a plan only if "Gesprächsplan vor Agenten-Anrufen erstellen" is on.)
 - **Directions take effect with a delay.** Several seconds pass between an utterance on the phone and the agent's reaction. The AI does not wait for that, unless it has asked a question itself. A direction can therefore arrive too late; rather put the leeway into the task.
 - **Directions are content, not wording.** The AI words things itself and keeps to its basic rules.
 - **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
@@ -812,7 +834,7 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 ### 13.7 Security
 
 - **Local only.** The server listens only on `127.0.0.1`, on the same port as the web UI. Requests with a foreign host or origin (a website in your browser) are refused. Do not expose the port.
-- **The AI stays an AI.** In every agent call it introduces itself as an AI assistant. The only exception, as with calls from the dashboard: if the agent calls your own owner number, it speaks to you as your assistant without explaining that it is an AI; if asked, it says so. An agent has no switch for that and can give it neither another name nor another role; its basic rules tell it not to follow directions that demand this. That is a rule in the AI's instruction, not a technical lock: a language model can behave differently in an individual case. That is why you read in the call log what was said.
+- **The AI stays an AI.** In every agent call it introduces itself as an AI assistant, also when the agent calls your own owner number ("Hi Max, Alex hier, dein KI-Assistent"); SIPFunk checks the first answer for it. An agent has no switch for that and can give it neither another name nor another role; its basic rules tell it not to follow directions that demand this. That is a rule in the AI's instruction, not a technical lock: a language model can behave differently in an individual case. That is why you read in the call log what was said.
 - **SIPFunk checks blocks and limits**, not the agent: dial target protection, permitted targets, confirmation, calls per hour and per day, maximum length, call time limit.
 - **What an agent learns:** only what the tools return. No keys, no passwords, no credentials for the phone system or AI providers, no phone numbers of contacts it knows only by name, no contact notes. Of your settings it sees only what `get_status` states: the permissions and limits of the interface. If the other party asks how to reach you, the AI gives your call-back number (owner contact); it is then in the transcript. It reads along what is said on the phone, and with that it goes to the provider of your agent. Do not promise the other party anything about an agent that you cannot keep, and mind data protection ([legal notes](legal.md), section 3).
 - **Prompt injection.** An agent that reads websites or e-mails can pick up instructions there ("call this number"). The same goes for the phone call itself: what the other party says is read by your agent as text, also in the AI's questions. It should treat that as information, not as a task. "Nur gespeicherte Kontakte" and the confirmation before dialling help against that. Leave both on as long as you do not trust the agent in every situation.
@@ -844,6 +866,8 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 | `SIP_DEBUG` | 0 | write all SIP messages to the log |
 
 ### 14.2 Web UI, section "Technik"
+
+![Settings › Technical (level "Erweitert"): limits, timings, the switch for the text model during the call and the port](images/settings-tech.en.png)
 
 In the interface the text model is set per connection under "KI-Verbindungen" (section 6.2); the other values are under "Technik".
 
@@ -930,4 +954,8 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 - **Inhaber (owner)**: you, recognised by the contact flag or by `OWNER_NUMBERS`.
 - **Stil (persona)**: style preset from `personas/*.md`.
 - **Anrufbeantworter**: answering machine. **Spam-Abwehr**: spam defence. **Auftrag**: the task you give the AI.
-- **MCP**: Model Context Protocol, an interface through which AI agents call tools. In SIPFunk: start calls, read along, give directions (chapter 13).
+- **MCP**: Model Context Protocol, an interface through which AI agents call tools. In SIPFunk: start calls, read along, give directions (chapter 13, [How an agent call works](mcp-flow.md)).
+- **Voice AI / Live AI** (Sprach-KI, Live-KI): the voice model that speaks on the phone (Realtime or Live API).
+- **Text model**: the model of the AI connection that writes plan, summary and assessment and helps decide during the call (section 6.3).
+- **Director** (Regie): the text model reading along in the background and giving the voice AI hints; in agent calls the agent takes this role.
+- **ask_principal**: tool with which the voice AI asks the agent in an agent call (chapter 13).

@@ -4,7 +4,7 @@ English: [user-guide.md](user-guide.md)
 
 Begriffe und Schaltflächen entsprechen der deutschen Web-UI. Beispielnamen, Rufnummern und Adressen in diesem Handbuch sind erfunden.
 
-Weitere Dokumente: [Richtlinien für den Einsatz](guidelines.de.md) · [Rechtliche Aspekte](legal.de.md) · [Architektur](architecture.de.md) · [Manuelle Testliste](test-checklist.de.md).
+Weitere Dokumente: [Richtlinien für den Einsatz](guidelines.de.md) · [Rechtliche Aspekte](legal.de.md) · [Architektur](architecture.de.md) · [Manuelle Testliste](test-checklist.de.md) · [Ablauf eines Agenten-Anrufs](mcp-flow.de.md).
 
 Inhalt: [1 Überblick](#1-was-sipfunk-ist) · [2 Voraussetzungen](#2-voraussetzungen) · [3 FRITZ!Box](#3-fritzbox-einrichten) · [4 Installation](#4-installation-und-erster-start) · [5 Web-UI](#5-die-web-ui-im-überblick) · [6 Ausgehende Anrufe](#6-ausgehende-anrufe) · [7 Anrufbeantworter](#7-anrufbeantworter) · [8 Pop-up beim Klingeln](#8-pop-up-beim-klingeln) · [9 Benachrichtigungen](#9-benachrichtigungen-nach-einem-angenommenen-anruf) · [10 Spam-Abwehr](#10-spam-abwehr) · [11 Kontakte, Protokolle, Daten](#11-kontakte-protokolle-daten) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-schnittstelle) · [14 Einstellungen](#14-einstellungen-im-überblick) · [15 Kosten](#15-kosten) · [16 Fehlersuche](#16-fehlersuche) · [17 Begriffe](#17-begriffe)
 
@@ -27,8 +27,9 @@ Grenzen: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig. SIPFunk arb
 
 1. Die FRITZ!Box schickt das Telefonaudio als G.711 (HD mit 16 kHz, wenn die Box es anbietet, sonst 8 kHz) an SIPFunk.
 2. SIPFunk rechnet es in das PCM-Format des Anbieters um (OpenAI: 24 kHz in beide Richtungen; Gemini: 16 kHz zu Google, 24 kHz zurück) und streamt es an das Live-Sprachmodell; die Antwort kommt als Audio zurück und geht in Echtzeit zur Box.
-3. Die KI bekommt eine Systemanweisung (Grundregeln, Stil, dein Auftrag, Hintergrundwissen) und bis zu drei Werkzeuge: `end_call` (Gespräch beenden und Ergebnis melden), beim Rückruf an dich `transfer_call` (durchstellen), bei aktiver Spam-Abwehr `flag_spam`.
-4. Nach dem Gespräch erstellt ein Textmodell eine Zusammenfassung und, beim Anrufbeantworter, eine Einschätzung „wichtig/unwichtig“.
+3. Die KI bekommt eine Systemanweisung (Grundregeln, Stil, dein Auftrag, Hintergrundwissen) und bis zu drei Werkzeuge: `end_call` (Gespräch beenden und Ergebnis melden), beim Rückruf an dich `transfer_call` (durchstellen), bei aktiver Spam-Abwehr `flag_spam`. Bei Anrufen, die ein KI-Agent gestartet hat, hat sie statt der letzten beiden `ask_principal` (beim Agenten nachfragen, Kapitel 13).
+4. Während des Gesprächs entscheidet das Textmodell derselben KI-Verbindung an einigen Stellen mit: ob vor dem Auflegen etwas aus dem Auftrag fehlt, ob ein Wort nach der Verabschiedung nur ein Abschied ist, und als Regie im Hintergrund (Abschnitt 6.3).
+5. Nach dem Gespräch erstellt ein Textmodell eine Zusammenfassung und, beim Anrufbeantworter, eine Einschätzung „wichtig/unwichtig“.
 
 Mehr dazu in der [Architektur](architecture.de.md).
 
@@ -134,7 +135,7 @@ Erfolgreich ist der Test, wenn die Registrierung klappt, das Telefon klingelt, d
 Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungsstatus und der Schalter „Einfach / Erweitert“ (Kapitel 5.1); die zuletzt geöffnete Seite wird gemerkt. Sobald ein Anruf läuft, erscheint darunter die Gesprächsleiste mit Phase (wählt, klingelt, eingehender Anruf, verbunden), Name oder Nummer des Gegenübers, Dauer, Codec, „Mithören“ und „Auflegen“; außerdem pulsiert ein Punkt am Reiter „Dashboard“. Bei einem klingelnden eingehenden Anruf stehen dort zusätzlich die Knöpfe aus Kapitel 8.
 
 - **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll.
-- **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“ und „Spam-Abwehr“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
+- **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“, „Spam-Abwehr“ und „Von KI-Agent“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
 - **Einstellungen**: die Abschnitte KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, MCP-Schnittstelle und Technik (nur in der Stufe „Erweitert“). Die Abschnittsliste links arbeitet wie Reiter: Rechts steht nur die Karte des gewählten Abschnitts, und die Auswahl wird gemerkt. „Speichern“ (oder Strg+S) unter der Liste speichert weiterhin alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. Ausnahme sind Änderungen an KI-Verbindungen: Sie gelten sofort, ohne „Speichern“ (Abschnitt 6.2). „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Im Abschnitt „Technik“ stehen außerdem zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
 
@@ -189,7 +190,7 @@ Während des Gesprächs läuft das Transkript mit. Du kannst jederzeit **„Aufl
 
 **Ende des Gesprächs.** Nach der Verabschiedung hört die KI kurz nach (Standard 2 s). Sagt das Gegenüber noch etwas Inhaltliches, geht das Gespräch weiter; ein reines „Tschüss“ beendet es sofort.
 
-**Inhabernummer.** Rufst du dich selbst an (Kontakt mit Kennzeichen „Inhaber“ oder Nummer in `OWNER_NUMBERS`), meldet sich die KI persönlich mit Du und Vornamen, ohne KI-Erklärung. Auf Nachfrage sagt sie trotzdem, dass sie eine KI ist. Auf Nachfrage des Gegenübers nennt die KI bei anderen Anrufen diese Nummer als Rückrufnummer.
+**Inhabernummer.** Rufst du dich selbst an (Kontakt mit Kennzeichen „Inhaber“ oder Nummer in `OWNER_NUMBERS`), meldet sich die KI persönlich mit Du und Vornamen, ohne KI-Erklärung. Auf Nachfrage sagt sie trotzdem, dass sie eine KI ist. Ausnahme sind Anrufe, die ein KI-Agent startet: Dort sagt dir die KI in der Begrüßung, dass sie dein KI-Assistent ist (Kapitel 13). Auf Nachfrage des Gegenübers nennt die KI bei anderen Anrufen diese Nummer als Rückrufnummer.
 
 ---
 
@@ -504,6 +505,8 @@ Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma get
 
 #### Kontakte importieren
 
+![Import-Dialog mit der Vorschau eines geladenen Adressbuchs: drei neue Einträge gewählt, einer teilweise, einer schon vorhanden](images/contacts-import.de.png)
+
 „Kontakte importieren“ auf der Seite „Kontakte“ übernimmt Kontakte mit Telefonnummer aus einem Adressbuch, damit du sie nicht abtippen musst. Quellen:
 
 - **Google-Kontakte** (People API, nur lesend),
@@ -554,6 +557,23 @@ Im Dialog „Datei wählen“ (bis 22 MB; größere Exporte ohne Fotos speichern
 ![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
 
 Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, KI-Anbieter und Modell, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
+
+![Protokoll eines Agenten-Anrufs: Markierung „Von KI-Agent“, die Rückfrage der KI an den Agenten und das Ergebnis laut KI im Transkript](images/calls-agent.de.png)
+
+Neben den Zeilen der KI und des Gegenübers enthält das Transkript klein gesetzte Hinweise von SIPFunk. Sie zeigen, was im Gespräch außer den Worten geschah:
+
+| Hinweis (Anfang) | Bedeutung |
+| --- | --- |
+| „Ergebnis laut KI: …“ | die KI will das Gespräch beenden und meldet Ergebnis und offene Punkte |
+| „Prüfung vor dem Auflegen: noch offen – …“ | das Textmodell hat beim Auflegen etwas aus dem Auftrag vermisst; mit „– Gespräch geht weiter“ wurde das Auflegen zurückgenommen (Abschnitt 6.3) |
+| „Hinweis der Regie an die KI: …“ | Hinweis der Regie (Textmodell) an die KI (Abschnitt 6.3) |
+| „KI unterbrochen: etwa … s ihrer Antwort … wurden nicht mehr gesprochen“ | das Gegenüber ist dazwischengekommen; der genannte Teil der Antwort war nicht zu hören |
+| „Stille: Seit … s sagt niemand etwas – die KI wurde angestoßen“ | der Stillstandswächter hat die KI angestoßen |
+| „Das Gegenüber war zu hören, aber ohne Worte …“ | ein Lachen oder Laut ohne Worte; die KI geht darauf ein |
+| „Die KI hat sich in der Begrüßung nicht als KI vorgestellt …“ | die Prüfung der KI-Kennung; die KI holt die Vorstellung nach |
+| „Gegenüber hat noch etwas gesagt – Gespräch geht weiter“ | nach der Verabschiedung kam vom Gegenüber noch ein Anliegen |
+| „Rückfrage an den Agenten: …“, „… blieb ohne Antwort“, „Vorgabe des Agenten während des Beendens …“ | nur bei Agenten-Anrufen (Kapitel 13) |
+| „Spam-Abwehr: …“ | die KI ist in die Spam-Abwehr gewechselt (Kapitel 10) |
 
 Automatische Löschung nach der eingestellten Frist (Standard 7 Tage, „Einstellungen › Technik“); von Hand auf der Seite „Anrufe“.
 
@@ -616,16 +636,18 @@ Bei den Spam-Szenarien bewertet der Richter streng: Jede genannte Angabe, jedes 
 
 Die Schnittstelle ist **standardmäßig ausgeschaltet**. Du schaltest sie unter „Einstellungen › MCP-Schnittstelle“ ein und legst dort fest, was ein Agent darf.
 
+Was bei einem Agenten-Anruf Schritt für Schritt passiert – Rollen, Ereignisse, Rückfragen, Beenden, Schutzgrenzen, mit Ablaufdiagramm und Beispiel –, beschreibt [Ablauf eines Agenten-Anrufs](mcp-flow.de.md).
+
 ![Einstellungen › MCP-Schnittstelle: Schalter, erlaubte Ziele, Bestätigung, Limits und die Konfiguration zum Kopieren](images/settings-mcp.de.png)
 
 ### 13.1 Wie ein Agenten-Anruf abläuft
 
 Am Telefon spricht nicht der Agent, sondern die Sprach-KI von SIPFunk, über die aktive KI-Verbindung und mit der Stimme, die dort eingestellt ist. Sie führt das Gespräch selbstständig nach dem Auftrag, genau wie bei einem Anruf vom Dashboard. Der Agent sitzt daneben:
 
-- Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund) und Hinweise zum Ablauf: der Gesprächsplan der KI, Unterbrechungen, Stille, Laute ohne Worte, die Prüfung vor dem Auflegen und das Ergebnis laut KI. Jede Antwort nennt außerdem Dauer, Restzeit und die Lage im Moment der Abfrage (wer gerade spricht, wie lange es still ist, ob die KI auf ihn wartet oder sich verabschiedet). So kennt er jederzeit das ganze Gespräch.
+- Er **liest mit**: Jede fertige Äußerung des Gegenübers und der KI kommt als Ereignis bei ihm an, dazu der Zustand des Anrufs (wartet auf Bestätigung, wählt, klingelt, verbunden, beendet mit Grund) und Hinweise zum Ablauf: der Gesprächsplan der KI, Unterbrechungen, Stille, Laute ohne Worte, die Prüfung vor dem Auflegen und das Ergebnis laut KI. Solange das Gespräch verbunden ist, nennt jede Antwort außerdem Dauer, Restzeit und die Lage im Moment der Abfrage (wer gerade spricht, wie lange es still ist, ob die KI auf ihn wartet oder sich verabschiedet). So kennt er jederzeit das ganze Gespräch.
 - Er **kann das Auflegen zurücknehmen**: Meldet ein Hinweis das Ergebnis laut KI, verabschiedet sie sich gerade. Fehlt aus Sicht des Agenten noch etwas, nimmt eine Vorgabe das Auflegen zurück, solange nicht aufgelegt ist. Ob vom Auftrag etwas fehlt, prüft zur selben Zeit auch das Textmodell (Abschnitt 6.3) und nimmt das Auflegen notfalls selbst zurück; der Agent muss nicht eingreifen, und die KI wartet nicht auf ihn. Ein Beenden, das der Agent selbst verlangt hat (`end_call`), prüft das Textmodell dagegen nie und nimmt es nie zurück, auch nicht, wenn die KI sich schon von selbst verabschiedet hatte; sagt das Gegenüber danach noch etwas, geht das Gespräch weiter, und auch der nächste end_call der KI wird nicht geprüft. Nur eine eigene Vorgabe (`say`) nimmt das Beenden zurück; danach wird die nächste Verabschiedung der KI wieder wie jede andere geprüft.
 - Er **gibt Vorgaben**: „Sag, dass auch 19:30 Uhr passt.“ Die KI formuliert selbst und setzt die Vorgabe im nächsten passenden Moment um, ohne jemandem ins Wort zu fallen.
-- Die KI **fragt beim Agenten nach**, wenn ihr eine Entscheidung fehlt, von der das Ergebnis abhängt. Sie sagt dem Gegenüber „Einen Moment bitte, ich frage kurz nach“ und wartet bis zu 25 Sekunden auf die Antwort des Agenten. Kommt keine, sagt sie, dass du dich dazu meldest, und hält den Punkt als offen fest.
+- Die KI **fragt beim Agenten nach**, wenn ihr eine Entscheidung fehlt, von der das Ergebnis abhängt, oder wenn das Gegenüber etwas über den Agenten, den Anruf oder den Auftrag fragt, das sie nicht beantworten kann. Sie sagt dem Gegenüber „Einen Moment bitte, ich frage kurz nach“ und wartet bis zu 25 Sekunden auf die Antwort des Agenten; so lange ist es still in der Leitung. Kommt keine, sagt sie, dass du dich dazu meldest, und hält den Punkt als offen fest.
 
 Warum so und nicht Wort für Wort vom Agenten? Ein Agent braucht für jeden Zug mehrere Sekunden (Modellaufruf, Werkzeugaufruf, Übertragung). Müsste jeder Satz am Telefon erst von ihm kommen, entstünden nach jedem Satz Pausen, in denen Menschen auflegen. Im geführten Betrieb antwortet die Sprach-KI sofort, und der Agent greift nur dort ein, wo es etwas zu entscheiden gibt. Je genauer der Auftrag den Spielraum nennt („19:30 Uhr geht auch, später nicht“), desto seltener muss sie nachfragen.
 
@@ -639,7 +661,7 @@ Unter „Einstellungen › MCP-Schnittstelle“:
 | Wen ein Agent anrufen darf | Nur gespeicherte Kontakte | „Nur gespeicherte Kontakte“: Der Agent kann nur Nummern anrufen, die du als Kontakt angelegt hast. „Kontakte und jede erlaubte Nummer“: zusätzlich jede Nummer, die auch das Dashboard wählen darf. Notruf, Sonder-, Mehrwert- und Auslandsnummern und Call-by-Call bleiben in beiden Fällen gesperrt (Kapitel 6). |
 | Vor dem Wählen bei mir nachfragen | Immer | „Immer“: Jeder Anruf wartet auf dein Ja. „Nur bei Nummern ohne Kontakt“: Kontakte werden ohne Rückfrage angerufen. „Nie“: Der Agent wählt sofort. Unabhängig davon fragt SIPFunk immer nach, wenn der Agent einen anderen Auftraggeber angibt als den, der in deinen Einstellungen steht. |
 | Höchstens … Anrufe je Stunde / je Tag | 10 / 30 | Gezählt wird jede angenommene Anfrage, auch eine, die du abgelehnt hast oder bei der niemand abnahm. Der Zähler beginnt mit einem Neustart von SIPFunk neu. |
-| Höchstdauer je Anruf (Minuten) | 10 | Danach legt SIPFunk auf. Nie länger als das allgemeine Gesprächslimit (Einstellungen › Technik) und die Grenze des KI-Anbieters. |
+| Höchstdauer je Anruf (Minuten) | 10 | Danach legt SIPFunk auf. Nie länger als das allgemeine Gesprächslimit (Einstellungen › Technik, Standard 300 s, also 5 Minuten, solange du es nicht erhöhst) und die Grenze des KI-Anbieters. |
 | Protokolle, die ein Agent lesen darf (Erweitert) | Nur Anrufe, die über MCP gestartet wurden | Mit „Alle Protokolle“ kann der Agent auch deine übrigen Gespräche und die des Anrufbeantworters lesen, samt den Rufnummern, die zu keinem Kontakt gehören. |
 | Gesprächsplan vor Agenten-Anrufen erstellen | aus | Aus: Die KI telefoniert nur mit dem Auftrag, den der Agent mitgibt. Das spart eine Anfrage an das Textmodell, während es klingelt, und ein Limit oder Ausfall des Textmodells berührt den Anruf nicht. An: Das Textmodell zerlegt den Auftrag wie bei deinen eigenen Anrufen in Schritte, an denen sich die KI orientiert. Ob beim Auflegen noch etwas fehlt, prüft das Textmodell unabhängig davon (Abschnitt 6.3); nur wenn der Schalter „Textmodell entscheidet im Gespräch mit“ aus ist, prüft die Sprach-KI die Schritte selbst. Die Zusammenfassung nach dem Gespräch entsteht in beiden Fällen. |
 | Agent darf die Namen meiner Kontakte lesen (Erweitert) | aus | Eingeschaltet liefert `list_contacts` die Namen. Rufnummern und Notizen von Kontakten bekommt ein Agent nie; nennt er einen Kontakt beim Namen, wählt SIPFunk die Nummer, ohne sie ihm zu zeigen. Ohne diese Freigabe erfährt er über die Tools auch umgekehrt keinen Namen: Ruft er eine Nummer an, die zu einem Kontakt gehört, bleibt es in den Antworten der Tools bei der Nummer, und in Protokollen steht statt Name oder Nummer nur „ein gespeicherter Kontakt“. Die KI am Telefon kennt den Namen des Kontakts allerdings und kann ihn im Gespräch nennen; was gesagt wird, liest der Agent mit. Bei Agenten-Anrufen bekommt deshalb auch die KI am Telefon die Notizen des Kontakts nicht als Hintergrundwissen, denn was sie sagt, liest der Agent mit; aus früheren Gesprächen kennt sie nur, was der Agent selbst lesen darf. Was die KI für das Gespräch wissen muss, gibt der Agent in `context` mit. |
@@ -790,7 +812,7 @@ Voraussetzung: Die Schnittstelle ist eingeschaltet, „Restaurant Sonne“ ist e
    Der Agent antwortet sofort mit `say`: `text: "20 Uhr ist zu spät. Frag nach 19:30 Uhr, sonst nach Samstag um 19 Uhr."`
 6. **Weiter mitlesen.** Die KI gibt das weiter, das Restaurant bietet 19:30 Uhr an, die KI sagt zu (das deckt der Auftrag ab) und nennt den Namen.
 7. **Vorgabe nachschieben** (wenn nötig): `say` mit `text: "Frag noch, ob ein Kinderstuhl möglich ist."` Die KI stellt die Frage, sobald sie wieder dran ist.
-8. **Ende.** Ist alles erledigt, beendet die KI das Gespräch von selbst. Der Agent kann es auch mit `end_call` anstoßen; dann verabschiedet sie sich und legt auf. `wait_for_events` meldet `beendet (KI hat das Gespräch beendet)`.
+8. **Ende.** Ist alles erledigt, beendet die KI das Gespräch von selbst. Der Agent kann es auch mit `end_call` anstoßen; dann verabschiedet sie sich und legt auf. `wait_for_events` meldet `beendet (aufgelegt)`; warum SIPFunk aufgelegt hat, zeigen die Hinweise davor („Ergebnis laut KI: …“).
 9. **Ergebnis.** `get_call_result` liefert das Ergebnis laut KI („Tisch für vier am Freitag um 19:30 Uhr auf Mustermann reserviert, Kinderstuhl steht bereit“), die Zusammenfassung und das Transkript. Der Agent berichtet dir.
 
 Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Repository unter [`examples/skills/sipfunk-anruf/SKILL.md`](../examples/skills/sipfunk-anruf/SKILL.md) (englisch: `examples/skills/sipfunk-call/`). Für Codex kopierst du den Ordner nach `~/.agents/skills/`, für Claude Code nach `~/.claude/skills/`.
@@ -799,7 +821,7 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 
 - **Ein Gespräch gleichzeitig.** Läuft schon ein Anruf (auch ein eingehender), lehnt `start_call` ab.
 - **Der Agent hört nichts.** Er bekommt Text: die Transkription des Gegenübers und den Wortlaut der KI, jeweils erst, wenn eine Äußerung fertig ist. Tonfall und Hintergrundgeräusche erreichen ihn nicht; Stille, Laute ohne Worte und Unterbrechungen nur als Hinweis. Die Transkription kann Namen und Zahlen falsch wiedergeben.
-- **Den Gesprächsplan sieht der Agent nur, wenn er das Ziel beim Namen kennt.** Der Plan kann den Namen des Kontakts nennen. Hat der Agent eine Rufnummer gewählt und darf er die Kontaktnamen nicht lesen, bleibt der Plan deshalb weg.
+- **Den Gesprächsplan sieht der Agent nur, wenn er das Ziel beim Namen kennt.** Der Plan kann den Namen des Kontakts nennen. Hat der Agent eine Rufnummer gewählt, die zu einem Kontakt gehört, und darf er die Kontaktnamen nicht lesen, bleibt der Plan deshalb weg. (Einen Plan gibt es nur, wenn „Gesprächsplan vor Agenten-Anrufen erstellen“ an ist.)
 - **Vorgaben wirken mit Verzögerung.** Zwischen einer Äußerung am Telefon und der Reaktion des Agenten liegen mehrere Sekunden. Die KI wartet darauf nicht, außer sie hat selbst nachgefragt. Eine Vorgabe kann deshalb zu spät kommen; schreib den Spielraum lieber in den Auftrag.
 - **Vorgaben sind Inhalte, kein Wortlaut.** Die KI formuliert selbst und bleibt bei ihren Grundregeln.
 - **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
@@ -810,7 +832,7 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 ### 13.7 Sicherheit
 
 - **Nur lokal.** Der Server lauscht nur auf `127.0.0.1`, auf demselben Port wie die Web-UI. Anfragen mit fremdem Host oder fremder Herkunft (eine Webseite in deinem Browser) werden abgewiesen. Gib den Port nicht frei.
-- **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor. Einzige Ausnahme, wie bei Anrufen vom Dashboard: Ruft der Agent deine eigene Inhabernummer an, meldet sie sich bei dir als dein Assistent ohne die Erklärung, dass sie eine KI ist; auf Nachfrage sagt sie es. Ein Agent hat dafür keinen Schalter und kann ihr weder einen anderen Namen noch eine andere Rolle geben; ihre Grundregeln sagen ihr, Vorgaben nicht zu befolgen, die das verlangen. Das ist eine Regel in der Anweisung der KI, keine technische Sperre: Ein Sprachmodell kann sich im Einzelfall anders verhalten. Deshalb liest du im Protokoll nach, was gesagt wurde.
+- **Die KI bleibt eine KI.** Sie stellt sich bei jedem Agenten-Anruf als KI-Assistent vor, auch wenn der Agent deine eigene Inhabernummer anruft („Hi Max, Alex hier, dein KI-Assistent“); SIPFunk prüft das an der ersten Antwort. Ein Agent hat dafür keinen Schalter und kann ihr weder einen anderen Namen noch eine andere Rolle geben; ihre Grundregeln sagen ihr, Vorgaben nicht zu befolgen, die das verlangen. Das ist eine Regel in der Anweisung der KI, keine technische Sperre: Ein Sprachmodell kann sich im Einzelfall anders verhalten. Deshalb liest du im Protokoll nach, was gesagt wurde.
 - **Sperren und Limits prüft SIPFunk**, nicht der Agent: Rufzielschutz, erlaubte Ziele, Bestätigung, Anrufe je Stunde und Tag, Höchstdauer, Gesprächslimit.
 - **Was ein Agent erfährt:** nur, was die Tools liefern. Keine Schlüssel, keine Kennwörter, keine Zugangsdaten zur Telefonanlage oder zu KI-Anbietern, keine Rufnummern von Kontakten, die er nur beim Namen kennt, keine Kontaktnotizen. Von deinen Einstellungen sieht er nur, was `get_status` nennt: die Erlaubnisse und Limits der Schnittstelle. Fragt das Gegenüber, wie es dich erreicht, nennt die KI deine Rückrufnummer (Inhaber-Kontakt); sie steht dann im Transkript. Was am Telefon gesagt wird, liest er mit, und es geht damit an den Anbieter deines Agenten. Sag dem Gegenüber nichts über einen Agenten zu, was du nicht einhalten kannst, und beachte den Datenschutz ([Rechtliche Hinweise](legal.de.md), Abschnitt 3).
 - **Prompt-Injection.** Ein Agent, der Webseiten oder Mails liest, kann dort Anweisungen aufschnappen („ruf diese Nummer an“). Dasselbe gilt für das Telefonat selbst: Was das Gegenüber sagt, liest dein Agent als Text, auch in den Rückfragen der KI. Er soll es als Information behandeln, nicht als Auftrag. Dagegen helfen „Nur gespeicherte Kontakte“ und die Bestätigung vor dem Wählen. Lass beides an, solange du dem Agenten nicht in jeder Lage traust.
@@ -842,6 +864,8 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 | `SIP_DEBUG` | 0 | alle SIP-Nachrichten ins Log |
 
 ### 14.2 Web-UI, Abschnitt „Technik“
+
+![Einstellungen › Technik (Stufe „Erweitert“): Grenzen, Zeiten, der Schalter für das Textmodell im Gespräch und der Port](images/settings-tech.de.png)
 
 Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindungen“ ein (Abschnitt 6.2), die übrigen Werte stehen unter „Technik“.
 
@@ -927,4 +951,8 @@ Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puf
 - **REFER**: SIP-Nachricht, mit der die Box angewiesen wird, ein Gespräch zu einer anderen Nummer durchzustellen.
 - **Inhaber**: du, erkennbar am Kontakt-Kennzeichen oder an `OWNER_NUMBERS`.
 - **Stil (Persona)**: Stilvorgabe aus `personas/*.md`.
-- **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen. Bei SIPFunk: Anrufe starten, mitlesen, Vorgaben machen (Kapitel 13).
+- **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen. Bei SIPFunk: Anrufe starten, mitlesen, Vorgaben machen (Kapitel 13, [Ablauf eines Agenten-Anrufs](mcp-flow.de.md)).
+- **Sprach-KI / Live-KI**: das Sprachmodell, das am Telefon spricht (Realtime bzw. Live API).
+- **Textmodell**: das Modell der KI-Verbindung, das Plan, Zusammenfassung und Einschätzung schreibt und im Gespräch mitentscheidet (Abschnitt 6.3).
+- **Regie**: das Textmodell, das im Hintergrund mitliest und der Sprach-KI Hinweise gibt; bei Agenten-Anrufen übernimmt der Agent diese Rolle.
+- **ask_principal**: Werkzeug, mit dem die Sprach-KI bei einem Agenten-Anruf beim Agenten nachfragt (Kapitel 13).
