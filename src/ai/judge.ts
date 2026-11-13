@@ -43,6 +43,12 @@ export interface CallJudge {
    * ausgerichteten Gruß für überbracht, weil die Meldung der KI das behauptete.
    */
   endCall(): Promise<string[]>;
+  /**
+   * Es ist still: Zuletzt hat die KI gesprochen, das Gegenüber sagt nichts. Ist das Gespräch zu Ende?
+   * hangup = beendet (man hat sich verabschiedet): Die App legt auf. end = alles gesagt, die Verabschiedung fehlt noch.
+   * continue = das Gespräch ist mittendrin.
+   */
+  silence?(): Promise<'hangup' | 'end' | 'continue'>;
 }
 
 /**
@@ -119,6 +125,24 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
         choice(['abschied', 'weiter']),
       );
       return r.urteil === 'abschied' ? 'farewell' : 'content';
+    },
+
+    async silence() {
+      const r = await askJson<{ urteil: string }>(
+        ask,
+        'stille',
+        [
+          ...frame(context()),
+          '',
+          'Seit einigen Sekunden sagt niemand etwas; zuletzt hat die KI gesprochen. Entscheide am Ende des Transkripts, wie es weitergeht:',
+          '„auflegen“: Das Gespräch ist beendet – beide haben sich verabschiedet, oder das Gegenüber hat sich verabschiedet und sagt nichts mehr. Dann legt die Telefon-App jetzt auf.',
+          '„beenden“: Es ist alles gesagt und das Gegenüber hat erkennbar nichts mehr, aber eine Verabschiedung fehlt noch. Dann verabschiedet sich die KI und legt auf.',
+          '„weiter“: Das Gespräch ist mittendrin – die KI hat etwas gefragt oder angekündigt, das Gegenüber überlegt, sucht etwas heraus oder hat um einen Moment gebeten.',
+          'Im Zweifel „weiter“: Niemandem soll mitten im Gespräch aufgelegt werden. Antworte als JSON mit urteil „auflegen“, „beenden“ oder „weiter“.',
+        ],
+        choice(['auflegen', 'beenden', 'weiter']),
+      );
+      return r.urteil === 'auflegen' ? 'hangup' : r.urteil === 'beenden' ? 'end' : 'continue';
     },
 
     async endCall() {

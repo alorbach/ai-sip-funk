@@ -160,6 +160,10 @@ const JUDGE_FAREWELL_MS = 4000;
  * brauchte die Prüfung meist drei bis vier, vereinzelt acht).
  */
 const JUDGE_END_MS = 8000;
+/** So lange hat das Textmodell Zeit zu entscheiden, ob das Gespräch bei Stille zu Ende ist */
+const JUDGE_SILENCE_MS = 4000;
+/** Wollte die KI schon beenden (end_call abgelehnt oder zurückgenommen), wird bei Stille früher nachgesehen */
+const SILENCE_AFTER_END_INTENT_MS = 3000;
 /** end_call mit Sprache: Das Gegenüber ist ohnehin erst dran, die Prüfung läuft nebenher */
 const JUDGE_END_LATER_MS = 8000;
 
@@ -286,6 +290,11 @@ export class RealtimeBridge implements AudioHandler {
   // neue Antwort entstehen. Am Telefon blieb die KI sonst stumm (z. B. „einen Moment …" und dann nichts).
   private stallTimer?: NodeJS.Timeout;
   private stallNudges = 0;
+  /** Für die laufende Stille hat das Textmodell schon entschieden (oder wird gerade gefragt) */
+  private silenceAsked = false;
+  private silenceCheck?: NodeJS.Timeout;
+  /** Ergebnis des letzten end_call, der nicht zum Auflegen führte: Die KI wollte beenden */
+  private wantedOutcome?: CallOutcome;
   /** true zwischen speech_started und speech_stopped: Das Gegenüber redet, also herrscht kein Stillstand */
   private partnerSpeaking = false;
   /** Audio einer Antwort, die nach der Verabschiedung entstand, während noch offen ist, ob das Gegenüber gesprochen hat */
@@ -876,6 +885,8 @@ export class RealtimeBridge implements AudioHandler {
 
   private onResponseStarted(id?: string): void {
     this.activeResponse = true;
+    // Eine neue Antwort: Die nächste Stille ist eine neue Lage
+    this.silenceAsked = false;
     // Die KI antwortet auf die Meldung des Gegenübers: Das ist die Begrüßung
     this.openingPending = false;
     clearTimeout(this.openingTimer);
@@ -1046,6 +1057,7 @@ export class RealtimeBridge implements AudioHandler {
     clearTimeout(this.stallTimer);
     this.stallTimer = undefined;
     this.stallNudges = 0;
+    this.silenceAsked = false;
     clearTimeout(this.followUpTimer);
     this.followUpTimer = undefined;
     this.onSpeechAfterGoodbye(itemId);
@@ -1260,6 +1272,9 @@ export class RealtimeBridge implements AudioHandler {
     // Die KI spricht noch (ihr Audio liegt im Puffer): Die Frist zählt erst ab dem Ende der Ausgabe, nextFrame stellt sie dann
     if (this.playing || this.outQueue.length > 0) return;
     if (this.stallTimer) return;
+    const silenceJudge = this.opts.scam ? undefined : this.opts.judge?.silence;
+    // Die KI wollte schon beenden: Dann ist Stille eher das Ende als eine Denkpause – früher nachsehen (lassen)
+    const early = silenceJudge !== undefined && !this.silenceAsked && this.wantedOutcome !== undefined && this.opts.stallMs > SILENCE_AFTER_END_INTENT_MS;
     this.stallTimer = setTimeout(() => {
       this.stallTimer = undefined;
       if (this.closed || this.activeResponse || this.partnerSpeaking || this.transferring || this.ask || this.goodbye !== 'none' || this.endRequested !== undefined) return;
@@ -1272,18 +1287,66 @@ export class RealtimeBridge implements AudioHandler {
         return;
       }
       this.stallDeferred = 0;
-      if (this.stallNudges >= STALL_MAX_NUDGES) {
+      // Ob das Gespräch zu Ende ist oder nur jemand überlegt, entscheidet das Textmodell am Transkript – keine Wortliste.
+      // Ist es zu Ende, legt die App auf: Die Sprach-KI verabschiedet sich oft nur mündlich und ruft end_call nicht (noch einmal) auf
+      if (silenceJudge && !this.silenceAsked) {
+        this.silenceAsked = true;
+        const heard = this.lastPartnerAt;
+        const spoke = this.lastAiFrameAt;
+        log.info('Realtime: Stille – das Textmodell entscheidet, ob das Gespräch zu Ende ist');
+        const check: NodeJS.Timeout = this.askJudge('Stille', silenceJudge.call(this.opts.judge), JUDGE_SILENCE_MS, (t) => this.silenceCheck === t, (verdict) => {
+          this.silenceCheck = undefined;
+          // Inzwischen hat jemand gesprochen oder das Gespräch endet ohnehin: Das Urteil gilt einer Lage, die es nicht mehr gibt
+          if (this.lastPartnerAt !== heard || this.lastAiFrameAt !== spoke || this.activeResponse || this.partnerSpeaking || this.ask || this.transferring || this.goodbye !== 'none' || this.endRequested !== undefined) return;
+          if (verdict === 'hangup') return this.hangUpOnSilence('Stille nach dem Abschied – aufgelegt', 'KI hat das Gespräch beendet');
+          if (verdict === 'end') {
+            log.info('Realtime: Stille – laut Textmodell ist alles gesagt, die KI soll beenden');
+            this.stallNudges++;
+            this.live.respond(END_CALL_AFTER_SILENCE);
+            this.audioExpected(true, 'Stille, alles gesagt');
+            return;
+          }
+          // Mittendrin (oder kein Urteil): nach der früheren Nachschau erst die übliche Frist abwarten, sonst anstoßen wie bisher
+          if (early) this.armStall();
+          else this.nudgeOnStall();
+        });
+        this.silenceCheck = check;
+        return;
+      }
+      this.nudgeOnStall();
+    }, early ? SILENCE_AFTER_END_INTENT_MS : this.opts.stallMs);
+    this.stallTimer.unref();
+  }
+
+  private nudgeOnStall(): void {
+    if (this.stallNudges >= STALL_MAX_NUDGES) {
+      // Zweimal angestoßen und weiter still: Das Gespräch ist tot. Die Leitung bliebe sonst offen, bis jemand etwas sagt oder das Zeitlimit greift
+      if (this.opts.scam) {
         log.warn(`Realtime: Stillstand hält an (${this.stallNudges}x angestoßen, Gegenüber schweigt) – kein weiterer Anstoß`);
         return;
       }
-      this.stallNudges++;
-      this.pendingRespond = false;
-      log.warn(`Realtime: Stillstand – ${this.opts.stallMs} ms nach Ende der KI-Ausgabe weder Sprache des Gegenübers noch neue Antwort, stoße die KI an (${this.stallNudges}/${STALL_MAX_NUDGES})`);
-      if (!this.opts.scam) this.event(`Stille: Seit ${Math.round(this.opts.stallMs / 1000)} s sagt niemand etwas – die KI wurde angestoßen (${this.stallNudges}/${STALL_MAX_NUDGES})`);
-      this.live.respond(this.opts.scam ? SCAM_STALL : STALL_INSTRUCTION);
-      this.audioExpected(true, 'Stillstandswächter');
-    }, this.opts.stallMs);
-    this.stallTimer.unref();
+      this.hangUpOnSilence(`Stille: Nach ${this.stallNudges} Anstößen sagt weiterhin niemand etwas – aufgelegt`, 'Wegen Stille beendet');
+      return;
+    }
+    this.stallNudges++;
+    this.pendingRespond = false;
+    log.warn(`Realtime: Stillstand – ${this.opts.stallMs} ms nach Ende der KI-Ausgabe weder Sprache des Gegenübers noch neue Antwort, stoße die KI an (${this.stallNudges}/${STALL_MAX_NUDGES})`);
+    if (!this.opts.scam) this.event(`Stille: Seit ${Math.round(this.opts.stallMs / 1000)} s sagt niemand etwas – die KI wurde angestoßen (${this.stallNudges}/${STALL_MAX_NUDGES})`);
+    this.live.respond(this.opts.scam ? SCAM_STALL : STALL_INSTRUCTION);
+    this.audioExpected(true, 'Stillstandswächter');
+  }
+
+  /** Die App legt selbst auf, weil das Gespräch zu Ende ist und niemand mehr spricht. Das Ergebnis ist das, was die KI zuletzt melden wollte. */
+  private hangUpOnSilence(note: string, reason: string): void {
+    log.info(`Realtime: ${note}`);
+    this.event(note);
+    const outcome = this.wantedOutcome;
+    this.wantedOutcome = undefined;
+    if (outcome?.result) {
+      this.opts.onOutcome?.(outcome);
+      this.opts.onTranscript({ speaker: 'system', text: `${OUTCOME_PREFIX} ${outcome.result}${outcome.open ? ` · Offen: ${outcome.open}` : ''}`, final: true });
+    }
+    this.opts.onEndCall(reason);
   }
 
   /** true, wenn das Item in der Begrüßungsantwort nicht das erste Audio-Item ist (nur dort wird verworfen). */
@@ -1528,6 +1591,7 @@ export class RealtimeBridge implements AudioHandler {
       }
       log.info(`Realtime: end_call zusammen mit Sprache – abgelehnt, Gegenüber darf erst antworten${check ? `; Selbstprüfung gegen ${this.planSteps.length} Planschritte gleich mitgegeben` : ''}`);
       this.live.toolOutput(callId, name, check ? endCallWhileSpeakingCheck(this.planSteps) : END_CALL_WHILE_SPEAKING);
+      this.wantedOutcome = outcome;
       this.muteAfterReject = true;
       // Kommt nichts vom Gegenüber, darf das Gespräch nicht bis zum Limit hängen. Die Frist läuft erst,
       // wenn der Satz ausgespielt ist – er liegt hier noch fast vollständig im Puffer.
@@ -1604,6 +1668,8 @@ export class RealtimeBridge implements AudioHandler {
       this.ask = undefined;
     }
     const reason = outcome.open ? 'KI hat beendet, Auftrag teilweise offen' : 'KI hat das Gespräch beendet';
+    // (wird das Auflegen zurückgenommen, bleibt bekannt, dass und mit welchem Ergebnis die KI beenden wollte)
+    this.wantedOutcome = outcome;
     log.info(`Realtime: end_call – Ergebnis: ${outcome.result || '–'}${outcome.open ? ` · offen: ${outcome.open}` : ''}; fordere Verabschiedung an`);
     this.live.toolOutput(callId, name, 'ok – verabschiede dich jetzt');
     this.endRequested = reason;

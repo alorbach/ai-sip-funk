@@ -1722,3 +1722,101 @@ test('Prüfung beim Auflegen: Bei eingehenden Anrufen wird nicht gegen den Auftr
   assert.equal(asked, 0, 'das Textmodell wird gar nicht gefragt');
   assert.deepEqual(await createJudge(ask as never, () => ({ ...CTX, incoming: false })).endCall(), ['Frag nach dem konkreten Anliegen.']);
 });
+
+// ---- Stille: Das Textmodell entscheidet, ob das Gespräch zu Ende ist ----
+
+function silenceSetup(t: TestContext, over: Partial<RealtimeBridgeOptions> = {}) {
+  const verdicts: { resolve: (v: 'hangup' | 'end' | 'continue') => void; reject: (e: Error) => void }[] = [];
+  const m = manualJudge();
+  const judge: CallJudge = { ...m.judge, silence: () => new Promise((resolve, reject) => verdicts.push({ resolve, reject })) };
+  const h = setup(t, { judge, stallMs: 6000, ...over });
+  return { ...h, verdicts };
+}
+
+test('Stille nach dem Abschied: end_call war abgelehnt, das Gegenüber sagt tschüss, die KI antwortet nur mündlich – das Textmodell lässt auflegen', async (t) => {
+  const h = silenceSetup(t);
+  endWithSpeech(h, 'r1', 'i1', 'c1'); // „ich richte das aus" + end_call: abgelehnt
+  h.drain();
+  h.partner('u1', 'Gut, tschüss.');
+  h.say('r2', 'i2', 700, 'Auf Wiederhören.');
+  h.drain();
+  h.tick(2999);
+  assert.equal(h.verdicts.length, 0);
+  h.tick(1);
+  assert.equal(h.verdicts.length, 1, 'die KI wollte schon beenden: nach 3 s Stille wird das Textmodell gefragt');
+  h.verdicts[0].resolve('hangup');
+  await flush();
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet']);
+  assert.ok(h.system().includes('Stille nach dem Abschied – aufgelegt'));
+  assert.ok(h.system().some((x) => x.startsWith('Ergebnis laut KI:')), 'das Ergebnis des abgelehnten end_call gilt');
+  h.bridge.close();
+});
+
+test('Stille mitten im Gespräch: Das Textmodell sagt „weiter" – die KI wird wie bisher angestoßen, niemand legt auf', async (t) => {
+  const h = silenceSetup(t);
+  h.partner('u1', 'Moment, ich schaue kurz nach.');
+  h.say('r2', 'i2', 700, 'Gern, ich warte.');
+  h.drain();
+  h.tick(6000);
+  assert.equal(h.verdicts.length, 1, 'ohne Beenden-Absicht erst nach der üblichen Frist');
+  const before = h.creates().length;
+  h.verdicts[0].resolve('continue');
+  await flush();
+  assert.equal(h.creates().length, before + 1, 'der gewohnte Anstoß');
+  assert.match(h.creates().at(-1) ?? '', /Es ist still geworden/);
+  assert.deepEqual(h.ended, []);
+  h.bridge.close();
+});
+
+test('Stille, alles gesagt: Das Textmodell sagt „beenden" – die KI bekommt die Aufforderung, end_call aufzurufen', async (t) => {
+  const h = silenceSetup(t);
+  h.partner('u1', 'Nein, das war alles.');
+  h.say('r2', 'i2', 700, 'Alles klar.');
+  h.drain();
+  h.tick(6000);
+  h.verdicts[0].resolve('end');
+  await flush();
+  assert.match(h.creates().at(-1) ?? '', /Rufe jetzt end_call auf/);
+  assert.deepEqual(h.ended, []);
+  h.bridge.close();
+});
+
+test('Stille: Spricht das Gegenüber, bevor das Urteil da ist, gilt es nicht mehr', async (t) => {
+  const h = silenceSetup(t);
+  h.partner('u1', 'Tschüss.');
+  h.say('r2', 'i2', 700, 'Auf Wiederhören.');
+  h.drain();
+  h.tick(6000);
+  assert.equal(h.verdicts.length, 1);
+  h.partner('u2', 'Ach, eine Frage noch.');
+  h.verdicts[0].resolve('hangup');
+  await flush();
+  assert.deepEqual(h.ended, [], 'niemandem wird ins Wort aufgelegt');
+  h.bridge.close();
+});
+
+test('Stille ohne Urteil: Nach zwei unbeantworteten Anstößen legt die App auf, statt die Leitung offen zu lassen', async (t) => {
+  const h = setup(t, { judge: undefined, stallMs: 6000 });
+  h.partner('u1', 'Tschüss.');
+  h.say('r2', 'i2', 700, 'Auf Wiederhören.');
+  h.drain();
+  for (const id of ['r3', 'r4']) {
+    h.tick(6000);
+    h.say(id, 'i' + id, 600, 'Auf Wiederhören.');
+    h.drain();
+  }
+  assert.deepEqual(h.ended, []);
+  h.tick(6000);
+  assert.deepEqual(h.ended, ['Wegen Stille beendet']);
+  assert.ok(h.system().some((x) => /Nach 2 Anstößen sagt weiterhin niemand etwas – aufgelegt/.test(x)));
+  h.bridge.close();
+});
+
+test('Prüfauftrag bei Stille: drei Urteile, im Zweifel „weiter"', async () => {
+  const prompts: string[] = [];
+  for (const [urteil, expected] of [['auflegen', 'hangup'], ['beenden', 'end'], ['weiter', 'continue'], ['unsinn', 'continue']] as const) {
+    const ask = async (p: string) => { prompts.push(p); return JSON.stringify({ urteil }); };
+    assert.equal(await createJudge(ask as never, () => CTX).silence!(), expected);
+  }
+  assert.match(prompts[0], /Im Zweifel „weiter“: Niemandem soll mitten im Gespräch aufgelegt werden/);
+});
