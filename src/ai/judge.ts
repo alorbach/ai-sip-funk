@@ -123,8 +123,9 @@ export function createJudge(ask: TextModel, context: () => JudgeContext): CallJu
 
     async endCall() {
       const all = context();
-      // Ohne Auftrag (Testgespräch) gibt es nichts zu prüfen
-      if (!all.task.trim()) return [];
+      // Ohne Auftrag (Testgespräch) gibt es nichts zu prüfen. Eingehende Anrufe: Der Anrufer bestimmt, worum es geht – die KI hat keine
+      // Liste abzuarbeiten, und ein „Eine Sache noch" nach dem Abschied hielte ihn nur auf
+      if (!all.task.trim() || all.incoming) return [];
       // Nach einem zurückgenommenen Auflegen steht die Ergebnismeldung der KI im Transkript: Auch dann zählt sie nicht mit
       const ctx = { ...all, entries: all.entries.filter((e) => !(e.speaker === 'system' && e.text.startsWith(OUTCOME_PREFIX))) };
       const r = await askJson<{ punkte: { punkt: string; stand: string }[]; offen: string[] }>(

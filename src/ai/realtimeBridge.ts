@@ -372,7 +372,8 @@ export class RealtimeBridge implements AudioHandler {
   /** Die Prüfung beim end_call läuft noch (Textmodell, neben der Verabschiedung her): Das Auflegen wartet auf ihr Urteil */
   private endCheck?: NodeJS.Timeout;
   /** Die Prüfung nebenher (end_call mit Sprache) hat offene Punkte gemeldet; turns = Stand der Äußerungen des Gegenübers, auf dem das beruht */
-  private endOpenFound?: { open: string[]; turns: number };
+  /** known: Die KI hat seit dem Hinweis geantwortet oder ihn mit der Aufforderung nach dem Schweigen noch einmal bekommen */
+  private endOpenFound?: { open: string[]; turns: number; known?: boolean };
   /** Prüfung, die nach einem end_call mit Sprache nebenher läuft; ein neuer end_call ersetzt sie durch eine frische */
   private endCheckLater?: NodeJS.Timeout;
   /** Wie oft das Gegenüber angesetzt bzw. etwas Fertiges gesagt hat: Eine Prüfung, die davor begann, kennt die Antwort nicht */
@@ -1139,6 +1140,8 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onResponseDone(r: LiveResponseDone): void {
+    // Eine Antwort der KI nach dem Hinweis der Prüfung: Sie kennt ihn jetzt
+    if (this.endOpenFound) this.endOpenFound.known = true;
     // Die KI hat nach der Vorgabe des Agenten gesprochen (nicht stumm, nicht abgebrochen): Sie gilt als umgesetzt. Sprach das
     // Gegenüber, als die Vorgabe kam, antwortet die KI zuerst ihm – dann zählt nur eine Antwort, die eigens für die Vorgabe entstand
     if (this.openDirective && this.directiveSkipResponse) this.directiveSkipResponse = false;
@@ -1562,6 +1565,7 @@ export class RealtimeBridge implements AudioHandler {
         log.info(`Realtime: Gegenüber schweigt nach abgelehntem end_call – KI soll ${check ? 'Fehlendes ansprechen oder beenden' : 'beenden'}`);
         this.muteAfterReject = false;
         this.lastCause = 'Schweigen nach abgelehntem end_call';
+        if (!check && this.endOpenFound) this.endOpenFound.known = true;
         this.live.respond(check ? END_CALL_AFTER_SILENCE_CHECK : this.endOpenFound ? END_CALL_AFTER_SILENCE_OPEN : END_CALL_AFTER_SILENCE);
       };
       this.rejectTimer = setTimeout(onSilence, rejectWait);
@@ -1624,12 +1628,14 @@ export class RealtimeBridge implements AudioHandler {
     // mitgeschrieben wird, bevor der Abschied ausgespielt ist (sonst wäre sie danach nie ausgewertet worden). Die Frist ist die übliche, ab dem Sprachende.
     // Äußerungen, die schon zu Ende waren, bleiben außen: Darauf antwortet die KI mit dem end_call, ihre verspätete Mitschrift entscheidet nichts
     if (this.partnerSpeaking) this.onSpeechAfterGoodbye(this.partnerItem);
-    // Die Prüfung nebenher hatte Punkte gemeldet, und die KI beendet, ohne dass das Gegenüber seitdem etwas gesagt hat (ihre Antwort war schon
-    // unterwegs, als der Hinweis kam): so, als hätte die Prüfung beim end_call selbst sie gefunden. Einmal – sie sind jetzt verbraucht
-    // (ob das Gegenüber seitdem etwas gesagt hat, entschied schon der Anfang des Handlers)
+    // Die Prüfung nebenher hatte Punkte gemeldet, und die KI beendet, ohne dass das Gegenüber seitdem etwas gesagt hat.
+    // Kannte sie den Hinweis schon (sie hat seitdem geantwortet, oder er kam mit der Aufforderung nach dem Schweigen noch einmal), hat sie
+    // sich fürs Beenden entschieden: Das gilt – das Auflegen zurückzunehmen ließe sie sich zweimal verabschieden, während die Leitung offen bleibt.
+    // War ihre Antwort schon unterwegs, als der Hinweis kam, ist es so, als hätte die Prüfung beim end_call selbst die Punkte gefunden. Einmal
     const found = this.endOpenFound;
     this.endOpenFound = undefined;
-    if (found) this.resumeForOpen(found.open);
+    if (found?.known) log.info(`Realtime: end_call – die KI kennt den Hinweis der Prüfung (${found.open.length} Punkt(e)) und beendet trotzdem: ihre Entscheidung gilt`);
+    else if (found) this.resumeForOpen(found.open);
   }
 
   /**

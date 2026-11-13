@@ -976,7 +976,7 @@ test('end_call durch den Agenten: Verabschiedet sich die KI schon von selbst, w�
   g.bridge.close();
 });
 
-test('end_call zusammen mit Sprache: Ein weiterer end_call mit Sprache verbraucht den gemeldeten Punkt nicht – der folgende end_call ohne Sprache nimmt das Auflegen zurück', async (t) => {
+test('end_call zusammen mit Sprache: Kennt die KI den gemeldeten Punkt und beendet trotzdem, gilt ihre Entscheidung – das Auflegen wird nicht zurückgenommen', async (t) => {
   const h = setup(t);
   endWithSpeech(h, 'r1', 'i1', 'c1');
   h.asked[0].resolve(['Sag noch, dass es vier Personen sind.'] as never);
@@ -988,7 +988,12 @@ test('end_call zusammen mit Sprache: Ein weiterer end_call mit Sprache verbrauch
   assert.match(h.outputs().at(-1) ?? '', /^Nicht beendet/);
   h.toolEnd('c3');
   assert.equal(h.asked.length, 1, 'der Hinweis ist die Prüfung: keine neue Frage');
-  assert.ok(h.notes().some((n) => /Das Beenden ist zurückgenommen[\s\S]*vier Personen/.test(n)), 'der Punkt wurde noch nicht angesprochen');
+  // Sie hat den Hinweis bekommen (als Regieanweisung und mit der Aufforderung nach dem Schweigen) und sich fürs Beenden entschieden
+  assert.ok(!h.notes().some((n) => /Das Beenden ist zurückgenommen/.test(n)), 'ihre Entscheidung gilt');
+  assert.equal(h.outputs().at(-1), 'ok – verabschiede dich jetzt');
+  farewell(h);
+  h.tick(1000);
+  assert.deepEqual(h.ended, ['KI hat das Gespräch beendet'], 'eine Verabschiedung, dann aufgelegt');
   h.bridge.close();
 
   // Hat das Gegenüber dazwischen etwas gesagt, ist es Sache der KI – auch nach einem end_call mit Sprache dazwischen
@@ -1708,4 +1713,12 @@ test('Prüfung beim Auflegen: Die Verabschiedung ist nie ein offener Punkt, auch
   // Ein echter fehlender Punkt daneben bleibt
   const ask2 = async () => JSON.stringify({ punkte: [], offen: ['Verabschiede dich jetzt.', 'Frag noch nach dem Namen.'] });
   assert.deepEqual(await createJudge(ask2 as never, () => ctx as never).endCall(), ['Frag noch nach dem Namen.']);
+});
+
+test('Prüfung beim Auflegen: Bei eingehenden Anrufen wird nicht gegen den Auftrag geprüft', async () => {
+  let asked = 0;
+  const ask = async () => { asked++; return JSON.stringify({ punkte: [], offen: ['Frag nach dem konkreten Anliegen.'] }); };
+  assert.deepEqual(await createJudge(ask as never, () => ({ ...CTX, incoming: true })).endCall(), []);
+  assert.equal(asked, 0, 'das Textmodell wird gar nicht gefragt');
+  assert.deepEqual(await createJudge(ask as never, () => ({ ...CTX, incoming: false })).endCall(), ['Frag nach dem konkreten Anliegen.']);
 });
