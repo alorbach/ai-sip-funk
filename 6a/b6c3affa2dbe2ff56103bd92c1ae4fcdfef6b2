@@ -1,0 +1,31 @@
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_bd7fae2fbbbaa0 13,85-86,127-129,175,311-314,929-945,957,1392
+src/ai/agentCall.ts
+  s_6e62c686ceb639::t_bd7fae2fbbbaa0 10,30-46,108-109
+src/main.ts
+  s_6e62c686ceb639::t_bd7fae2fbbbaa0 394
+test/gemini.test.ts
+  s_6e62c686ceb639::t_8d3797c8b7846f 877-985
+test/mcp.test.ts
+  s_6e62c686ceb639::t_8d3797c8b7846f 419-421
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_0c2ec455f55841 11-12
+CHANGELOG.md
+  s_6e62c686ceb639::t_eb4c1bfa062d43 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ab6c3affa2dbe2ff56103bd92c1ae4fcdfef6b2",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
