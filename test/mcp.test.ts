@@ -21,7 +21,7 @@ import { createMcpServer, TOOLS } from '../src/mcp/tools.js';
 import { mcpPolicyFrom, type FormSettings, type McpPolicy } from '../src/settings.js';
 import type { CallRecord } from '../src/transcripts.js';
 
-const CONTACTS = [
+const CONTACTS: { name: string; number: string; agentDirect?: boolean }[] = [
   { name: 'Restaurant Sonne', number: '030 23125 410' },
   { name: 'Zahnarztpraxis Dr. Beispiel', number: '030 23125 310' },
   { name: 'Sonnenstudio Muster', number: '030 23125 777' },
@@ -239,6 +239,38 @@ test('Bestätigung „nur bei Nummern ohne Kontakt“ und „nie“', async () =
   await n.call(STRANGER);
   assert.equal(n.state.dialed.length, 1);
   assert.equal(n.state.notices.length, 0);
+});
+
+test('Bestätigung „immer“: Ein freigegebener Kontakt wird ohne Nachfrage gewählt, auch über seine Nummer', async () => {
+  const doc = CONTACTS[1];
+  doc.agentDirect = true;
+  try {
+    const h = harness({ confirm: 'always', contacts: true });
+    assert.match((await h.run('get_status')).text, /immer, außer bei Kontakten, die der Betreiber dafür freigegeben hat \(in list_contacts markiert\)/);
+    const list = (await h.run('list_contacts')).text;
+    assert.match(list, /- Zahnarztpraxis Dr\. Beispiel \(ohne Bestätigung\)/);
+    assert.match(list, /- Restaurant Sonne$/m);
+    await h.call('Zahnarztpraxis Dr. Beispiel');
+    assert.equal(h.state.dialed.length, 1);
+    assert.equal(h.state.notices.length, 0);
+    h.gw.callEnded('Besetzt');
+    await h.call(doc.number);
+    assert.equal(h.state.dialed.length, 2);
+    h.gw.callEnded('Besetzt');
+    // Ein Kontakt ohne Freigabe wartet weiter
+    await h.call('Restaurant Sonne');
+    assert.equal(h.state.dialed.length, 2);
+    await h.run('end_call');
+    // Ein anderer Auftraggeber wird auch beim freigegebenen Kontakt vorgelegt
+    const r = await h.call('Zahnarztpraxis Dr. Beispiel', { on_behalf_of: 'Beispielbank AG' });
+    assert.match(r.text, /bestätigen/);
+    assert.equal(h.state.dialed.length, 2);
+    // Bei „nur bei Nummern ohne Kontakt“ ändert die Freigabe nichts; die Liste markiert dann nichts
+    const u = harness({ confirm: 'unknown', contacts: true });
+    assert.doesNotMatch((await u.run('list_contacts')).text, /ohne Bestätigung/);
+  } finally {
+    delete doc.agentDirect;
+  }
 });
 
 test('Bestätigung: Ein anderer Auftraggeber als der Betreiber wird immer vorgelegt; der Name bleibt eine Zeile', async () => {

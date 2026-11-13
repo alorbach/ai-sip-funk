@@ -506,7 +506,7 @@ manager.on('callEnded', (reason: string) => {
 const gateway: McpGateway = new McpGateway({
   policy: () => mcpPolicyFrom(loadSettings()),
   principal: () => loadSettings().principal,
-  contacts: () => contacts.list().map((c) => ({ name: c.name, number: c.number })),
+  contacts: () => contacts.list().map((c) => ({ name: c.name, number: c.number, agentDirect: c.agentDirect })),
   // Nur die Hauptnummer: Die Freigabe „nur Kontakte“ soll nicht jede importierte weitere Nummer einschließen
   findContact: (number) => contacts.list().find((c) => sameMainNumber(c, number)),
   prepare: (target) => manager.prepare(target),

@@ -705,7 +705,7 @@
             <div class="grid c2">
               <label class="switch span"><span>KI-Agenten dürfen über MCP telefonieren<small>Ausgeschaltet lehnt SIPFunk jeden Zugriff eines Agenten ab.</small></span><input type="checkbox" id="p-mcp" role="switch"></label>
               <label class="field"><span>Wen ein Agent anrufen darf</span><select id="p-mcp-targets"><option value="contacts">Nur gespeicherte Kontakte</option><option value="any">Kontakte und jede erlaubte Nummer</option></select><small>Notruf, Sonder- und Auslandsnummern bleiben immer gesperrt.</small></label>
-              <label class="field"><span>Vor dem Wählen bei mir nachfragen</span><select id="p-mcp-confirm"><option value="always">Immer</option><option value="unknown">Nur bei Nummern ohne Kontakt</option><option value="never">Nie</option></select><small>Die Anfrage erscheint hier und als Hinweis der Tray-App; ohne Antwort verfällt sie nach zwei Minuten.</small></label>
+              <label class="field"><span>Vor dem Wählen bei mir nachfragen</span><select id="p-mcp-confirm"><option value="always">Immer (außer freigegebene Kontakte)</option><option value="unknown">Nur bei Nummern ohne Kontakt</option><option value="never">Nie</option></select><small>Die Anfrage erscheint hier und als Hinweis der Tray-App; ohne Antwort verfällt sie nach zwei Minuten. Einzelne Kontakte gibst du im Kontakt mit „KI-Agent darf ohne Nachfrage anrufen“ frei.</small></label>
               <label class="field"><span>Höchstens … Anrufe je Stunde</span><input id="p-mcp-hour" type="number" min="1" max="60" value="10"></label>
               <label class="field"><span>Höchstens … Anrufe je Tag</span><input id="p-mcp-day" type="number" min="1" max="500" value="30"></label>
               <label class="field"><span>Höchstdauer je Anruf (Minuten)</span><input id="p-mcp-minutes" type="number" min="1" max="60" value="10"><small>Nie länger als das allgemeine Gesprächslimit.</small></label>
@@ -973,6 +973,7 @@
         <label class="field"><span>Stil</span><select id="c-persona"><option value="">– Standard –</option></select></label>
         <label class="field"><span>Stimme</span><select id="c-voice"><option value="">– Standard –</option></select></label>
         <label class="check" style="align-self:end"><input type="checkbox" id="c-owner"> Das bin ich (Inhaber) – KI meldet sich als „dein Agent“</label>
+        <label class="check" style="grid-column:1/-1"><input type="checkbox" id="c-agent-direct"> KI-Agent darf ohne Nachfrage anrufen (MCP-Schnittstelle, nur die Nummer oben)</label>
       </div>
       <label class="field"><span>Standard-Auftrag</span><textarea id="c-task" placeholder="Wird ins Auftragsfeld übernommen, wenn der Kontakt gewählt wird"></textarea></label>
       <label class="field"><span>Notizen (bekommt die KI als Hintergrundwissen)</span><textarea id="c-notes" placeholder="z. B. Ansprechpartnerin Frau Meier, Rückruf meist nachmittags"></textarea></label>
@@ -1304,7 +1305,7 @@ function renderContacts() {
   $('contacts-empty').style.display = contacts.length ? 'none' : 'block';
   for (const c of contacts) {
     const d = document.createElement('div'); d.className = 'contact' + (activeContact?.id === c.id ? ' active' : ''); d.tabIndex = 0; d.dataset.id = c.id; d.setAttribute('role', 'group'); d.setAttribute('aria-label', c.name);
-    d.innerHTML = `<div><div class="n"><span data-no-i18n>${esc(c.name)}</span>${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}</div><div class="num" data-no-i18n>${esc(numbersOf(c).join(', '))}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
+    d.innerHTML = `<div><div class="n"><span data-no-i18n>${esc(c.name)}</span>${c.owner ? ' <span class="badge owner">Inhaber</span>' : ''}${c.agentDirect ? ' <span class="badge">Agent ohne Nachfrage</span>' : ''}</div><div class="num" data-no-i18n>${esc(numbersOf(c).join(', '))}${c.notes ? ' · ' + esc(c.notes.split('\n')[0]) : ''}</div></div>
       <div class="tools"><button class="btn small" data-call="${c.id}">Anrufen</button><button class="btn small quiet" data-calls="${c.id}">Verlauf</button><button class="btn small quiet" data-edit="${c.id}">Bearbeiten</button><button class="btn small quiet" data-del="${c.id}">Löschen</button></div>`;
     el.appendChild(d);
   }
@@ -1356,14 +1357,16 @@ function openContactDialog(c, presetNumber) {
   $('c-number').value = c?.number || presetNumber || (!activeContact ? $('target').value : '');
   $('c-numbers').value = (c?.numbers || []).join(', ');
   $('c-address').value = c?.address || ''; $('c-persona').value = c?.persona || ''; $('c-voice').value = c?.voice || '';
-  $('c-owner').checked = !!c?.owner; $('c-task').value = c?.task || ''; $('c-notes').value = c?.notes || '';
+  $('c-owner').checked = !!c?.owner; $('c-agent-direct').checked = !!c?.agentDirect;
+  // Neue Hauptnummer: Die Freigabe für Agenten muss neu gesetzt werden
+  $('c-number').oninput = () => { if (c?.agentDirect && $('c-number').value.trim() !== c.number) $('c-agent-direct').checked = false; }; $('c-task').value = c?.task || ''; $('c-notes').value = c?.notes || '';
   $('contact-dialog').showModal(); $('c-name').focus();
 }
 $('contact-new').onclick = () => openContactDialog(null);
 $('contact-cancel').onclick = () => $('contact-dialog').close();
 $('contact-form').onsubmit = async (ev) => {
   ev.preventDefault();
-  const body = { name: $('c-name').value, number: $('c-number').value, numbers: $('c-numbers').value, address: $('c-address').value, persona: $('c-persona').value, voice: $('c-voice').value, owner: $('c-owner').checked, task: $('c-task').value, notes: $('c-notes').value };
+  const body = { name: $('c-name').value, number: $('c-number').value, numbers: $('c-numbers').value, address: $('c-address').value, persona: $('c-persona').value, voice: $('c-voice').value, owner: $('c-owner').checked, agentDirect: $('c-agent-direct').checked, task: $('c-task').value, notes: $('c-notes').value };
   try {
     const saved = editingId ? await api('/api/contacts/' + editingId, body, 'PUT') : await api('/api/contacts', body);
     $('contact-dialog').close();
