@@ -110,6 +110,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 - [ ] Deinstallation: Der Eintrag unter „Autostart-Apps“ in Windows ist weg, `%APPDATA%\SIPFunk` liegt noch da.
 - [ ] MCP aus: Ein verbundener Agent bekommt auf jedes Tool den Hinweis, dass die Schnittstelle ausgeschaltet ist.
 - [ ] MCP ein, Vorgaben („Nur gespeicherte Kontakte“, „Immer“ nachfragen): `get_status`, dann `start_call` an einen Kontakt mit einer eigenen Nummer oder Nebenstelle. Der Bestätigungsdialog erscheint in der Web-UI und als Pop-up der Tray-App unten rechts; nach „Anrufen“ (in einem von beiden) klingelt es, und das andere schließt sich. Bei geschlossener Web-UI genügt das Pop-up.
+- [ ] Im selben Kontakt „KI-Agent darf ohne Nachfrage anrufen“ anhaken (die Liste zeigt „Agent ohne Nachfrage“): `start_call` an ihn wählt ohne Bestätigungsdialog; ein Kontakt ohne Haken fragt weiter nach.
 - [ ] MCP im Gespräch: `wait_for_events` liefert, was du am Telefon sagst und was die KI sagt; eine Vorgabe mit `say` setzt die KI um; `end_call` lässt sie sich verabschieden; `get_call_result` liefert Ergebnis, Zusammenfassung und Transkript. Der Anruf steht unter „Anrufe“ mit „Von KI-Agent“.
 - [ ] MCP-Rückfrage: Auftrag mit engem Spielraum geben und am Telefon etwas anderes anbieten. Die KI sagt „Einen Moment bitte, ich frage kurz nach“, der Agent bekommt die Rückfrage, seine Antwort mit `say` kommt am Telefon an. Ohne Antwort macht die KI nach etwa 25 Sekunden weiter.
 - [ ] MCP-Sperren: Mit der Einstellung „Nur gespeicherte Kontakte“ lehnt `start_call` eine Nummer ohne Kontakt ab; „Ablehnen“ im Dialog und eine unbeantwortete Anfrage (zwei Minuten) wählen nicht; nach dem Limit je Stunde lehnt `start_call` ab.
@@ -121,7 +122,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 ## 8a. Kontakt-Import (braucht eigene Konten)
 
 - [ ] Mitgelieferte App (`oauth-clients.json` im Installer): Der Dialog zeigt bei Google und Microsoft „bereit“, ohne dass etwas eingetragen ist; „Verbinden“ öffnet die Anmeldung, nach dem Zulassen lädt das Adressbuch von selbst. Eine eingetragene eigene Client-ID hat Vorrang.
-- [ ] Google: eigener Desktop-App-Client mit People API und Testnutzer; „Verbinden“ öffnet die Anmeldung, danach meldet die Seite „Adressbuch verbunden“, „Adressbuch laden“ listet die Einträge mit Telefonnummer. „Trennen“ beendet den Zugriff; „Adressbuch laden“ verlangt danach eine neue Verbindung.
+- [x] Google (13.11.2026: Anmeldung und Import mit eigenem Konto erprobt): eigener Desktop-App-Client mit People API und Testnutzer; „Verbinden“ öffnet die Anmeldung, danach meldet die Seite „Adressbuch verbunden“, „Adressbuch laden“ listet die Einträge mit Telefonnummer. „Trennen“ beendet den Zugriff; „Adressbuch laden“ verlangt danach eine neue Verbindung.
 - [ ] Microsoft mit privatem Konto (Outlook.com) und, falls vorhanden, einem Firmenkonto: App-Registrierung mit `http://localhost/oauth/callback` und Contacts.Read; Anmeldung, Laden, Kontakte aus Unterordnern sind dabei.
 - [ ] iCloud: exportierte vCard-Datei, Umlaute in Namen korrekt, alle Nummern da.
 - [ ] Google-CSV und Outlook-CSV (auch ein deutscher Outlook-Export mit Semikolon).

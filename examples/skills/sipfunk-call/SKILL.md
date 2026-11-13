@@ -33,7 +33,7 @@ If any of this is missing, ask the user now. During the call you have no time to
 Call `get_status`. Look at:
 
 - "Erlaubte Ziele" (permitted targets): with "nur gespeicherte Kontakte" (saved contacts only), `target` has to be a contact name. If the contact does not exist, ask the user to create it in SIPFunk.
-- "Bestätigung durch den Betreiber" (confirmation by the operator): with "immer" (always) the user has to confirm the call in SIPFunk in a moment. Tell them beforehand.
+- "Bestätigung durch den Betreiber" (confirmation by the operator): with "immer" (always) the user has to confirm the call in SIPFunk in a moment. Tell them beforehand. Contacts they have approved for this are exempt; `list_contacts` marks them with "ohne Bestätigung" (without confirmation) if you may read the names. Whether a confirmation is pending is stated in the answer of `start_call` anyway.
 - "Noch möglich" (still possible): if the quota is 0, tell the user and stop.
 
 ### 3. Start the call

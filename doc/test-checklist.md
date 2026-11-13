@@ -110,6 +110,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 - [ ] Uninstallation: the entry under Windows "Startup apps" is gone, `%APPDATA%\SIPFunk` is still there.
 - [ ] MCP off: a connected agent gets, for every tool, the note that the interface is switched off.
 - [ ] MCP on, defaults ("Nur gespeicherte Kontakte", ask "Immer"): `get_status`, then `start_call` to a contact with one of your own numbers or extensions. The confirmation dialog appears in the web UI and as a pop-up of the tray app at the bottom right; after "Anrufen" (in either of them) it rings, and the other one closes. With the web UI closed the pop-up is enough.
+- [ ] Tick "KI-Agent darf ohne Nachfrage anrufen" in the same contact (the list shows "Agent ohne Nachfrage"): `start_call` to it dials without a confirmation dialog; a contact without the tick still asks.
 - [ ] MCP during the call: `wait_for_events` returns what you say on the phone and what the AI says; the AI acts on a direction given with `say`; `end_call` makes it say goodbye; `get_call_result` returns result, summary and transcript. The call is listed under "Anrufe" with "Von KI-Agent".
 - [ ] MCP question: give a task with narrow leeway and offer something else on the phone. The AI says "Einen Moment bitte, ich frage kurz nach", the agent gets the question, its answer with `say` arrives on the phone. Without an answer the AI carries on after about 25 seconds.
 - [ ] MCP blocks: with the setting "Nur gespeicherte Kontakte", `start_call` refuses a number without a contact; "Ablehnen" in the dialog and an unanswered request (two minutes) do not dial; after the limit per hour `start_call` refuses.
@@ -121,7 +122,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 ## 8a. Contact import (needs your own accounts)
 
 - [ ] Built-in app (`oauth-clients.json` in the installer): the dialog shows "bereit" (ready) for Google and Microsoft with nothing entered; "Verbinden" opens the sign-in, and after allowing it the address book loads by itself. An own client ID that is entered takes precedence.
-- [ ] Google: own Desktop-app client with People API and test user; "Verbinden" opens the sign-in, the page afterwards says "Adressbuch verbunden", "Adressbuch laden" lists the entries with phone numbers. "Trennen" ends access; "Adressbuch laden" then asks to connect again.
+- [x] Google (13 Nov 2026: sign-in and import tried with an own account): own Desktop-app client with People API and test user; "Verbinden" opens the sign-in, the page afterwards says "Adressbuch verbunden", "Adressbuch laden" lists the entries with phone numbers. "Trennen" ends access; "Adressbuch laden" then asks to connect again.
 - [ ] Microsoft with a personal account (Outlook.com) and, if available, a work account: app registration with `http://localhost/oauth/callback` and Contacts.Read; sign-in, loading, contacts from subfolders are included.
 - [ ] iCloud: exported vCard file, umlauts in names correct, all numbers there.
 - [ ] Google CSV and Outlook CSV (also a German Outlook export with semicolons).
