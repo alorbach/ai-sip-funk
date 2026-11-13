@@ -169,7 +169,7 @@ function writeDemoData(webPort) {
     contact('demo03', 'Erika Mustermann', '0171 3920034', { address: 'du', persona: 'herzlich' }),
     contact('demo04', 'Schornsteinfeger Beispiel', '030 23125 455', { address: 'sie', notes: 'Termin im Frühjahr' }),
     contact('demo05', 'Autowerkstatt Muster GmbH', '030 23125 620', { address: 'sie', persona: 'locker' }),
-    contact('demo06', 'Restaurant Sonne', '030 23125 410', { address: 'sie' }),
+    contact('demo06', 'Restaurant Sonne', '030 23125 410', { address: 'sie', agentDirect: true }),
   ], null, 2) + '\n');
 
   const records = [
