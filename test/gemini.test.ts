@@ -983,3 +983,35 @@ test('Ausweichen bei Fragen zum Agenten: „weiß ich nicht" zählt nur, wenn di
   assert.equal(dodgesAgentQuestion('Codex hat den Anruf gestartet.', q, 'Codex'), false);
   assert.equal(dodgesAgentQuestion('Das weiß ich nicht.', q), false, 'ohne bekannten Agentennamen ist „Codex" kein Hinweis');
 });
+
+test('Agenten-Anruf: Lehnt die KI eine Auskunft ab, bleibt es dabei – die Sicherung drängt sie nicht zur Rückfrage', async (t) => {
+  const h = agentCall(t);
+  h.heard('Kannst du Codex fragen, ob er meine Kundennummer hat?');
+  h.say(1500, 'Dazu habe ich leider keine Informationen und darf solche sensiblen Daten auch nicht weitergeben.');
+  assert.equal(h.nudges(), 0);
+  h.heard('Und was hat Codex vorher gemacht?');
+  h.say(1200, 'Aus Datenschutzgründen kann ich dir dazu nichts sagen.');
+  assert.equal(h.nudges(), 0);
+  h.bridge.close();
+  const { dodgesAgentQuestion } = await import('../src/ai/agentCall.js');
+  assert.equal(dodgesAgentQuestion('Das darf ich dir nicht sagen, dazu habe ich keine Informationen.', 'Was hat der Agent gemacht?'), false);
+  assert.equal(dodgesAgentQuestion('Dazu habe ich keine Informationen.', 'Was hat der Agent gemacht?'), true);
+});
+
+test('Agenten-Anruf: Eine Vorgabe, die keine Antwort auf die offene Rückfrage ist, geht erst mit deren Ergebnis an die KI', (t) => {
+  const h = agentCall(t);
+  h.heard('Woran arbeitet der Agent gerade?');
+  h.audio(800);
+  h.server({ serverContent: { outputTranscription: { text: 'Einen Moment bitte, ich frage kurz nach.' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'a1', name: 'ask_principal', args: { frage: 'Woran arbeitest du gerade?' } }] } });
+  const regieBefore = h.regie().length;
+  assert.equal(h.bridge.agentSay('Sag bitte noch, dass der Test gleich endet.', true, false), 'next');
+  assert.equal(h.answers().length, 0, 'die Rückfrage bleibt offen');
+  assert.equal(h.regie().length, regieBefore, 'kein Hinweis dazwischen');
+  // Bleibt die Antwort aus, kommt die Vorgabe mit dem Ergebnis „keine Antwort" an
+  h.tick(25_000);
+  assert.equal(h.answers().length, 1);
+  assert.match(h.answers()[0], /nicht rechtzeitig geantwortet/);
+  assert.match(h.answers()[0], /Regieanweisung deines Auftraggebers[^"]*Sag bitte noch, dass der Test gleich endet\./);
+  h.bridge.close();
+});

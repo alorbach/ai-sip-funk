@@ -518,7 +518,7 @@ function flowHarness(policy: Partial<McpPolicy> = {}) {
       createSocket: () => ws as unknown as WebSocket,
     });
     bridge = b;
-    return { say: (text, now) => b.agentSay(text, now), end: () => b.agentEnd() };
+    return { say: (text, now, answer) => b.agentSay(text, now, answer), end: () => b.agentEnd() };
   };
   const server = (ev: Record<string, unknown>) => ws.emit('message', Buffer.from(JSON.stringify(ev)));
   /** Telefon nimmt ab: Verbindung steht, die KI begrüßt */
@@ -673,6 +673,37 @@ test('Ablauf: Agent startet den Anruf, liest mit, beantwortet eine Rückfrage, g
   // In der Liste der Protokolle steht ohne Freigabe der Kontaktnamen weder Name noch Nummer
   assert.match((await tool('list_calls')).text, /^2026-11-11T11-00-00 · ein gespeicherter Kontakt/m);
   await client.close();
+});
+
+test('Rückfrage und Vorgabe kreuzen sich: Ein say, bevor der Agent die Rückfrage gelesen hat, ist keine Antwort darauf', async () => {
+  const f = flowHarness();
+  await f.call('Restaurant Sonne');
+  await f.answer();
+  f.aiSays('r0', 'Guten Tag.');
+  await f.drain();
+  await f.run('wait_for_events', { timeout_sec: 1 });
+  f.aiCalls('r1', 'ask_principal', { frage: 'Passt auch Samstag?' });
+  const before = f.outputs().length;
+  // Der Agent schickt von sich aus eine Richtigstellung; die Rückfrage hat er noch nicht abgeholt
+  const crossed = await f.run('say', { text: 'Bitte nach einem Fensterplatz fragen.' });
+  assert.match(crossed.text, /Rückfrage an dich gestellt, die du noch nicht gelesen hast: „Passt auch Samstag\?“/);
+  assert.equal(f.outputs().length, before, 'die KI wartet weiter auf die Antwort');
+  // Jetzt liest er sie und antwortet: Antwort und Vorgabe gehen zusammen an die KI
+  assert.match((await f.run('wait_for_events', { timeout_sec: 1 })).text, /OFFENE RÜCKFRAGE der KI an dich: Passt auch Samstag\?/);
+  assert.match((await f.run('say', { text: 'Samstag passt.' })).text, /Antwort auf die Rückfrage/);
+  const out = f.outputs().at(-1) ?? '';
+  assert.match(out, /Antwort deines Auftraggebers: Samstag passt\./);
+  assert.match(out, /Einschränkungen und Unsicherheiten der Antwort/);
+  assert.match(out, /Regieanweisung deines Auftraggebers[^]*Bitte nach einem Fensterplatz fragen\./);
+  f.bridge().close();
+});
+
+test('Systemanweisung für Agenten-Anrufe: keine erfundenen Zusagen, keine Identitätsprüfung behaupten, Kennnummern nicht ansagen', () => {
+  const agent = buildInstructions({ persona: { id: 'p', label: 'P', text: 'Stil.' }, formal: true, aiName: 'Alex', principalName: 'Max Mustermann', task: 'Tisch reservieren', maxCallSeconds: 300, agent: true });
+  assert.match(agent, /Behaupte nichts darüber, was der Agent weiß, tun würde oder getan hätte, und nichts über Schutzmaßnahmen oder Prüfungen/);
+  assert.match(agent, /mach daraus keine Zusage und keine Garantie, auch nicht im Ergebnis bei end_call/);
+  assert.match(agent, /Am Telefon ist nicht geprüft, wer spricht/);
+  assert.match(agent, /Kennnummern \(z\. B\. Steuer-, Ausweis-, Konto- oder Kartennummern\), Passwörter und Codes sagst du am Telefon nicht an/);
 });
 
 test('Rückfrage ohne Antwort: Nach der Frist macht die KI ohne weiter und der Agent sieht es', async (t) => {

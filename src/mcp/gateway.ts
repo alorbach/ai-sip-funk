@@ -18,7 +18,8 @@ export interface AgentEvent {
 
 /** Steuerung des laufenden Gesprächs (die Brücke zur Sprach-KI). */
 export interface AgentCallControl {
-  say(text: string, now: boolean): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed';
+  /** answer = false: Eine offene Rückfrage der KI kennt der Agent noch nicht; der Text ist dann keine Antwort darauf */
+  say(text: string, now: boolean, answer?: boolean): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed';
   end(): 'ending' | 'closed';
   /** Lage im Gespräch in einem Satz (wer spricht, Stille, Rückfrage offen, Verabschiedung) */
   situation?(): string;
@@ -55,6 +56,9 @@ interface AgentCall {
   /** Offene Rückfrage der Sprach-KI; sie gilt nur, solange die KI auf die Antwort wartet (siehe openQuestion) */
   question?: string;
   questionAt?: number;
+  /** Ereignisnummer der offenen Rückfrage, und bis wohin der Agent die Ereignisse abgeholt hat */
+  questionSeq?: number;
+  seenSeq?: number;
   events: AgentEvent[];
   control?: AgentCallControl;
   approvalTimer?: NodeJS.Timeout;
@@ -289,6 +293,7 @@ export class McpGateway {
     // Ein freigegebener Kontakt wird auch bei „immer“ ohne Nachfrage gewählt; ein fremder Auftraggeber wird immer bestätigt
     const confirm = (p.confirm === 'always' && !direct) || (p.confirm === 'unknown' && !contactName) || otherPrincipal;
     if (!confirm) {
+      log.info(`MCP: Anruf ${call.id} startet ohne Bestätigung (${direct ? 'Kontakt ist dafür freigegeben' : p.confirm === 'never' ? 'Bestätigung ist ausgeschaltet' : 'bekannter Kontakt'})`);
       this.dialNow(call);
       if (call.state === 'ended') throw new Error(call.endReason ?? 'Anruf nicht möglich');
       return `Anruf ${call.id} an ${call.label} gestartet (${STATE_TEXT[call.state]}). Weiter mit wait_for_events (call_id ${call.id}, after ${this.lastSeq(call)}).`;
@@ -333,9 +338,11 @@ export class McpGateway {
       });
     }
     const events = fresh();
+    call.seenSeq = Math.max(call.seenSeq ?? 0, events.at(-1)?.seq ?? 0);
     const lines = [this.headline(call), ...events.map((e) => this.eventLine(e))];
     if (!events.length) lines.push(call.state === 'ended' ? '(keine weiteren Ereignisse)' : `(nichts Neues in ${timeoutSec} s)`);
     const open = this.openQuestion(call);
+    if (open) call.seenSeq = Math.max(call.seenSeq ?? 0, call.questionSeq ?? 0);
     if (open) lines.push(`OFFENE RÜCKFRAGE der KI an dich: ${open} → jetzt mit say beantworten (die KI wartet etwa ${Math.round(ASK_TIMEOUT_MS / 1000)} s).`);
     lines.push(call.state === 'ended' ? `Beendet. Ergebnis, Zusammenfassung und Transkript: get_call_result (call_id ${call.id}).` : `Weiter mit wait_for_events (call_id ${call.id}, after ${this.lastSeq(call)}).`);
     return lines.join('\n');
@@ -352,12 +359,19 @@ export class McpGateway {
       log.info(`MCP: Vorgabe des Agenten für ${call.id} abgelehnt (Zustand: ${STATE_TEXT[call.state]})`);
       throw new Error(`Das geht nur im laufenden Gespräch (Zustand: ${STATE_TEXT[call.state]}).`);
     }
-    const mode = call.control.say(text, args.when !== 'next');
-    log.info(`MCP: Vorgabe des Agenten für ${call.id} (${text.length} Zeichen): ${mode}`);
+    // Hat der Agent die offene Rückfrage noch gar nicht abgeholt, kann sein Text keine Antwort darauf sein (beides hat sich gekreuzt)
+    const open = this.openQuestion(call);
+    const unseen = !!open && (call.seenSeq ?? 0) < (call.questionSeq ?? 0);
+    const mode = call.control.say(text, args.when !== 'next', !unseen);
+    const age = open ? `Rückfrage seit ${this.now() - (call.questionAt ?? this.now())} ms offen` : '';
+    log.info(`MCP: Vorgabe des Agenten für ${call.id} (${text.length} Zeichen): ${mode}${open ? (unseen ? ` – ${age}, vom Agenten noch nicht gelesen: bleibt offen` : ` – ${age}`) : ''}`);
     if (mode === 'closed' || mode === 'ending') throw new Error('Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an.');
+    this.push(call, 'note', `Vorgabe des Agenten: ${text}`);
+    if (unseen && mode !== 'resumed') {
+      return `Als Vorgabe übergeben. Achtung: Die KI hat inzwischen eine Rückfrage an dich gestellt, die du noch nicht gelesen hast: „${open}“ Beantworte sie jetzt mit einem weiteren say – die KI wartet darauf und setzt deine Vorgabe danach um.`;
+    }
     // Ob als Antwort oder als Vorgabe angekommen: Eine Rückfrage ist danach nicht mehr offen
     call.question = undefined;
-    this.push(call, 'note', `Vorgabe des Agenten: ${text}`);
     if (mode === 'resumed') return 'Übergeben. Die KI war schon dabei, das Gespräch zu beenden; das Auflegen ist zurückgenommen, sie sagt es jetzt noch.';
     return mode === 'answered'
       ? 'Als Antwort auf die Rückfrage übergeben; die KI gibt es jetzt weiter.'
@@ -550,6 +564,7 @@ Lage jetzt: ${now}` : ''}`;
     call.question = oneLine(text);
     call.questionAt = this.now();
     this.push(call, 'question', text);
+    call.questionSeq = this.lastSeq(call);
     this.deps.publish(this.info());
   }
 

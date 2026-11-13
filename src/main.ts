@@ -527,7 +527,7 @@ const gateway: McpGateway = new McpGateway({
       bridge.close();
       throw err;
     }
-    return { say: (text, now) => bridge.agentSay(text, now), end: () => bridge.agentEnd(), situation: () => bridge.situation() };
+    return { say: (text, now, answer) => bridge.agentSay(text, now, answer), end: () => bridge.agentEnd(), situation: () => bridge.situation() };
   },
   hangup: (reason) => manager.hangup(reason),
   records: store,

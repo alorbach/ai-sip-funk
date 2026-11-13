@@ -311,6 +311,8 @@ export class RealtimeBridge implements AudioHandler {
   /** Letzte Äußerung des Gegenübers, und die, zu der die Rückfrage an den Agenten schon gestellt oder angemahnt ist */
   private lastPartnerText = '';
   private askHandledFor = '';
+  /** Vorgaben des Agenten, die während einer offenen Rückfrage kamen, ohne ihre Antwort zu sein */
+  private afterAsk: string[] = [];
   private askNudges = 0;
   // Vorstellung als KI: geprüft an der Mitschrift der ersten Antwort
   private introChecked = false;
@@ -708,7 +710,7 @@ export class RealtimeBridge implements AudioHandler {
    * die Antwort; sonst kommt der Text als Regieanweisung in den Gesprächsverlauf. `now` fordert sofort eine Antwort an
    * (bzw. gleich nach der laufenden); ohne `now` setzt die KI die Anweisung um, wenn sie das nächste Mal spricht.
    */
-  agentSay(text: string, now = false): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed' {
+  agentSay(text: string, now = false, answer = true): 'answered' | 'now' | 'next' | 'resumed' | 'ending' | 'closed' {
     if (this.closed) return 'closed';
     // Die Vorgabe kommt in der Schweigefrist nach einem abgelehnten end_call: Die Frist gilt nicht mehr. Kein Anstoß „sagt nichts mehr, rufe end_call auf“
     // (die KI beendete sonst ohne die Vorgabe), und was die KI auf die Vorgabe hin sagt, ist zu hören und steht im Transkript
@@ -734,6 +736,12 @@ export class RealtimeBridge implements AudioHandler {
     }
     const tell = withdrawn && this.agentEndNoted;
     this.agentEndNoted = false;
+    if (this.ask && !answer) {
+      // Der Agent kennt die Rückfrage noch nicht (seine Vorgabe und sie haben sich gekreuzt): Die Vorgabe ist keine Antwort
+      // darauf. Sie geht mit dem Ergebnis der Rückfrage an die KI – ein Hinweis dazwischen stört einen Anbieter, der darauf wartet
+      this.afterAsk.push(...(tell ? [AGENT_END_WITHDRAWN] : []), agentNote(text));
+      return 'next';
+    }
     if (this.ask) {
       // (Eine offene Rückfrage hat ein Tool-Ergebnis zu bekommen, kein Hinweis dazwischen: Der Widerruf geht mit der Antwort)
       this.resolveAsk(tell ? `${AGENT_END_WITHDRAWN}\n${askAnswer(text)}` : askAnswer(text));
@@ -794,7 +802,8 @@ export class RealtimeBridge implements AudioHandler {
     if (!ask) return;
     clearTimeout(ask.timer);
     this.ask = undefined;
-    this.live.toolOutput(ask.callId, ASK_PRINCIPAL_TOOL.name, output);
+    const extra = this.afterAsk.splice(0);
+    this.live.toolOutput(ask.callId, ASK_PRINCIPAL_TOOL.name, [output, ...extra].join('\n\n'));
     this.requestRespond(CAUSE_ASK_ANSWER);
   }
 
@@ -940,7 +949,7 @@ export class RealtimeBridge implements AudioHandler {
     if (!question || question === this.askHandledFor || !dodgesAgentQuestion(text, question, this.opts.agentName)) return;
     this.askHandledFor = question;
     this.askNudges++;
-    log.info('Realtime: KI weicht einer Frage zum Agenten aus – Rückfrage wird nachgeholt');
+    log.info(`Realtime: KI weicht einer Frage zum Agenten aus („${text.slice(0, 60)}") – Rückfrage wird nachgeholt`);
     this.live.note(ASK_INSTEAD);
     this.requestRespond(CAUSE_ASK_NUDGE);
   }
