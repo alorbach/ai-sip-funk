@@ -316,6 +316,41 @@ test('Gemini: Lehnt der Server die Sitzung beim Aufbau wegen des Kontingents ab,
   bridge.close();
 });
 
+test('Gemini: Verlangt das Ausweichmodell eine Denkstufe, wird es mit niedriger Denkstufe neu aufgebaut', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const sockets: FakeSocket[] = [];
+  const errors: string[] = [];
+  const bridge = new RealtimeBridge({
+    apiKey: KEY, model: 'gemini-3.8-live', instructions: 'ANWEISUNG', voice: 'Kore', greetingInstruction: 'GRUSS', formal: true,
+    allowInterrupt: true, outputGain: 1, speechSpeed: 1, vadSilenceMs: 800, hangupGraceMs: 1000, stallMs: 0, greetingWaitMs: 0,
+    onTranscript: () => undefined, onUsage: () => undefined, onEndCall: () => undefined,
+    onError: (m) => errors.push(m),
+    createLive: (config, events) => gemini.createLive(config, events),
+    createSocket: () => { const ws = new FakeSocket(); sockets.push(ws); return ws as unknown as WebSocket; },
+    fallbackModels: ['gemini-3.8-live-thinking', 'gemini-3.1-live'],
+  });
+  sockets[0].emit('open');
+  assert.equal('thinkingConfig' in sockets[0].sent[0].setup.generationConfig, false, 'ohne Bedarf keine Denkstufe');
+  sockets[0].emit('close', 1011, Buffer.from('Resource has been exhausted (e.g. check quota).'));
+  sockets[1].emit('open');
+  sockets[1].emit('close', 1007, Buffer.from('BLOCKING function calls are not supported for this model.'));
+  sockets[2].emit('open');
+  sockets[2].emit('close', 1007, Buffer.from('Thinking level must be specified for this model.'));
+  assert.equal(sockets.length, 4);
+  sockets[3].emit('open');
+  const s = sockets[3].sent[0].setup;
+  assert.equal(s.model, 'models/gemini-3.8-live-thinking', 'dasselbe Modell, nicht das nächste');
+  assert.deepEqual(s.generationConfig.thinkingConfig, { thinkingLevel: 'LOW' });
+  assert.equal('behavior' in s.tools[0].functionDeclarations[0], false, 'ohne BLOCKING bleibt es dabei');
+  // Scheitert es trotzdem, ist das nächste Ausweichmodell dran, wieder ohne Denkstufe
+  sockets[3].emit('close', 1007, Buffer.from('Thinking level must be specified for this model.'));
+  sockets[4].emit('open');
+  assert.equal(sockets[4].sent[0].setup.model, 'models/gemini-3.1-live');
+  assert.equal('thinkingConfig' in sockets[4].sent[0].setup.generationConfig, false);
+  assert.deepEqual(errors, []);
+  bridge.close();
+});
+
 test('Gemini: Ein langer Satz bleibt über die Sicherungsfrist hinaus offen, solange das Gegenüber zu hören ist', (t) => {
   const h = setup(t);
   h.tick(1);

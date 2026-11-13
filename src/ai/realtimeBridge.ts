@@ -175,6 +175,8 @@ const SOUND_RMS = 700;
 const HEARD_RECENT_MS = 2500;
 /** Ablehnung der Angabe, dass die KI auf Tool-Ergebnisse wartet (kennen nicht alle Modelle) */
 const TOOL_BEHAVIOR_REJECTED = /BLOCKING function calls are not supported/i;
+/** Ablehnung, weil das Modell eine Denkstufe verlangt (Thinking-Modelle) */
+const THINKING_REQUIRED = /Thinking level must be specified/i;
 /** So viel Laut muss zusammenkommen, damit es mehr ist als ein Knacken */
 const SOUND_MIN_MS = 350;
 /** So lange muss es danach wieder ruhig sein, bevor die KI darauf eingeht (der Laut ist dann zu Ende) */
@@ -196,6 +198,8 @@ export class RealtimeBridge implements AudioHandler {
   private primaryRetried = false;
   /** Tools ohne die Angabe zum Ablauf anmelden (das laufende Modell lehnt sie ab) */
   private plainTools = false;
+  /** Eine Denkstufe mitschicken (das laufende Modell verlangt sie) */
+  private thinking = false;
   private ready = false;
   private closed = false;
   private connected = false;
@@ -440,6 +444,7 @@ export class RealtimeBridge implements AudioHandler {
     this.connectLive = (model) => {
       config.model = model;
       config.plainTools = this.plainTools;
+      config.thinking = this.thinking;
       this.currentModel = model;
       // Die Anweisungen können sich bis hierher geändert haben (Gesprächsplan)
       config.instructions = this.opts.instructions;
@@ -461,6 +466,7 @@ export class RealtimeBridge implements AudioHandler {
    * Der Anbieter hat die Sitzung abgelehnt oder geschlossen, bevor sie stand: neu aufbauen, solange es einen Weg gibt.
    * Liefert false, wenn das nicht geht – dann gilt der Fehler. Die Wege der Reihe nach:
    * - Das Modell lehnt die Angabe zum Ablauf der Tools ab: dasselbe Modell ohne sie.
+   * - Das Modell verlangt eine Denkstufe: dasselbe Modell mit niedriger Denkstufe.
    * - Das Hauptmodell meldet ein Limit (Kontingent, Überlast): das nächste Ausweichmodell. Ein Ausweichmodell, das
    *   scheitert, macht dem nächsten Platz, gleich aus welchem Grund – es darf den Anruf nicht kosten.
    * - Kein Ausweichmodell mehr: einmal noch das Hauptmodell (ein Limit ist oft nach einem Augenblick vorbei).
@@ -474,16 +480,22 @@ export class RealtimeBridge implements AudioHandler {
       this.plainTools = true;
       next = this.currentModel;
       how = `baue sie mit ${next} ohne die Angabe zum Ablauf der Tools neu auf`;
+    } else if (!this.thinking && THINKING_REQUIRED.test(reason)) {
+      this.thinking = true;
+      next = this.currentModel;
+      how = `baue sie mit ${next} und niedriger Denkstufe neu auf`;
     } else if (!this.onFallback && !isLimitError(reason)) {
       return false;
     } else if (this.fallbackModels.length) {
       next = this.fallbackModels.shift()!;
       this.onFallback = true;
       this.plainTools = false;
+      this.thinking = false;
       how = `baue sie mit dem Ausweichmodell ${next} neu auf`;
     } else if (this.onFallback && !this.primaryRetried) {
       this.primaryRetried = true;
       this.plainTools = false;
+      this.thinking = false;
       next = this.primaryModel;
       how = `kein weiteres Ausweichmodell, versuche es noch einmal mit ${next}`;
     } else {

@@ -89,6 +89,8 @@ export function geminiSetup(config: LiveConfig): object {
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice } } },
+        // Nur für Modelle, die ohne Denkstufe ablehnen: niedrig, damit am Telefon keine lange Pause entsteht
+        ...(config.thinking ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
       },
       systemInstruction: { parts: [{ text: geminiSystemText(config) }] },
       tools: geminiTools(config.tools, config.plainTools),
