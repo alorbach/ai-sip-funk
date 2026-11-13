@@ -1,0 +1,58 @@
+README.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 25
+doc/user-guide.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 522-524
+CONTRIBUTING.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 38
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 13
+CHANGELOG.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 13
+README.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 27
+test/contactImport.test.ts
+  s_6e62c686ceb639::t_88f3246d7e8a52 10,175,355,779-806
+  s_6e62c686ceb639::t_717bacfae47f0b 807
+doc/legal.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 65
+.github/workflows/release.yml
+  s_6e62c686ceb639::t_88f3246d7e8a52 90-104
+.gitignore
+  s_6e62c686ceb639::t_88f3246d7e8a52 12
+CONTRIBUTING.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 38
+doc/test-checklist.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 123
+public/index.html
+  s_6e62c686ceb639::t_88f3246d7e8a52 224-226,923-924,933-934,1385-1386,1389,1395-1397,1399,1437,1446,1449-1450,1452-1461,1470-1475
+src/contactSources.ts
+  s_6e62c686ceb639::t_88f3246d7e8a52 5,11-43,83,86-87
+package.json
+  s_6e62c686ceb639::t_88f3246d7e8a52 82
+doc/test-checklist.de.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 123
+src/main.ts
+  s_6e62c686ceb639::t_88f3246d7e8a52 35,1007-1008,1012,1016,1027
+public/i18n-en.js
+  s_6e62c686ceb639::t_88f3246d7e8a52 139-156
+doc/legal.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 67
+doc/user-guide.md
+  s_6e62c686ceb639::t_88f3246d7e8a52 524-526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e5496dcb674c86d1500c261bc42402839c84df33",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
