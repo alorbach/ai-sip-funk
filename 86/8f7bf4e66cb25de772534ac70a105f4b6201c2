@@ -1,0 +1,19 @@
+scripts/capture-screenshots.cjs
+  s_3a73f3bd2ac3fb::t_210a66d7a5420c 172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "868f7bf4e66cb25de772534ac70a105f4b6201c2",
+  "prompts": {},
+  "sessions": {
+    "s_3a73f3bd2ac3fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4c71ed0-3309-4a73-8f4a-567491189913",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
