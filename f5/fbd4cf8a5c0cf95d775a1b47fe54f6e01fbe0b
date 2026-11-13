@@ -1,0 +1,31 @@
+doc/user-guide.md
+  s_392ab48a090048::t_d00077aa6b4576 576
+doc/user-guide.de.md
+  s_392ab48a090048::t_d00077aa6b4576 574
+doc/mcp-flow.md
+  s_392ab48a090048::t_9c78be6e27dcf2 114,206
+  s_392ab48a090048::t_d00077aa6b4576 134
+doc/mcp-flow.de.md
+  s_392ab48a090048::t_d00077aa6b4576 134
+  s_392ab48a090048::t_9c78be6e27dcf2 114,206
+examples/skills/sipfunk-anruf/SKILL.md
+  s_392ab48a090048::t_9c78be6e27dcf2 85
+examples/skills/sipfunk-call/SKILL.md
+  s_392ab48a090048::t_9c78be6e27dcf2 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5fbd4cf8a5c0cf95d775a1b47fe54f6e01fbe0b",
+  "prompts": {},
+  "sessions": {
+    "s_392ab48a090048": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f4994c46-c08b-4f0e-8615-2238f1731271",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
