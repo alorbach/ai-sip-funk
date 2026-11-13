@@ -32,7 +32,7 @@ import { buildCallMail, buildTestMail } from './notify/mailFormat.js';
 import { suggestMail } from './notify/autoconfig.js';
 import { OAuthLogin, TokenStore } from './notify/oauth.js';
 import { decodeImportFile, fromFile, ImportSession } from './contactImport.js';
-import { ContactSources, type ImportProvider } from './contactSources.js';
+import { ContactSources, readBuiltinClients, resolveClients, type ImportProvider } from './contactSources.js';
 import { BUDGET_MODELS, estimateCostUsd } from './ai/pricing.js';
 import { ModelCatalog } from './ai/models.js';
 import { testConnection } from './ai/connectionTest.js';
@@ -1003,13 +1003,16 @@ const mailLogin = new OAuthLogin(() => oauthFrom(mailConfig()), `http://127.0.0.
 // Kontakt-Import: abgerufene Adressbuchdaten liegen nur hier im Arbeitsspeicher, bis übernommen oder verworfen wird
 const importSession = new ImportSession();
 setInterval(() => importSession.sweep(), 60_000).unref();
+// Mitgelieferte SIPFunk-App (Ein-Klick-Anmeldung); eine eigene App aus den Einstellungen hat Vorrang
+const builtinClients = readBuiltinClients(join(projectRoot, 'oauth-clients.json'));
 const contactSources = new ContactSources(
   () => {
     const s = loadSettings();
-    return {
+    const own = {
       google: s.importGoogleClientId.trim() ? { clientId: s.importGoogleClientId.trim(), clientSecret: s.importGoogleClientSecret || undefined } : undefined,
       microsoft: s.importMsClientId.trim() ? { clientId: s.importMsClientId.trim(), tenant: s.importMsTenant.trim() || 'common' } : undefined,
     };
+    return resolveClients(own, builtinClients, s.importMsTenant.trim());
   },
   (p) => `http://${p === 'google' ? '127.0.0.1' : 'localhost'}:${config.webPort}/oauth/callback`,
 );
@@ -1020,7 +1023,7 @@ const importProvider = (p: unknown): ImportProvider => {
 
 const stopWeb = startWebServer({
   contactImport: {
-    status: () => ({ ...contactSources.status(), redirect: { google: `http://127.0.0.1:${config.webPort}/oauth/callback`, microsoft: 'http://localhost/oauth/callback' } }),
+    status: () => contactSources.status(),
     loginUrl: (p) => contactSources.authUrl(importProvider(p)),
     owns: (state) => contactSources.owns(state),
     callback: (code, state) => contactSources.handleCallback(code, state),

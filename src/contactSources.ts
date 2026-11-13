@@ -2,13 +2,45 @@
 // (Authorization Code mit PKCE, Rückkehr auf den lokalen Server), nur Lesezugriff auf Kontakte.
 // Das Zugriffstoken bleibt nur im Arbeitsspeicher (kein Refresh-Token, keine Datei); „Trennen“ oder ein Neustart verwirft es.
 import { createHash, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { fromGoogle, fromGraph, type ImportCandidate } from './contactImport.js';
 
 export type ImportProvider = 'google' | 'microsoft';
 
 export interface ImportClients {
-  google?: { clientId: string; clientSecret?: string };
-  microsoft?: { clientId: string; tenant: string };
+  /** builtin: die mit SIPFunk ausgelieferte App (oauth-clients.json), nicht die eigene des Nutzers */
+  google?: { clientId: string; clientSecret?: string; builtin?: boolean };
+  microsoft?: { clientId: string; tenant: string; builtin?: boolean };
+}
+
+/**
+ * Mitgelieferte App-Registrierungen aus oauth-clients.json (nicht im Repository; der Installer bringt sie mit).
+ * Format: { "google": { "clientId": "…", "clientSecret": "…" }, "microsoft": { "clientId": "…" } }.
+ * Fehlt die Datei oder ist sie unbrauchbar, gibt es keine mitgelieferte App, und der Nutzer richtet eine eigene ein.
+ */
+export function readBuiltinClients(file: string): Pick<ImportClients, 'google' | 'microsoft'> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+  } catch {
+    return {};
+  }
+  const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const g = obj(obj(raw).google);
+  const m = obj(obj(raw).microsoft);
+  const out: Pick<ImportClients, 'google' | 'microsoft'> = {};
+  if (str(g.clientId)) out.google = { clientId: str(g.clientId), clientSecret: str(g.clientSecret) || undefined, builtin: true };
+  if (str(m.clientId)) out.microsoft = { clientId: str(m.clientId), tenant: 'common', builtin: true };
+  return out;
+}
+
+/** Eigene App des Nutzers (aus den Einstellungen) vor der mitgelieferten; der Mandant gilt auch für die mitgelieferte. */
+export function resolveClients(own: ImportClients, builtin: ImportClients, tenant: string): ImportClients {
+  return {
+    google: own.google ?? builtin.google,
+    microsoft: own.microsoft ?? (builtin.microsoft ? { ...builtin.microsoft, tenant: tenant || 'common' } : undefined),
+  };
 }
 
 type FetchFn = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: URLSearchParams }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
@@ -48,11 +80,11 @@ export class ContactSources {
     private now: () => number = Date.now,
   ) {}
 
-  status(): Record<ImportProvider, { configured: boolean; connected: boolean }> {
+  status(): Record<ImportProvider, { configured: boolean; connected: boolean; builtin: boolean }> {
     const c = this.clients();
     return {
-      google: { configured: Boolean(c.google?.clientId), connected: this.connected('google') },
-      microsoft: { configured: Boolean(c.microsoft?.clientId), connected: this.connected('microsoft') },
+      google: { configured: Boolean(c.google?.clientId), connected: this.connected('google'), builtin: Boolean(c.google?.builtin) },
+      microsoft: { configured: Boolean(c.microsoft?.clientId), connected: this.connected('microsoft'), builtin: Boolean(c.microsoft?.builtin) },
     };
   }
 

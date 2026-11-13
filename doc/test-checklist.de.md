@@ -120,6 +120,7 @@ Vorher [legal.de.md](legal.de.md), Abschnitt 6, lesen. Die Erkennung im Gespräc
 
 ## 8a. Kontakt-Import (braucht eigene Konten)
 
+- [ ] Mitgelieferte App (`oauth-clients.json` im Installer): Der Dialog zeigt bei Google und Microsoft „bereit“, ohne dass etwas eingetragen ist; „Verbinden“ öffnet die Anmeldung, nach dem Zulassen lädt das Adressbuch von selbst. Eine eingetragene eigene Client-ID hat Vorrang.
 - [ ] Google: eigener Desktop-App-Client mit People API und Testnutzer; „Verbinden“ öffnet die Anmeldung, danach meldet die Seite „Adressbuch verbunden“, „Adressbuch laden“ listet die Einträge mit Telefonnummer. „Trennen“ beendet den Zugriff; „Adressbuch laden“ verlangt danach eine neue Verbindung.
 - [ ] Microsoft mit privatem Konto (Outlook.com) und, falls vorhanden, einem Firmenkonto: App-Registrierung mit `http://localhost/oauth/callback` und Contacts.Read; Anmeldung, Laden, Kontakte aus Unterordnern sind dabei.
 - [ ] iCloud: exportierte vCard-Datei, Umlaute in Namen korrekt, alle Nummern da.

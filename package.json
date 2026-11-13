@@ -79,6 +79,7 @@
       "electron/**/*",
       "assets/icon.*",
       ".env.example",
+      "oauth-clients.json",
       "LICENSE",
       "package.json"
     ],
