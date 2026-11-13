@@ -122,7 +122,7 @@ Read [legal.md](legal.md), section 6, first. Detection during the call is disabl
 ## 8a. Contact import (needs your own accounts)
 
 - [ ] Built-in app (`oauth-clients.json` in the installer): the dialog shows "bereit" (ready) for Google and Microsoft with nothing entered; "Verbinden" opens the sign-in, and after allowing it the address book loads by itself. An own client ID that is entered takes precedence.
-- [ ] Google: own Desktop-app client with People API and test user; "Verbinden" opens the sign-in, the page afterwards says "Adressbuch verbunden", "Adressbuch laden" lists the entries with phone numbers. "Trennen" ends access; "Adressbuch laden" then asks to connect again.
+- [x] Google (13 Nov 2026: sign-in and import tried with an own account): own Desktop-app client with People API and test user; "Verbinden" opens the sign-in, the page afterwards says "Adressbuch verbunden", "Adressbuch laden" lists the entries with phone numbers. "Trennen" ends access; "Adressbuch laden" then asks to connect again.
 - [ ] Microsoft with a personal account (Outlook.com) and, if available, a work account: app registration with `http://localhost/oauth/callback` and Contacts.Read; sign-in, loading, contacts from subfolders are included.
 - [ ] iCloud: exported vCard file, umlauts in names correct, all numbers there.
 - [ ] Google CSV and Outlook CSV (also a German Outlook export with semicolons).
