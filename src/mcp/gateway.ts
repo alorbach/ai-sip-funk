@@ -43,6 +43,8 @@ interface AgentCall {
   /** Wie der Agent das Ziel sieht: Kontaktname, sonst die Nummer, die er selbst genannt hat */
   label: string;
   contactName?: string;
+  /** Der Kontakt ist für Agenten-Anrufe ohne Nachfrage freigegeben */
+  direct?: boolean;
   params: AgentCallParams;
   state: AgentCallState;
   createdAt: number;
@@ -64,8 +66,9 @@ export interface GatewayDeps {
   policy(): McpPolicy;
   /** In wessen Auftrag die KI anruft, wenn der Agent nichts nennt */
   principal(): string;
-  contacts(): { name: string; number: string }[];
-  findContact(number: string): { name: string; number: string } | undefined;
+  /** agentDirect: der Betreiber hat den Kontakt für Agenten-Anrufe ohne Nachfrage freigegeben */
+  contacts(): { name: string; number: string; agentDirect?: boolean }[];
+  findContact(number: string): { name: string; number: string; agentDirect?: boolean } | undefined;
   /** Rufzielschutz: liefert die normalisierte Nummer oder wirft mit dem Sperrgrund */
   prepare(target: string): string;
   line(): { phase: string; registered: boolean; maxCallSeconds: number };
@@ -191,7 +194,7 @@ export class McpGateway {
     return [
       `Telefonanlage: ${line.registered ? 'angemeldet' : 'NICHT angemeldet'} · Leitung: ${line.phase === 'idle' ? 'frei' : line.phase}`,
       `Erlaubte Ziele: ${p.targets === 'contacts' ? 'nur gespeicherte Kontakte (Name als target angeben)' : 'Kontakte und jede Nummer, die der Rufzielschutz erlaubt'}`,
-      `Bestätigung durch den Betreiber vor dem Wählen: ${p.confirm === 'always' ? 'immer' : p.confirm === 'unknown' ? 'nur bei Nummern ohne Kontakt' : 'nein'}`,
+      `Bestätigung durch den Betreiber vor dem Wählen: ${p.confirm === 'always' ? `immer, außer bei Kontakten, die der Betreiber dafür freigegeben hat${p.contacts ? ' (in list_contacts markiert)' : ''}` : p.confirm === 'unknown' ? 'nur bei Nummern ohne Kontakt' : 'nein'}`,
       `Noch möglich: ${q.hour} Anruf(e) in dieser Stunde, ${q.day} in 24 Stunden · Höchstdauer je Anruf: ${Math.round(Math.min(p.maxSeconds, line.maxCallSeconds) / 60)} Minuten`,
       `Kontaktnamen lesen: ${p.contacts ? 'erlaubt (list_contacts)' : 'nicht erlaubt'} · Protokolle: ${p.history === 'all' ? 'alle' : 'nur Anrufe über MCP'}`,
       a ? `Laufender Anruf: ${a.id} an ${a.label} – ${STATE_TEXT[a.state]}` : 'Kein laufender Anruf des Agenten.',
@@ -200,8 +203,12 @@ export class McpGateway {
 
   private contactsText(): string {
     if (!this.deps.policy().contacts) throw new Error('Die Kontaktliste ist für Agenten nicht freigegeben (Einstellungen › MCP-Schnittstelle). start_call nimmt trotzdem den Namen eines Kontakts als target.');
-    const names = this.deps.contacts().map((c) => c.name);
-    return names.length ? `Kontakte (Name als target für start_call):\n${names.map((n) => `- ${n}`).join('\n')}` : 'Keine Kontakte gespeichert.';
+    const all = this.deps.contacts();
+    if (!all.length) return 'Keine Kontakte gespeichert.';
+    // Die Markierung nur, wo sie etwas ändert: bei „immer bestätigen“
+    const mark = this.deps.policy().confirm === 'always';
+    const head = `Kontakte (Name als target für start_call${mark ? '; „ohne Bestätigung“: der Betreiber muss den Anruf nicht bestätigen' : ''}):`;
+    return [head, ...all.map((c) => `- ${c.name}${mark && c.agentDirect ? ' (ohne Bestätigung)' : ''}`)].join('\n');
   }
 
   private start(args: Record<string, unknown>): string {
@@ -219,11 +226,14 @@ export class McpGateway {
     // Ziel auflösen: Nummernformat oder Kontaktname (genau, sonst ein eindeutiger Teiltreffer)
     let number: string;
     let contactName: string | undefined;
+    let direct = false;
     /** Der Agent hat den Kontakt beim Namen genannt (dann kennt er den Namen, aber nicht die Nummer) */
     let named = false;
     if (NUMBER_LIKE.test(raw)) {
       number = this.deps.prepare(raw);
-      contactName = this.contactFor(number)?.name;
+      const c = this.contactFor(number);
+      contactName = c?.name;
+      direct = c?.agentDirect === true;
     } else {
       const q = raw.toLowerCase();
       const all = this.deps.contacts();
@@ -239,6 +249,7 @@ export class McpGateway {
         throw new Error(`Der Kontakt „${hit.name}“ hat keine Rufnummer, die SIPFunk anrufen darf.`);
       }
       contactName = hit.name;
+      direct = hit.agentDirect === true;
       named = true;
     }
     if (p.targets === 'contacts' && !contactName) throw new Error('Nicht erlaubt: Agenten dürfen nur gespeicherte Kontakte über deren Hauptnummer anrufen (Einstellungen › MCP-Schnittstelle); weitere Nummern eines Kontakts zählen nicht. Der Betreiber kann die Nummer als Kontakt anlegen oder zur Hauptnummer machen.');
@@ -264,6 +275,7 @@ export class McpGateway {
       // Der Agent sieht den Namen, wenn er ihn selbst genannt hat oder die Kontaktnamen lesen darf; sonst die Nummer, die er genannt hat
       label: contactName && (named || p.contacts) ? contactName : number,
       contactName,
+      direct,
       params: { task, context: context || undefined, principal, address, persona: oneLine(str(args.persona)).slice(0, 40) || undefined, maxSeconds, client: this.access?.client },
       state: 'awaiting_approval',
       createdAt: this.now(),
@@ -274,7 +286,8 @@ export class McpGateway {
     for (const old of this.calls.splice(KEEP_CALLS)) clearTimeout(old.approvalTimer);
     log.info(`MCP: Agent möchte ${contactName ? `den Kontakt „${contactName}“` : number} anrufen (${call.id})`);
 
-    const confirm = p.confirm === 'always' || (p.confirm === 'unknown' && !contactName) || otherPrincipal;
+    // Ein freigegebener Kontakt wird auch bei „immer“ ohne Nachfrage gewählt; ein fremder Auftraggeber wird immer bestätigt
+    const confirm = (p.confirm === 'always' && !direct) || (p.confirm === 'unknown' && !contactName) || otherPrincipal;
     if (!confirm) {
       this.dialNow(call);
       if (call.state === 'ended') throw new Error(call.endReason ?? 'Anruf nicht möglich');
@@ -406,7 +419,7 @@ export class McpGateway {
   }
 
   /** Kontakt zur Nummer – nur, wenn dessen gespeicherte Nummer selbst wählbar ist (eine Auslandsnummer kann sonst dieselben Ziffern haben wie eine andere Nummer). */
-  private contactFor(number: string): { name: string } | undefined {
+  private contactFor(number: string): { name: string; agentDirect?: boolean } | undefined {
     const c = this.deps.findContact(number);
     if (!c) return undefined;
     try {

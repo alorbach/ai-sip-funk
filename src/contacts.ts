@@ -13,6 +13,8 @@ export interface Contact {
   numbers?: string[];
   /** true = das ist der Auftraggeber selbst; die KI stellt sich dort nur als „dein Agent" vor */
   owner?: boolean;
+  /** true = ein KI-Agent darf diesen Kontakt über MCP ohne Nachfrage beim Betreiber anrufen (nur die Hauptnummer) */
+  agentDirect?: boolean;
   address?: 'sie' | 'du';
   persona?: string;
   voice?: string;
@@ -149,6 +151,8 @@ export class ContactStore {
     const existing = this.get(id);
     if (!existing) throw new Error('Kontakt nicht gefunden');
     const clean = this.validate({ ...existing, ...input }, id);
+    // Die Freigabe für Agenten gilt der Nummer, die der Betreiber gesehen hat: Ändert sich die Hauptnummer, nur mit erneutem Häkchen
+    if (numberKey(clean.number) !== numberKey(existing.number) && input.agentDirect !== true) clean.agentDirect = undefined;
     const updated: Contact = { ...existing, ...clean, updatedAt: new Date().toISOString() };
     this.contacts = this.contacts.map((c) => (c.id === id ? updated : c));
     this.index = undefined;
@@ -237,6 +241,7 @@ export class ContactStore {
       number,
       numbers: numbers.length ? numbers : undefined,
       owner: input.owner === true || undefined,
+      agentDirect: input.agentDirect === true || undefined,
       address: input.address === 'du' ? 'du' : input.address === 'sie' ? 'sie' : undefined,
       persona: str(input.persona),
       voice: str(input.voice),

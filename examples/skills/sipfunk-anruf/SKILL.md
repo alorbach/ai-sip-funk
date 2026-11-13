@@ -33,7 +33,7 @@ Fehlt etwas davon, frag den Nutzer jetzt. Während des Telefonats hast du für e
 Ruf `get_status` auf. Achte auf:
 
 - „Erlaubte Ziele“: Bei „nur gespeicherte Kontakte“ muss `target` ein Kontaktname sein. Gibt es den Kontakt nicht, bitte den Nutzer, ihn in SIPFunk anzulegen.
-- „Bestätigung durch den Betreiber“: Bei „immer“ muss der Nutzer den Anruf gleich in SIPFunk bestätigen. Sag ihm das vorher.
+- „Bestätigung durch den Betreiber“: Bei „immer“ muss der Nutzer den Anruf gleich in SIPFunk bestätigen. Sag ihm das vorher. Ausgenommen sind Kontakte, die er dafür freigegeben hat; `list_contacts` markiert sie mit „ohne Bestätigung“ (wenn du die Namen lesen darfst). Ob gewartet wird, steht ohnehin in der Antwort von `start_call`.
 - „Noch möglich“: Ist das Kontingent 0, sag es dem Nutzer und hör auf.
 
 ### 3. Anruf starten

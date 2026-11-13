@@ -32,6 +32,15 @@ test('Kontakte anlegen, finden, ändern, löschen', () => {
     const updated = store.update(laden.id, { notes: 'freundlich', task: '' });
     assert.equal(updated.notes, 'freundlich');
     assert.equal(updated.task, undefined);
+    // Freigabe für Agenten-Anrufe ohne Nachfrage: nur ein echtes true zählt, abwählen entfernt sie
+    assert.equal(store.update(laden.id, { agentDirect: 'ja' as unknown as boolean }).agentDirect, undefined);
+    assert.equal(store.update(laden.id, { agentDirect: true }).agentDirect, true);
+    assert.equal(new ContactStore(file).get(laden.id)?.agentDirect, true);
+    // Neue Hauptnummer ohne erneutes Häkchen: Freigabe entfällt
+    store.update(laden.id, { agentDirect: true });
+    assert.equal(store.update(laden.id, { number: '030 23125778' }).agentDirect, undefined);
+    assert.equal(store.update(laden.id, { number: '030 23125777', agentDirect: true }).agentDirect, true);
+    assert.equal(store.update(laden.id, { agentDirect: false }).agentDirect, undefined);
 
     // Neu laden aus Datei
     const store2 = new ContactStore(file);
