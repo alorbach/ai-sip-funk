@@ -1,0 +1,37 @@
+src/ai/agentCall.ts
+  s_6e62c686ceb639::t_0634f029826eb6 35-36,42,51,112-113
+test/mcp.test.ts
+  s_6e62c686ceb639::t_1bbe0d090d7738 678-708
+  s_6e62c686ceb639::t_0634f029826eb6 521
+src/ai/realtimeBridge.ts
+  s_6e62c686ceb639::t_0634f029826eb6 314-315,713,739-744,805-806,952
+src/mcp/gateway.ts
+  s_6e62c686ceb639::t_1bbe0d090d7738 370
+  s_6e62c686ceb639::t_0634f029826eb6 21-22,59-61,296,341,345,362-367,369,371-372,567
+test/gemini.test.ts
+  s_6e62c686ceb639::t_1bbe0d090d7738 986-1017
+src/mcp/tools.ts
+  s_6e62c686ceb639::t_0634f029826eb6 68
+src/main.ts
+  s_6e62c686ceb639::t_0634f029826eb6 530
+CHANGELOG.de.md
+  s_6e62c686ceb639::t_c79d71ec0467a9 9-12
+CHANGELOG.md
+  s_6e62c686ceb639::t_46ff83d447a5ab 9-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "717b8c275c1ca6cc829fcaa97638b345b5822d88",
+  "prompts": {},
+  "sessions": {
+    "s_6e62c686ceb639": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "75ee9ac4-5741-4c8e-86b0-831c3b2c2b50",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
