@@ -6,6 +6,8 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.1 – 13.11.2026
+
 - **Stille am Ende: Die App legt auf.** Verabschiedete sich die KI nur mündlich, ohne `end_call` (noch einmal) aufzurufen, blieb die Leitung offen, bis das Gegenüber wieder etwas sagte. Bei Stille entscheidet jetzt das Textmodell am Transkript, wie es weitergeht: Ist das Gespräch beendet (man hat sich verabschiedet), legt die App selbst auf; ist alles gesagt, aber die Verabschiedung fehlt, bekommt die KI die Aufforderung zu beenden; ist das Gespräch mittendrin, wird sie wie bisher angestoßen. Wollte die KI schon beenden, wird nach drei statt sechs Sekunden Stille nachgesehen. Als Netz darunter: Bleibt es nach zwei Anstößen weiter still, wird aufgelegt („Wegen Stille beendet“).
 - **Auflegen: Die Entscheidung der KI gilt, wenn sie den Hinweis kannte.** Meldete die Prüfung nebenher einen offenen Punkt und rief die KI danach trotzdem `end_call` auf (etwa auf die Aufforderung der App nach dem Schweigen des Gegenübers), nahm die App das Auflegen zurück; die KI verabschiedete sich, die Leitung blieb offen, und nach sechs Sekunden Stille folgte eine zweite Verabschiedung. Kennt die KI den Hinweis (sie hat seitdem geantwortet oder ihn mit der Aufforderung noch einmal bekommen), wird jetzt aufgelegt. Zurückgenommen wird nur noch für ein Urteil, das sie beim `end_call` noch nicht kannte.
 - **Anrufbeantworter: keine Prüfung gegen den Auftrag.** Bei eingehenden Anrufen bestimmt der Anrufer, worum es geht; die Prüfung beim Auflegen entfällt dort.
