@@ -1,0 +1,31 @@
+public/i18n-en.js
+  s_a8e29f4c6e0134::t_38e94856f38867 140-153
+public/index.html
+  s_a8e29f4c6e0134::t_dd7d30350a25b6 226
+  s_a8e29f4c6e0134::t_38e94856f38867 224-225,924,934
+  s_a8e29f4c6e0134::t_d4931979776f90 1470-1475
+CHANGELOG.de.md
+  s_a8e29f4c6e0134::t_538c579c625dcf 9
+CHANGELOG.md
+  s_a8e29f4c6e0134::t_e329eff4329981 9
+doc/user-guide.de.md
+  s_a8e29f4c6e0134::t_7a1d2c67ef38b7 524
+doc/user-guide.md
+  s_a8e29f4c6e0134::t_a4abaa1acd8c94 526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80d6d215b614d3ca3b11ee7c5b8ce743e5e16c17",
+  "prompts": {},
+  "sessions": {
+    "s_a8e29f4c6e0134": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8205f9aa-6fc5-4df9-9081-c1aac2da091f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
