@@ -1,0 +1,21 @@
+doc/test-checklist.de.md
+  s_a8e29f4c6e0134::t_6cc5a816656064 125
+doc/test-checklist.md
+  s_a8e29f4c6e0134::t_7f44bcf333d5c3 125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4aa5ba8e163d1d14038300889c3b2a391fdb20f",
+  "prompts": {},
+  "sessions": {
+    "s_a8e29f4c6e0134": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8205f9aa-6fc5-4df9-9081-c1aac2da091f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
