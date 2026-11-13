@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactStore, numberKey, sameMainNumber } from '../src/contacts.js';
 import { applyImport, buildPreview, decodeImportFile, sameperson, splitNumbers, fromCsv, fromFile, fromGoogle, fromGraph, fromVcard, ImportSession, normalizeImportNumber, previewCounts } from '../src/contactImport.js';
-import { ContactSources } from '../src/contactSources.js';
+import { ContactSources, readBuiltinClients, resolveClients } from '../src/contactSources.js';
 
 function withStore(fn: (store: ContactStore, file: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), 'sipfunk-imp-'));
@@ -172,7 +172,7 @@ test('Google: PKCE-Anmeldung, Token nur im Speicher, Abruf mit Blättern, Trenne
     return { body: { connections: [{ names: [{ displayName: 'Erste Seite' }], phoneNumbers: [{ value: '0170 5550900', type: 'mobile' }] }], nextPageToken: 'p2' } };
   });
   const src = new ContactSources(() => ({ google: { clientId: 'cid.apps', clientSecret: 'nicht-geheim' } }), () => 'http://127.0.0.1:3000/oauth/callback', fn, () => now);
-  assert.deepEqual(src.status().google, { configured: true, connected: false });
+  assert.deepEqual(src.status().google, { configured: true, connected: false, builtin: false });
   await assert.rejects(src.load('google'), /Nicht verbunden/);
 
   const url = new URL(src.authUrl('google'));
@@ -352,7 +352,7 @@ test('Trennen: Google widerruft das Token, Microsoft nur lokal', async () => {
   const revokes = calls.filter((c) => c.url === 'https://oauth2.googleapis.com/revoke');
   assert.equal(revokes.length, 1);
   assert.equal(revokes[0].init!.body!.get('token'), 'tok');
-  assert.deepEqual(src.status(), { google: { configured: true, connected: false }, microsoft: { configured: true, connected: false } });
+  assert.deepEqual(src.status(), { google: { configured: true, connected: false, builtin: false }, microsoft: { configured: true, connected: false, builtin: false } });
 });
 
 test('MCP-Freigabe „nur Kontakte“ gilt nur für die Hauptnummer', () => {
@@ -775,4 +775,33 @@ test('Nummern: Kernregeln', () => {
   assert.deepEqual(splitNumbers('030 1234567 **610'), ['030 1234567', '**610']);
   assert.deepEqual(splitNumbers('+49 160 5550200 ::: +49 160 5550201'), ['+49 160 5550200', '+49 160 5550201']);
   assert.deepEqual(splitNumbers('0171 / 5550100'), ['0171 / 5550100']);
+});
+
+test('Mitgelieferte App: Datei lesen, eigene App hat Vorrang, Mandant gilt auch für die mitgelieferte', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sipfunk-oauth-'));
+  try {
+    const file = join(dir, 'oauth-clients.json');
+    // fehlende oder kaputte Datei: keine mitgelieferte App
+    assert.deepEqual(readBuiltinClients(file), {});
+    writeFileSync(file, '{ kaputt');
+    assert.deepEqual(readBuiltinClients(file), {});
+    // mit BOM, Leerzeichen; leere Microsoft-ID zählt nicht
+    writeFileSync(file, '\uFEFF{ "google": { "clientId": " g-id ", "clientSecret": "g-sec" }, "microsoft": { "clientId": "" } }');
+    assert.deepEqual(readBuiltinClients(file), { google: { clientId: 'g-id', clientSecret: 'g-sec', builtin: true } });
+    writeFileSync(file, JSON.stringify({ microsoft: { clientId: 'ms-id' } }));
+    const builtin = readBuiltinClients(file);
+    assert.deepEqual(builtin, { microsoft: { clientId: 'ms-id', tenant: 'common', builtin: true } });
+
+    assert.deepEqual(resolveClients({}, builtin, ''), { google: undefined, microsoft: { clientId: 'ms-id', tenant: 'common', builtin: true } });
+    assert.equal(resolveClients({}, builtin, 'consumers').microsoft?.tenant, 'consumers');
+    const own = { microsoft: { clientId: 'eigene', tenant: 'common' } };
+    assert.deepEqual(resolveClients(own, builtin, 'common').microsoft, own.microsoft);
+
+    const src = new ContactSources(() => resolveClients({}, builtin, ''), () => 'http://localhost:3000/oauth/callback', async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    assert.deepEqual(src.status().microsoft, { configured: true, connected: false, builtin: true });
+    assert.deepEqual(src.status().google, { configured: false, connected: false, builtin: false });
+    assert.equal(new URL(src.authUrl('microsoft')).searchParams.get('client_id'), 'ms-id');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

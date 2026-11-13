@@ -87,6 +87,21 @@ jobs:
       - name: Run tests
         run: npm test
 
+      # The built-in app registrations for the one-click contact import (Google and
+      # Microsoft) come from the OAUTH_CLIENTS_JSON secret, the content of
+      # oauth-clients.json. Without it the app asks users to set up their own app.
+      - name: Write built-in OAuth clients
+        shell: pwsh
+        env:
+          OAUTH_CLIENTS_JSON: ${{ secrets.OAUTH_CLIENTS_JSON }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:OAUTH_CLIENTS_JSON)) {
+            Write-Host "::notice title=No built-in OAuth clients::OAUTH_CLIENTS_JSON secret is not set; the contact import needs the user's own app registration."
+          } else {
+            $null = $env:OAUTH_CLIENTS_JSON | ConvertFrom-Json
+            [System.IO.File]::WriteAllText("oauth-clients.json", $env:OAUTH_CLIENTS_JSON)
+          }
+
       - name: Build Windows installer and portable ZIP
         run: npm run dist:win
 

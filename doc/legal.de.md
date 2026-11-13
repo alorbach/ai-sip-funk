@@ -62,7 +62,7 @@ Sie gilt **voll**, wenn SIPFunk geschäftlich eingesetzt wird: eine Firmennummer
 
 - Rufnummern (Anrufer, Angerufener), Zeitpunkte, Dauer.
 - Gesprächsinhalt als Audio (nur live, Durchleitung an den gewählten KI-Anbieter, keine Speicherung bei dir) und als Text (Transkript, Zusammenfassung, Ergebnis, Einschätzung).
-- Kontaktdaten und Notizen in `contacts.json`, auch aus einem Adressbuch importierte Kontakte (Google, Microsoft oder Datei). Der Import liest dein Adressbuch mit deiner eigenen App-Registrierung direkt beim Anbieter, verarbeitet es nur im Arbeitsspeicher und behält nur die Kontakte, die du auswählst; beim Import selbst gibt SIPFunk Adressbuchdaten an niemanden weiter. Danach sind es gewöhnliche Kontakte: Bei einem Anruf gehen Name und Notizen des Kontakts wie bisher an den gewählten KI-Anbieter. Geschäftlich nur die Kontakte importieren, die du fürs Telefonieren brauchst; auch die Personen in deinem Adressbuch sind Betroffene.
+- Kontaktdaten und Notizen in `contacts.json`, auch aus einem Adressbuch importierte Kontakte (Google, Microsoft oder Datei). Der Import liest dein Adressbuch mit der mitgelieferten oder deiner eigenen App-Registrierung direkt beim Anbieter (über den Herausgeber von SIPFunk läuft dabei nichts), verarbeitet es nur im Arbeitsspeicher und behält nur die Kontakte, die du auswählst; beim Import selbst gibt SIPFunk Adressbuchdaten an niemanden weiter. Danach sind es gewöhnliche Kontakte: Bei einem Anruf gehen Name und Notizen des Kontakts wie bisher an den gewählten KI-Anbieter. Geschäftlich nur die Kontakte importieren, die du fürs Telefonieren brauchst; auch die Personen in deinem Adressbuch sind Betroffene.
 - Hintergrundwissen, das du der KI mitgibst.
 - Betriebslog mit Rufnummern.
 

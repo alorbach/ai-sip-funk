@@ -9,6 +9,7 @@ sim-results/
 release/
 voice-samples/
 mail-token.json
+oauth-clients.json
 usage.json
 .claude/
 *.tmp
