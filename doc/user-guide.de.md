@@ -827,7 +827,7 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 - **Rückfragen kosten Geduld.** Bis zu 25 Sekunden Stille sind am Telefon lang. Antwortet der Agent nicht rechtzeitig, macht die KI ohne Antwort weiter.
 - **Mit Gemini** erreichen Vorgaben die KI als nachgereichte Anweisung im Gesprächsverlauf; das wirkt schwächer als bei OpenAI (Abschnitt 6.2).
 - **Wartezeit der Clients.** `wait_for_events` blockiert höchstens 50 Sekunden. Codex bricht Tool-Aufrufe ohne `tool_timeout_sec` nach 60 Sekunden ab.
-- **Bisher erprobt** ist der Ablauf nur mit automatischen Tests gegen eine nachgestellte Sprachverbindung (`test/mcp.test.ts`) und bei der Entwicklung gegen eine Instanz ohne Telefon und ohne Netz, noch nicht mit einem echten Agenten in einem echten Telefonat. Probier es zuerst mit einer eigenen Nummer oder Nebenstelle aus.
+- **Bisher erprobt** ist der Ablauf in einer Reihe echter Telefonate mit Codex als Agent und mit automatischen Tests gegen eine nachgestellte Sprachverbindung (`test/mcp.test.ts`). Die übrigen Agenten sind noch nicht in einem echten Telefonat erprobt. Probier es zuerst mit einer eigenen Nummer oder Nebenstelle aus.
 
 ### 13.7 Sicherheit
 

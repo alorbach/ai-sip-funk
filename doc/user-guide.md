@@ -829,7 +829,7 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 - **Questions cost patience.** Up to 25 seconds of silence are long on the phone. If the agent does not answer in time, the AI carries on without an answer.
 - **With Gemini**, directions reach the AI as an instruction added to the conversation; that has a weaker effect than with OpenAI (section 6.2).
 - **Client timeouts.** `wait_for_events` blocks for at most 50 seconds. Without `tool_timeout_sec`, Codex aborts tool calls after 60 seconds.
-- **Tried so far** only with automated tests against a simulated voice connection (`test/mcp.test.ts`) and, during development, against an instance without a phone and without network access, not yet with a real agent in a real phone call. Try it with one of your own numbers or extensions first.
+- **Tried so far** in a number of real phone calls with Codex as the agent, and with automated tests against a simulated voice connection (`test/mcp.test.ts`). The other agents have not been tried in a real call yet. Try it with one of your own numbers or extensions first.
 
 ### 13.7 Security
 
