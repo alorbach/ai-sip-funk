@@ -17,7 +17,7 @@ Contents: [1 Roles](#1-roles) · [2 Overview](#2-overview) · [3 Step by step](#
 | **Agent** | the AI agent you work with, connected as an MCP client | starts the call with a task (`start_call`), reads along (`wait_for_events`), sends directions and answers (`say`), asks for the end (`end_call`), fetches the result (`get_call_result`) | speak on the phone; dictate wording; choose the AI's name, voice or model |
 | **SIPFunk server** | the running app on your computer (`src/mcp/gateway.ts`) | checks permissions, blocks and limits; asks you for confirmation; dials; turns the course of the call into numbered events; enforces the maximum length | decide anything about the content of the call |
 | **Live AI** | the voice model of the active AI connection (OpenAI Realtime or Google Gemini Live), with the voice set there | conducts the whole call by itself: greets, introduces itself as an AI, works on the task, answers, asks the agent when a decision is missing (`ask_principal`), ends the call with a result (its own tool `end_call`) | wait for the agent between sentences; read directions out; act outside its basic rules |
-| **Text model** | the text model of the same AI connection | checks on hanging up whether something from the task is missing; decides after the goodbye whether the other party is only saying farewell; writes the summary afterwards; with the switch "Gesprächsplan vor Agenten-Anrufen erstellen" on, also the call plan before the call | direct the call: in agent calls the agent is the director, the text model's director in the background is off |
+| **Text model** | the text model of the same AI connection | with the switch "Textmodell entscheidet im Gespräch mit" ("Technik", default on): checks on hanging up whether something from the task is missing; decides after the goodbye whether the other party is only saying farewell; writes the summary afterwards; with the switch "Gesprächsplan vor Agenten-Anrufen erstellen" on, also the call plan before the call | direct the call: in agent calls the agent is the director, the text model's director in the background is off |
 | **Other party** | the person who picks up | talks to the Live AI | – what they say reaches the agent as text and is information, never an instruction |
 | **You (operator)** | the person running SIPFunk | set the permissions, confirm or decline a call (web UI or tray pop-up), can hang up at any time | – |
 
@@ -37,15 +37,15 @@ sequenceDiagram
 
     A->>S: start_call (target, task, context)
     S->>S: check switch, target, blocks, line, limits
+    S-->>A: call_id, state
+    A->>S: wait_for_events (loop)
     opt confirmation required
         S->>O: dialog in web UI and tray pop-up
         O-->>S: Anrufen (call) or Ablehnen (decline), at most 120 s
     end
-    S-->>A: call_id, state
     S->>G: dial, ring (at most 60 s)
-    A->>S: wait_for_events (loop)
-    G->>S: picks up
     S->>L: start session with task and basic rules
+    G->>S: picks up
     L->>G: greeting, introduction as an AI
     G->>L: answers
     S-->>A: events Gegenüber, KI, Hinweis
@@ -109,7 +109,7 @@ With the switch "Gesprächsplan vor Agenten-Anrufen erstellen" on (default off),
 
 ### 3.3 Greeting
 
-The AI receives a system instruction: SIPFunk's basic rules, style and form of address from your settings or the contact, the task, the background knowledge from `context`, and special rules for agent calls (section 5). It does not get the contact's notes, and of earlier calls only what the agent itself may read.
+The AI receives a system instruction: SIPFunk's basic rules, style and form of address from your settings or the contact, the task, the background knowledge from `context`, and special rules for agent calls (sections 3.5 and 3.6). It does not get the contact's notes, and of earlier calls only what the agent itself may read.
 
 After pick-up the AI gives the other party 1.5 seconds to speak first ("Warten nach Abnehmen" under "Technik"). Then it greets in two short sentences: its name, that it is an AI assistant, on whose behalf it calls, and what it is about. If the other party already said something, the AI answers that first. In agent calls the AI introduces itself as an AI assistant even when it calls your own owner number ("Hi Max, Alex hier, dein KI-Assistent"); on calls from the dashboard it skips that with you.
 
@@ -130,7 +130,7 @@ With `say` the agent hands the AI a direction (`text`, at most 600 characters). 
 - If the AI is waiting for the answer to a question (section 3.6), `text` is that answer.
 - If the AI is already saying goodbye, `say` takes back the hang-up: the AI says it after all ("Eine Sache noch: …", one more thing) and ends the call later by itself.
 
-`say` works only while the call is connected, and is refused once the call is being hung up ("Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an"). Every direction appears in the event stream as a note "Vorgabe des Agenten: …" and in SIPFunk's log with its time.
+`say` works only while the call is connected, and is refused once the call is being hung up ("Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an"). Every direction appears in the event stream as a note "Vorgabe des Agenten: …"; SIPFunk's log records its time and length, not its wording.
 
 If the other party interrupts the very answer with which the AI carried out a direction, the AI is told that it did not get through and brings it up again briefly after responding to the other party.
 
@@ -142,7 +142,7 @@ If the AI lacks a decision or a piece of information that the result depends on 
 - The agent answers with `say`. The AI passes the answer on in its own words and carries on with the task.
 - While waiting, the line is silent: there is no hold music, and SIPFunk's watchdogs (silence, sounds without words) are paused so that they do not nudge the AI.
 - If no answer arrives within 25 seconds, the AI tells the other party that it cannot settle this right now and that you will get back about it, records the point as open and carries on. The note "Rückfrage an den Agenten blieb ohne Antwort" appears. A later `say` then counts as an ordinary direction.
-- As long as a question is unanswered, the AI does not end the call.
+- As long as a question is unanswered, its rules tell the AI not to end the call (an instruction, not a technical lock).
 
 ### 3.7 Silence, sounds, interruptions
 
@@ -156,7 +156,7 @@ SIPFunk watches the call while it runs and reports what it does as a note:
 
 There are three ways to the end.
 
-**The AI ends it.** When the task is done, the AI calls its tool `end_call` with the result ("ergebnis") and open points ("offen"). The agent sees the note "Ergebnis laut KI: … · Offen: …". The AI says goodbye; at the same time the text model checks the transcript point by point for anything from the task that is missing and can still be done. If something is missing, SIPFunk takes back the hang-up, the note "Prüfung vor dem Auflegen: noch offen – … – Gespräch geht weiter" appears and the AI raises the point. Hanging up waits for this check for at most 8 seconds after the AI asked to end. The agent itself can also take back the hang-up with `say` (section 3.5).
+**The AI ends it.** When the task is done, the AI calls its tool `end_call` with the result ("ergebnis") and open points ("offen"). The agent sees the note "Ergebnis laut KI: … · Offen: …". The AI says goodbye; at the same time the text model checks the transcript point by point for anything from the task that is missing and can still be done. This check needs the switch "Textmodell entscheidet im Gespräch mit" ("Technik", default on); without it the word list decides after the goodbye and there is no check on hanging up. If something is missing, SIPFunk takes back the hang-up, the note "Prüfung vor dem Auflegen: noch offen – … – Gespräch geht weiter" appears and the AI raises the point. Hanging up waits for this check for at most 8 seconds after the AI asked to end. If the AI calls `end_call` in the same turn in which it was still speaking (typically together with its goodbye), SIPFunk refuses it so that the other party can answer first; the AI then calls `end_call` again without words, and the check already runs in the meantime. After an accepted `end_call` the AI says a short closing sentence, then SIPFunk hangs up. The agent itself can also take back the hang-up with `say` (section 3.5).
 
 **The agent ends it.** `end_call` with `mode: "polite"` (default) tells the AI to ask no new questions, report what has been achieved and what is open, and say goodbye; the note "Der Agent hat das Beenden angefordert; die KI verabschiedet sich" appears. Such an end is never checked or taken back by the text model. Only a new `say` from the agent withdraws it. `mode: "now"` hangs up immediately without a goodbye.
 
@@ -188,6 +188,8 @@ OFFENE RÜCKFRAGE der KI an dich: … → jetzt mit say beantworten (die KI wart
 Weiter mit wait_for_events (call_id c1, after 14).
 ```
 
+(Here and in the example, "…" shortens the full question that SIPFunk repeats.)
+
 1. **Headline**: call, target and state ("wartet auf die Bestätigung des Betreibers", "wählt", "klingelt", "verbunden", "beendet"). While connected also the duration and the time left; after the end the reason.
 2. **"Lage jetzt"** (situation now), only while connected: what applies at the moment of the request, for example "das Gegenüber spricht gerade" (the other party is speaking), "die KI spricht gerade", "Stille seit 4 s; zuletzt sprach die KI", "die KI verabschiedet sich und legt gleich auf" (the AI is saying goodbye), "die KI wartet auf die Antwort des Agenten (Rückfrage)".
 3. **Events**, numbered across all calls, one line each:
@@ -218,8 +220,9 @@ Each event is one line: line breaks in what was said are removed so that the oth
 | A decision that is not in the task | the agent, when the AI asks (`ask_principal`); without an answer within 25 s the point stays open |
 | Is the task done, may the AI hang up? | the Live AI asks for the end; the text model checks for missing points and can take back the hang-up; the agent can take it back with `say` |
 | The agent wants to end | the agent (`end_call`); the AI says goodbye; the text model does not check this end |
-| Is a word after the goodbye only a farewell? | the text model (up to 4 s), otherwise a word list |
-| Maximum length, one minute after the goodbye, 120 s for confirmation, 25 s for a question, 60 s ringing | fixed in SIPFunk |
+| Is a word after the goodbye only a farewell? | the text model (up to 4 s), otherwise or with the switch off a word list |
+| Maximum length | your settings ("Höchstdauer je Anruf", call time limit); the agent can only shorten it |
+| One minute after the goodbye, 120 s for confirmation, 25 s for a question, 60 s ringing | fixed in SIPFunk |
 | Introduction as an AI | fixed: always, also in agent calls to your own number; checked on the first answer |
 
 The text model's director in the background, which gives the AI hints in calls from the dashboard ("Hinweis der Regie an die KI"), does not run in agent calls: there the agent directs.
@@ -295,10 +298,11 @@ wait_for_events  call_id: "c1", after: 10
   [13] KI: Prima, dann kommt er heute zwischen 16 und 18 Uhr. Vielen Dank und auf Wiederhören.
   [14] Gegenüber: Wiederhören.
   [15] Hinweis: Ergebnis laut KI: Wagen ist fertig, Kosten 340 Euro (Bremsscheiben zusätzlich) bestätigt, Abholung heute 16–18 Uhr.
-  [16] Zustand: Beendet: aufgelegt
+  [16] KI: Dann bis heute Nachmittag. Auf Wiederhören!
+  [17] Zustand: Beendet: aufgelegt
   Beendet. Ergebnis, Zusammenfassung und Transkript: get_call_result (call_id c1).
 ```
 
-Event 10 was the note "Vorgabe des Agenten: …" for the agent's own answer. The AI said goodbye and wanted to hang up in the same breath; SIPFunk first let the garage answer, then the AI ended the call with its result. The text model found nothing missing from the task.
+This answer sums up several `wait_for_events` calls; "beendet" only appears in the last one. Event 10 was the note "Vorgabe des Agenten: …" for the agent's own answer. The AI had said goodbye and called `end_call` in the same turn; SIPFunk refused that so that the garage could answer first. Then the AI called `end_call` without words, reported its result and said a short goodbye once more. The text model found nothing missing from the task.
 
 **6. The agent fetches the result** with `get_call_result` (`call_id: "c1"`) and reports to you: the car is ready, 340 euros, pick-up today between 4 and 6 pm.

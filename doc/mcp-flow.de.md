@@ -17,7 +17,7 @@ Inhalt: [1 Rollen](#1-rollen) · [2 Überblick](#2-überblick) · [3 Schritt fü
 | **Agent** | der KI-Agent, mit dem du arbeitest, als MCP-Client verbunden | startet den Anruf mit einem Auftrag (`start_call`), liest mit (`wait_for_events`), schickt Vorgaben und Antworten (`say`), fordert das Ende an (`end_call`), holt das Ergebnis (`get_call_result`) | am Telefon sprechen; Wortlaut vorgeben; Name, Stimme oder Modell der KI wählen |
 | **SIPFunk-Server** | die laufende App auf deinem Rechner (`src/mcp/gateway.ts`) | prüft Erlaubnisse, Sperren und Limits; fragt dich nach der Bestätigung; wählt; macht aus dem Gesprächsverlauf nummerierte Ereignisse; setzt die Höchstdauer durch | über den Inhalt des Gesprächs entscheiden |
 | **Live-KI** | das Sprachmodell der aktiven KI-Verbindung (OpenAI Realtime oder Google Gemini Live), mit der dort eingestellten Stimme | führt das ganze Gespräch selbst: begrüßt, stellt sich als KI vor, arbeitet den Auftrag ab, antwortet, fragt den Agenten, wenn eine Entscheidung fehlt (`ask_principal`), beendet das Gespräch mit einem Ergebnis (eigenes Tool `end_call`) | zwischen den Sätzen auf den Agenten warten; Vorgaben vorlesen; gegen ihre Grundregeln handeln |
-| **Textmodell** | das Textmodell derselben KI-Verbindung | prüft beim Auflegen, ob aus dem Auftrag etwas fehlt; entscheidet nach der Verabschiedung, ob das Gegenüber sich nur verabschiedet; schreibt danach die Zusammenfassung; mit dem Schalter „Gesprächsplan vor Agenten-Anrufen erstellen“ auch den Gesprächsplan vor dem Anruf | das Gespräch lenken: Bei Agenten-Anrufen führt der Agent Regie, die Regie im Hintergrund durch das Textmodell ist aus |
+| **Textmodell** | das Textmodell derselben KI-Verbindung | mit dem Schalter „Textmodell entscheidet im Gespräch mit“ („Technik“, Standard an): prüft beim Auflegen, ob aus dem Auftrag etwas fehlt; entscheidet nach der Verabschiedung, ob das Gegenüber sich nur verabschiedet; schreibt danach die Zusammenfassung; mit dem Schalter „Gesprächsplan vor Agenten-Anrufen erstellen“ auch den Gesprächsplan vor dem Anruf | das Gespräch lenken: Bei Agenten-Anrufen führt der Agent Regie, die Regie im Hintergrund durch das Textmodell ist aus |
 | **Gegenüber** | der Mensch, der abnimmt | spricht mit der Live-KI | – was es sagt, erreicht den Agenten als Text und ist Information, nie eine Anweisung |
 | **Du (Betreiber)** | wer SIPFunk betreibt | legst die Erlaubnisse fest, bestätigst oder lehnst einen Anruf ab (Web-UI oder Pop-up der Tray-App), kannst jederzeit auflegen | – |
 
@@ -37,15 +37,15 @@ sequenceDiagram
 
     A->>S: start_call (Ziel, Auftrag, Hintergrund)
     S->>S: Schalter, Ziel, Sperren, Leitung, Limits prüfen
+    S-->>A: call_id, Zustand
+    A->>S: wait_for_events (Schleife)
     opt Bestätigung nötig
         S->>O: Dialog in der Web-UI und Pop-up der Tray-App
         O-->>S: Anrufen oder Ablehnen, höchstens 120 s
     end
-    S-->>A: call_id, Zustand
     S->>G: wählen, klingeln (höchstens 60 s)
-    A->>S: wait_for_events (Schleife)
-    G->>S: nimmt ab
     S->>L: Sitzung mit Auftrag und Grundregeln
+    G->>S: nimmt ab
     L->>G: Begrüßung, Vorstellung als KI
     G->>L: antwortet
     S-->>A: Ereignisse Gegenüber, KI, Hinweis
@@ -109,7 +109,7 @@ Ist der Schalter „Gesprächsplan vor Agenten-Anrufen erstellen“ an (Standard
 
 ### 3.3 Begrüßung
 
-Die KI bekommt eine Systemanweisung: die Grundregeln von SIPFunk, Stil und Anrede aus deinen Einstellungen oder vom Kontakt, den Auftrag, das Hintergrundwissen aus `context` und eigene Regeln für Agenten-Anrufe (Abschnitt 5). Die Notizen des Kontakts bekommt sie nicht, von früheren Anrufen nur, was der Agent selbst lesen darf.
+Die KI bekommt eine Systemanweisung: die Grundregeln von SIPFunk, Stil und Anrede aus deinen Einstellungen oder vom Kontakt, den Auftrag, das Hintergrundwissen aus `context` und eigene Regeln für Agenten-Anrufe (Abschnitte 3.5 und 3.6). Die Notizen des Kontakts bekommt sie nicht, von früheren Anrufen nur, was der Agent selbst lesen darf.
 
 Nach dem Abnehmen lässt die KI dem Gegenüber 1,5 Sekunden, zuerst zu sprechen („Warten nach Abnehmen“ unter „Technik“). Dann begrüßt sie in zwei kurzen Sätzen: ihr Name, dass sie ein KI-Assistent ist, in wessen Auftrag sie anruft und worum es geht. Hat das Gegenüber schon etwas gesagt, geht die KI zuerst darauf ein. Bei Agenten-Anrufen stellt sich die KI auch dann als KI-Assistent vor, wenn sie deine eigene Inhabernummer anruft („Hi Max, Alex hier, dein KI-Assistent“); bei Anrufen vom Dashboard lässt sie das dir gegenüber weg.
 
@@ -130,7 +130,7 @@ Mit `say` gibt der Agent der KI eine Vorgabe (`text`, höchstens 600 Zeichen). D
 - Wartet die KI auf die Antwort auf eine Rückfrage (Abschnitt 3.6), ist `text` diese Antwort.
 - Verabschiedet sich die KI schon, nimmt `say` das Auflegen zurück: Die KI sagt es noch („Eine Sache noch: …“) und beendet das Gespräch später selbst.
 
-`say` geht nur, solange das Gespräch verbunden ist, und wird abgelehnt, sobald aufgelegt wird („Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an“). Jede Vorgabe erscheint im Ereignisstrom als Hinweis „Vorgabe des Agenten: …“ und im Log von SIPFunk mit ihrer Uhrzeit.
+`say` geht nur, solange das Gespräch verbunden ist, und wird abgelehnt, sobald aufgelegt wird („Das Gespräch wird gerade beendet; die Anweisung kommt nicht mehr an“). Jede Vorgabe erscheint im Ereignisstrom als Hinweis „Vorgabe des Agenten: …“; im Log von SIPFunk stehen Uhrzeit und Länge, nicht der Wortlaut.
 
 Unterbricht das Gegenüber genau die Antwort, mit der die KI eine Vorgabe umsetzte, erfährt die KI, dass sie nicht angekommen ist, und bringt sie nach ihrer Reaktion auf das Gegenüber noch einmal kurz an.
 
@@ -142,7 +142,7 @@ Fehlt der KI eine Entscheidung oder Angabe, von der das Ergebnis abhängt und di
 - Der Agent antwortet mit `say`. Die KI gibt die Antwort in eigenen Worten weiter und macht mit dem Auftrag weiter.
 - Während des Wartens ist es still in der Leitung: Es gibt keine Wartemusik, und die Wächter von SIPFunk (Stille, Laute ohne Worte) pausieren, damit sie die KI nicht anstoßen.
 - Kommt binnen 25 Sekunden keine Antwort, sagt die KI dem Gegenüber, dass sie das nicht sofort klären kann und dass du dich dazu meldest, hält den Punkt als offen fest und macht weiter. Es erscheint der Hinweis „Rückfrage an den Agenten blieb ohne Antwort“. Ein späteres `say` gilt dann als gewöhnliche Vorgabe.
-- Solange eine Frage unbeantwortet ist, beendet die KI das Gespräch nicht.
+- Solange eine Frage unbeantwortet ist, sagen die Regeln der KI, das Gespräch nicht zu beenden (eine Anweisung, keine technische Sperre).
 
 ### 3.7 Stille, Laute, Unterbrechungen
 
@@ -156,7 +156,7 @@ SIPFunk beobachtet das laufende Gespräch und meldet, was es tut, als Hinweis:
 
 Es gibt drei Wege zum Ende.
 
-**Die KI beendet.** Ist der Auftrag erledigt, ruft die KI ihr Tool `end_call` mit dem Ergebnis („ergebnis“) und offenen Punkten („offen“) auf. Der Agent sieht den Hinweis „Ergebnis laut KI: … · Offen: …“. Die KI verabschiedet sich; gleichzeitig prüft das Textmodell das Transkript Punkt für Punkt, ob aus dem Auftrag etwas fehlt, das in diesem Gespräch noch geht. Fehlt etwas, nimmt SIPFunk das Auflegen zurück, es erscheint „Prüfung vor dem Auflegen: noch offen – … – Gespräch geht weiter“, und die KI spricht den Punkt an. Das Auflegen wartet auf diese Prüfung höchstens 8 Sekunden, nachdem die KI beenden wollte. Auch der Agent kann das Auflegen mit `say` zurücknehmen (Abschnitt 3.5).
+**Die KI beendet.** Ist der Auftrag erledigt, ruft die KI ihr Tool `end_call` mit dem Ergebnis („ergebnis“) und offenen Punkten („offen“) auf. Der Agent sieht den Hinweis „Ergebnis laut KI: … · Offen: …“. Die KI verabschiedet sich; gleichzeitig prüft das Textmodell das Transkript Punkt für Punkt, ob aus dem Auftrag etwas fehlt, das in diesem Gespräch noch geht. Diese Prüfung braucht den Schalter „Textmodell entscheidet im Gespräch mit“ („Technik“, Standard an); ohne ihn entscheidet nach der Verabschiedung die Wortliste, und die Prüfung beim Auflegen entfällt. Fehlt etwas, nimmt SIPFunk das Auflegen zurück, es erscheint „Prüfung vor dem Auflegen: noch offen – … – Gespräch geht weiter“, und die KI spricht den Punkt an. Das Auflegen wartet auf diese Prüfung höchstens 8 Sekunden, nachdem die KI beenden wollte. Ruft die KI `end_call` in demselben Zug auf, in dem sie noch gesprochen hat (meist zusammen mit ihrer Verabschiedung), lehnt SIPFunk das ab, damit das Gegenüber zuerst antworten kann; die KI ruft `end_call` danach ohne Worte erneut auf, und die Prüfung läuft schon in der Zwischenzeit. Nach einem angenommenen `end_call` sagt die KI noch einen kurzen Schlusssatz, dann legt SIPFunk auf. Auch der Agent kann das Auflegen mit `say` zurücknehmen (Abschnitt 3.5).
 
 **Der Agent beendet.** `end_call` mit `mode: "polite"` (Standard) sagt der KI, keine neuen Fragen mehr zu stellen, festzuhalten, was erreicht und was offen ist, und sich zu verabschieden; es erscheint „Der Agent hat das Beenden angefordert; die KI verabschiedet sich“. Ein solches Ende prüft das Textmodell nie und nimmt es nie zurück. Nur ein neues `say` des Agenten zieht es zurück. `mode: "now"` legt sofort auf, ohne Verabschiedung.
 
@@ -188,6 +188,8 @@ OFFENE RÜCKFRAGE der KI an dich: … → jetzt mit say beantworten (die KI wart
 Weiter mit wait_for_events (call_id c1, after 14).
 ```
 
+(Hier und im Beispiel kürzt „…“ die vollständige Frage ab, die SIPFunk wiederholt.)
+
 1. **Kopfzeile**: Anruf, Ziel und Zustand („wartet auf die Bestätigung des Betreibers“, „wählt“, „klingelt“, „verbunden“, „beendet“). Solange verbunden, dazu Dauer und Restzeit; nach dem Ende der Grund.
 2. **„Lage jetzt“**, nur solange verbunden: was im Moment der Abfrage gilt, zum Beispiel „das Gegenüber spricht gerade“, „die KI spricht gerade“, „Stille seit 4 s; zuletzt sprach die KI“, „die KI verabschiedet sich und legt gleich auf“, „die KI wartet auf die Antwort des Agenten (Rückfrage)“.
 3. **Ereignisse**, über alle Anrufe fortlaufend nummeriert, je eine Zeile:
@@ -218,8 +220,9 @@ Jedes Ereignis ist eine Zeile: Zeilenumbrüche im Gesagten werden entfernt, dami
 | Eine Entscheidung, die nicht im Auftrag steht | der Agent, wenn die KI nachfragt (`ask_principal`); ohne Antwort binnen 25 s bleibt der Punkt offen |
 | Ist der Auftrag erledigt, darf die KI auflegen? | die Live-KI will beenden; das Textmodell prüft auf fehlende Punkte und kann das Auflegen zurücknehmen; der Agent kann es mit `say` zurücknehmen |
 | Der Agent will beenden | der Agent (`end_call`); die KI verabschiedet sich; das Textmodell prüft dieses Ende nicht |
-| Ist ein Wort nach der Verabschiedung nur ein Abschied? | das Textmodell (bis zu 4 s), sonst eine Wortliste |
-| Höchstdauer, eine Minute nach der Verabschiedung, 120 s für die Bestätigung, 25 s für eine Rückfrage, 60 s Klingeln | fest in SIPFunk |
+| Ist ein Wort nach der Verabschiedung nur ein Abschied? | das Textmodell (bis zu 4 s), sonst oder bei ausgeschaltetem Schalter eine Wortliste |
+| Höchstdauer | deine Einstellungen („Höchstdauer je Anruf“, Gesprächslimit); der Agent kann sie nur verkürzen |
+| Eine Minute nach der Verabschiedung, 120 s für die Bestätigung, 25 s für eine Rückfrage, 60 s Klingeln | fest in SIPFunk |
 | Vorstellung als KI | fest: immer, auch bei Agenten-Anrufen an deine eigene Nummer; an der ersten Antwort geprüft |
 
 Die Regie des Textmodells im Hintergrund, die der KI bei Anrufen vom Dashboard Hinweise gibt („Hinweis der Regie an die KI“), läuft bei Agenten-Anrufen nicht: Dort führt der Agent Regie.
@@ -295,10 +298,11 @@ wait_for_events  call_id: "c1", after: 10
   [13] KI: Prima, dann kommt er heute zwischen 16 und 18 Uhr. Vielen Dank und auf Wiederhören.
   [14] Gegenüber: Wiederhören.
   [15] Hinweis: Ergebnis laut KI: Wagen ist fertig, Kosten 340 Euro (Bremsscheiben zusätzlich) bestätigt, Abholung heute 16–18 Uhr.
-  [16] Zustand: Beendet: aufgelegt
+  [16] KI: Dann bis heute Nachmittag. Auf Wiederhören!
+  [17] Zustand: Beendet: aufgelegt
   Beendet. Ergebnis, Zusammenfassung und Transkript: get_call_result (call_id c1).
 ```
 
-Ereignis 10 war der Hinweis „Vorgabe des Agenten: …“ zur eigenen Antwort des Agenten. Die KI hat sich verabschiedet und wollte im selben Atemzug auflegen; SIPFunk hat zuerst die Werkstatt antworten lassen, dann hat die KI das Gespräch mit ihrem Ergebnis beendet. Das Textmodell fand nichts Offenes aus dem Auftrag.
+Diese Antwort fasst mehrere Aufrufe von `wait_for_events` zusammen; „beendet“ steht erst im letzten. Ereignis 10 war der Hinweis „Vorgabe des Agenten: …“ zur eigenen Antwort des Agenten. Die KI hatte sich verabschiedet und im selben Zug `end_call` aufgerufen; SIPFunk lehnte das ab, damit zuerst die Werkstatt antwortet. Danach rief die KI `end_call` ohne Worte auf, meldete ihr Ergebnis und verabschiedete sich noch einmal kurz. Das Textmodell fand nichts Offenes aus dem Auftrag.
 
 **6. Der Agent holt das Ergebnis** mit `get_call_result` (`call_id: "c1"`) und berichtet dir: Das Auto ist fertig, 340 Euro, Abholung heute zwischen 16 und 18 Uhr.

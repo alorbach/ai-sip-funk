@@ -107,7 +107,7 @@ function demoRecord(start, durationSec, target, rest) {
     mode: 'ai',
     durationSec,
     codec: 'PCMA',
-    endReason: 'KI hat aufgelegt',
+    endReason: 'aufgelegt',
     model: 'gpt-realtime-2.1',
     ...rest,
     entries: rest.entries.map(([speaker, text]) => ({ speaker, text, final: true })),
@@ -205,7 +205,7 @@ function writeDemoData(webPort) {
     demoRecord(isoAgo(1, 17, 41), 213, 'anonym', {
       called: '23125100',
       spam: true,
-      endReason: 'Gegenstelle hat aufgelegt',
+      endReason: 'Gegenseite hat aufgelegt',
       outcome: { result: 'Werbeanruf zu einem angeblichen Gewinnspiel. Keine Daten genannt, der Anrufer hat nach gut drei Minuten aufgelegt.', open: '' },
       summary: 'Werbeanruf (Gewinnspiel) mit unterdrückter Nummer; 3:33 Minuten hingehalten, keine Daten genannt.',
       costUsd: 0.38,
