@@ -32,7 +32,9 @@ const UTTERANCE_EMPTY_MS = 2000;
 const UTTERANCE_OPEN_MS = 8000;
 /** Ist das Gegenüber nach dieser Frist noch zu hören, redet es noch: weiter offen halten, höchstens aber so lange */
 const UTTERANCE_OPEN_MAX_MS = 30_000;
-const UTTERANCE_OPEN_STEP_MS = 1000;
+const UTTERANCE_OPEN_STEP_MS = 500;
+/** Mit Pegel vom Telefon: So lange bleibt eine Äußerung mindestens offen, danach nur, solange das Gegenüber noch zu hören ist */
+const UTTERANCE_OPEN_MIN_MS = 2000;
 
 /**
  * Mitschrift der KI bereinigen: Für eine Antwort ohne Sprache liefert die Live API Platzhalter wie „<no speech>“,
@@ -326,14 +328,19 @@ export class GeminiLive implements LiveSession {
     }
     // Der Server meldet das Sprachende selbst (ACTIVITY_END); bis dahin bleibt die Äußerung offen
     if (this.inText) this.armUtterance(UTTERANCE_GAP_MS);
-    else this.armOpen(UTTERANCE_OPEN_MS);
+    else this.armOpen(UTTERANCE_OPEN_MIN_MS);
   }
 
   /** Sicherung für ein ausbleibendes Sprachende: Wer nach der Frist noch zu hören ist, redet noch (ein langer Satz). */
   private armOpen(ms: number): void {
     clearTimeout(this.utteranceTimer);
     this.utteranceTimer = setTimeout(() => {
-      if (!this.closed && this.config.partnerAudible?.() && Date.now() - this.utteranceSince < UTTERANCE_OPEN_MAX_MS) this.armOpen(UTTERANCE_OPEN_STEP_MS);
+      // Der Server meldet das Sprachende manchmal erst viele Sekunden nach einem kurzen „Ja": Ist am Pegel nichts mehr zu
+      // hören, endet die Äußerung hier. Ohne Pegel (kein Audio vom Telefon) gilt die feste Frist
+      const elapsed = Date.now() - this.utteranceSince;
+      const audible = this.config.partnerAudible?.();
+      const stay = audible === undefined ? elapsed < UTTERANCE_OPEN_MS : audible && elapsed < UTTERANCE_OPEN_MAX_MS;
+      if (!this.closed && stay) this.armOpen(UTTERANCE_OPEN_STEP_MS);
       else this.finishUtterance();
     }, ms);
     this.utteranceTimer.unref();

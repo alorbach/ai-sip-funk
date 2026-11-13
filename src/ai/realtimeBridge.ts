@@ -10,7 +10,7 @@ import { samplesPerFrame } from '../rtp/session.js';
 import { isBackchannel, isEcho, isFarewell } from './farewell.js';
 import { directorNote, END_CALL_AFTER_SILENCE_OPEN, endCallOpenNote, endCallResumeNote, OUTCOME_PREFIX, type CallJudge } from './judge.js';
 import { AI_INTRO_CUT, AI_INTRO_MISSING, AI_INTRO_WORD, END_CALL_AFTER_SILENCE, END_CALL_AFTER_SILENCE_CHECK, END_CALL_TOOL, END_CALL_WHILE_SPEAKING, endCallWhileSpeakingCheck, TRANSFER_CALL_TOOL, endCallCheckInstruction, farewellInstruction } from './personas.js';
-import { ASK_INSTEAD, dodgesAgentQuestion, AGENT_END_NOTE, AGENT_END_WITHDRAWN, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
+import { ASK_INSTEAD, dodgesAgentQuestion, endCallOpenDirective, AGENT_END_NOTE, AGENT_END_WITHDRAWN, ASK_NO_ANSWER, INTERRUPTED_ANSWER, INTERRUPTED_DIRECTIVE, RESUME_FOR_DIRECTIVE, ASK_PRINCIPAL_TOOL, ASK_REPLACED, ASK_TIMEOUT_MS, agentNote, askAnswer } from './agentCall.js';
 import { isLimitError } from './limits.js';
 import { FLAG_SPAM_ACK, FLAG_SPAM_ACK_OPEN, FLAG_SPAM_TOOL, SCAM_FAREWELL, SCAM_STALL } from './scam.js';
 import { OpenAiLive } from './providers/openaiLive.js';
@@ -313,6 +313,17 @@ export class RealtimeBridge implements AudioHandler {
   private askHandledFor = '';
   /** Vorgaben des Agenten, die während einer offenen Rückfrage kamen, ohne ihre Antwort zu sein */
   private afterAsk: string[] = [];
+  /**
+   * Vorgabe des Agenten, für die die KI noch nicht eigens gesprochen hat (sie kam, während das Gegenüber sprach, beim
+   * Beenden oder nur „zum Merken"): Das Modell setzt sie nicht zuverlässig um. Ein end_call davor wird einmal abgelehnt.
+   */
+  private openDirective?: string;
+  private directiveGateUsed = false;
+  /** Das Gegenüber sprach, als die Vorgabe kam: Die nächste Antwort der KI gilt dann ihm, nicht der Vorgabe */
+  private directiveContested = false;
+  /** Die Antwort, die beim Eintreffen der Vorgabe schon lief, kennt sie nicht */
+  private directiveSkipResponse = false;
+  private lastRemoteAt = 0;
   private askNudges = 0;
   // Vorstellung als KI: geprüft an der Mitschrift der ersten Antwort
   private introChecked = false;
@@ -386,7 +397,8 @@ export class RealtimeBridge implements AudioHandler {
       maxOutputTokens: opts.maxOutputTokens ?? 900,
       transcriptionHints: opts.transcriptionHints ?? [],
       createSocket: opts.createSocket,
-      partnerAudible: () => this.lastHeardAt > 0 && Date.now() - this.lastHeardAt < HEARD_RECENT_MS,
+      // (ohne Audio vom Telefon gibt es keinen Pegel: Dann gilt die feste Frist des Anbieters)
+      partnerAudible: () => (Date.now() - this.lastRemoteAt > 1000 ? undefined : this.lastHeardAt > 0 && Date.now() - this.lastHeardAt < HEARD_RECENT_MS),
     };
     const events: LiveEvents = {
       open: () => log.info(`Realtime: verbunden (${config.model})`),
@@ -504,6 +516,7 @@ export class RealtimeBridge implements AudioHandler {
 
   onRemoteAudio(pcm: Int16Array): void {
     if (!this.ready || !this.connected) return;
+    this.lastRemoteAt = Date.now();
     this.listenForSound(pcm);
     const out = this.toAi.process(pcm);
     if (out.length === 0) return;
@@ -721,6 +734,7 @@ export class RealtimeBridge implements AudioHandler {
       // Eine Vorgabe des Agenten (meist eine Richtigstellung) geht vor
       this.cancelHangup('agent');
       this.live.note(agentNote(text));
+      this.noteDirective(text);
       this.requestRespond(CAUSE_AGENT_SAY);
       return 'resumed';
     }
@@ -740,6 +754,7 @@ export class RealtimeBridge implements AudioHandler {
       // Der Agent kennt die Rückfrage noch nicht (seine Vorgabe und sie haben sich gekreuzt): Die Vorgabe ist keine Antwort
       // darauf. Sie geht mit dem Ergebnis der Rückfrage an die KI – ein Hinweis dazwischen stört einen Anbieter, der darauf wartet
       this.afterAsk.push(...(tell ? [AGENT_END_WITHDRAWN] : []), agentNote(text));
+      this.noteDirective(text);
       return 'next';
     }
     if (this.ask) {
@@ -749,6 +764,7 @@ export class RealtimeBridge implements AudioHandler {
     }
     if (tell) this.live.note(AGENT_END_WITHDRAWN);
     this.live.note(agentNote(text));
+    this.noteDirective(text);
     if (!now) {
       // (Der Stillstandswächter war wegen der Schweigefrist nicht scharf: Ohne ihn bliebe die Vorgabe liegen, bis das Gegenüber etwas sagt)
       if (rejectOpen) this.armStall();
@@ -805,6 +821,13 @@ export class RealtimeBridge implements AudioHandler {
     const extra = this.afterAsk.splice(0);
     this.live.toolOutput(ask.callId, ASK_PRINCIPAL_TOOL.name, [output, ...extra].join('\n\n'));
     this.requestRespond(CAUSE_ASK_ANSWER);
+  }
+
+  private noteDirective(text: string): void {
+    this.directiveContested = (this.openDirective !== undefined && this.directiveContested) || this.partnerSpeaking;
+    this.directiveSkipResponse = this.activeResponse;
+    this.openDirective = this.openDirective ? `${this.openDirective} – ${text.trim()}` : text.trim();
+    this.directiveGateUsed = false;
   }
 
   /**
@@ -1104,6 +1127,12 @@ export class RealtimeBridge implements AudioHandler {
   }
 
   private onResponseDone(r: LiveResponseDone): void {
+    // Die KI hat nach der Vorgabe des Agenten gesprochen (nicht stumm, nicht abgebrochen): Sie gilt als umgesetzt. Sprach das
+    // Gegenüber, als die Vorgabe kam, antwortet die KI zuerst ihm – dann zählt nur eine Antwort, die eigens für die Vorgabe entstand
+    if (this.openDirective && this.directiveSkipResponse) this.directiveSkipResponse = false;
+    else if (this.openDirective && !this.mutedResponse && r.status !== 'cancelled' && this.stats.deltas > 0) {
+      if (!this.directiveContested || this.responseCause === CAUSE_AGENT_SAY || this.responseCause === CAUSE_ASK_ANSWER) this.openDirective = undefined;
+    }
     this.lastResponseStatus = r.status;
     this.muteNoiseResponse = false;
     this.activeResponse = false;
@@ -1430,6 +1459,21 @@ export class RealtimeBridge implements AudioHandler {
       // doppelter Aufruf
       if (this.live.toolCallsBlock) this.live.toolOutput(callId, name, 'ok');
       return;
+    }
+    if (this.openDirective && !this.endByAgent) {
+      if (!this.directiveGateUsed) {
+        // Die Vorgabe des Agenten ist noch nicht gesprochen (sie kam z. B., während das Gegenüber eine neue Frage stellte):
+        // erst sie, dann beenden. Einmal – ignoriert die KI auch das, endet das Gespräch, und das Transkript hält es fest
+        this.directiveGateUsed = true;
+        log.info('Realtime: end_call abgelehnt – eine Vorgabe des Agenten ist noch nicht gesprochen');
+        this.event('Vorgabe des Agenten noch nicht gesprochen – Auflegen zurückgestellt');
+        this.live.toolOutput(callId, name, endCallOpenDirective(this.openDirective));
+        this.requestRespond(CAUSE_AGENT_SAY);
+        return;
+      }
+      log.warn('Realtime: Gespräch endet, ohne dass die Vorgabe des Agenten gesprochen wurde');
+      this.event('Eine Vorgabe des Agenten wurde nicht mehr gesprochen');
+      this.openDirective = undefined;
     }
     // Punkte, die die Prüfung nebenher beim letzten end_call gemeldet hat, gelten, bis sie gebraucht werden (end_call ohne Sprache, unten)
     // oder das Gegenüber seitdem etwas gesagt hat („Fehlt der eben genannte Punkt …" nach dem Schweigen wäre sonst falsch, wenn er

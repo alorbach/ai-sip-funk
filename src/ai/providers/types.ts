@@ -54,7 +54,7 @@ export interface LiveConfig {
   /** Tools ohne Zusatzangaben zum Ablauf anmelden: für Modelle, die solche Angaben ablehnen */
   plainTools?: boolean;
   /** Ist das Gegenüber gerade am Pegel zu hören? Hält eine Äußerung offen, deren Ende der Anbieter noch nicht gemeldet hat */
-  partnerAudible?: () => boolean;
+  partnerAudible?: () => boolean | undefined;
   /** Nur für Tests: liefert statt der echten Verbindung einen nachgestellten WebSocket */
   createSocket?: (url: string) => WebSocket;
 }

@@ -372,7 +372,7 @@ export class McpGateway {
     }
     // Ob als Antwort oder als Vorgabe angekommen: Eine Rückfrage ist danach nicht mehr offen
     call.question = undefined;
-    if (mode === 'resumed') return 'Übergeben. Die KI war schon dabei, das Gespräch zu beenden; das Auflegen ist zurückgenommen, sie sagt es jetzt noch.';
+    if (mode === 'resumed') return 'Übergeben. Die KI war schon dabei, das Gespräch zu beenden; das Auflegen ist zurückgenommen. Gesprochen ist die Vorgabe damit noch nicht: Achte auf die nächste Zeile „KI: …“; will die KI vorher wieder auflegen, hält SIPFunk sie einmal dazu an, und endet das Gespräch ohne die Vorgabe, meldet das ein Ereignis.';
     return mode === 'answered'
       ? 'Als Antwort auf die Rückfrage übergeben; die KI gibt es jetzt weiter.'
       : mode === 'now'

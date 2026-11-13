@@ -1015,3 +1015,81 @@ test('Agenten-Anruf: Eine Vorgabe, die keine Antwort auf die offene Rückfrage i
   assert.match(h.answers()[0], /Regieanweisung deines Auftraggebers[^"]*Sag bitte noch, dass der Test gleich endet\./);
   h.bridge.close();
 });
+
+// ---- Vorgabe des Agenten, die beim Beenden oder mitten in eine Frage des Gegenübers kommt ----
+
+function directiveDuringEnd(t: TestContext) {
+  const h = agentCall(t);
+  h.heard('Würde Codex mir meine Kundennummer heraussuchen?');
+  h.say(1500, 'Kundennummern gebe ich am Telefon nicht durch.');
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  // Das Gegenüber beginnt eine neue Frage; währenddessen trifft die Klarstellung des Agenten ein
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  assert.equal(h.bridge.agentSay('Stell klar: Ein Übermittlungsweg ist nicht eingerichtet.', true), 'resumed');
+  h.server({ serverContent: { inputTranscription: { text: 'Kannst du mir meine Zugangsdaten geben?' } } });
+  h.server({ voiceActivity: { type: 'ACTIVITY_END' } });
+  h.tick(700);
+  // Die KI beantwortet nur die neue Frage und will im selben Atemzug wieder auflegen
+  h.audio(1500);
+  h.server({ serverContent: { outputTranscription: { text: 'Zugangsdaten kann ich dir am Telefon ebenfalls nicht mitteilen.' } } });
+  h.server({ toolCall: { functionCalls: [{ id: 'f2', name: 'end_call', args: { ergebnis: 'abgelehnt' } }] } });
+  const f2 = h.answers().find((a) => a.includes('"f2"')) ?? '';
+  return { ...h, f2 };
+}
+
+test('Vorgabe beim Beenden, während das Gegenüber fragt: Der nächste end_call wird abgelehnt, bis die KI sie gesprochen hat', (t) => {
+  const h = directiveDuringEnd(t);
+  assert.match(h.f2, /Noch nicht beenden: Dein Auftraggeber hat dir eine Regieanweisung geschickt[^]*Ein Übermittlungsweg ist nicht eingerichtet\./);
+  assert.ok(h.texts.includes('system: Vorgabe des Agenten noch nicht gesprochen – Auflegen zurückgestellt'));
+  assert.deepEqual(h.ended, []);
+  // Jetzt bringt sie die Klarstellung an; danach darf sie beenden
+  h.say(2000, 'Eine Sache noch: Ein Übermittlungsweg ist dafür nicht eingerichtet.');
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f3', name: 'end_call', args: { ergebnis: 'klargestellt' } }] } });
+  const f3 = h.answers().find((a) => a.includes('"f3"')) ?? '';
+  assert.doesNotMatch(f3, /Noch nicht beenden/);
+  assert.equal(h.texts.includes('system: Eine Vorgabe des Agenten wurde nicht mehr gesprochen'), false);
+  h.bridge.close();
+});
+
+test('Vorgabe beim Beenden: Übergeht die KI sie auch nach der Ablehnung, endet das Gespräch – und das Transkript hält es fest', (t) => {
+  const h = directiveDuringEnd(t);
+  assert.match(h.f2, /Noch nicht beenden/);
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f3', name: 'end_call', args: { ergebnis: 'abgelehnt' } }] } });
+  const f3 = h.answers().find((a) => a.includes('"f3"')) ?? '';
+  assert.doesNotMatch(f3, /Noch nicht beenden/, 'nur einmal');
+  assert.ok(h.texts.includes('system: Eine Vorgabe des Agenten wurde nicht mehr gesprochen'));
+  h.bridge.close();
+});
+
+test('Vorgabe im ruhigen Moment: Die KI spricht sie, der end_call danach wird nicht aufgehalten', (t) => {
+  const h = agentCall(t);
+  h.heard('Danke, das war alles.');
+  h.say(800, 'Gern.');
+  h.drain();
+  assert.equal(h.bridge.agentSay('Sag noch, dass der Test bestanden ist.', true), 'now');
+  h.say(1500, 'Eine Sache noch: Der Test ist bestanden.');
+  h.drain();
+  h.server({ toolCall: { functionCalls: [{ id: 'f1', name: 'end_call', args: { ergebnis: 'erledigt' } }] } });
+  assert.equal(h.answers().some((a) => /Noch nicht beenden/.test(a)), false);
+  assert.equal(h.texts.some((x) => /Vorgabe des Agenten/.test(x)), false);
+  h.bridge.close();
+});
+
+test('Gemini: Ein kurzes „Ja" nach dem Abheben – bleibt das Sprachende aus, endet die Äußerung, sobald nichts mehr zu hören ist', (t) => {
+  const h = setup(t, { greetingWaitMs: 2500 });
+  h.tick(1);
+  h.start();
+  const frame = (level: number) => { h.tick(20); h.bridge.onRemoteAudio(new Int16Array(160).fill(level)); };
+  for (let i = 0; i < 10; i++) frame(0);
+  h.server({ voiceActivity: { type: 'ACTIVITY_START' } });
+  for (let i = 0; i < 20; i++) frame(4000); // 0,4 s „Ja"
+  for (let i = 0; i < 95; i++) frame(0);
+  assert.deepEqual(h.regie(), [], 'kurz nach dem Laut noch offen');
+  for (let i = 0; i < 40; i++) frame(0);
+  assert.equal(h.regie().length, 1, 'gut drei Sekunden nach dem Laut begrüßt die KI, nicht erst nach acht');
+  assert.ok(h.regie()[0].text.includes('GRUSS'));
+  h.bridge.close();
+});
