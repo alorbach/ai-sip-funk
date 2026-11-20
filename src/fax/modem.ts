@@ -43,6 +43,18 @@ export async function toFaxTiff(src: string, dst: string, fine = true): Promise<
   });
 }
 
+/** PostScript (vom Drucker) -> PDF */
+export async function psToPdf(src: string, dst: string): Promise<void> {
+  const args = ['-q', '-dSAFER', '-dBATCH', '-dNOPAUSE', '-dNOPROMPT', '-sDEVICE=pdfwrite', `-sOutputFile=${dst}`, src];
+  await new Promise<void>((resolve, reject) => {
+    const gs = spawn(GHOSTSCRIPT, args, { env: childEnv(), windowsHide: true });
+    let err = '';
+    gs.stderr.on('data', (d) => (err += d));
+    gs.on('error', reject);
+    gs.on('close', (code) => (code === 0 && existsSync(dst) ? resolve() : reject(new Error(`Druckauftrag ließ sich nicht umwandeln: ${err.trim() || `Ghostscript ${code}`}`))));
+  });
+}
+
 export interface FaxResult {
   /** 0 = Erfolg (spandsp T30_ERR_OK) */
   code: number;

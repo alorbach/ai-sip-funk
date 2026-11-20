@@ -12,6 +12,7 @@ import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { FaxService } from './fax/service.js';
+import { FaxPrintPort } from './fax/printPort.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { agentLabel } from './ai/agentCall.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
@@ -1039,11 +1040,17 @@ const fax = config.fax.sipUser && config.fax.sipPassword
     })
   : undefined;
 fax?.on('job', (job) => bus.emit('message', { type: 'fax', job }));
+// Drucken an „SIPFunk Fax“: Dokument als Entwurf ablegen, die Tray-App öffnet das Fax-Fenster für die Zielnummer
+fax?.on('draft', () => traySend({ type: 'faxPrint' }));
+const faxPrint = fax && config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
 
 const stopWeb = startWebServer({
   fax: fax && {
     status: () => fax.status(),
     submit: (number, pdf, name) => ({ ...fax.submit(number, pdf, name) }),
+    sendDraft: (id, number) => ({ ...fax.sendDraft(id, number) }),
+    discardDraft: (id) => fax.discardDraft(id),
+    draftPdf: (id) => fax.draftPdf(id),
   },
   contactImport: {
     status: () => contactSources.status(),
@@ -1143,6 +1150,7 @@ const stopWeb = startWebServer({
 });
 await manager.start();
 await fax?.start();
+await faxPrint?.start();
 
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
 if (typeof process.send === 'function') {
@@ -1159,6 +1167,7 @@ async function shutdown(): Promise<void> {
   log.info('Beende ...');
   stopWeb();
   removePortFile(dataDir, config.webPort);
+  faxPrint?.stop();
   await Promise.all([manager.stop(), fax?.stop()]);
   process.exit(0);
 }

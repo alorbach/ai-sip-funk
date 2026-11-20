@@ -68,6 +68,25 @@ function hideAsk() {
   askWin = null;
 }
 
+/** Fenster nach dem Drucken an „SIPFunk Fax“: Zielnummer eingeben und faxen. Holt sich den Fokus, damit man sofort tippen kann. */
+let faxWin = null;
+function showFax() {
+  if (faxWin && !faxWin.isDestroyed()) { faxWin.show(); faxWin.focus(); return; }
+  const area = screen.getPrimaryDisplay().workArea;
+  const w = 480, h = 300;
+  faxWin = new BrowserWindow({
+    width: w, height: h, x: area.x + area.width - w - 16, y: area.y + area.height - h - 16,
+    frame: false, resizable: false, minimizable: false, maximizable: false, skipTaskbar: false, alwaysOnTop: true, show: false,
+    title: T('SIPFunk – Fax senden'), icon: ICON,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  // Vorschau des PDFs in einem normalen Fenster öffnen, nicht als rahmenloses Pop-up
+  faxWin.webContents.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { width: 800, height: 1000, frame: true, alwaysOnTop: false, icon: ICON } }));
+  faxWin.once('ready-to-show', () => { if (faxWin && !faxWin.isDestroyed()) { faxWin.show(); faxWin.focus(); } });
+  faxWin.on('closed', () => { faxWin = null; });
+  faxWin.loadURL(`${webUrl()}/fax.html`).catch(() => { if (faxWin && !faxWin.isDestroyed()) faxWin.destroy(); faxWin = null; });
+}
+
 // Sprache des Tray-Menüs: wie in der Web-UI eingestellt (settings.json, uiLang), sonst nach dem System.
 // Deutsch ist die Quelle; fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 const EN = {
@@ -81,6 +100,7 @@ const EN = {
   'Anrufbeantworter konnte nicht umgeschaltet werden': 'The answering machine could not be switched',
   'SIPFunk – eingehender Anruf': 'SIPFunk – incoming call',
   'SIPFunk – KI-Agent möchte anrufen': 'SIPFunk – AI agent wants to call',
+  'SIPFunk – Fax senden': 'SIPFunk – send fax',
   'Port {0} war belegt. Die Oberfläche läuft jetzt auf Port {1}. Eingetragene KI-Agenten bitte in den Einstellungen aktualisieren.': 'Port {0} was in use. The web UI now runs on port {1}. Please update registered AI agents in the settings.',
   'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.': 'SIPFunk now starts after you sign in to Windows. To turn this off: tray menu › "Start at login".',
 };
@@ -279,6 +299,7 @@ function startServer() {
     else if (msg.type === 'ringEnd') hideRing();
     else if (msg.type === 'mcpAsk') showAsk();
     else if (msg.type === 'mcpAskEnd') hideAsk();
+    else if (msg.type === 'faxPrint') showFax();
     else if (msg.type === 'notice') {
       // Hinweis nach einem angenommenen Anruf; Klick öffnet die Web-UI
       if (Notification.isSupported()) {

@@ -95,6 +95,10 @@ export interface WebServerOptions {
     status: () => Record<string, unknown>;
     /** Prüft Nummer und PDF, reiht den Auftrag ein und liefert ihn */
     submit: (number: string, pdf: Buffer, name?: string) => Record<string, unknown>;
+    /** Gedrucktes Dokument (Entwurf) an eine Nummer faxen, verwerfen, als PDF ansehen */
+    sendDraft: (id: string, number: string) => Record<string, unknown>;
+    discardDraft: (id: string) => boolean;
+    draftPdf: (id: string) => Buffer | undefined;
   };
   /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage, Fax) */
   bus: EventEmitter;
@@ -180,7 +184,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(js);
       }
-      if (req.method === 'GET' && (url.pathname === '/ring.html' || url.pathname === '/mcp-ask.html')) {
+      if (req.method === 'GET' && (url.pathname === '/ring.html' || url.pathname === '/mcp-ask.html' || url.pathname === '/fax.html')) {
         const html = await readFile(PUBLIC_DIR + url.pathname.slice(1));
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(html);
@@ -441,6 +445,26 @@ export function startWebServer(opts: WebServerOptions): () => void {
             return sendJson(res, 400, { error: (err as Error).message });
           }
         }
+      }
+      const fdx = /^\/api\/fax\/drafts\/([0-9a-f]+)(\/send|\/pdf)?$/.exec(url.pathname);
+      if (fdx) {
+        if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet' });
+        const [, id, action] = fdx;
+        if (req.method === 'POST' && action === '/send') {
+          const body = await readJson(req);
+          try {
+            return sendJson(res, 200, opts.fax.sendDraft(id, String(body.number ?? '')));
+          } catch (err) {
+            return sendJson(res, 400, { error: (err as Error).message });
+          }
+        }
+        if (req.method === 'GET' && action === '/pdf') {
+          const pdf = opts.fax.draftPdf(id);
+          if (!pdf) return sendJson(res, 404, { error: 'Nicht gefunden' });
+          res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline' });
+          return res.end(pdf);
+        }
+        if (req.method === 'DELETE' && !action) return sendJson(res, opts.fax.discardDraft(id) ? 200 : 404, {});
       }
       if (req.method === 'POST' && url.pathname === '/api/call/prepare') {
         const body = await readJson(req);

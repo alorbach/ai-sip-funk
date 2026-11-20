@@ -44,15 +44,25 @@ export interface FaxJob {
   error?: string;
 }
 
+/** Gedrucktes Dokument, das auf die Zielnummer wartet */
+export interface FaxDraft {
+  id: string;
+  name: string;
+  pages?: number;
+  created: string;
+}
+
 /** Höchstdauer eines Faxanrufs */
 const MAX_CALL_MS = 15 * 60_000;
 const KEEP_JOBS = 50;
+const KEEP_DRAFTS = 10;
 
-/** Events: 'job' (FaxJob) bei jeder Zustandsänderung */
+/** Events: 'job' (FaxJob) bei jeder Zustandsänderung, 'draft' (FaxDraft) für ein neu gedrucktes Dokument, 'drafts' bei Änderungen der Entwürfe */
 export class FaxService extends EventEmitter {
   private readonly sip: SipClient;
   private readonly jobs: FaxJob[] = [];
   private readonly files = new Map<string, string>();
+  private readonly drafts = new Map<string, FaxDraft & { pdf: Buffer }>();
   private registered = false;
   private busy = false;
   private stopped = false;
@@ -76,8 +86,40 @@ export class FaxService extends EventEmitter {
     await this.sip.stop();
   }
 
-  status(): { registered: boolean; user: string; missing: string[]; jobs: FaxJob[] } {
-    return { registered: this.registered, user: this.opts.user, missing: faxPrerequisites(), jobs: [...this.jobs].reverse() };
+  status(): { registered: boolean; user: string; missing: string[]; jobs: FaxJob[]; drafts: FaxDraft[] } {
+    const drafts = [...this.drafts.values()].map(({ pdf: _pdf, ...d }) => d).reverse();
+    return { registered: this.registered, user: this.opts.user, missing: faxPrerequisites(), jobs: [...this.jobs].reverse(), drafts };
+  }
+
+  /** Gedrucktes Dokument ablegen; das Fax-Fenster fragt dann nach der Zielnummer. */
+  addDraft(name: string, pdf: Buffer, pages?: number): FaxDraft {
+    const draft: FaxDraft = { id: randomBytes(6).toString('hex'), name, pages, created: new Date().toISOString() };
+    this.drafts.set(draft.id, { ...draft, pdf });
+    while (this.drafts.size > KEEP_DRAFTS) this.drafts.delete(this.drafts.keys().next().value!);
+    this.emit('draft', draft);
+    this.emit('drafts');
+    return draft;
+  }
+
+  /** Entwurf an `number` faxen; der Entwurf ist danach weg (auch wenn die Nummer abgelehnt wird, bleibt er). */
+  sendDraft(id: string, number: string): FaxJob {
+    const draft = this.drafts.get(id);
+    if (!draft) throw new Error('Druckauftrag nicht mehr vorhanden');
+    const job = this.submit(number, draft.pdf, draft.name);
+    this.drafts.delete(id);
+    this.emit('drafts');
+    return job;
+  }
+
+  discardDraft(id: string): boolean {
+    const ok = this.drafts.delete(id);
+    if (ok) this.emit('drafts');
+    return ok;
+  }
+
+  /** Entwurf als PDF (Vorschau im Fax-Fenster) */
+  draftPdf(id: string): Buffer | undefined {
+    return this.drafts.get(id)?.pdf;
   }
 
   /** Nimmt ein PDF zum Versand an; liefert den Auftrag (Zustand dann über status()/Event 'job'). */

@@ -7,6 +7,8 @@ import path from 'node:path';
 import { decodeG711, encodeG711 } from '../src/rtp/g711.js';
 import { FAX_FRAME, FAX_FRAME_BYTES, FaxModem, faxPrerequisites, toFaxTiff } from '../src/fax/modem.js';
 import { FaxService } from '../src/fax/service.js';
+import { cleanPostScript, FaxPrintPort, postScriptInfo, type PrintedDocument } from '../src/fax/printPort.js';
+import { connect } from 'node:net';
 
 const missing = faxPrerequisites();
 const skip = missing.length ? `Fax-Bausteine fehlen: ${missing.join(', ')}` : false;
@@ -40,4 +42,37 @@ test('Fax: gesperrte Ziele, Nebenstellen und Nicht-PDFs werden abgelehnt', () =>
   assert.throws(() => fax.submit('0900123456', pdf), /Mehrwertnummer/);
   assert.throws(() => fax.submit('**610', pdf), /Nebenstellen/);
   assert.throws(() => fax.submit('030123456', Buffer.from('kein pdf')), /Kein PDF/);
+});
+
+test('Fax-Drucker: PJL-Umschlag weg, Titel und Seitenzahl aus den DSC-Kommentaren', () => {
+  const ps = '%!PS-Adobe-3.0\n%%Title: (Rechnung 42.pdf)\n%%Pages: (atend)\nshowpage\n%%Pages: 3\n%%EOF\n';
+  const job = Buffer.from('\x1b%-12345X@PJL JOB\r\n@PJL ENTER LANGUAGE=POSTSCRIPT\r\n' + ps + '\x1b%-12345X@PJL EOJ\r\n', 'latin1');
+  const clean = cleanPostScript(job);
+  assert.equal(clean.toString('latin1'), ps);
+  assert.deepEqual(postScriptInfo(clean), { title: 'Rechnung 42.pdf', pages: 3 });
+  assert.throws(() => cleanPostScript(Buffer.from('PCL-Daten')), /kein PostScript/);
+});
+
+test('Fax-Drucker: Druckauftrag über TCP wird zum PDF-Entwurf', { skip }, async () => {
+  const port = 19000 + Math.floor(Math.random() * 1000);
+  let resolveDoc!: (d: PrintedDocument) => void;
+  const got = new Promise<PrintedDocument>((r) => (resolveDoc = r));
+  const printer = new FaxPrintPort(port, resolveDoc);
+  await printer.start();
+  try {
+    const sock = connect(port, '127.0.0.1');
+    await new Promise<void>((r) => sock.once('connect', () => r()));
+    sock.end(readFileSync('tools/faxmodem/test/testseite.ps'));
+    const doc = await got;
+    assert.equal(doc.pdf.subarray(0, 5).toString('latin1'), '%PDF-');
+    const fax = new FaxService({ sipServer: '127.0.0.1', user: 'fax', password: 'x', sipLocalPort: 0, rtpPort: 0 });
+    const draft = fax.addDraft(doc.name, doc.pdf, doc.pages);
+    assert.equal(fax.status().drafts[0].id, draft.id);
+    assert.throws(() => fax.sendDraft(draft.id, '0900123'), /Mehrwertnummer/);
+    assert.equal(fax.status().drafts.length, 1, 'abgelehnte Nummer: Entwurf bleibt');
+    assert.ok(fax.discardDraft(draft.id));
+    assert.equal(fax.status().drafts.length, 0);
+  } finally {
+    printer.stop();
+  }
 });

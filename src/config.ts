@@ -31,6 +31,8 @@ export interface Config {
     ident: string;
     header: string;
     maxBitRate: number;
+    /** Port auf 127.0.0.1 für den Windows-Drucker „SIPFunk Fax“; 0 = aus */
+    printPort: number;
   };
 }
 
@@ -78,6 +80,7 @@ export function loadConfig(): Config {
       ident: env('FAX_IDENT', ''),
       header: env('FAX_HEADER', ''),
       maxBitRate: envInt('FAX_MAX_BITRATE', 14400),
+      printPort: envInt('FAX_PRINT_PORT', 9101),
     },
   };
 }

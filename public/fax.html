@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIPFunk – Fax senden</title>
+<script src="/i18n-en.js"></script>
+<script src="/i18n.js"></script>
+<style>
+  /* Fenster der Tray-App nach dem Drucken an „SIPFunk Fax“: Zielnummer eingeben, faxen, Fortschritt. Farben wie ring.html. */
+  :root { --bg: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-text: #fff; --ok: #1a7f37; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-text: #0b1a2b; --ok: #4ac26b; --bad: #ff7b72; } }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; border: 1px solid var(--line); overflow: hidden; -webkit-app-region: drag; user-select: none; }
+  .wrap { padding: 14px 16px 12px; display: grid; gap: 10px; height: 100%; grid-template-rows: auto auto auto 1fr auto; }
+  .top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); font-size: 16px; cursor: pointer; min-width: 28px; min-height: 28px; border-radius: 6px; -webkit-app-region: no-drag; }
+  .top .x:hover { background: var(--surface-2); color: var(--text); }
+  .doc { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { color: var(--text-2); font-size: 13px; }
+  .sub a { color: var(--accent); -webkit-app-region: no-drag; }
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); -webkit-app-region: no-drag; }
+  input { font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: 8px; padding: 7px 10px; min-height: 36px; user-select: text; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btns { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+  button.b { flex: 1 1 auto; white-space: nowrap; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 34px; background: transparent; color: var(--text); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  button.b:hover { background: var(--surface-2); }
+  button.b:disabled { opacity: .45; cursor: default; }
+  button.b.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  button.b:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .note { font-size: 13px; min-height: 18px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note.ok { color: var(--ok); font-weight: 600; }
+  .note.bad { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span>Fax senden</span><button class="x" id="close" aria-label="Fenster schließen" title="Schließen (der Druckauftrag bleibt erhalten)">✕</button></div>
+  <div>
+    <div class="doc" id="doc" data-no-i18n>…</div>
+    <div class="sub"><span id="pages" data-no-i18n></span> <a href="#" id="preview">Vorschau</a></div>
+  </div>
+  <label>An (Faxnummer oder Kontakt)
+    <input id="number" list="contacts" autocomplete="off" spellcheck="false" data-no-i18n>
+  </label>
+  <datalist id="contacts"></datalist>
+  <div></div>
+  <div>
+    <div class="btns">
+      <button class="b" id="discard">Verwerfen</button>
+      <button class="b primary" id="send">Faxen</button>
+    </div>
+    <div class="note" id="note" role="status"></div>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let draft = null;   // angezeigter Druckauftrag
+let jobId = '';     // laufender Faxauftrag aus diesem Fenster
+let contacts = [];
+let finishing = false; // Ergebnis steht kurz da, dann der nächste Auftrag
+const STATES = { queued: 'Wartet …', converting: 'Wird vorbereitet …', dialing: 'Wählt …', sending: 'Sendet …' };
+
+function note(text, cls) {
+  $('note').textContent = text;
+  $('note').className = 'note' + (cls ? ' ' + cls : '');
+}
+function showDraft(d) {
+  draft = d;
+  $('doc').textContent = d.name;
+  $('pages').textContent = d.pages ? I18N.t('{0} Seite(n)', d.pages) + ' ·' : '';
+  $('number').value = '';
+  $('send').disabled = $('discard').disabled = $('number').disabled = false;
+  note('');
+  $('number').focus();
+}
+/** „Name – Nummer“ aus der Kontaktliste in die Nummer auflösen, sonst die Eingabe selbst */
+function targetNumber() {
+  const v = $('number').value.trim();
+  const hit = contacts.find((c) => v === `${c.name} – ${c.number}` || v.toLowerCase() === c.name.toLowerCase());
+  return hit ? hit.number : v;
+}
+async function poll() {
+  try {
+    const st = await (await fetch('/api/fax')).json();
+    if (jobId) {
+      const job = (st.jobs || []).find((j) => j.id === jobId);
+      if (job && job.state === 'done') {
+        note(I18N.t('Zugestellt: {0} Seite(n)', job.pages || 0), 'ok');
+        jobId = '';
+        finishing = true;
+        setTimeout(next, 2500);
+      } else if (job && job.state === 'failed') {
+        note(I18N.t('Fehlgeschlagen: {0}', job.error || ''), 'bad');
+        jobId = '';
+        finishing = true;
+        setTimeout(next, 6000);
+      } else if (job) {
+        note(I18N.t(STATES[job.state] || job.state) + (job.state === 'sending' && job.pages ? ' ' + I18N.t('Seite {0}', job.pages) : ''));
+      }
+    } else if (!draft && !finishing) {
+      next(st);
+    }
+  } catch { /* Server kurz weg: weiter versuchen */ }
+  setTimeout(poll, 800);
+}
+/** Nächsten wartenden Druckauftrag zeigen oder das Fenster schließen */
+async function next(st) {
+  finishing = false;
+  if (!st) {
+    try { st = await (await fetch('/api/fax')).json(); } catch { return; }
+  }
+  const d = (st.drafts || []).at(-1); // ältester zuerst
+  if (d) showDraft(d);
+  else window.close();
+}
+$('send').onclick = async () => {
+  if (!draft) return;
+  const number = targetNumber();
+  if (!number) { note('Bitte eine Faxnummer eingeben.', 'bad'); $('number').focus(); return; }
+  $('send').disabled = $('discard').disabled = $('number').disabled = true;
+  note('Wird vorbereitet …');
+  try {
+    const res = await fetch(`/api/fax/drafts/${draft.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number }) });
+    const info = await res.json();
+    if (!res.ok) throw new Error(info.error || res.statusText);
+    jobId = info.id;
+    draft = null;
+  } catch (err) {
+    note(err.message, 'bad');
+    $('send').disabled = $('discard').disabled = $('number').disabled = false;
+  }
+};
+$('discard').onclick = async () => {
+  if (!draft) return;
+  await fetch(`/api/fax/drafts/${draft.id}`, { method: 'DELETE' }).catch(() => {});
+  draft = null;
+  next();
+};
+$('preview').onclick = (ev) => {
+  ev.preventDefault();
+  if (draft) window.open(`/api/fax/drafts/${draft.id}/pdf`, '_blank');
+};
+$('number').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('send').click(); });
+// Schließen verwirft nicht: der Druckauftrag bleibt, bis er gefaxt oder verworfen wird
+$('close').onclick = () => window.close();
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); });
+
+fetch('/api/contacts').then((r) => r.json()).then((c) => {
+  contacts = (c.items || []).filter((x) => x.number);
+  $('contacts').replaceChildren(...contacts.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}` })));
+}).catch(() => {});
+fetch('/api/settings').then((r) => r.json()).then((s) => I18N.sync(s.uiLang)).catch(() => {});
+poll();
+</script>
+</body>
+</html>
