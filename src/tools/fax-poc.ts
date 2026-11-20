@@ -1,7 +1,7 @@
 // Fax-Test ohne App: PDF -> Fax-TIFF (Ghostscript) -> T.30 über G.711 (spandsp im Hilfsprozess faxmodem) -> SIP/RTP.
 //
 //   npm run fax-poc -- loopback <datei.pdf>         ohne Netz: Sender und Empfänger faxen gegeneinander (über A-law)
-//   npm run fax-poc -- send <rufnummer> <datei.pdf>  echtes Fax über den Fax-Zugang aus der .env (FAX_SIP_USER/FAX_SIP_PASSWORD)
+//   npm run fax-poc -- send <rufnummer> <datei.pdf>  echtes Fax über den Fax-Zugang aus der .env (FAX_USER/FAX_PASSWORD)
 //
 // Voraussetzung: MSYS2 mit spandsp und Ghostscript, faxmodem gebaut (tools/faxmodem/build.sh).
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ async function loopback(pdf: string): Promise<boolean> {
 
 async function send(number: string, pdf: string): Promise<boolean> {
   const config = loadConfig();
-  if (!config.fax.sipUser || !config.fax.sipPassword) throw new Error('Konfiguration fehlt: FAX_SIP_USER und FAX_SIP_PASSWORD (siehe .env.example)');
+  if (!config.fax.sipUser || !config.fax.sipPassword) throw new Error('Konfiguration fehlt: FAX_USER und FAX_PASSWORD (siehe .env.example)');
   const fax = new FaxService({
     sipServer: config.sipServer, user: config.fax.sipUser, password: config.fax.sipPassword,
     sipLocalPort: config.fax.sipLocalPort, rtpPort: config.fax.rtpPort, localIp: config.localIp,

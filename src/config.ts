@@ -71,8 +71,8 @@ export function loadConfig(): Config {
     webPort: envInt('WEB_PORT', DEFAULT_WEB_PORT),
     sipDebug: envBool('SIP_DEBUG', false),
     fax: {
-      sipUser: env('FAX_SIP_USER', ''),
-      sipPassword: env('FAX_SIP_PASSWORD', ''),
+      sipUser: env('FAX_USER', ''),
+      sipPassword: env('FAX_PASSWORD', ''),
       sipLocalPort: envInt('FAX_SIP_LOCAL_PORT', 5064),
       rtpPort: envInt('FAX_RTP_PORT', 40100),
       ident: env('FAX_IDENT', ''),

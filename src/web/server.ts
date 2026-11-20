@@ -90,7 +90,7 @@ export interface WebServerOptions {
     run: (tool: string, args: Record<string, unknown>, client: string) => Promise<{ text: string; isError?: boolean }>;
     http: (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void>;
   };
-  /** Faxversand (nur mit eigenem Fax-Zugang FAX_SIP_USER) */
+  /** Faxversand (nur mit eigenem Fax-Zugang FAX_USER) */
   fax?: {
     status: () => Record<string, unknown>;
     /** Prüft Nummer und PDF, reiht den Auftrag ein und liefert ihn */
@@ -430,7 +430,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
         return sendJson(res, ok ? 200 : 404, ok ? { ok: true, items: opts.store.list() } : { error: 'Nicht gefunden' });
       }
       if (url.pathname === '/api/fax') {
-        if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet (FAX_SIP_USER/FAX_SIP_PASSWORD in der .env)' });
+        if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet (FAX_USER/FAX_PASSWORD in der .env)' });
         if (req.method === 'GET') return sendJson(res, 200, opts.fax.status());
         if (req.method === 'POST') {
           const body = await readJson(req, MAX_FAX_BYTES);

@@ -1023,7 +1023,7 @@ const importProvider = (p: unknown): ImportProvider => {
   return p;
 };
 
-// Fax über ein eigenes IP-Telefon der FRITZ!Box (FAX_SIP_USER); ohne Zugang kein Faxdienst
+// Fax über ein eigenes IP-Telefon der FRITZ!Box (FAX_USER); ohne Zugang kein Faxdienst
 const fax = config.fax.sipUser && config.fax.sipPassword
   ? new FaxService({
       sipServer: config.sipServer,
