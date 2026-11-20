@@ -37,6 +37,7 @@
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
     "test-call": "tsx src/tools/test-call.ts",
+    "fax-poc": "tsx src/tools/fax-poc.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "mcp": "tsx src/mcp/server.ts",

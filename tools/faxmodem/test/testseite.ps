@@ -1,0 +1,10 @@
+%!PS
+/Helvetica-Bold findfont 28 scalefont setfont
+72 760 moveto (SIPFunk Fax-Machbarkeitstest) show
+/Helvetica findfont 14 scalefont setfont
+72 720 moveto (Diese Seite wurde per SIP ueber die FRITZ!Box gefaxt:) show
+72 700 moveto (PDF -> Ghostscript -> spandsp \(T.30 ueber G.711\) -> RTP.) show
+4 setlinewidth 72 400 moveto 540 400 lineto 540 650 lineto 72 650 lineto closepath stroke
+72 380 moveto (Rahmen und Raster pruefen die Bildqualitaet.) show
+0 1 20 { /i exch def 72 i 22 mul add 100 moveto 0 250 rlineto 1 setlinewidth stroke } for
+showpage
