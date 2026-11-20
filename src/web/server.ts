@@ -90,7 +90,13 @@ export interface WebServerOptions {
     run: (tool: string, args: Record<string, unknown>, client: string) => Promise<{ text: string; isError?: boolean }>;
     http: (req: IncomingMessage, res: ServerResponse, body: unknown) => Promise<void>;
   };
-  /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage) */
+  /** Faxversand (nur mit eigenem Fax-Zugang FAX_SIP_USER) */
+  fax?: {
+    status: () => Record<string, unknown>;
+    /** Prüft Nummer und PDF, reiht den Auftrag ein und liefert ihn */
+    submit: (number: string, pdf: Buffer, name?: string) => Record<string, unknown>;
+  };
+  /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage, Fax) */
   bus: EventEmitter;
   store: TranscriptStore;
   contacts: ContactStore;
@@ -98,6 +104,9 @@ export interface WebServerOptions {
 
 /** Größter angenommener Request-Body; die längsten echten Eingaben (Mail-Vorlage, Notizen) liegen weit darunter. */
 const MAX_BODY_BYTES = 1_000_000;
+
+/** Fax-PDFs kommen base64-kodiert (ein Drittel größer) */
+const MAX_FAX_BYTES = 30_000_000;
 
 /** Adressbuch-Dateien (vCard mit Fotos, base64-kodiert, also etwa ein Drittel größer als die Datei) dürfen größer sein */
 const MAX_IMPORT_BYTES = 30_000_000;
@@ -419,6 +428,19 @@ export function startWebServer(opts: WebServerOptions): () => void {
         const ok = opts.store.delete(decodeURIComponent(tx[1]));
         if (ok) log.info(`Protokoll gelöscht: ${tx[1]}`);
         return sendJson(res, ok ? 200 : 404, ok ? { ok: true, items: opts.store.list() } : { error: 'Nicht gefunden' });
+      }
+      if (url.pathname === '/api/fax') {
+        if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet (FAX_SIP_USER/FAX_SIP_PASSWORD in der .env)' });
+        if (req.method === 'GET') return sendJson(res, 200, opts.fax.status());
+        if (req.method === 'POST') {
+          const body = await readJson(req, MAX_FAX_BYTES);
+          const pdf = Buffer.from(String(body.pdf ?? ''), 'base64');
+          try {
+            return sendJson(res, 200, opts.fax.submit(String(body.number ?? ''), pdf, typeof body.name === 'string' ? body.name : undefined));
+          } catch (err) {
+            return sendJson(res, 400, { error: (err as Error).message });
+          }
+        }
       }
       if (req.method === 'POST' && url.pathname === '/api/call/prepare') {
         const body = await readJson(req);

@@ -11,6 +11,7 @@ import { CallManager, type AudioHandler } from './callManager.js';
 import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
+import { FaxService } from './fax/service.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { agentLabel } from './ai/agentCall.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
@@ -1022,7 +1023,28 @@ const importProvider = (p: unknown): ImportProvider => {
   return p;
 };
 
+// Fax über ein eigenes IP-Telefon der FRITZ!Box (FAX_SIP_USER); ohne Zugang kein Faxdienst
+const fax = config.fax.sipUser && config.fax.sipPassword
+  ? new FaxService({
+      sipServer: config.sipServer,
+      user: config.fax.sipUser,
+      password: config.fax.sipPassword,
+      sipLocalPort: config.fax.sipLocalPort,
+      rtpPort: config.fax.rtpPort,
+      localIp: config.localIp,
+      sipDebug: config.sipDebug,
+      ident: config.fax.ident,
+      header: config.fax.header,
+      maxBitRate: config.fax.maxBitRate,
+    })
+  : undefined;
+fax?.on('job', (job) => bus.emit('message', { type: 'fax', job }));
+
 const stopWeb = startWebServer({
+  fax: fax && {
+    status: () => fax.status(),
+    submit: (number, pdf, name) => ({ ...fax.submit(number, pdf, name) }),
+  },
   contactImport: {
     status: () => contactSources.status(),
     loginUrl: (p) => contactSources.authUrl(importProvider(p)),
@@ -1120,6 +1142,7 @@ const stopWeb = startWebServer({
   }),
 });
 await manager.start();
+await fax?.start();
 
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
 if (typeof process.send === 'function') {
@@ -1136,7 +1159,7 @@ async function shutdown(): Promise<void> {
   log.info('Beende ...');
   stopWeb();
   removePortFile(dataDir, config.webPort);
-  await manager.stop();
+  await Promise.all([manager.stop(), fax?.stop()]);
   process.exit(0);
 }
 // Die Tray-App bittet per IPC ums Beenden: SIGTERM beendet einen Kindprozess unter Windows sofort,
