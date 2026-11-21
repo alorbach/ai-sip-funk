@@ -6,7 +6,7 @@ Begriffe und Schaltflächen entsprechen der deutschen Web-UI. Die Oberfläche gi
 
 Weitere Dokumente: [Richtlinien für den Einsatz](guidelines.de.md) · [Rechtliche Aspekte](legal.de.md) · [Architektur](architecture.de.md) · [Manuelle Testliste](test-checklist.de.md) · [Ablauf eines Agenten-Anrufs](mcp-flow.de.md).
 
-Inhalt: [1 Überblick](#1-was-sipfunk-ist) · [2 Voraussetzungen](#2-voraussetzungen) · [3 FRITZ!Box](#3-fritzbox-einrichten) · [4 Installation](#4-installation-und-erster-start) · [5 Web-UI](#5-die-web-ui-im-überblick) · [6 Ausgehende Anrufe](#6-ausgehende-anrufe) · [7 Anrufbeantworter](#7-anrufbeantworter) · [8 Pop-up beim Klingeln](#8-pop-up-beim-klingeln) · [9 Benachrichtigungen](#9-benachrichtigungen-nach-einem-angenommenen-anruf) · [10 Spam-Abwehr](#10-spam-abwehr) · [11 Kontakte, Protokolle, Daten](#11-kontakte-protokolle-daten) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-schnittstelle) · [14 Einstellungen](#14-einstellungen-im-überblick) · [15 Kosten](#15-kosten) · [16 Fehlersuche](#16-fehlersuche) · [17 Begriffe](#17-begriffe)
+Inhalt: [1 Überblick](#1-was-sipfunk-ist) · [2 Voraussetzungen](#2-voraussetzungen) · [3 FRITZ!Box](#3-fritzbox-einrichten) · [4 Installation](#4-installation-und-erster-start) · [5 Web-UI](#5-die-web-ui-im-überblick) · [6 Ausgehende Anrufe](#6-ausgehende-anrufe) · [7 Anrufbeantworter](#7-anrufbeantworter) · [8 Pop-up beim Klingeln](#8-pop-up-beim-klingeln) · [9 Benachrichtigungen](#9-benachrichtigungen-nach-einem-angenommenen-anruf) · [10 Spam-Abwehr](#10-spam-abwehr) · [11 Kontakte, Protokolle, Daten](#11-kontakte-protokolle-daten) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-schnittstelle) · [14 Faxen](#14-faxen) · [15 Einstellungen](#15-einstellungen-im-überblick) · [16 Kosten](#16-kosten) · [17 Fehlersuche](#17-fehlersuche) · [18 Begriffe](#18-begriffe)
 
 ---
 
@@ -19,7 +19,9 @@ SIPFunk ist ein lokaler KI-Telefonassistent für die FRITZ!Box. Das Programm mel
 - dich danach **benachrichtigen** (Tray-Hinweis, E-Mail, bei wichtigen Anrufen ein Rückruf mit Durchstellen zum Anrufer),
 - optional **Werbe- und Betrugsanrufe abwimmeln oder hinhalten** (Spam-Abwehr, nur nach ausdrücklicher Bestätigung, Kapitel 10).
 
-Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zum gewählten KI-Anbieter, OpenAI oder Google (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, zu tellows, wenn du das Nachschlagen einschaltest, zu Google oder Microsoft, während du von dort Kontakte importierst, und, nur wenn du im Mail-Assistenten auf „Automatisch einrichten“ klickst, zu Mozillas Thunderbird-Datenbank und zu einem DNS-Server, mit der Domain deiner Mailadresse (Abschnitt 9.3). Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
+Unabhängig von der KI **sendet SIPFunk Faxe** über die Box: aus jedem Programm über den Drucker „SIPFunk Fax“, mit Nummernvorschlägen aus dem FRITZ!Box-Telefonbuch (Kapitel 14).
+
+Alles läuft auf deinem Rechner. Es gibt keinen Cloud-Dienst von SIPFunk; nach außen gehen nur die Verbindungen zum gewählten KI-Anbieter, OpenAI oder Google (Sprache, Texte), zu deinem Mail-Anbieter, wenn eingerichtet, zu tellows, wenn du das Nachschlagen einschaltest, zu Google oder Microsoft, während du von dort Kontakte importierst, zur FRITZ!Box für Telefonbuch und Fax, und, nur wenn du im Mail-Assistenten auf „Automatisch einrichten“ klickst, zu Mozillas Thunderbird-Datenbank und zu einem DNS-Server, mit der Domain deiner Mailadresse (Abschnitt 9.3). Die Web-UI ist nur auf dem eigenen Rechner erreichbar (127.0.0.1).
 
 Grenzen: ein Benutzer, eine Nebenstelle, ein Gespräch gleichzeitig. SIPFunk arbeitet mit der OpenAI-Realtime-API oder der Gemini Live API (Abschnitt 6.2). Es wird kein Audio aufgezeichnet; gespeichert werden Transkripte (Text), Zusammenfassungen und Metadaten.
 
@@ -40,7 +42,7 @@ Mehr dazu in der [Architektur](architecture.de.md).
 - FRITZ!Box mit einem FRITZ!OS, das „LAN/WLAN (IP-Telefon)“ unterstützt. Andere SIP-Anlagen sind ungetestet.
 - Node.js ab 20.12 für den Start aus dem Repository. Die gebaute Tray-App bringt ihre Laufzeit mit.
 - Windows 10/11 für die Tray-App (Infobereich, Benachrichtigungen, Pop-up beim Klingeln). Server und Web-UI brauchen nur Node.js, sind auf anderen Systemen aber ungetestet.
-- Ein API-Schlüssel für einen der beiden KI-Anbieter: OpenAI (mit Zugriff auf die Realtime-Modelle) oder Google Gemini (aus Google AI Studio; Abschnitt 6.2). Kosten fallen pro Gesprächsminute an (Kapitel 15).
+- Ein API-Schlüssel für einen der beiden KI-Anbieter: OpenAI (mit Zugriff auf die Realtime-Modelle) oder Google Gemini (aus Google AI Studio; Abschnitt 6.2). Kosten fallen pro Gesprächsminute an (Kapitel 16).
 - Der Rechner muss laufen, solange der Anrufbeantworter Anrufe annehmen soll.
 
 ---
@@ -66,7 +68,7 @@ npm install
 npm start
 ```
 
-Danach <http://127.0.0.1:3865> öffnen. Für den ersten Start ist keine Konfigurationsdatei nötig. Ist der Port 3865 belegt, nimmt SIPFunk den nächsten freien und nennt ihn im Log und im Tray-Menü („Web-UI öffnen (Port …)“); ändern lässt er sich unter „Einstellungen › Technik“ (Abschnitt 14.3).
+Danach <http://127.0.0.1:3865> öffnen. Für den ersten Start ist keine Konfigurationsdatei nötig. Ist der Port 3865 belegt, nimmt SIPFunk den nächsten freien und nennt ihn im Log und im Tray-Menü („Web-UI öffnen (Port …)“); ändern lässt er sich unter „Einstellungen › Technik“ (Abschnitt 15.3).
 
 ### 4.2 Der Einrichtungsassistent
 
@@ -94,7 +96,7 @@ Lieber von Hand? `.env.example.de` nach `.env` kopieren und mindestens ausfülle
 | `OPENAI_API_KEY` oder `GEMINI_API_KEY` | Schlüssel des KI-Anbieters (der mitgelieferten Verbindung „OpenAI“ bzw. „Google Gemini“, Abschnitt 6.2), für KI-Gespräche, Gesprächsplan, Zusammenfassung, Einschätzung, Hörproben. OpenAI ist der Standard; für Google Gemini zusätzlich `AI_PROVIDER=gemini` setzen. Ohne Schlüssel funktionieren nur „Testton“ und „Echo“ |
 | `OWNER_NUMBERS` | deine eigene(n) Nummer(n), mit Komma getrennt (Ziel des Rückrufs, Rückrufnummer für Angerufene); alternativ ein Kontakt mit Kennzeichen „Inhaber“ |
 
-Alle weiteren Variablen stehen kommentiert in der `.env.example.de`; Kapitel 14 zeigt, was nur dort und was in der Web-UI eingestellt wird. Von Hand eingetragene Werte wirken nach einem Neustart.
+Alle weiteren Variablen stehen kommentiert in der `.env.example.de`; Kapitel 15 zeigt, was nur dort und was in der Web-UI eingestellt wird. Von Hand eingetragene Werte wirken nach einem Neustart.
 
 ### 4.3 Tray-App (Windows, ohne Konsole)
 
@@ -259,7 +261,7 @@ Das Feld „Stimme“ auf dem Dashboard steht standardmäßig auf der Standardst
 
 **Modelle.** Jede Verbindung hat ihr eigenes Sprachmodell und ihr eigenes Textmodell; die Felder stehen in ihrem aufgeklappten Bereich. Die Auswahl kommt vom Anbieter der Verbindung: SIPFunk fragt mit dem Schlüssel der Verbindung ab, welche Modelle das Konto anbietet, und teilt sie in Sprachmodelle (OpenAI: Realtime, Gemini: Live) und Textmodelle. Embedding-, Bild-, Video-, Such-, Moderations- und reine Audio-Modelle erscheinen nicht. Oben stehen die laufend gepflegten Namen, das neueste zuerst; darunter unter „Fest datierte Versionen“ die Modelle mit Datum im Namen. Geladen wird, wenn du die Karte öffnest oder eine Verbindung aufklappst; beim Anbieter gefragt wird höchstens alle sechs Stunden. **Modelle aktualisieren** fragt sofort neu, mit dem Schlüssel dieser Verbindung. Der Schlüssel bleibt dabei im Hintergrundprogramm und erscheint weder in der Oberfläche noch im Protokoll.
 
-- **Sprachmodell für Anrufe**: das Live-Modell, das spricht und zuhört, bei ausgehenden Anrufen und am Anrufbeantworter. „(Standard)“ kennzeichnet die Vorgabe (`gpt-realtime-2.1` bei OpenAI, `gemini-3.8-live` bei Gemini), „(günstig)“ die OpenAI-Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 15); alle anderen stehen ohne Zusatz da, ihre Preise nennt der Anbieter.
+- **Sprachmodell für Anrufe**: das Live-Modell, das spricht und zuhört, bei ausgehenden Anrufen und am Anrufbeantworter. „(Standard)“ kennzeichnet die Vorgabe (`gpt-realtime-2.1` bei OpenAI, `gemini-3.8-live` bei Gemini), „(günstig)“ die OpenAI-Modelle, deren niedrigeren Preis SIPFunk kennt (Kapitel 16); alle anderen stehen ohne Zusatz da, ihre Preise nennt der Anbieter.
 - **Textmodell**: schreibt Gesprächsplan, Zusammenfassung, Einschätzung und Beschwerde-Entwurf. Vorgabe ist `gpt-6-luna` bei OpenAI und `gemini-3.5-flash-lite` bei Gemini.
 - **Ausweich-Sprachmodelle** und **Ausweich-Textmodelle**: zwei Listen der Modelle deines Kontos zum Ankreuzen (höchstens sechs je Liste; sie füllen sich mit „Modelle aktualisieren“). Meldet das Textmodell ein Limit oder eine Überlastung (etwa 429 oder 503) oder antwortet es nicht rechtzeitig (beim Gesprächsplan nach acht Sekunden je Modell), antwortet das nächste angekreuzte Modell, in der Reihenfolge der Liste; das Log nennt, welches geantwortet hat. Lehnt der Anbieter ein Gespräch schon beim Aufbau der Sprachsitzung aus so einem Grund ab, baut SIPFunk sie mit dem nächsten angekreuzten Sprachmodell neu auf; Protokoll und Kosten nennen dann dieses Modell. Fällt beim Aufbau ein Ausweich-Sprachmodell aus, gleich aus welchem Grund, kommt das nächste dran; ist keines mehr übrig, wird das eingestellte Modell noch einmal versucht. Im laufenden Gespräch wird nicht gewechselt, und beim eingestellten Modell auch bei anderen Fehlern nicht (falscher Schlüssel, unbekanntes Modell). Ohne Häkchen bleibt alles wie bisher. Ein Ausweichmodell kann teurer sein als das eingestellte.
 - **Eigene Modell-ID** (Stufe „Erweitert“, je eine für Sprach- und Textmodell): für ein Modell, das in der Liste fehlt, etwa weil sein Name nicht ins Schema passt oder die Liste nicht geladen werden konnte. Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich und Doppelpunkt. Mit einer Sprachmodell-ID, die es nicht gibt, kommt kein KI-Gespräch zustande: Ein ausgehender Anruf meldet den Fehler, ein eingehender klingelt nur. Mit einer falschen Textmodell-ID entstehen weder Plan noch Zusammenfassung. Für unbekannte Sprachmodelle rechnet die Kostenschätzung mit den Preisen des großen OpenAI-Modells, für unbekannte Gemini-Modelle mit denen von `gemini-3.8-live`. Eine Modell-ID, die zum anderen Anbieter gehört, wird nicht angenommen.
@@ -292,7 +294,7 @@ Ein Telefonat ist damit nicht geprüft.
 - In einem der ersten Gespräche hat Gemini eine in Zifferngruppen vorgegebene Rückrufnummer zunächst nur angefangen und erst auf Nachfrage vollständig genannt.
 - Die Angabe „erstes Audio … ms nach Satzende“ im Log ist bei Gemini nicht aussagekräftig, weil das Satzende dort aus dem Beginn der Antwort abgeleitet wird.
 - Der Gesprächssimulator (`npm run sim`, Kapitel 12) läuft nur mit OpenAI.
-- Die Kostenschätzung rechnet mit den Preisen der bezahlten Stufe, auch wenn du das kostenlose Kontingent nutzt (Kapitel 15).
+- Die Kostenschätzung rechnet mit den Preisen der bezahlten Stufe, auch wenn du das kostenlose Kontingent nutzt (Kapitel 16).
 
 ![Einstellungen › KI-Verbindungen: die aktive Google-Gemini-Verbindung aufgeklappt in der Liste; darunter die Einschränkungen und der Hinweis zum kostenlosen Kontingent](images/settings-provider-gemini.de.png)
 
@@ -430,7 +432,7 @@ Alles unter „Einstellungen › E-Mail-Versand“. Die `MAIL_*`- und `SMTP_*`-V
 
 1. **Versandweg** wählen: „SMTP mit Passwort“ (alle Anbieter), „Gmail“ oder „Microsoft 365 / Outlook“ (Anmeldung per OAuth, kein Passwort).
 2. **SMTP**: Postfach eintragen und **„Automatisch einrichten“** klicken. SIPFunk sucht Server, Port und Verschlüsselung in dieser Reihenfolge: eingebaute Liste bekannter Anbieter, die Thunderbird-Datenbank (ISPDB), die MX-Einträge der Domain (Microsoft 365 und Google Workspace werden erkannt) und zuletzt `smtp.<domain>`/`mail.<domain>` mit Verbindungsprobe. Dafür verlässt nur die Domain des Postfachs deinen Rechner (zur Thunderbird-Datenbank von Mozilla und in der DNS-Abfrage), nie die Adresse selbst oder ein Passwort; der Einrichtungsassistent (Schritt 6) nutzt dieselbe Suche. Dann das Passwort eintragen; viele Anbieter verlangen ein **App-Passwort** statt des Kontopassworts. Verlangt der Anbieter OAuth, stellt der Knopf den Versandweg um.
-3. **OAuth**: Postfach, Client-ID (und Secret) eintragen, speichern, **„Mail-Konto verbinden“** (Anmeldung im Browser; der Zugang landet in `mail-token.json`). Gmail: OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console. Microsoft 365: App-Registrierung in Entra, Plattform „Mobile- und Desktopanwendungen“, Redirect `http://127.0.0.1:3865/oauth/callback` (mit dem Port der Web-UI, Abschnitt 14.3), Berechtigung `SMTP.Send`, SMTP-AUTH für das Postfach erlaubt; Mandant = Mandanten-ID oder `common`.
+3. **OAuth**: Postfach, Client-ID (und Secret) eintragen, speichern, **„Mail-Konto verbinden“** (Anmeldung im Browser; der Zugang landet in `mail-token.json`). Gmail: OAuth-Client vom Typ „Desktop-App“ in der Google Cloud Console. Microsoft 365: App-Registrierung in Entra, Plattform „Mobile- und Desktopanwendungen“, Redirect `http://127.0.0.1:3865/oauth/callback` (mit dem Port der Web-UI, Abschnitt 15.3), Berechtigung `SMTP.Send`, SMTP-AUTH für das Postfach erlaubt; Mandant = Mandanten-ID oder `common`.
 4. **„Verbindung prüfen“** meldet sich beim Server an, ohne etwas zu senden; **„Probe-Mail senden“** schickt eine Mail im Aufbau der Benachrichtigung mit Beispieldaten. Beide speichern vorher die Einstellungen.
 
 Empfänger leer = das Postfach selbst; Absender leer = Postfach. Die Statuszeile in der Kartenüberschrift zeigt, ob der Versand bereit ist.
@@ -499,6 +501,8 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 ![Kontakte](images/contacts.de.png)
 
 Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis; bei Anrufen eines KI-Agenten bekommt sie keine Notizen, Abschnitt 13.2). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer. Mit **„KI-Agent darf ohne Nachfrage anrufen“** gibst du einen Kontakt für die MCP-Schnittstelle frei: Ein Agent wählt ihn, ohne dass du den Anruf bestätigen musst, auch wenn dort „Immer“ nachfragen eingestellt ist (Abschnitt 13.2). In der Liste steht dann „Agent ohne Nachfrage“. Änderst du die Nummer des Kontakts, ist die Freigabe aufgehoben; setz das Häkchen für die neue Nummer erneut.
+
+Auf derselben Seite zeigt der Bereich **„FRITZ!Box-Telefonbuch“**, ob SIPFunk Nummern aus dem Telefonbuch der FRITZ!Box vorschlägt. Diese Nummern werden nicht in die Kontakte übernommen; sie erscheinen nur als Vorschläge im Fax-Fenster und im Wählfeld (Abschnitt 14.5).
 
 Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber. Für die MCP-Freigabe „Nur gespeicherte Kontakte“ zählt nur diese Nummer; eine weitere Nummer kann ein Agent also nicht anrufen.
 
@@ -590,7 +594,7 @@ Der Datenordner ist beim Start aus dem Repository der Projektordner, bei der ins
 | `sipfunk.log`, `sipfunk-JJJJ-MM-TT.log` | Betriebslog mit Rufnummern (nur Tray-App; sonst steht das Log im Terminal). Je Tag eine Datei; ältere als die Aufbewahrungsfrist der Protokolle werden gelöscht | ja |
 | `usage.json` | Monatsverbrauch je KI-Anbieter: Zahl der Gespräche, Sekunden, geschätzte Kosten; die letzten 13 Monate (Abschnitt 6.2) | nein |
 | `autostart.flag` | nur installierte Tray-App: merkt, dass der Autostart beim ersten Start eingerichtet wurde, damit ein Update ihn nicht wieder einschaltet (Abschnitt 4.3) | nein |
-| `sipfunk.port` | Port der laufenden App; wird beim Beenden entfernt (Abschnitt 14.3) | nein |
+| `sipfunk.port` | Port der laufenden App; wird beim Beenden entfernt (Abschnitt 15.3) | nein |
 | `voice-samples/` | zwischengespeicherte Hörproben (MP3; bei Gemini WAV im Unterordner `gemini/`) | nein |
 | `sim-results/` | Berichte des Simulators (im Projektordner) | nein, sofern die Szenarien erfunden sind |
 
@@ -678,7 +682,7 @@ Jeder Agenten-Anruf, der zustande kam, steht wie jeder andere unter „Anrufe“
 
 SIPFunk muss laufen (Tray-App oder `npm start`). Es gibt zwei Wege zum selben Server; beide sind nur von deinem Rechner aus erreichbar:
 
-- **Direkt über HTTP** (Streamable HTTP): Der Agent spricht mit `http://127.0.0.1:3865/mcp`, also mit der laufenden App selbst. Kein zusätzlicher Prozess, keine Pfade. Das ist der einfachste Weg für die meisten Agenten. Die Adresse enthält den Port der Web-UI (Abschnitt 14.3).
+- **Direkt über HTTP** (Streamable HTTP): Der Agent spricht mit `http://127.0.0.1:3865/mcp`, also mit der laufenden App selbst. Kein zusätzlicher Prozess, keine Pfade. Das ist der einfachste Weg für die meisten Agenten. Die Adresse enthält den Port der Web-UI (Abschnitt 15.3).
 - **Als Prozess (stdio)**: Der Agent startet einen kleinen Prozess, der jeden Aufruf an die laufende App weiterreicht. Diesen Weg braucht Claude Desktop, das lokale Server nur als Prozess startet. Der Prozess liest den Port der laufenden App aus dem Datenordner und folgt damit jeder Portänderung.
 
 #### Mit einem Klick einrichten
@@ -841,11 +845,124 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 
 ---
 
-## 14. Einstellungen im Überblick
+## 14. Faxen
+
+SIPFunk kann Faxe **senden**, über die FRITZ!Box und ohne Faxgerät: Du druckst ein Dokument aus einem beliebigen Programm auf den Drucker „SIPFunk Fax“, gibst im kleinen Fax-Fenster die Nummer ein, und SIPFunk wählt und überträgt. Empfangen kann SIPFunk keine Faxe; dafür bleibt die Faxfunktion der FRITZ!Box selbst.
+
+### Wie es technisch läuft
+
+Für das Fax meldet sich SIPFunk mit einem **eigenen IP-Telefon** an der Box an, getrennt vom Zugang für die KI-Gespräche. Ein Fax kann so laufen, während die KI telefoniert. Das Dokument wird mit Ghostscript in Faxseiten umgewandelt (A4, 204 × 196 dpi, „fein“), dann überträgt ein Fax-Modem in Software (spandsp) die Seiten nach dem Faxprotokoll T.30 als Töne über die normale Sprachverbindung (G.711), wie ein Faxgerät am Telefonanschluss. Bis 14.400 bit/s, mit Fehlerkorrektur (ECM), mehrseitig. Bietet die Box T.38 an, lehnt SIPFunk ab und bleibt bei G.711; das funktioniert mit der FRITZ!Box zuverlässig.
+
+Fax-Modem und Ghostscript sind im Installationspaket enthalten, es muss nichts nachinstalliert werden. Herkunft und Lizenzen (spandsp LGPL, Ghostscript AGPL) stehen in `resources\fax\LIZENZEN.txt` im Programmordner.
+
+### 14.1 IP-Telefon für das Fax in der FRITZ!Box
+
+Wie in Kapitel 3, nur ein zweites Gerät:
+
+1. FRITZ!Box-Oberfläche › „Telefonie“ › „Telefoniegeräte“ › „Neues Gerät einrichten“.
+2. „Telefon (mit und ohne Anrufbeantworter)“ › „LAN/WLAN (IP-Telefon)“, Name z. B. „SIPFunk Fax“.
+3. Benutzername und Kennwort vergeben. Das sind die Werte für `FAX_USER` und `FAX_PASSWORD`.
+4. Als ausgehende Rufnummer am besten deine Faxnummer wählen; diese Nummer sieht der Empfänger als Anrufer. Ankommende Anrufe braucht das Gerät nicht.
+
+### 14.2 Fax-Zugang in der `.env`
+
+Ohne `FAX_USER` und `FAX_PASSWORD` ist das Faxen aus. Die installierte App öffnet ihre `.env` über das Tray-Menü „Einstellungen (.env) bearbeiten“; danach SIPFunk beenden und neu starten.
+
+| Variable | Standard | Wirkung |
+| --- | --- | --- |
+| `FAX_USER`, `FAX_PASSWORD` | –, – | Benutzername und Kennwort des IP-Telefons aus 14.1 |
+| `FAX_IDENT` | – | Absenderkennung, die das Faxgerät des Empfängers anzeigt; meist die eigene Faxnummer, z. B. `+49 30 1234567`. Höchstens 20 Zeichen, nur Ziffern, Leerzeichen und `+`; längere werden nicht gesendet (Hinweis im Log) |
+| `FAX_HEADER` | – | Kopfzeile oben auf jeder Seite, z. B. Name oder Firma. Leer = keine Kopfzeile |
+| `FAX_MAX_BITRATE` | 14400 | höchste Geschwindigkeit: 14400, 9600 oder 4800. Bei wiederholten Abbrüchen mitten in der Seite hilft 9600 |
+| `FAX_SIP_LOCAL_PORT`, `FAX_RTP_PORT` | 5064, 40100 | lokale UDP-Ports des Fax-Zugangs; nur ändern, wenn sie belegt sind |
+| `FAX_PRINT_PORT` | 9101 | Port auf 127.0.0.1, an den der Drucker „SIPFunk Fax“ druckt; 0 schaltet den Drucker-Empfang ab |
+
+Beim Start steht im Log, ob sich der Fax-Zugang anmelden konnte. Schlägt die Anmeldung fehl, versucht SIPFunk es beim nächsten Fax erneut.
+
+### 14.3 Drucker „SIPFunk Fax“ einrichten
+
+Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Das Skript liegt bei der installierten App im Programmordner, im Repository unter `scripts\fax-printer.ps1`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
+```
+
+Windows fragt einmal nach Administratorrechten. Das Skript legt einen Drucker „SIPFunk Fax“ an, der den in Windows enthaltenen Treiber „Microsoft PS Class Driver“ nutzt und auf `127.0.0.1:9101` druckt, also an SIPFunk auf demselben Rechner. Nichts verlässt dabei den Rechner.
+
+- Anderen Port verwenden (passend zu `FAX_PRINT_PORT`): `… fax-printer.ps1 -Port 9102`
+- Drucker wieder entfernen: `… fax-printer.ps1 -Remove`
+
+Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt der Auftrag mit einem Fehler in der Druckerwarteschlange von Windows.
+
+### 14.4 Ein Fax senden
+
+1. Im Programm (Word, PDF-Betrachter, Browser …) „Drucken“ wählen, Drucker **„SIPFunk Fax“**. Papierformat A4; Farbe wird zu Schwarzweiß.
+2. Unten rechts öffnet sich das Fax-Fenster mit dem Namen des Dokuments und der Seitenzahl. **„Vorschau“** zeigt das Dokument als PDF so, wie es gefaxt wird.
+3. Im Feld **„An (Faxnummer oder Kontakt)“** die Nummer eingeben oder einen Vorschlag wählen (14.5). Schreibweise wie beim Wählen: `030 1234567`, `+44 20 …`.
+4. **„Faxen“** (oder Enter). Das Fenster zeigt den Fortschritt: „Wird vorbereitet …“, „Wählt …“, „Sendet … Seite 2“, am Ende **„Zugestellt: 2 Seite(n)“** oder „Fehlgeschlagen: …“ mit dem Grund.
+
+Weitere Hinweise:
+
+- **„Verwerfen“** löscht den Druckauftrag. **✕** oder Esc schließt nur das Fenster; der Auftrag bleibt liegen und erscheint beim nächsten Druck wieder.
+- Druckst du mehrere Dokumente, zeigt das Fenster sie nacheinander. Es warten höchstens 10 Druckaufträge, ältere werden verworfen (Hinweis im Log). Druckaufträge liegen nur im Arbeitsspeicher; nach einem Neustart von SIPFunk sind sie weg.
+- Gesendet wird ein Fax nach dem anderen. Ein Faxanruf dauert höchstens 15 Minuten.
+- **Gesperrte Ziele:** Es gelten dieselben Regeln wie für Anrufe: Mehrwert- und Sondernummern (z. B. 0900, 118…) lehnt SIPFunk ab. Interne Nebenstellen der Box (`**…`) gehen nicht, dort kann kein Fax ankommen.
+- Ob ein Fax angekommen ist, entscheidet das Faxprotokoll: „Zugestellt“ heißt, das Gerät der Gegenseite hat jede Seite bestätigt.
+
+Zum Ausprobieren eignet sich ein Testfax-Empfang im Internet, etwa [simple-fax.de](https://simple-fax.de/test-fax-empfangen): Dort steht eine Testnummer, und das empfangene Fax erscheint nach ein bis zwei Minuten als Bild auf der Seite.
+
+### 14.5 Nummernvorschläge und FRITZ!Box-Telefonbuch
+
+Beim Tippen schlägt das Fax-Fenster Nummern vor, in dieser Reihenfolge:
+
+1. **Faxnummern aus dem FRITZ!Box-Telefonbuch** (Nummern mit dem Typ „Fax“), gekennzeichnet mit „Fax“,
+2. deine **SIPFunk-Kontakte** (Kapitel 11.1),
+3. die **übrigen Nummern aus dem FRITZ!Box-Telefonbuch**, gekennzeichnet mit „FRITZ!Box“.
+
+Tippst du nur einen Namen, nimmt SIPFunk dessen Faxnummer, sonst die erste passende Nummer. Das Wählfeld auf dem Dashboard schlägt ebenfalls Nummern aus dem FRITZ!Box-Telefonbuch vor, dort aber **keine** Faxnummern.
+
+Damit eine Nummer als Faxnummer erkannt wird, trägst du sie im Telefonbuch der FRITZ!Box beim Kontakt mit dem Typ **„Fax“** ein. Übernommen wird nichts: Das FRITZ!Box-Telefonbuch bleibt die einzige Quelle, deine SIPFunk-Kontakte ändern sich nicht.
+
+SIPFunk kommt auf zwei Wegen an das Telefonbuch:
+
+- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“, mit dem Recht „FRITZ!Box Einstellungen“. Der SIP-Zugang des IP-Telefons reicht dafür nicht. In die `.env`:
+
+  | Variable | Standard | Wirkung |
+  | --- | --- | --- |
+  | `FRITZ_USER`, `FRITZ_PASSWORD` | –, – | FRITZ!Box-Benutzer für das Telefonbuch |
+  | `FRITZ_HOST` | wie `SIP_SERVER` | Adresse der Box, falls sie anders lautet |
+
+  Unter „Einstellungen › Heimnetz › Netzwerk › Netzwerkeinstellungen“ muss „Zugriff für Anwendungen zulassen“ (TR-064) eingeschaltet sein.
+- **Aus einer Datei.** Ohne FRITZ!Box-Benutzer sicherst du das Telefonbuch in der FRITZ!Box („Telefonie“ › „Telefonbuch“ › „Sichern“) und lädst die XML-Datei auf der Seite „Kontakte“ im Bereich **„FRITZ!Box-Telefonbuch“** mit „Datei wählen“ hoch. Sie liegt dann als `fritz-telefonbuch.xml` im Datenordner. Änderungen in der Box siehst du erst, wenn du die Datei neu sicherst und hochlädst. Ist ein FRITZ!Box-Benutzer eingerichtet und die Box nicht erreichbar, nimmt SIPFunk die Datei als Ersatz.
+
+Der Bereich „FRITZ!Box-Telefonbuch“ auf der Seite „Kontakte“ zeigt die Quelle und die Zahl der Nummern, etwa „Live aus der FRITZ!Box: 50 Nummern, davon 3 Fax“, und bei Problemen den Fehler.
+
+### 14.6 Faxen ohne Drucker: `/api/fax`
+
+Programme und Skripte auf demselben Rechner können ein PDF direkt faxen:
+
+```powershell
+$pdf = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Briefe\Rechnung.pdf"))
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3865/api/fax -ContentType 'application/json' `
+  -Body (@{ number = '030 1234567'; name = 'Rechnung'; pdf = $pdf } | ConvertTo-Json)
+```
+
+Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zustand aller Aufträge (`queued`, `converting`, `dialing`, `sending`, `done`, `failed`) und ob der Fax-Zugang angemeldet ist. Angenommen werden nur PDFs bis etwa 22 MB. Wie die ganze Web-UI ist die Schnittstelle nur auf 127.0.0.1 erreichbar und hat keine Anmeldung ([SECURITY](../SECURITY.de.md)).
+
+### 14.7 Grenzen
+
+- Nur Senden, kein Empfang.
+- Fax über eine Sprachverbindung ist empfindlich: Netzwerkaussetzer oder ein stark ausgelasteter Rechner können eine Übertragung abbrechen. Ein Rechner am LAN-Kabel ist zuverlässiger als WLAN. Mit ECM werden gestörte Stellen meist neu gesendet; bricht es trotzdem ab, `FAX_MAX_BITRATE=9600` versuchen.
+- Seiten werden auf A4 eingepasst. Sehr feine Schrift und Graustufen leiden wie bei jedem Fax.
+- Der Drucker „SIPFunk Fax“ braucht den Treiber „Microsoft PS Class Driver“ (PostScript). Mit einem anderen Treiber meldet das Log „kein PostScript“.
+
+---
+
+## 15. Einstellungen im Überblick
 
 Zwei Orte: die `.env` (wird beim Start gelesen; Änderungen von Hand brauchen einen Neustart, der Einrichtungsassistent übernimmt seine Werte sofort) und die Seite „Einstellungen“ der Web-UI (gespeichert in `settings.json`, gilt ab dem nächsten Anruf; Änderungen an KI-Verbindungen werden sofort gespeichert, Abschnitt 6.2). Für alles, was es an beiden Orten gibt, liefert die `.env` nur den Startwert; ein in der Web-UI gespeicherter Wert hat Vorrang. Die vollständige, kommentierte Liste der Variablen ist die [.env.example.de](../.env.example.de).
 
-### 14.1 Nur in der `.env`
+### 15.1 Nur in der `.env`
 
 Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten setzen (Kapitel 4.2); er schreibt sie in die `.env`. Die Schlüssel der vierten, fünften und sechsten Zeile trägst du unter „Einstellungen › KI-Verbindungen“ ein (Abschnitt 6.2).
 
@@ -860,10 +977,12 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 | `OWNER_NUMBERS` | – | eigene Nummern (Alternative zum Kontakt „Inhaber“) |
 | `AUDIO_HD` | true | HD-G.711 (16 kHz) mit der Box aushandeln; `false` erzwingt 8 kHz |
 | `LIVE_LISTEN_ENABLED` | true | Mithören im Browser |
-| `WEB_PORT` | 3865 | Startwert für den Port der Web-UI (nur 127.0.0.1); danach gilt die Einstellung unter „Technik“ (Abschnitt 14.3). Weicht `WEB_PORT` später von der Einstellung ab, steht das beim Start im Log |
+| `WEB_PORT` | 3865 | Startwert für den Port der Web-UI (nur 127.0.0.1); danach gilt die Einstellung unter „Technik“ (Abschnitt 15.3). Weicht `WEB_PORT` später von der Einstellung ab, steht das beim Start im Log |
 | `SIP_DEBUG` | 0 | alle SIP-Nachrichten ins Log |
+| `FAX_…` | – | Fax-Zugang, Absenderkennung, Kopfzeile, Geschwindigkeit, Ports (Abschnitt 14.2) |
+| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box-Benutzer für das Telefonbuch (Abschnitt 14.5) |
 
-### 14.2 Web-UI, Abschnitt „Technik“
+### 15.2 Web-UI, Abschnitt „Technik“
 
 ![Einstellungen › Technik (Stufe „Erweitert“): Grenzen, Zeiten, der Schalter für das Textmodell im Gespräch und der Port](images/settings-tech.de.png)
 
@@ -882,13 +1001,13 @@ Das Textmodell stellst du in der Oberfläche je Verbindung unter „KI-Verbindun
 | Lautstärke der KI | 1,5 | `AI_OUTPUT_GAIN` | Verstärkung Richtung Telefon, mit weichem Begrenzer |
 | Gegenüber darf die KI unterbrechen | an | `AI_ALLOW_INTERRUPT` | aus: die KI spricht immer zu Ende |
 | Textmodell entscheidet im Gespräch mit | an | `AI_LIVE_JUDGE` | Prüfung beim Auflegen, Entscheidung nach der Verabschiedung und Regie im Hintergrund durch das Textmodell (Abschnitt 6.3); aus: Verhalten wie bisher |
-| Port der Oberfläche und der MCP-Schnittstelle | 3865 | `WEB_PORT` | Port auf 127.0.0.1 für Web-UI und `/mcp`; gilt nach einem Neustart (Abschnitt 14.3) |
+| Port der Oberfläche und der MCP-Schnittstelle | 3865 | `WEB_PORT` | Port auf 127.0.0.1 für Web-UI und `/mcp`; gilt nach einem Neustart (Abschnitt 15.3) |
 
 Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwerte kommen aus `AI_*` (Dashboard, KI-Assistent), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` und `AI_VOICE` (KI-Verbindungen; `AI_VOICE` ist nur noch der Startwert für Verbindungen ohne eigene Standardstimme), `INCOMING_*` (Anrufbeantworter), `NOTIFY_*` und `RING_POPUP` (Benachrichtigungen), `MAIL_*` und `SMTP_*` (E-Mail) sowie `SCAM_NUMBERS` und `SPAM_LOOKUP` (Spam-Abwehr).
 
 ---
 
-### 14.3 Port der Web-UI
+### 15.3 Port der Web-UI
 
 Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf `127.0.0.1`. Standard ist 3865. Wer SIPFunk schon vor Version 1.0.1 eingerichtet hat, behält seinen bisherigen Port (meist 8080), sofern in der `.env` eine Zeile `WEB_PORT=…` steht; bei der installierten App ist das immer so. Ohne diese Zeile gilt seit 1.0.1 der Port 3865, und eingetragene Agenten zeigen „Veraltet“.
 
@@ -897,7 +1016,7 @@ Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf 
 - **Wiederfinden**: Das Tray-Menü „Web-UI öffnen (Port …)“ und der Doppelklick auf das Tray-Symbol öffnen immer die richtige Adresse. Der Port der laufenden App steht außerdem in der Datei `sipfunk.port` im Datenordner.
 - **Was sich mit dem Port ändert**: Lesezeichen im Browser; die Adresse `http://127.0.0.1:PORT/mcp` bei eingetragenen KI-Agenten (Abschnitt 13.3 zeigt, wie sie mit einem Klick aktualisiert werden); bei Microsoft 365 die Redirect-Adresse der App-Registrierung (Abschnitt 9). Der Browser merkt sich Kleinigkeiten wie die zuletzt gewählte Nummer je Adresse; sie beginnen unter dem neuen Port neu.
 
-## 15. Kosten
+## 16. Kosten
 
 Beide KI-Anbieter rechnen nach Token ab. Die Web-UI zeigt pro Gespräch den Verbrauch und eine Schätzung in US-Dollar. Die Preise dafür stehen fest in `src/ai/pricing.ts` und müssen bei Preisänderungen von Hand angepasst werden; maßgeblich ist die Abrechnung des Anbieters. Die Schätzung lässt die Transkription und Rabatte für zwischengespeicherte Eingaben weg.
 
@@ -911,7 +1030,7 @@ Telefonkosten fallen nach deinem Tarif an (der Rückruf an dich ist ein normaler
 
 ---
 
-## 16. Fehlersuche
+## 17. Fehlersuche
 
 Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stufe „Erweitert“), bei der Tray-App zusätzlich `sipfunk.log` im Datenordner) ist die erste Anlaufstelle.
 
@@ -932,12 +1051,17 @@ Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stuf
 | E-Mail bleibt aus | Statuszeile der Karte „E-Mail-Versand“; „Verbindung prüfen“; bei OAuth neu verbinden |
 | Rückruf kommt nicht | Inhaber-Kontakt bzw. `OWNER_NUMBERS` vorhanden? Einschätzung „unwichtig“? Schalter bzw. Profil? |
 | Durchstellen klappt nicht | Log „REFER“; die Box muss die Nummer anrufen dürfen |
+| Nach dem Drucken auf „SIPFunk Fax“ kommt kein Fax-Fenster | Läuft SIPFunk? `FAX_USER`/`FAX_PASSWORD` gesetzt und SIPFunk danach neu gestartet? `FAX_PRINT_PORT` und der Port des Druckers gleich (Abschnitt 14.3)? Log „Fax-Drucker: …“ |
+| Log „Fax-Drucker: … kein PostScript“ | Der Drucker nutzt einen anderen Treiber; mit `scriptsax-printer.ps1 -Remove` entfernen und neu einrichten |
+| Fax „Fehlgeschlagen“ | Grund im Fax-Fenster und im Log („Fax: Auftrag … fehlgeschlagen“). Nimmt die Gegenseite nicht ab oder ist kein Fax, kommt kein Faxsignal; bricht es mitten in der Seite ab, `FAX_MAX_BITRATE=9600` und LAN statt WLAN versuchen (Abschnitt 14.7) |
+| Log „Fax: Anmeldung an der FRITZ!Box fehlgeschlagen“ | `FAX_USER`/`FAX_PASSWORD`; ist das IP-Telefon für das Fax in der Box angelegt (Abschnitt 14.1)? |
+| FRITZ!Box-Telefonbuch: „FRITZ!Box lehnt die Anmeldung ab“ | `FRITZ_USER`/`FRITZ_PASSWORD` prüfen (FRITZ!Box-Benutzer, nicht der SIP-Zugang); zu viele Fehlversuche sperren die Anmeldung der Box eine Weile |
 
 Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puffer-Unterläufe, Unterbrechungen). `SIP_DEBUG=1` zeigt alle SIP-Nachrichten; solche Logs enthalten Rufnummern und gehören vor dem Weitergeben bereinigt.
 
 ---
 
-## 17. Begriffe
+## 18. Begriffe
 
 - **Nebenstelle / IP-Telefon**: das Gerät, als das sich SIPFunk an der Box anmeldet.
 - **KI-Anbieter**: das Unternehmen, dessen Modelle das Gespräch führen und die Texte schreiben: OpenAI oder Google (Abschnitt 6.2).
@@ -952,10 +1076,10 @@ Pro KI-Antwort steht im Log eine Diagnosezeile (Generierungsgeschwindigkeit, Puf
 - **Stil (Persona)**: Stilvorgabe aus `personas/*.md`.
 - **`.env`**: Textdatei im Datenordner, in der deine Zugangsdaten stehen, etwa das SIP-Kennwort und die API-Schlüssel. Der Einrichtungsassistent füllt sie für dich; „Einstellungen (.env) bearbeiten“ im Tray-Menü öffnet sie. Nie weitergeben.
 - **Datenordner**: der Ordner, in dem SIPFunk Einstellungen, Kontakte, Protokolle und die `.env` ablegt. Bei der installierten Tray-App ist es `%APPDATA%\SIPFunk` (Abschnitt 11.3).
-- **Port**: eine Zahl, die dem Rechner sagt, für welches Programm eine Verbindung bestimmt ist. Die Web-UI lauscht standardmäßig auf Port 3865 (Abschnitt 14.3).
+- **Port**: eine Zahl, die dem Rechner sagt, für welches Programm eine Verbindung bestimmt ist. Die Web-UI lauscht standardmäßig auf Port 3865 (Abschnitt 15.3).
 - **SMTP**: der übliche Weg, E-Mails zu verschicken. SIPFunk nutzt ihn für die Benachrichtigungs-Mail (Abschnitt 9.3).
 - **OAuth**: eine Anmeldung, bei der du dich im Browser bei Google oder Microsoft anmeldest und SIPFunk den Zugriff erlaubst, ohne ihm dein Passwort zu geben.
-- **Token**: ein kleines Stück Text oder Audio; die KI-Anbieter messen den Verbrauch in Token und rechnen danach ab (Kapitel 15). Das Wort bezeichnet auch die Berechtigung, die OAuth ausstellt (`mail-token.json`).
+- **Token**: ein kleines Stück Text oder Audio; die KI-Anbieter messen den Verbrauch in Token und rechnen danach ab (Kapitel 16). Das Wort bezeichnet auch die Berechtigung, die OAuth ausstellt (`mail-token.json`).
 - **MCP**: Model Context Protocol, eine Schnittstelle, über die KI-Agenten Werkzeuge aufrufen. Bei SIPFunk: Anrufe starten, mitlesen, Vorgaben machen (Kapitel 13, [Ablauf eines Agenten-Anrufs](mcp-flow.de.md)).
 - **Sprach-KI / Live-KI**: das Sprachmodell, das am Telefon spricht (Realtime bzw. Live API).
 - **Textmodell**: das Modell der KI-Verbindung, das Plan, Zusammenfassung und Einschätzung schreibt und im Gespräch mitentscheidet (Abschnitt 6.3).

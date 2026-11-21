@@ -6,7 +6,7 @@ The web UI comes in German and English (section 5.2). This guide quotes the Germ
 
 Further documents: [Usage guidelines](guidelines.md) · [Legal aspects](legal.md) · [Architecture](architecture.md) · [Manual test checklist](test-checklist.md) · [How an agent call works](mcp-flow.md).
 
-Contents: [1 Overview](#1-what-sipfunk-is) · [2 Requirements](#2-requirements) · [3 FRITZ!Box](#3-setting-up-the-fritzbox) · [4 Installation](#4-installation-and-first-start) · [5 Web UI](#5-the-web-ui-at-a-glance) · [6 Outgoing calls](#6-outgoing-calls) · [7 Answering machine](#7-answering-machine) · [8 Pop-up while ringing](#8-pop-up-while-ringing) · [9 Notifications](#9-notifications-after-an-answered-call) · [10 Spam defence](#10-spam-defence) · [11 Contacts, logs, data](#11-contacts-call-logs-data) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-interface) · [14 Settings](#14-settings-overview) · [15 Cost](#15-cost) · [16 Troubleshooting](#16-troubleshooting) · [17 Glossary](#17-glossary)
+Contents: [1 Overview](#1-what-sipfunk-is) · [2 Requirements](#2-requirements) · [3 FRITZ!Box](#3-setting-up-the-fritzbox) · [4 Installation](#4-installation-and-first-start) · [5 Web UI](#5-the-web-ui-at-a-glance) · [6 Outgoing calls](#6-outgoing-calls) · [7 Answering machine](#7-answering-machine) · [8 Pop-up while ringing](#8-pop-up-while-ringing) · [9 Notifications](#9-notifications-after-an-answered-call) · [10 Spam defence](#10-spam-defence) · [11 Contacts, logs, data](#11-contacts-call-logs-data) · [12 Simulator](#12-simulator) · [13 MCP](#13-mcp-interface) · [14 Faxing](#14-faxing) · [15 Settings](#15-settings-overview) · [16 Cost](#16-cost) · [17 Troubleshooting](#17-troubleshooting) · [18 Glossary](#18-glossary)
 
 ---
 
@@ -19,7 +19,9 @@ SIPFunk is a local AI phone assistant for the FRITZ!Box. It registers with the b
 - **notify** you afterwards (tray notification, e-mail, for important calls a call back with the option to be put through to the caller),
 - optionally **brush off or stall advertising and scam callers** (spam defence, only after explicit confirmation, chapter 10).
 
-Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, to tellows if you switch on the lookup, to Google or Microsoft while you import contacts from there, and, only when you click "Automatisch einrichten" (set up automatically) in the mail setup, to Mozilla's Thunderbird database and to a DNS server, with the domain of your mail address (section 9.3). The web UI is reachable only from the same computer (127.0.0.1).
+Independently of the AI, **SIPFunk sends faxes** through the box: from any program via the printer "SIPFunk Fax", with number suggestions from the FRITZ!Box phonebook (chapter 14).
+
+Everything runs on your computer. There is no SIPFunk cloud service; the only outbound connections go to the selected AI provider, OpenAI or Google (speech, text), to your mail provider if configured, to tellows if you switch on the lookup, to Google or Microsoft while you import contacts from there, to the FRITZ!Box for phonebook and fax, and, only when you click "Automatisch einrichten" (set up automatically) in the mail setup, to Mozilla's Thunderbird database and to a DNS server, with the domain of your mail address (section 9.3). The web UI is reachable only from the same computer (127.0.0.1).
 
 Limits: one user, one extension, one call at a time. SIPFunk works with the OpenAI Realtime API or the Gemini Live API (section 6.2). The AI speaks German with callers. No audio is recorded; what is stored are transcripts (text), summaries and metadata.
 
@@ -40,7 +42,7 @@ More in the [architecture](architecture.md).
 - FRITZ!Box with a FRITZ!OS that supports "LAN/WLAN (IP-Telefon)". Other SIP systems are untested.
 - Node.js 20.12 or later when starting from the repository. The built tray app ships its own runtime.
 - Windows 10/11 for the tray app (notification area, notifications, pop-up while ringing). Server and web UI only need Node.js but are untested on other systems.
-- An API key for one of the two AI providers: OpenAI (with access to the Realtime models) or Google Gemini (from Google AI Studio; section 6.2). Cost accrues per minute of conversation (chapter 15).
+- An API key for one of the two AI providers: OpenAI (with access to the Realtime models) or Google Gemini (from Google AI Studio; section 6.2). Cost accrues per minute of conversation (chapter 16).
 - The computer has to be running for as long as the answering machine should take calls.
 
 ---
@@ -68,7 +70,7 @@ npm install
 npm start
 ```
 
-Then open <http://127.0.0.1:3865>. No configuration file is needed for the first start. If port 3865 is in use, SIPFunk takes the next free one and names it in the log and in the tray menu ("Web-UI öffnen (Port …)"); you can change it under "Einstellungen › Technik" (section 14.3).
+Then open <http://127.0.0.1:3865>. No configuration file is needed for the first start. If port 3865 is in use, SIPFunk takes the next free one and names it in the log and in the tray menu ("Web-UI öffnen (Port …)"); you can change it under "Einstellungen › Technik" (section 15.3).
 
 ### 4.2 The setup assistant
 
@@ -96,7 +98,7 @@ Prefer to work by hand? Copy `.env.example` to `.env` and fill in at least:
 | `OPENAI_API_KEY` or `GEMINI_API_KEY` | key of the AI provider (of the built-in connection "OpenAI" or "Google Gemini", section 6.2), for AI calls, call plan, summary, assessment, voice samples. OpenAI is the default; for Google Gemini also set `AI_PROVIDER=gemini`. Without a key only "Testton" and "Echo" work |
 | `OWNER_NUMBERS` | your own number(s), comma-separated (target of the call back, call-back number given to people the AI calls); alternatively a contact flagged "Inhaber" (owner) |
 
-All other variables are listed with comments in `.env.example`; chapter 14 shows what is set only there and what is set in the web UI. Values entered by hand take effect after a restart.
+All other variables are listed with comments in `.env.example`; chapter 15 shows what is set only there and what is set in the web UI. Values entered by hand take effect after a restart.
 
 ### 4.3 Tray app (Windows, no console)
 
@@ -261,7 +263,7 @@ The field "Stimme" on the dashboard shows the default voice of the active connec
 
 **Models.** Each connection has its own voice model and text model; the fields are in its expanded area. The choice comes from the provider of the connection: SIPFunk uses the key of the connection to ask which models the account offers and splits them into voice models (OpenAI: Realtime, Gemini: Live) and text models. Embedding, image, video, search, moderation and audio-only models do not appear. The continuously maintained names come first, newest on top; below them, under "Fest datierte Versionen" (dated versions), the models with a date in their name. The list is loaded when you open the card or expand a connection, and the provider is asked at most every six hours; **Modelle aktualisieren** (refresh models) asks again at once, with the key of that connection. The key stays in the background program and appears neither in the interface nor in the log.
 
-- **Sprachmodell für Anrufe** (voice model for calls): the live model that speaks and listens, for outgoing calls and the answering machine. "(Standard)" marks the default (`gpt-realtime-2.1` with OpenAI, `gemini-3.8-live` with Gemini), "(günstig)" (cheaper) the OpenAI models whose lower price SIPFunk knows (chapter 15); all others are listed without a note, and the provider publishes their prices.
+- **Sprachmodell für Anrufe** (voice model for calls): the live model that speaks and listens, for outgoing calls and the answering machine. "(Standard)" marks the default (`gpt-realtime-2.1` with OpenAI, `gemini-3.8-live` with Gemini), "(günstig)" (cheaper) the OpenAI models whose lower price SIPFunk knows (chapter 16); all others are listed without a note, and the provider publishes their prices.
 - **Textmodell** (text model): writes call plan, summary, assessment and complaint draft. The default is `gpt-6-luna` with OpenAI and `gemini-3.5-flash-lite` with Gemini.
 - **Ausweich-Sprachmodelle** (fallback voice models) and **Ausweich-Textmodelle** (fallback text models): two lists of the models of your account to tick (at most six per list; "Modelle aktualisieren" fills them). If the text model reports a limit or an overload (such as 429 or 503) or does not answer in time (for the call plan after eight seconds per model), the next ticked model answers, in the order of the list; the log names the one that answered. If the provider rejects a call for such a reason while the voice session is being set up, SIPFunk sets it up again with the next ticked voice model; call log and costs then name that model. If a fallback voice model fails during setup, whatever the reason, the next one follows; when none is left, the configured model is tried once more. There is no switch during a running call, and none for other errors of the configured model (wrong key, unknown model). Without a tick everything stays as before. A fallback model can cost more than the configured one.
 - **Eigene Modell-ID** (custom model ID, level "Erweitert", one each for voice and text model): for a model that is missing from the list, for example because its name does not fit the pattern or the list could not be loaded. Letters, digits, dot, hyphen, underscore and colon are allowed. With a voice model ID that does not exist, no AI call can be set up: an outgoing call reports the error, an incoming one just rings. With a wrong text model ID, neither plan nor summary is produced. For unknown voice models the cost estimate uses the prices of the large OpenAI model, for unknown Gemini models those of `gemini-3.8-live`. A model ID that belongs to the other provider is not accepted.
@@ -294,7 +296,7 @@ The test does not check an actual phone call.
 - In one of the first calls Gemini at first only began a call-back number that was given in groups of digits and said it in full only when asked.
 - The log entry "erstes Audio … ms nach Satzende" (first audio … ms after the end of the turn) is not meaningful with Gemini, because the end of the turn is derived there from the start of the answer.
 - The call simulator (`npm run sim`, chapter 12) works with OpenAI only.
-- The cost estimate uses the prices of the paid tier, even if you use the free quota (chapter 15).
+- The cost estimate uses the prices of the paid tier, even if you use the free quota (chapter 16).
 
 ![Settings › AI connections: the active Google Gemini connection expanded in the list; below it the limitations and the notice about the free quota](images/settings-provider-gemini.en.png)
 
@@ -432,7 +434,7 @@ Everything is under "Einstellungen › E-Mail-Versand". The `MAIL_*` and `SMTP_*
 
 1. Choose the **Versandweg** (delivery method): "SMTP mit Passwort" (all providers), "Gmail" or "Microsoft 365 / Outlook" (sign-in via OAuth, no password).
 2. **SMTP**: enter the mailbox and click **"Automatisch einrichten"** (set up automatically). SIPFunk looks for server, port and encryption in this order: a built-in list of well-known providers, the Thunderbird database (ISPDB), the MX records of the domain (Microsoft 365 and Google Workspace are recognised) and finally `smtp.<domain>`/`mail.<domain>` with a connection probe. Only the domain of the mailbox leaves your computer for this (to Mozilla's Thunderbird database and in the DNS query), never the address itself or a password; the setup assistant (step 6) uses the same lookup. Then enter the password; many providers require an **app password** instead of the account password. If the provider requires OAuth, the button switches the delivery method.
-3. **OAuth**: enter mailbox, client ID (and secret), save, then **"Mail-Konto verbinden"** (connect mail account; sign-in in the browser, the access token ends up in `mail-token.json`). Gmail: OAuth client of type "Desktop app" in the Google Cloud Console. Microsoft 365: app registration in Entra, platform "Mobile and desktop applications", redirect `http://127.0.0.1:3865/oauth/callback` (with the port of the web UI, section 14.3), permission `SMTP.Send`, SMTP AUTH enabled for the mailbox; tenant = tenant ID or `common`.
+3. **OAuth**: enter mailbox, client ID (and secret), save, then **"Mail-Konto verbinden"** (connect mail account; sign-in in the browser, the access token ends up in `mail-token.json`). Gmail: OAuth client of type "Desktop app" in the Google Cloud Console. Microsoft 365: app registration in Entra, platform "Mobile and desktop applications", redirect `http://127.0.0.1:3865/oauth/callback` (with the port of the web UI, section 15.3), permission `SMTP.Send`, SMTP AUTH enabled for the mailbox; tenant = tenant ID or `common`.
 4. **"Verbindung prüfen"** (check connection) signs in to the server without sending anything; **"Probe-Mail senden"** sends a mail in the notification layout with sample data. Both save the settings first.
 
 Recipient empty = the mailbox itself; sender empty = the mailbox. The status line in the card header shows whether sending is ready.
@@ -501,6 +503,8 @@ Logs of such calls carry the tag "Spam-Abwehr". They never count as important; t
 ![Contacts](images/contacts.en.png)
 
 Contacts (stored locally in `contacts.json`) have a name and a number, optionally form of address, style, voice, default task and notes. Selecting one pre-fills the call form; the AI receives the notes and the summary of the last call as background knowledge (it does not recite them unprompted but will reveal them when asked; in calls started by an AI agent it gets no notes, section 13.2). The flag **"Inhaber"** marks your own number. With **"KI-Agent darf ohne Nachfrage anrufen"** (AI agent may call without asking) you approve a contact for the MCP interface: an agent dials it without you having to confirm the call, even when asking is set to "Immer" there (section 13.2). The list then shows "Agent ohne Nachfrage" (agent without asking). If you change the contact's number, the approval is removed; tick it again for the new number.
+
+On the same page, the section **"FRITZ!Box-Telefonbuch"** shows whether SIPFunk suggests numbers from the FRITZ!Box phonebook. These numbers are not copied into the contacts; they only appear as suggestions in the fax window and the dial field (section 14.5).
 
 A contact can have **further numbers** ("Weitere Nummern", separated by commas), for example a landline next to the mobile number. They count when a call comes in and for duplicates; the number above is always the one dialled. For the MCP permission "Nur gespeicherte Kontakte" only that number counts, so an agent cannot call a further number.
 
@@ -592,7 +596,7 @@ The data folder is the project folder when starting from the repository, and `%A
 | `sipfunk.log`, `sipfunk-YYYY-MM-DD.log` | operating log with phone numbers (tray app only; otherwise the log is in the terminal). One file per day; files older than the log retention period are deleted | yes |
 | `usage.json` | monthly usage per AI provider: number of calls, seconds, estimated cost; the last 13 months (section 6.2) | no |
 | `autostart.flag` | installed tray app only: notes that autostart was set up on first start, so that an update does not switch it on again (section 4.3) | no |
-| `sipfunk.port` | port of the running app; removed when it quits (section 14.3) | no |
+| `sipfunk.port` | port of the running app; removed when it quits (section 15.3) | no |
 | `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 
@@ -680,7 +684,7 @@ Every agent call that came about is listed under "Anrufe" (calls) like any other
 
 SIPFunk has to be running (tray app or `npm start`). There are two ways to the same server; both can only be reached from your own computer:
 
-- **Directly over HTTP** (Streamable HTTP): the agent talks to `http://127.0.0.1:3865/mcp`, that is, to the running app itself. No extra process, no paths. This is the simplest way for most agents. The address contains the port of the web UI (section 14.3).
+- **Directly over HTTP** (Streamable HTTP): the agent talks to `http://127.0.0.1:3865/mcp`, that is, to the running app itself. No extra process, no paths. This is the simplest way for most agents. The address contains the port of the web UI (section 15.3).
 - **As a process (stdio)**: the agent starts a small process that passes every call on to the running app. Claude Desktop needs this way, because it starts local servers only as a process. The process reads the port of the running app from the data folder and so follows every port change.
 
 #### Setting up with one click
@@ -843,11 +847,124 @@ An example skill that teaches an agent exactly this procedure is in the reposito
 
 ---
 
-## 14. Settings overview
+## 14. Faxing
+
+SIPFunk can **send** faxes through the FRITZ!Box, without a fax machine: you print a document from any program to the printer "SIPFunk Fax", enter the number in the small fax window, and SIPFunk dials and transmits. SIPFunk cannot receive faxes; for that, use the fax function of the FRITZ!Box itself.
+
+### How it works
+
+For faxing, SIPFunk registers with the box as a **separate IP phone**, independent of the account used for AI calls, so a fax can go out while the AI is on a call. Ghostscript turns the document into fax pages (A4, 204 × 196 dpi, "fine"); a software fax modem (spandsp) then transmits the pages with the T.30 fax protocol as tones over the normal voice connection (G.711), just like a fax machine on a phone line. Up to 14,400 bit/s, with error correction (ECM), multiple pages. If the box offers T.38, SIPFunk declines and stays on G.711, which works reliably with the FRITZ!Box.
+
+The fax modem and Ghostscript ship with the installer; nothing else needs to be installed. Origin and licences (spandsp LGPL, Ghostscript AGPL) are listed in `resources\fax\LIZENZEN.txt` in the program folder.
+
+### 14.1 An IP phone for faxing on the FRITZ!Box
+
+As in chapter 3, just a second device:
+
+1. FRITZ!Box interface › "Telefonie" (Telephony) › "Telefoniegeräte" (Telephony Devices) › "Neues Gerät einrichten" (Configure New Device).
+2. "Telefon (mit und ohne Anrufbeantworter)" (telephone, with or without answering machine) › "LAN/WLAN (IP-Telefon)" (IP telephone), name e.g. "SIPFunk Fax".
+3. Set a user name and password. These are the values for `FAX_USER` and `FAX_PASSWORD`.
+4. As outgoing number, preferably choose your fax number; the recipient sees this number as the caller. The device does not need incoming calls.
+
+### 14.2 Fax account in `.env`
+
+Without `FAX_USER` and `FAX_PASSWORD`, faxing is off. The installed app opens its `.env` from the tray menu "Einstellungen (.env) bearbeiten" (edit settings); then quit and restart SIPFunk.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `FAX_USER`, `FAX_PASSWORD` | –, – | user name and password of the IP phone from 14.1 |
+| `FAX_IDENT` | – | sender ID shown on the recipient's fax machine; usually your own fax number, e.g. `+49 30 1234567`. At most 20 characters, digits, spaces and `+` only; longer IDs are not sent (note in the log) |
+| `FAX_HEADER` | – | header line at the top of every page, e.g. your name or company. Empty = no header line |
+| `FAX_MAX_BITRATE` | 14400 | highest speed: 14400, 9600 or 4800. If transmissions keep breaking off mid-page, 9600 helps |
+| `FAX_SIP_LOCAL_PORT`, `FAX_RTP_PORT` | 5064, 40100 | local UDP ports of the fax account; change them only if they are in use |
+| `FAX_PRINT_PORT` | 9101 | port on 127.0.0.1 that the printer "SIPFunk Fax" prints to; 0 switches the printer input off |
+
+At start, the log says whether the fax account could register. If registration fails, SIPFunk tries again with the next fax.
+
+### 14.3 Setting up the "SIPFunk Fax" printer
+
+The printer is set up once and needs administrator rights for that. The script ships with the installed app in the program folder; in the repository it is `scripts\fax-printer.ps1`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
+```
+
+Windows asks once for administrator rights. The script creates a printer "SIPFunk Fax" that uses the "Microsoft PS Class Driver" included in Windows and prints to `127.0.0.1:9101`, that is, to SIPFunk on the same computer. Nothing leaves the computer.
+
+- Use another port (matching `FAX_PRINT_PORT`): `… fax-printer.ps1 -Port 9102`
+- Remove the printer again: `… fax-printer.ps1 -Remove`
+
+The printer only works while SIPFunk is running. If SIPFunk is not running, the job stays in the Windows print queue with an error.
+
+### 14.4 Sending a fax
+
+1. In the program (Word, PDF viewer, browser …) choose "Print" and the printer **"SIPFunk Fax"**. Paper size A4; colour becomes black and white.
+2. The fax window opens at the bottom right with the document name and the page count. **"Vorschau"** (preview) shows the document as a PDF, the way it will be faxed.
+3. In the field **"An (Faxnummer oder Kontakt)"** (to: fax number or contact) enter the number or pick a suggestion (14.5). Same notation as for dialling: `030 1234567`, `+44 20 …`.
+4. **"Faxen"** (send fax), or Enter. The window shows the progress: "Wird vorbereitet …" (preparing), "Wählt …" (dialling), "Sendet … Seite 2" (sending page 2), and at the end **"Zugestellt: 2 Seite(n)"** (delivered: 2 pages) or "Fehlgeschlagen: …" (failed) with the reason.
+
+More notes:
+
+- **"Verwerfen"** (discard) deletes the print job. **✕** or Esc only closes the window; the job stays and shows up again with the next print.
+- If you print several documents, the window shows them one after the other. At most 10 print jobs wait; older ones are discarded (note in the log). Print jobs are held in memory only; after SIPFunk restarts they are gone.
+- Faxes are sent one at a time. A fax call lasts at most 15 minutes.
+- **Blocked destinations:** the same rules as for calls apply: premium-rate and special numbers (e.g. 0900, 118…) are rejected. Internal extensions of the box (`**…`) do not work; no fax can arrive there.
+- Whether a fax arrived is decided by the fax protocol: "Zugestellt" means the receiving machine confirmed every page.
+
+To try it out, use a test fax receiver on the internet, such as [simple-fax.de](https://simple-fax.de/test-fax-empfangen): it lists a test number, and the received fax appears as an image on the page after one or two minutes.
+
+### 14.5 Number suggestions and the FRITZ!Box phonebook
+
+While you type, the fax window suggests numbers in this order:
+
+1. **fax numbers from the FRITZ!Box phonebook** (numbers of type "Fax"), marked "Fax",
+2. your **SIPFunk contacts** (chapter 11.1),
+3. the **other numbers from the FRITZ!Box phonebook**, marked "FRITZ!Box".
+
+If you type only a name, SIPFunk takes that contact's fax number, otherwise the first matching number. The dial field on the dashboard also suggests numbers from the FRITZ!Box phonebook, but **no** fax numbers.
+
+For a number to count as a fax number, enter it in the FRITZ!Box phonebook with the type **"Fax"**. Nothing is copied: the FRITZ!Box phonebook stays the only source, and your SIPFunk contacts do not change.
+
+SIPFunk gets the phonebook in one of two ways:
+
+- **Live over TR-064 (recommended).** SIPFunk reads all phonebooks of the box and keeps them for 5 minutes; "Aktualisieren" (refresh) fetches them right away. This needs a **FRITZ!Box user**: FRITZ!Box interface › "System" › "FRITZ!Box-Benutzer" (FRITZ!Box Users) › "Benutzer hinzufügen" (add user), e.g. "sipfunk", with the right "FRITZ!Box Einstellungen" (FRITZ!Box settings). The SIP account of the IP phone is not enough. In `.env`:
+
+  | Variable | Default | Effect |
+  | --- | --- | --- |
+  | `FRITZ_USER`, `FRITZ_PASSWORD` | –, – | FRITZ!Box user for the phonebook |
+  | `FRITZ_HOST` | same as `SIP_SERVER` | address of the box, if it differs |
+
+  Under "Heimnetz › Netzwerk › Netzwerkeinstellungen" (Home Network › Network › Network Settings), "Zugriff für Anwendungen zulassen" (allow access for applications, TR-064) must be switched on.
+- **From a file.** Without a FRITZ!Box user, back up the phonebook in the FRITZ!Box ("Telefonie" › "Telefonbuch" › "Sichern", Telephony › Telephone Book › Back Up) and upload the XML file on the Contacts page in the section **"FRITZ!Box-Telefonbuch"** with "Datei wählen" (choose file). It is then stored as `fritz-telefonbuch.xml` in the data folder. Changes in the box only show up once you back up and upload the file again. If a FRITZ!Box user is set up and the box cannot be reached, SIPFunk falls back to the file.
+
+The section "FRITZ!Box-Telefonbuch" on the Contacts page shows the source and the number count, e.g. "Live aus der FRITZ!Box: 50 Nummern, davon 3 Fax" (live from the FRITZ!Box: 50 numbers, 3 of them fax), and the error if something is wrong.
+
+### 14.6 Faxing without the printer: `/api/fax`
+
+Programs and scripts on the same computer can fax a PDF directly:
+
+```powershell
+$pdf = [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Letters\Invoice.pdf"))
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3865/api/fax -ContentType 'application/json' `
+  -Body (@{ number = '030 1234567'; name = 'Invoice'; pdf = $pdf } | ConvertTo-Json)
+```
+
+The response contains the job with its `id`; `GET /api/fax` returns the state of all jobs (`queued`, `converting`, `dialing`, `sending`, `done`, `failed`) and whether the fax account is registered. Only PDFs up to about 22 MB are accepted. Like the whole web UI, the interface is reachable on 127.0.0.1 only and has no sign-in ([SECURITY](../SECURITY.md)).
+
+### 14.7 Limits
+
+- Sending only, no receiving.
+- Faxing over a voice connection is sensitive: network dropouts or a heavily loaded computer can break off a transmission. A computer on a LAN cable is more reliable than Wi-Fi. With ECM, damaged parts are usually sent again; if it still breaks off, try `FAX_MAX_BITRATE=9600`.
+- Pages are fitted to A4. Very small print and greyscale suffer as with any fax.
+- The printer "SIPFunk Fax" needs the "Microsoft PS Class Driver" (PostScript). With another driver, the log says "kein PostScript" (not PostScript).
+
+---
+
+## 15. Settings overview
 
 There are two places: `.env` (read at start; changes made by hand need a restart, the setup assistant applies its values immediately) and the "Einstellungen" page of the web UI (saved in `settings.json`, applies from the next call; changes to AI connections are saved immediately, section 6.2). For everything that exists in both places, `.env` only provides the initial value; a value saved in the web UI takes precedence. The complete list of variables is [.env.example](../.env.example).
 
-### 14.1 Only in `.env`
+### 15.1 Only in `.env`
 
 The first and fourth row can also be set with the setup assistant (chapter 4.2), which writes them to `.env`; the keys of the fourth, fifth and sixth row are entered under "Einstellungen › KI-Verbindungen" (section 6.2).
 
@@ -862,10 +979,12 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 | `OWNER_NUMBERS` | – | own numbers (alternative to the "Inhaber" contact) |
 | `AUDIO_HD` | true | negotiate HD G.711 (16 kHz) with the box; `false` forces 8 kHz |
 | `LIVE_LISTEN_ENABLED` | true | listening in via the browser |
-| `WEB_PORT` | 3865 | initial value for the port of the web UI (127.0.0.1 only); after that the setting under "Technik" applies (section 14.3). If `WEB_PORT` later differs from the setting, the log says so at start |
+| `WEB_PORT` | 3865 | initial value for the port of the web UI (127.0.0.1 only); after that the setting under "Technik" applies (section 15.3). If `WEB_PORT` later differs from the setting, the log says so at start |
 | `SIP_DEBUG` | 0 | write all SIP messages to the log |
+| `FAX_…` | – | fax account, sender ID, header line, speed, ports (section 14.2) |
+| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box user for the phonebook (section 14.5) |
 
-### 14.2 Web UI, section "Technik"
+### 15.2 Web UI, section "Technik"
 
 ![Settings › Technical (level "Erweitert"): limits, timings, the switch for the text model during the call and the port](images/settings-tech.en.png)
 
@@ -884,13 +1003,13 @@ In the interface the text model is set per connection under "KI-Verbindungen" (s
 | Lautstärke der KI – AI volume | 1.5 | `AI_OUTPUT_GAIN` | gain towards the phone, with a soft limiter |
 | Gegenüber darf die KI unterbrechen – other party may interrupt | on | `AI_ALLOW_INTERRUPT` | off: the AI always finishes speaking |
 | Textmodell entscheidet im Gespräch mit – text model helps decide during the call | on | `AI_LIVE_JUDGE` | check on hanging up, decision after the goodbye and director in the background by the text model (section 6.3); off: behaviour as before |
-| Port der Oberfläche und der MCP-Schnittstelle – port of the web UI and the MCP interface | 3865 | `WEB_PORT` | port on 127.0.0.1 for the web UI and `/mcp`; takes effect after a restart (section 14.3) |
+| Port der Oberfläche und der MCP-Schnittstelle – port of the web UI and the MCP interface | 3865 | `WEB_PORT` | port on 127.0.0.1 for the web UI and `/mcp`; takes effect after a restart (section 15.3) |
 
 The other sections are described in chapters 6 to 10. Their initial values come from `AI_*` (dashboard, AI assistant), `AI_PROVIDER`, `OPENAI_MODEL`, `GEMINI_MODEL` and `AI_VOICE` (AI connections; `AI_VOICE` is now only the initial value for connections without a default voice of their own), `INCOMING_*` (answering machine), `NOTIFY_*` and `RING_POPUP` (notifications), `MAIL_*` and `SMTP_*` (e-mail), and `SCAM_NUMBERS` and `SPAM_LOOKUP` (spam defence).
 
 ---
 
-### 14.3 Port of the web UI
+### 15.3 Port of the web UI
 
 The web UI and the MCP interface listen on the same port, always on `127.0.0.1` only. The default is 3865. If you set up SIPFunk before version 1.0.1, you keep your previous port (usually 8080), provided your `.env` has a line `WEB_PORT=…`; with the installed app that is always the case. Without that line 3865 applies since 1.0.1, and registered agents show "Veraltet".
 
@@ -899,7 +1018,7 @@ The web UI and the MCP interface listen on the same port, always on `127.0.0.1` 
 - **Finding it again**: the tray menu "Web-UI öffnen (Port …)" and a double click on the tray icon always open the right address. The port of the running app is also in the file `sipfunk.port` in the data folder.
 - **What changes with the port**: browser bookmarks; the address `http://127.0.0.1:PORT/mcp` in registered AI agents (section 13.3 shows how to update them with one click); with Microsoft 365 the redirect address of the app registration (chapter 9). The browser remembers small things such as the last dialled number per address; they start afresh under the new port.
 
-## 15. Cost
+## 16. Cost
 
 Both AI providers bill by token. The web UI shows usage and an estimate in US dollars per call. The prices used are hard-coded in `src/ai/pricing.ts` and have to be adjusted by hand when prices change; the provider's billing is authoritative. The estimate leaves out transcription and discounts for cached input.
 
@@ -913,7 +1032,7 @@ Call charges apply according to your tariff (the call back to you is a normal ou
 
 ---
 
-## 16. Troubleshooting
+## 17. Troubleshooting
 
 The log (in the terminal, on the dashboard in the card "Systemprotokoll" (system log; level "Erweitert"), and for the tray app additionally `sipfunk.log` in the data folder) is the first place to look. Log messages are German; the quoted fragments below are what to search for.
 
@@ -934,12 +1053,17 @@ The log (in the terminal, on the dashboard in the card "Systemprotokoll" (system
 | No e-mail | status line of the "E-Mail-Versand" card; "Verbindung prüfen"; reconnect for OAuth |
 | No call back | owner contact or `OWNER_NUMBERS` present? Assessment "unimportant"? Switch or profile? |
 | Transfer fails | log "REFER"; the box has to be allowed to call the number |
+| No fax window after printing to "SIPFunk Fax" | Is SIPFunk running? `FAX_USER`/`FAX_PASSWORD` set and SIPFunk restarted afterwards? `FAX_PRINT_PORT` and the printer port the same (section 14.3)? Log "Fax-Drucker: …" |
+| Log "Fax-Drucker: … kein PostScript" | The printer uses another driver; remove it with `scriptsax-printer.ps1 -Remove` and set it up again |
+| Fax "Fehlgeschlagen" (failed) | Reason in the fax window and in the log ("Fax: Auftrag … fehlgeschlagen"). If the other side does not answer or is not a fax, there is no fax signal; if it breaks off mid-page, try `FAX_MAX_BITRATE=9600` and LAN instead of Wi-Fi (section 14.7) |
+| Log "Fax: Anmeldung an der FRITZ!Box fehlgeschlagen" (registration failed) | `FAX_USER`/`FAX_PASSWORD`; is the IP phone for faxing set up on the box (section 14.1)? |
+| FRITZ!Box phonebook: "FRITZ!Box lehnt die Anmeldung ab" (sign-in rejected) | check `FRITZ_USER`/`FRITZ_PASSWORD` (a FRITZ!Box user, not the SIP account); too many failed attempts lock the box sign-in for a while |
 
 For every AI answer the log contains a diagnostic line (generation speed, buffer underruns, interruptions). `SIP_DEBUG=1` shows all SIP messages; such logs contain phone numbers and have to be cleaned before you share them.
 
 ---
 
-## 17. Glossary
+## 18. Glossary
 
 - **Extension / IP phone**: the device SIPFunk registers as with the box.
 - **AI provider**: the company whose models conduct the call and write the texts: OpenAI or Google (section 6.2).
@@ -954,10 +1078,10 @@ For every AI answer the log contains a diagnostic line (generation speed, buffer
 - **Stil (persona)**: style preset from `personas/*.md`.
 - **`.env`**: text file in the data folder that holds your secrets, such as the SIP password and the API keys. The setup assistant fills it for you; "Einstellungen (.env) bearbeiten" in the tray menu opens it. Never share it.
 - **Data folder** (Datenordner): the folder where SIPFunk keeps your settings, contacts, logs and the `.env`. For the installed tray app it is `%APPDATA%\SIPFunk` (section 11.3).
-- **Port**: a number that tells the computer which program a connection is meant for. The web UI listens on port 3865 by default (section 14.3).
+- **Port**: a number that tells the computer which program a connection is meant for. The web UI listens on port 3865 by default (section 15.3).
 - **SMTP**: the standard way to send e-mail. SIPFunk uses it for the notification mail (section 9.3).
 - **OAuth**: a sign-in where you log in at Google or Microsoft in the browser and allow SIPFunk access, without giving it your password.
-- **Token**: a small piece of text or audio; the AI providers measure usage and bill in tokens (chapter 15). The word also names the permission that OAuth hands out (`mail-token.json`).
+- **Token**: a small piece of text or audio; the AI providers measure usage and bill in tokens (chapter 16). The word also names the permission that OAuth hands out (`mail-token.json`).
 - **Anrufbeantworter**: answering machine. **Spam-Abwehr**: spam defence. **Auftrag**: the task you give the AI.
 - **MCP**: Model Context Protocol, an interface through which AI agents call tools. In SIPFunk: start calls, read along, give directions (chapter 13, [How an agent call works](mcp-flow.md)).
 - **Voice AI / Live AI** (Sprach-KI, Live-KI): the voice model that speaks on the phone (Realtime or Live API).

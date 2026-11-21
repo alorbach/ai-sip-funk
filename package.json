@@ -78,6 +78,10 @@
       {
         "from": "vendor/fax",
         "to": "fax"
+      },
+      {
+        "from": "scripts/fax-printer.ps1",
+        "to": "fax/fax-printer.ps1"
       }
     ],
     "files": [
