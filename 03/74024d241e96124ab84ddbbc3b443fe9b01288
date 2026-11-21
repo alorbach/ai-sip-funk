@@ -1,0 +1,41 @@
+src/web/server.ts
+  s_e7bfd3011d4b49::t_5e3b0229866952 104-105
+  s_e7bfd3011d4b49::t_a54dd57f1981d1 12,439-452
+  s_e7bfd3011d4b49::t_44030eff8b8f74 453
+src/config.ts
+  s_e7bfd3011d4b49::t_5e3b0229866952 37-42,91-94
+  s_e7bfd3011d4b49::t_687a422fde86d6 95
+.env.example.de
+  s_e7bfd3011d4b49::t_d0c97c8bdba782 50-57
+.env.example
+  s_e7bfd3011d4b49::t_d0c97c8bdba782 51-58
+src/fritzPhonebook.ts
+  s_e7bfd3011d4b49::t_1dea70426899b2 1-169
+public/i18n-en.js
+  s_e7bfd3011d4b49::t_3ba3cbcf8a1e7c 532
+  s_e7bfd3011d4b49::t_8551016ca6059a 533-541
+public/index.html
+  s_e7bfd3011d4b49::t_8551016ca6059a 424,506-511,1353-1379,1381-1383
+test/fritzPhonebook.test.ts
+  s_e7bfd3011d4b49::t_677e550a118a7e 1-37
+public/fax.html
+  s_e7bfd3011d4b49::t_3a2f557e24734a 150-163
+src/main.ts
+  s_e7bfd3011d4b49::t_5e3b0229866952 16,1048-1049,1051
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0374024d241e96124ab84ddbbc3b443fe9b01288",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
