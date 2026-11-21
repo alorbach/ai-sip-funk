@@ -16,3 +16,4 @@ usage.json
 *.defekt
 sipfunk.port
 tools/faxmodem/bin/
+vendor/fax/

@@ -37,6 +37,7 @@
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
     "test-call": "tsx src/tools/test-call.ts",
+    "fax:bundle": "C:/msys64/usr/bin/bash.exe tools/faxmodem/bundle.sh",
     "fax-poc": "tsx src/tools/fax-poc.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
@@ -73,6 +74,12 @@
     "directories": {
       "output": "release"
     },
+    "extraResources": [
+      {
+        "from": "vendor/fax",
+        "to": "fax"
+      }
+    ],
     "files": [
       "dist/**/*",
       "public/**/*",

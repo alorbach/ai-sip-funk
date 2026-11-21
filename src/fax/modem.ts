@@ -10,16 +10,30 @@ export const FAX_FRAME = 160;
 export const FAX_FRAME_BYTES = FAX_FRAME * 2;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** spandsp, libtiff und Ghostscript (MSYS2 UCRT64); später aus dem Installationspaket */
-const MSYS_BIN = process.env.MSYS2_BIN ?? 'C:\\msys64\\ucrt64\\bin';
-const FAXMODEM = process.env.FAXMODEM_EXE ?? path.resolve(here, '../../tools/faxmodem/bin/faxmodem.exe');
-const GHOSTSCRIPT = path.join(MSYS_BIN, 'gswin64c.exe');
-const childEnv = (): NodeJS.ProcessEnv => ({ ...process.env, PATH: `${MSYS_BIN};${process.env.PATH ?? ''}` });
+
+/**
+ * Ordner mit faxmodem.exe, Ghostscript und ihren DLLs (tools/faxmodem/bundle.sh):
+ * im Installationspaket resources/fax/bin (neben app.asar), im Projekt vendor/fax/bin.
+ * Ohne Bündel (Entwicklung): faxmodem aus tools/faxmodem/bin, DLLs und Ghostscript aus MSYS2.
+ */
+function binDir(): { dir: string; faxmodem: string } {
+  const resources = (process as { resourcesPath?: string }).resourcesPath;
+  const candidates = [process.env.FAX_BIN, resources && path.join(resources, 'fax', 'bin'), path.resolve(here, '../../../fax/bin'), path.resolve(here, '../../vendor/fax/bin')];
+  for (const dir of candidates) {
+    if (dir && existsSync(path.join(dir, 'faxmodem.exe')) && existsSync(path.join(dir, 'gswin64c.exe'))) return { dir, faxmodem: path.join(dir, 'faxmodem.exe') };
+  }
+  return { dir: process.env.MSYS2_BIN ?? 'C:\\msys64\\ucrt64\\bin', faxmodem: path.resolve(here, '../../tools/faxmodem/bin/faxmodem.exe') };
+}
+const BIN = binDir();
+const FAXMODEM = BIN.faxmodem;
+const GHOSTSCRIPT = path.join(BIN.dir, 'gswin64c.exe');
+// Die DLLs liegen neben den Programmen; der Pfad hilft nur im Entwicklungsfall (faxmodem aus tools/, DLLs aus MSYS2)
+const childEnv = (): NodeJS.ProcessEnv => ({ ...process.env, PATH: `${BIN.dir};${process.env.PATH ?? ''}` });
 
 /** Fehlende Bausteine (leer = Faxen möglich) */
 export function faxPrerequisites(): string[] {
   const missing: string[] = [];
-  if (!existsSync(FAXMODEM)) missing.push(`faxmodem (${FAXMODEM}) – tools/faxmodem/build.sh ausführen`);
+  if (!existsSync(FAXMODEM)) missing.push(`faxmodem (${FAXMODEM}) – tools/faxmodem/bundle.sh ausführen`);
   if (!existsSync(GHOSTSCRIPT)) missing.push(`Ghostscript (${GHOSTSCRIPT})`);
   return missing;
 }
