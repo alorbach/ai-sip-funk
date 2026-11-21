@@ -241,6 +241,8 @@ test('Ausweichmodelle: Antwortet das Textmodell nicht in der gesetzten Zeit, ist
   const r = resolveAi({ aiConnections: json, aiConnection: 'gemini' }, { GEMINI_API_KEY: 'AIza-test-0123456789abcdefghijklmnop' });
   const original = gemini.text;
   const asked: string[] = [];
+  // Das Zeitlimit hält den Prozess nicht wach (unref); im Betrieb tut das die laufende Anfrage, hier dieser Timer
+  const keepAlive = setInterval(() => undefined, 1000);
   try {
     gemini.text = (_key, model) => {
       asked.push(model);
@@ -249,6 +251,7 @@ test('Ausweichmodelle: Antwortet das Textmodell nicht in der gesetzten Zeit, ist
     assert.equal(await r.ask('Frage', 100, undefined, 20), 'ok von gemini-3.5-flash');
     assert.deepEqual(asked, ['gemini-3.5-flash-lite', 'gemini-3.5-flash']);
   } finally {
+    clearInterval(keepAlive);
     gemini.text = original;
   }
 });
