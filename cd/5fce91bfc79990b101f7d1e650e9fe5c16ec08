@@ -1,0 +1,19 @@
+src/fax/service.ts
+  s_e7bfd3011d4b49::t_fc625d4de76634 90-93,172-175,256,259,266-267
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd5fce91bfc79990b101f7d1e650e9fe5c16ec08",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
