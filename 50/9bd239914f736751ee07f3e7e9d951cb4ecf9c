@@ -1,0 +1,20 @@
+test/connections.test.ts
+  s_e7bfd3011d4b49::t_014654880deffe 254
+  s_e7bfd3011d4b49::t_392c8efd814afb 244-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "509bd239914f736751ee07f3e7e9d951cb4ecf9c",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
