@@ -87,7 +87,10 @@ export class FaxService extends EventEmitter {
     this.stopped = true;
     await this.sip.stop();
     // PDFs aller Aufträge aus dem Temp-Ordner entfernen, auch des laufenden: der Prozess endet gleich danach
-    for (const dir of this.files.values()) rmSync(dir, { recursive: true, force: true });
+    // (ein Ordner, den Ghostscript oder faxmodem noch offen hält, darf das Beenden nicht scheitern lassen)
+    for (const dir of this.files.values()) {
+      try { rmSync(dir, { recursive: true, force: true }); } catch { /* bleibt liegen */ }
+    }
     this.files.clear();
   }
 
@@ -166,10 +169,10 @@ export class FaxService extends EventEmitter {
   private async ensureRegistered(): Promise<void> {
     if (this.registered) return;
     this.registering ??= this.sip.start().then(
-      async () => {
-        // Während der Anmeldung beendet: gleich wieder abmelden
-        if (this.stopped) await this.sip.stop();
-        else this.registered = true;
+      () => {
+        // Während der Anmeldung beendet (stop() hat den Client schon geschlossen): nicht weitermachen
+        if (this.stopped) throw new Error('Faxdienst beendet');
+        this.registered = true;
       },
     ).finally(() => (this.registering = undefined));
     await this.registering;
@@ -250,16 +253,18 @@ export class FaxService extends EventEmitter {
           },
         });
         // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter. Rückstand (Uhrendrift) baut sich
-        // je Paket um einen einzelnen Abtastwert ab – das stört das Modemsignal kaum; erst ab 2 s wird hart gekürzt
+        // alle 25 Pakete um einen einzelnen Abtastwert ab (250 ppm, mehr Drift haben Uhren nicht); erst ab 2 s wird hart gekürzt
         let rxBuf = new Int16Array(0);
         let primed = false;
+        let rxPackets = 0;
         const txQueue: Buffer[] = [];
         rtp!.on('frame', (payload: Buffer) => {
           const pcm = decodeG711(payload, law);
           const merged = new Int16Array(rxBuf.length + pcm.length);
           merged.set(rxBuf);
           merged.set(pcm, rxBuf.length);
-          rxBuf = merged.length > 16000 ? merged.subarray(merged.length - 1600) : merged.length > 3200 ? merged.subarray(1) : merged;
+          rxPackets++;
+          rxBuf = merged.length > 16000 ? merged.subarray(merged.length - 1600) : merged.length > 3200 && rxPackets % 25 === 0 ? merged.subarray(1) : merged;
           if (rxBuf.length >= 2 * FAX_FRAME) primed = true;
         });
         modem.onTx = (f) => txQueue.push(f);
