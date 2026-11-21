@@ -1,0 +1,28 @@
+src/main.ts
+  s_e7bfd3011d4b49::t_6cb36e48f977cd 1157
+  s_e7bfd3011d4b49::t_a63f2a7cbf6ce9 1156
+electron/main.cjs
+  s_e7bfd3011d4b49::t_a63f2a7cbf6ce9 84-89
+src/fritzPhonebook.ts
+  s_e7bfd3011d4b49::t_634470716b85d7 143-145
+  s_e7bfd3011d4b49::t_948ff60813a70b 100,102,104-112,114
+src/fax/service.ts
+  s_e7bfd3011d4b49::t_a63f2a7cbf6ce9 89-94,106-110,181,197,251-252,261,265-266,275-276
+  s_e7bfd3011d4b49::t_d859956acf2803 68-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a2e2deb8491d0e40767a6e5cb325b02afd81b954",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
