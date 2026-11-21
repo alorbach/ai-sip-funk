@@ -1,0 +1,29 @@
+package.json
+  s_e7bfd3011d4b49::t_c6451f277f0e56 81-84
+doc/user-guide.de.md
+  s_e7bfd3011d4b49::t_ef776f4158a235 9,505-506,848-957,982-983,1054-1058
+  s_e7bfd3011d4b49::t_c6451f277f0e56 22-24
+  s_e7bfd3011d4b49::t_e81ce5562b89c3 45,71,99,264,297,435,597,685,961,965,980,985,1004,1010,1019,1033,1064,1079,1082
+  s_e7bfd3011d4b49::t_3a202ae4920bbf 958-960
+doc/user-guide.md
+  s_e7bfd3011d4b49::t_ef776f4158a235 9,507-508,850-959,984-985,1056-1060
+  s_e7bfd3011d4b49::t_c6451f277f0e56 22-23
+  s_e7bfd3011d4b49::t_e81ce5562b89c3 45,73,101,266,299,437,599,687,963,967,982,987,1006,1012,1021,1035,1066,1081,1084
+  s_e7bfd3011d4b49::t_f5da5181ee620e 24,960-962
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08a92fdcd62fa85c6a992424fab6f03fc920d56f",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
