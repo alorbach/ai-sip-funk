@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     span_log_set_message_handler(lg, on_log);
 
     fax_set_transmit_on_idle(fax, 1);   /* auch in Pausen Audio liefern: der RTP-Strom darf nie abreißen */
-    if (*ident) t30_set_tx_ident(t30, ident);
+    if (*ident && t30_set_tx_ident(t30, ident) < 0) fprintf(stderr, "LOG Kennung zu lang (max. 20 Zeichen), wird nicht gesendet\n");
     if (*header) t30_set_tx_page_header_info(t30, header);
     t30_set_ecm_capability(t30, 1);
     int modems = T30_SUPPORT_V27TER | T30_SUPPORT_V29;
@@ -123,7 +123,6 @@ int main(int argc, char **argv) {
     }
     if (!done) { result = T30_ERR_CALLDROPPED; }
     fprintf(stderr, "RESULT %d %d %s\n", result, pages, t30_completion_code_to_str(result));
-    fax_release(fax);
-    fax_free(fax);
+    fax_free(fax);   /* gibt auch den T.30-Zustand frei */
     return result == T30_ERR_OK ? 0 : 1;
 }

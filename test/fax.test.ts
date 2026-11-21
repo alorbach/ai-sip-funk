@@ -76,3 +76,8 @@ test('Fax-Drucker: Druckauftrag über TCP wird zum PDF-Entwurf', { skip }, async
     printer.stop();
   }
 });
+
+test('Fax-Drucker: nur Aufträge, die mit PostScript oder PJL beginnen (keine HTTP-Anfragen)', () => {
+  assert.throws(() => cleanPostScript(Buffer.from('POST / HTTP/1.1\r\nHost: 127.0.0.1:9101\r\n\r\n%!PS-Adobe-3.0\nshowpage\n')), /kein PostScript/);
+  assert.equal(cleanPostScript(Buffer.from('\x04\r\n%!PS-Adobe-3.0\nshowpage\n', 'latin1')).toString('latin1'), '%!PS-Adobe-3.0\nshowpage\n');
+});

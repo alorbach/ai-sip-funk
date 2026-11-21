@@ -35,3 +35,13 @@ test('FRITZ!Box-Telefonbuch: ohne Zugangsdaten aus der gespeicherten Datei', asy
   pb.removeXml();
   assert.equal((await pb.get()).source, null);
 });
+
+test('FRITZ!Box-Telefonbuch: Datei während eines laufenden Abrufs gespeichert – Ergebnis ist die Datei', async () => {
+  const file = path.join(mkdtempSync(path.join(tmpdir(), 'sipfunk-fritz-')), 'fritz-telefonbuch.xml');
+  const pb = new FritzPhonebook({ host: '127.0.0.1', xmlFile: file });
+  const early = pb.get();
+  pb.saveXml(XML);
+  assert.equal((await pb.get(true)).items.length, 4);
+  await early;
+  assert.equal((await pb.get()).source, 'xml');
+});

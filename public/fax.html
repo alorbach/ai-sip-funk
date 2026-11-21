@@ -98,6 +98,12 @@ async function poll() {
         setTimeout(next, 6000);
       } else if (job) {
         note(I18N.t(STATES[job.state] || job.state) + (job.state === 'sending' && job.pages ? ' ' + I18N.t('Seite {0}', job.pages) : ''));
+      } else {
+        // Auftrag nicht mehr bekannt (z. B. SIPFunk neu gestartet)
+        note(I18N.t('Auftrag nicht mehr bekannt – SIPFunk wurde neu gestartet?'), 'bad');
+        jobId = '';
+        finishing = true;
+        setTimeout(next, 6000);
       }
     } else if (!draft && !finishing) {
       next(st);
@@ -106,14 +112,19 @@ async function poll() {
   setTimeout(poll, 800);
 }
 /** Nächsten wartenden Druckauftrag zeigen oder das Fenster schließen */
+let nextBusy = false; // Verwerfen und poll() dürfen den nächsten Auftrag nicht doppelt anzeigen
 async function next(st) {
-  finishing = false;
-  if (!st) {
-    try { st = await (await fetch('/api/fax')).json(); } catch { return; }
-  }
-  const d = (st.drafts || []).at(-1); // ältester zuerst
-  if (d) showDraft(d);
-  else window.close();
+  if (nextBusy) return;
+  nextBusy = true;
+  try {
+    finishing = false;
+    if (!st) {
+      try { st = await (await fetch('/api/fax')).json(); } catch { return; }
+    }
+    const d = (st.drafts || []).at(-1); // ältester zuerst
+    if (d) { if (d.id !== draft?.id) showDraft(d); }
+    else window.close();
+  } finally { nextBusy = false; }
 }
 $('send').onclick = async () => {
   if (!draft) return;
@@ -134,6 +145,7 @@ $('send').onclick = async () => {
 };
 $('discard').onclick = async () => {
   if (!draft) return;
+  finishing = true; // poll() hält still, bis next() den nächsten zeigt
   await fetch(`/api/fax/drafts/${draft.id}`, { method: 'DELETE' }).catch(() => {});
   draft = null;
   next();

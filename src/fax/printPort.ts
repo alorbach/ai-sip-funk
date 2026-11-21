@@ -21,7 +21,12 @@ export interface PrintedDocument {
  * kommt gar kein PostScript, ist der falsche Treiber eingestellt.
  */
 export function cleanPostScript(data: Buffer): Buffer {
-  const start = data.indexOf('%!PS');
+  // Der Auftrag muss mit PostScript oder dem PJL-Umschlag des Treibers beginnen (davor nur Leerraum oder Strg-D).
+  // So kommt z. B. eine HTTP-Anfrage einer Webseite an 127.0.0.1 nicht durch, auch wenn „%!PS“ im Body steht.
+  let lead = 0;
+  while (lead < data.length && lead < 64 && (data[lead] === 0x04 || /\s/.test(String.fromCharCode(data[lead])))) lead++;
+  const head = data.subarray(lead, lead + 9).toString('latin1');
+  const start = head.startsWith('%!PS') ? lead : head === '\x1b%-12345X' ? data.indexOf('%!PS', lead) : -1;
   if (start < 0) throw new Error('Der Druckauftrag ist kein PostScript – Drucker „SIPFunk Fax“ braucht den Treiber „Microsoft PS Class Driver“');
   let end = data.indexOf('\x1b%-12345X', start);
   if (end < 0) end = data.length;

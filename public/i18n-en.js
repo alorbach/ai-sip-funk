@@ -530,6 +530,7 @@
     'SIPFunk – Fax senden': 'SIPFunk – send fax',
     'Fax senden': 'Send fax',
     'Fax': 'Fax',
+    'Auftrag nicht mehr bekannt – SIPFunk wurde neu gestartet?': 'Job no longer known – was SIPFunk restarted?',
     // ---- FRITZ!Box phonebook (contacts page) ----
     'FRITZ!Box-Telefonbuch': 'FRITZ!Box phonebook',
     'Datei entfernen': 'Remove file',

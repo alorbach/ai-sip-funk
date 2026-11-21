@@ -84,6 +84,9 @@ export class FaxService extends EventEmitter {
   async stop(): Promise<void> {
     this.stopped = true;
     await this.sip.stop();
+    // Nicht mehr gesendete Aufträge: ihre PDFs im Temp-Ordner entfernen
+    for (const dir of this.files.values()) rmSync(dir, { recursive: true, force: true });
+    this.files.clear();
   }
 
   status(): { registered: boolean; user: string; missing: string[]; jobs: FaxJob[]; drafts: FaxDraft[] } {
@@ -137,7 +140,12 @@ export class FaxService extends EventEmitter {
     writeFileSync(path.join(dir, 'dokument.pdf'), pdf);
     this.files.set(job.id, dir);
     this.jobs.push(job);
-    while (this.jobs.length > KEEP_JOBS) this.jobs.shift();
+    // Nur abgeschlossene Aufträge fallen aus der Liste; wartende bleiben, bis sie gesendet sind
+    while (this.jobs.length > KEEP_JOBS) {
+      const i = this.jobs.findIndex((j) => j.state === 'done' || j.state === 'failed');
+      if (i < 0) break;
+      this.jobs.splice(i, 1);
+    }
     this.emit('job', job);
     log.info(`Fax: Auftrag ${job.id} angenommen (${name})`);
     void this.pump();

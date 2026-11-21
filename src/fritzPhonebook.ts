@@ -120,6 +120,8 @@ export interface FritzPhonebookOptions {
 export class FritzPhonebook {
   private cache?: { at: number; status: FritzPhonebookStatus };
   private loading?: Promise<FritzPhonebookStatus>;
+  /** Steigt, wenn sich die Quelle ändert (Datei gespeichert/entfernt): ältere Abrufe landen nicht mehr im Cache */
+  private generation = 0;
 
   constructor(private readonly opts: FritzPhonebookOptions) {}
 
@@ -131,8 +133,14 @@ export class FritzPhonebook {
   async get(force = false): Promise<FritzPhonebookStatus> {
     const maxAge = this.opts.maxAgeMs ?? 5 * 60_000;
     if (!force && this.cache && Date.now() - this.cache.at < maxAge) return this.cache.status;
-    this.loading ??= this.load().finally(() => (this.loading = undefined));
+    const gen = this.generation;
+    if (!this.loading) {
+      const p = this.load().finally(() => { if (this.loading === p) this.loading = undefined; });
+      this.loading = p;
+    }
     const status = await this.loading;
+    // Während des Abrufs hat sich die Quelle geändert: neu laden
+    if (gen !== this.generation) return this.get(true);
     this.cache = { at: Date.now(), status };
     return status;
   }
@@ -155,15 +163,21 @@ export class FritzPhonebook {
 
   /** XML-Datei aus der FRITZ!Box speichern; liefert die Anzahl der Einträge */
   saveXml(xml: string): number {
-    const items = parseFritzPhonebook(xml);
     if (!/<phonebooks?\b/.test(xml)) throw new Error('Keine Telefonbuch-Datei der FRITZ!Box');
+    const items = parseFritzPhonebook(xml);
     writeFileSync(this.opts.xmlFile, xml);
-    this.cache = undefined;
+    this.invalidate();
     return items.length;
   }
 
   removeXml(): void {
     rmSync(this.opts.xmlFile, { force: true });
+    this.invalidate();
+  }
+
+  private invalidate(): void {
+    this.generation++;
     this.cache = undefined;
+    this.loading = undefined;
   }
 }
