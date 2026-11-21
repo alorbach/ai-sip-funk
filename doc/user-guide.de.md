@@ -881,13 +881,13 @@ Beim Start steht im Log, ob sich der Fax-Zugang anmelden konnte. Schlägt die An
 
 ### 14.3 Drucker „SIPFunk Fax“ einrichten
 
-Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Das Skript liegt bei der installierten App im Programmordner, im Repository unter `scripts\fax-printer.ps1`:
+Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Das Skript liegt bei der installierten App im Programmordner unter `resources\fax\fax-printer.ps1`, im Repository unter `scripts\fax-printer.ps1`. Bei der Standardinstallation:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
 ```
 
-Windows fragt einmal nach Administratorrechten. Das Skript legt einen Drucker „SIPFunk Fax“ an, der den in Windows enthaltenen Treiber „Microsoft PS Class Driver“ nutzt und auf `127.0.0.1:9101` druckt, also an SIPFunk auf demselben Rechner. Nichts verlässt dabei den Rechner.
+Hast du bei der Installation einen anderen Ordner gewählt, ersetze `$env:LOCALAPPDATA\Programs\SIPFunk` durch diesen. Windows fragt einmal nach Administratorrechten. Das Skript legt einen Drucker „SIPFunk Fax“ an, der den in Windows enthaltenen Treiber „Microsoft PS Class Driver“ nutzt und auf `127.0.0.1:9101` druckt, also an SIPFunk auf demselben Rechner. Nichts verlässt dabei den Rechner.
 
 - Anderen Port verwenden (passend zu `FAX_PRINT_PORT`): `… fax-printer.ps1 -Port 9102`
 - Drucker wieder entfernen: `… fax-printer.ps1 -Remove`
@@ -898,7 +898,7 @@ Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt de
 
 1. Im Programm (Word, PDF-Betrachter, Browser …) „Drucken“ wählen, Drucker **„SIPFunk Fax“**. Papierformat A4; Farbe wird zu Schwarzweiß.
 2. Unten rechts öffnet sich das Fax-Fenster mit dem Namen des Dokuments und der Seitenzahl. **„Vorschau“** zeigt das Dokument als PDF so, wie es gefaxt wird.
-3. Im Feld **„An (Faxnummer oder Kontakt)“** die Nummer eingeben oder einen Vorschlag wählen (14.5). Schreibweise wie beim Wählen: `030 1234567`, `+44 20 …`.
+3. Im Feld **„An (Faxnummer oder Kontakt)“** die Nummer eingeben oder einen Vorschlag wählen (14.5). Schreibweise wie beim Wählen: `030 1234567` oder `+49 30 1234567`.
 4. **„Faxen“** (oder Enter). Das Fenster zeigt den Fortschritt: „Wird vorbereitet …“, „Wählt …“, „Sendet … Seite 2“, am Ende **„Zugestellt: 2 Seite(n)“** oder „Fehlgeschlagen: …“ mit dem Grund.
 
 Weitere Hinweise:
@@ -906,7 +906,7 @@ Weitere Hinweise:
 - **„Verwerfen“** löscht den Druckauftrag. **✕** oder Esc schließt nur das Fenster; der Auftrag bleibt liegen und erscheint beim nächsten Druck wieder.
 - Druckst du mehrere Dokumente, zeigt das Fenster sie nacheinander. Es warten höchstens 10 Druckaufträge, ältere werden verworfen (Hinweis im Log). Druckaufträge liegen nur im Arbeitsspeicher; nach einem Neustart von SIPFunk sind sie weg.
 - Gesendet wird ein Fax nach dem anderen. Ein Faxanruf dauert höchstens 15 Minuten.
-- **Gesperrte Ziele:** Es gelten dieselben Regeln wie für Anrufe: Mehrwert- und Sondernummern (z. B. 0900, 118…) lehnt SIPFunk ab. Interne Nebenstellen der Box (`**…`) gehen nicht, dort kann kein Fax ankommen.
+- **Gesperrte Ziele:** Es gelten dieselben Regeln wie für Anrufe (Kapitel 6): Notruf, Behörden-, Sonder-, Service- und Mehrwertnummern (z. B. 110, 115, 118…, 0180, 0900), Call-by-Call (010…) und **Auslandsnummern** (`00…` und `+` außer `+49`) lehnt SIPFunk ab. Interne Nebenstellen der Box (`**…`) gehen auch nicht, dort kann kein Fax ankommen.
 - Ob ein Fax angekommen ist, entscheidet das Faxprotokoll: „Zugestellt“ heißt, das Gerät der Gegenseite hat jede Seite bestätigt.
 
 Zum Ausprobieren eignet sich ein Testfax-Empfang im Internet, etwa [simple-fax.de](https://simple-fax.de/test-fax-empfangen): Dort steht eine Testnummer, und das empfangene Fax erscheint nach ein bis zwei Minuten als Bild auf der Seite.
@@ -925,7 +925,7 @@ Damit eine Nummer als Faxnummer erkannt wird, trägst du sie im Telefonbuch der 
 
 SIPFunk kommt auf zwei Wegen an das Telefonbuch:
 
-- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“, mit dem Recht „FRITZ!Box Einstellungen“. Der SIP-Zugang des IP-Telefons reicht dafür nicht. In die `.env`:
+- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“. Welches Recht die Box für das Telefonbuch verlangt, hängt von FRITZ!OS ab: Versuch es zuerst mit dem engsten Recht für Telefonie („Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste“); meldet SIPFunk dann „FRITZ!Box lehnt die Anmeldung ab“, gib zusätzlich „FRITZ!Box Einstellungen“ frei. Das ist Vollzugriff auf die Box, und das Kennwort steht im Klartext in der `.env`; nimm ein eigenes, sonst nirgends verwendetes Kennwort. Der SIP-Zugang des IP-Telefons reicht nicht. In die `.env`:
 
   | Variable | Standard | Wirkung |
   | --- | --- | --- |
@@ -951,7 +951,7 @@ Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zus
 
 ### 14.7 Grenzen
 
-- Nur Senden, kein Empfang.
+- Nur Senden, kein Empfang. Nur Ziele im Inland.
 - Fax über eine Sprachverbindung ist empfindlich: Netzwerkaussetzer oder ein stark ausgelasteter Rechner können eine Übertragung abbrechen. Ein Rechner am LAN-Kabel ist zuverlässiger als WLAN. Mit ECM werden gestörte Stellen meist neu gesendet; bricht es trotzdem ab, `FAX_MAX_BITRATE=9600` versuchen.
 - Seiten werden auf A4 eingepasst. Sehr feine Schrift und Graustufen leiden wie bei jedem Fax.
 - Der Drucker „SIPFunk Fax“ braucht den Treiber „Microsoft PS Class Driver“ (PostScript). Mit einem anderen Treiber meldet das Log „kein PostScript“.
@@ -1052,7 +1052,7 @@ Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stuf
 | Rückruf kommt nicht | Inhaber-Kontakt bzw. `OWNER_NUMBERS` vorhanden? Einschätzung „unwichtig“? Schalter bzw. Profil? |
 | Durchstellen klappt nicht | Log „REFER“; die Box muss die Nummer anrufen dürfen |
 | Nach dem Drucken auf „SIPFunk Fax“ kommt kein Fax-Fenster | Läuft SIPFunk? `FAX_USER`/`FAX_PASSWORD` gesetzt und SIPFunk danach neu gestartet? `FAX_PRINT_PORT` und der Port des Druckers gleich (Abschnitt 14.3)? Log „Fax-Drucker: …“ |
-| Log „Fax-Drucker: … kein PostScript“ | Der Drucker nutzt einen anderen Treiber; mit `scriptsax-printer.ps1 -Remove` entfernen und neu einrichten |
+| Log „Fax-Drucker: … kein PostScript“ | Der Drucker nutzt einen anderen Treiber; mit `fax-printer.ps1 -Remove` entfernen und neu einrichten (Abschnitt 14.3) |
 | Fax „Fehlgeschlagen“ | Grund im Fax-Fenster und im Log („Fax: Auftrag … fehlgeschlagen“). Nimmt die Gegenseite nicht ab oder ist kein Fax, kommt kein Faxsignal; bricht es mitten in der Seite ab, `FAX_MAX_BITRATE=9600` und LAN statt WLAN versuchen (Abschnitt 14.7) |
 | Log „Fax: Anmeldung an der FRITZ!Box fehlgeschlagen“ | `FAX_USER`/`FAX_PASSWORD`; ist das IP-Telefon für das Fax in der Box angelegt (Abschnitt 14.1)? |
 | FRITZ!Box-Telefonbuch: „FRITZ!Box lehnt die Anmeldung ab“ | `FRITZ_USER`/`FRITZ_PASSWORD` prüfen (FRITZ!Box-Benutzer, nicht der SIP-Zugang); zu viele Fehlversuche sperren die Anmeldung der Box eine Weile |

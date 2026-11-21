@@ -883,13 +883,13 @@ At start, the log says whether the fax account could register. If registration f
 
 ### 14.3 Setting up the "SIPFunk Fax" printer
 
-The printer is set up once and needs administrator rights for that. The script ships with the installed app in the program folder; in the repository it is `scripts\fax-printer.ps1`:
+The printer is set up once and needs administrator rights for that. The script ships with the installed app in the program folder as `resources\fax\fax-printer.ps1`; in the repository it is `scripts\fax-printer.ps1`. With the default installation:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
 ```
 
-Windows asks once for administrator rights. The script creates a printer "SIPFunk Fax" that uses the "Microsoft PS Class Driver" included in Windows and prints to `127.0.0.1:9101`, that is, to SIPFunk on the same computer. Nothing leaves the computer.
+If you chose another folder during installation, replace `$env:LOCALAPPDATA\Programs\SIPFunk` with it. Windows asks once for administrator rights. The script creates a printer "SIPFunk Fax" that uses the "Microsoft PS Class Driver" included in Windows and prints to `127.0.0.1:9101`, that is, to SIPFunk on the same computer. Nothing leaves the computer.
 
 - Use another port (matching `FAX_PRINT_PORT`): `… fax-printer.ps1 -Port 9102`
 - Remove the printer again: `… fax-printer.ps1 -Remove`
@@ -900,7 +900,7 @@ The printer only works while SIPFunk is running. If SIPFunk is not running, the 
 
 1. In the program (Word, PDF viewer, browser …) choose "Print" and the printer **"SIPFunk Fax"**. Paper size A4; colour becomes black and white.
 2. The fax window opens at the bottom right with the document name and the page count. **"Vorschau"** (preview) shows the document as a PDF, the way it will be faxed.
-3. In the field **"An (Faxnummer oder Kontakt)"** (to: fax number or contact) enter the number or pick a suggestion (14.5). Same notation as for dialling: `030 1234567`, `+44 20 …`.
+3. In the field **"An (Faxnummer oder Kontakt)"** (to: fax number or contact) enter the number or pick a suggestion (14.5). Same notation as for dialling: `030 1234567` or `+49 30 1234567`.
 4. **"Faxen"** (send fax), or Enter. The window shows the progress: "Wird vorbereitet …" (preparing), "Wählt …" (dialling), "Sendet … Seite 2" (sending page 2), and at the end **"Zugestellt: 2 Seite(n)"** (delivered: 2 pages) or "Fehlgeschlagen: …" (failed) with the reason.
 
 More notes:
@@ -908,7 +908,7 @@ More notes:
 - **"Verwerfen"** (discard) deletes the print job. **✕** or Esc only closes the window; the job stays and shows up again with the next print.
 - If you print several documents, the window shows them one after the other. At most 10 print jobs wait; older ones are discarded (note in the log). Print jobs are held in memory only; after SIPFunk restarts they are gone.
 - Faxes are sent one at a time. A fax call lasts at most 15 minutes.
-- **Blocked destinations:** the same rules as for calls apply: premium-rate and special numbers (e.g. 0900, 118…) are rejected. Internal extensions of the box (`**…`) do not work; no fax can arrive there.
+- **Blocked destinations:** the same rules as for calls apply (chapter 6): emergency, authority, special, service and premium-rate numbers (e.g. 110, 115, 118…, 0180, 0900), call-by-call (010…) and **international numbers** (`00…` and `+` other than `+49`) are rejected. Internal extensions of the box (`**…`) do not work either; no fax can arrive there.
 - Whether a fax arrived is decided by the fax protocol: "Zugestellt" means the receiving machine confirmed every page.
 
 To try it out, use a test fax receiver on the internet, such as [simple-fax.de](https://simple-fax.de/test-fax-empfangen): it lists a test number, and the received fax appears as an image on the page after one or two minutes.
@@ -927,7 +927,7 @@ For a number to count as a fax number, enter it in the FRITZ!Box phonebook with 
 
 SIPFunk gets the phonebook in one of two ways:
 
-- **Live over TR-064 (recommended).** SIPFunk reads all phonebooks of the box and keeps them for 5 minutes; "Aktualisieren" (refresh) fetches them right away. This needs a **FRITZ!Box user**: FRITZ!Box interface › "System" › "FRITZ!Box-Benutzer" (FRITZ!Box Users) › "Benutzer hinzufügen" (add user), e.g. "sipfunk", with the right "FRITZ!Box Einstellungen" (FRITZ!Box settings). The SIP account of the IP phone is not enough. In `.env`:
+- **Live over TR-064 (recommended).** SIPFunk reads all phonebooks of the box and keeps them for 5 minutes; "Aktualisieren" (refresh) fetches them right away. This needs a **FRITZ!Box user**: FRITZ!Box interface › "System" › "FRITZ!Box-Benutzer" (FRITZ!Box Users) › "Benutzer hinzufügen" (add user), e.g. "sipfunk". Which right the box requires for the phonebook depends on FRITZ!OS: try the narrowest telephony right first ("Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste", voice messages, fax messages, FRITZ!App Fon and call list); if SIPFunk then reports "FRITZ!Box lehnt die Anmeldung ab" (sign-in rejected), also grant "FRITZ!Box Einstellungen" (FRITZ!Box settings). That is full access to the box, and the password is stored in plain text in `.env`; use a separate password you use nowhere else. The SIP account of the IP phone is not enough. In `.env`:
 
   | Variable | Default | Effect |
   | --- | --- | --- |
@@ -953,7 +953,7 @@ The response contains the job with its `id`; `GET /api/fax` returns the state of
 
 ### 14.7 Limits
 
-- Sending only, no receiving.
+- Sending only, no receiving. Domestic (German) destinations only.
 - Faxing over a voice connection is sensitive: network dropouts or a heavily loaded computer can break off a transmission. A computer on a LAN cable is more reliable than Wi-Fi. With ECM, damaged parts are usually sent again; if it still breaks off, try `FAX_MAX_BITRATE=9600`.
 - Pages are fitted to A4. Very small print and greyscale suffer as with any fax.
 - The printer "SIPFunk Fax" needs the "Microsoft PS Class Driver" (PostScript). With another driver, the log says "kein PostScript" (not PostScript).
@@ -1054,7 +1054,7 @@ The log (in the terminal, on the dashboard in the card "Systemprotokoll" (system
 | No call back | owner contact or `OWNER_NUMBERS` present? Assessment "unimportant"? Switch or profile? |
 | Transfer fails | log "REFER"; the box has to be allowed to call the number |
 | No fax window after printing to "SIPFunk Fax" | Is SIPFunk running? `FAX_USER`/`FAX_PASSWORD` set and SIPFunk restarted afterwards? `FAX_PRINT_PORT` and the printer port the same (section 14.3)? Log "Fax-Drucker: …" |
-| Log "Fax-Drucker: … kein PostScript" | The printer uses another driver; remove it with `scriptsax-printer.ps1 -Remove` and set it up again |
+| Log "Fax-Drucker: … kein PostScript" | The printer uses another driver; remove it with `fax-printer.ps1 -Remove` and set it up again (section 14.3) |
 | Fax "Fehlgeschlagen" (failed) | Reason in the fax window and in the log ("Fax: Auftrag … fehlgeschlagen"). If the other side does not answer or is not a fax, there is no fax signal; if it breaks off mid-page, try `FAX_MAX_BITRATE=9600` and LAN instead of Wi-Fi (section 14.7) |
 | Log "Fax: Anmeldung an der FRITZ!Box fehlgeschlagen" (registration failed) | `FAX_USER`/`FAX_PASSWORD`; is the IP phone for faxing set up on the box (section 14.1)? |
 | FRITZ!Box phonebook: "FRITZ!Box lehnt die Anmeldung ab" (sign-in rejected) | check `FRITZ_USER`/`FRITZ_PASSWORD` (a FRITZ!Box user, not the SIP account); too many failed attempts lock the box sign-in for a while |
