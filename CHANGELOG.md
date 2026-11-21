@@ -6,6 +6,12 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+## 1.0.2 – 21 November 2026
+
+- **Faxing through the FRITZ!Box.** SIPFunk sends faxes through its own IP phone on the FRITZ!Box (`FAX_USER`/`FAX_PASSWORD` in .env), using T.30 over G.711 (spandsp). The installer ships the fax module and Ghostscript; origin and licences are listed in `resources/fax/LIZENZEN.txt`.
+- **"SIPFunk Fax" printer.** `scripts/fax-printer.ps1` sets up a Windows printer that prints straight to SIPFunk. After printing, a small fax window with a preview asks for the number and shows the transmission until it is delivered. Faxes can also be sent through `/api/fax`.
+- **FRITZ!Box phonebook as suggestions.** With a FRITZ!Box user (`FRITZ_USER`/`FRITZ_PASSWORD`) SIPFunk reads the phonebook live over TR-064; without credentials it uses a phonebook file saved from the box (Contacts page). The fax window suggests fax numbers first, the dial field the other numbers. Nothing is copied into the SIPFunk contacts.
+
 ## 1.0.1 – 13 November 2026
 
 - **Silence at the end: the app hangs up.** If the AI only said goodbye without calling `end_call` (again), the line stayed open until the other party spoke again. On silence the text model now decides from the transcript how to go on: if the call is over (goodbyes have been said), the app hangs up itself; if everything is settled but the farewell is missing, the AI is asked to end the call; if the call is in mid-flow, the AI is nudged as before. If the AI already wanted to end, this is checked after three instead of six seconds of silence. As a net below that: if it stays silent after two nudges, the call is ended ("Wegen Stille beendet").

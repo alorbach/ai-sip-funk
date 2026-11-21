@@ -6,6 +6,12 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.2 – 21.11.2026
+
+- **Faxen über die FRITZ!Box.** SIPFunk sendet Faxe über ein eigenes IP-Telefon der FRITZ!Box (`FAX_USER`/`FAX_PASSWORD` in der .env), per T.30 über G.711 (spandsp). Das Installationspaket bringt das Fax-Modul und Ghostscript mit; Herkunft und Lizenzen stehen in `resources/fax/LIZENZEN.txt`.
+- **Drucker „SIPFunk Fax“.** `scripts/fax-printer.ps1` richtet einen Windows-Drucker ein, der direkt an SIPFunk druckt. Nach dem Drucken öffnet sich ein kleines Fax-Fenster mit Vorschau, das nach der Zielnummer fragt und den Versand bis zur Zustellung zeigt. Gefaxt werden kann auch über `/api/fax`.
+- **FRITZ!Box-Telefonbuch als Vorschläge.** Mit einem FRITZ!Box-Benutzer (`FRITZ_USER`/`FRITZ_PASSWORD`) liest SIPFunk das Telefonbuch live über TR-064, ohne Zugangsdaten aus einer in der Box gesicherten Datei (Seite „Kontakte“). Das Fax-Fenster schlägt zuerst Faxnummern vor, das Wählfeld die übrigen Nummern. In die SIPFunk-Kontakte wird nichts übernommen.
+
 ## 1.0.1 – 13.11.2026
 
 - **Stille am Ende: Die App legt auf.** Verabschiedete sich die KI nur mündlich, ohne `end_call` (noch einmal) aufzurufen, blieb die Leitung offen, bis das Gegenüber wieder etwas sagte. Bei Stille entscheidet jetzt das Textmodell am Transkript, wie es weitergeht: Ist das Gespräch beendet (man hat sich verabschiedet), legt die App selbst auf; ist alles gesagt, aber die Verabschiedung fehlt, bekommt die KI die Aufforderung zu beenden; ist das Gespräch mittendrin, wird sie wie bisher angestoßen. Wollte die KI schon beenden, wird nach drei statt sechs Sekunden Stille nachgesehen. Als Netz darunter: Bleibt es nach zwei Anstößen weiter still, wird aufgelegt („Wegen Stille beendet“).

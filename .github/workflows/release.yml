@@ -81,6 +81,16 @@ jobs:
         shell: pwsh
         run: npm version "${{ steps.vars.outputs.version }}" --no-git-tag-version --allow-same-version
 
+      # Fax module (faxmodem.exe with spandsp) and Ghostscript with their DLLs for the installer
+      # (resources/fax). The runner image has MSYS2 in C:\msys64.
+      - name: Build fax components
+        shell: pwsh
+        run: |
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Sy --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-spandsp mingw-w64-ucrt-x86_64-ghostscript"
+          if ($LASTEXITCODE -ne 0) { throw "pacman failed with exit code $LASTEXITCODE" }
+          npm run fax:bundle
+          if (-not (Test-Path vendor/fax/bin/faxmodem.exe) -or -not (Test-Path vendor/fax/bin/gswin64c.exe)) { throw 'Fax components are missing in vendor/fax/bin' }
+
       - name: Type check
         run: npm run typecheck
 
