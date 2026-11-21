@@ -13,6 +13,7 @@ import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { FaxService } from './fax/service.js';
 import { FaxPrintPort } from './fax/printPort.js';
+import { FritzPhonebook } from './fritzPhonebook.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { agentLabel } from './ai/agentCall.js';
 import { buildInstructions, defaultIncomingTask, firstName, greetingInstruction, incomingFollowUpInstruction, loadPersonas } from './ai/personas.js';
@@ -1044,7 +1045,10 @@ fax?.on('job', (job) => bus.emit('message', { type: 'fax', job }));
 fax?.on('draft', () => traySend({ type: 'faxPrint' }));
 const faxPrint = fax && config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
 
+const fritzPhonebook = new FritzPhonebook({ host: config.fritz.host, user: config.fritz.user, password: config.fritz.password, xmlFile: join(dataDir, 'fritz-telefonbuch.xml') });
+
 const stopWeb = startWebServer({
+  fritzPhonebook,
   fax: fax && {
     status: () => fax.status(),
     submit: (number, pdf, name) => ({ ...fax.submit(number, pdf, name) }),

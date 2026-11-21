@@ -147,10 +147,20 @@ $('number').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('sen
 $('close').onclick = () => window.close();
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); });
 
-fetch('/api/contacts').then((r) => r.json()).then((c) => {
-  contacts = (c.items || []).filter((x) => x.number);
-  $('contacts').replaceChildren(...contacts.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}` })));
-}).catch(() => {});
+// Vorschläge: zuerst Faxnummern aus dem FRITZ!Box-Telefonbuch, dann SIPFunk-Kontakte, dann die übrigen Box-Nummern
+const getJson = (u) => fetch(u).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+Promise.all([getJson('/api/fritz-phonebook'), getJson('/api/contacts')]).then(([fb, c]) => {
+  const box = fb.items || [];
+  const own = (c.items || []).filter((x) => x.number).map((x) => ({ name: x.name, number: x.number, hint: '' }));
+  const list = [
+    ...box.filter((x) => x.label === 'fax').map((x) => ({ ...x, hint: I18N.t('Fax') })),
+    ...own,
+    ...box.filter((x) => x.label !== 'fax').map((x) => ({ ...x, hint: 'FRITZ!Box' })),
+  ];
+  const seen = new Set();
+  contacts = list.filter((x) => { const k = x.name + '|' + x.number; return !seen.has(k) && seen.add(k); });
+  $('contacts').replaceChildren(...contacts.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}`, label: x.hint })));
+});
 fetch('/api/settings').then((r) => r.json()).then((s) => I18N.sync(s.uiLang)).catch(() => {});
 poll();
 </script>

@@ -529,6 +529,16 @@
     // ---- fax window after printing to "SIPFunk Fax" ----
     'SIPFunk – Fax senden': 'SIPFunk – send fax',
     'Fax senden': 'Send fax',
+    'Fax': 'Fax',
+    // ---- FRITZ!Box phonebook (contacts page) ----
+    'FRITZ!Box-Telefonbuch': 'FRITZ!Box phonebook',
+    'Datei entfernen': 'Remove file',
+    'Keine Quelle eingerichtet': 'No source set up',
+    '{0} Nummern, davon {1} Fax': '{0} numbers, {1} of them fax',
+    'Live aus der FRITZ!Box: {0}': 'Live from the FRITZ!Box: {0}',
+    'Aus der gespeicherten Datei: {0}': 'From the saved file: {0}',
+    'Telefonbuch gespeichert: {0} Nummern': 'Phonebook saved: {0} numbers',
+    'SIPFunk schlägt Nummern aus dem Telefonbuch der FRITZ!Box vor – Faxnummern im Fax-Fenster, die übrigen beim Wählen. Übernommen wird nichts. Live mit einem FRITZ!Box-Benutzer (<code>FRITZ_USER</code>/<code>FRITZ_PASSWORD</code> in der .env), sonst aus einer Datei: in der FRITZ!Box unter Telefonie › Telefonbuch › Sichern.': 'SIPFunk suggests numbers from the FRITZ!Box phonebook – fax numbers in the fax window, the others when dialing. Nothing is copied. Live with a FRITZ!Box user (<code>FRITZ_USER</code>/<code>FRITZ_PASSWORD</code> in .env), otherwise from a file: in the FRITZ!Box under Telephony › Telephone Book › Back Up.',
     'Schließen (der Druckauftrag bleibt erhalten)': 'Close (the print job is kept)',
     'Vorschau': 'Preview',
     'An (Faxnummer oder Kontakt)': 'To (fax number or contact)',

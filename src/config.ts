@@ -34,6 +34,12 @@ export interface Config {
     /** Port auf 127.0.0.1 für den Windows-Drucker „SIPFunk Fax“; 0 = aus */
     printPort: number;
   };
+  /** Telefonbuch der FRITZ!Box über TR-064 (eigener Box-Benutzer, nicht der SIP-Zugang) */
+  fritz: {
+    host: string;
+    user: string;
+    password: string;
+  };
 }
 
 function env(name: string, fallback?: string): string {
@@ -81,6 +87,11 @@ export function loadConfig(): Config {
       header: env('FAX_HEADER', ''),
       maxBitRate: envInt('FAX_MAX_BITRATE', 14400),
       printPort: envInt('FAX_PRINT_PORT', 9101),
+    },
+    fritz: {
+      host: env('FRITZ_HOST', '') || env('SIP_SERVER', 'fritz.box'),
+      user: env('FRITZ_USER', ''),
+      password: env('FRITZ_PASSWORD', ''),
     },
   };
 }

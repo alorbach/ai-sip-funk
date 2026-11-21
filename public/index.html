@@ -421,7 +421,7 @@
           <div class="head"><h2>Anruf</h2><span id="contact-hint" class="hint"></span></div>
           <div class="body">
             <div class="dial">
-              <label class="field"><span>Rufnummer</span><input id="target" placeholder="**610 oder 0171 …" autocomplete="off" inputmode="tel" aria-describedby="dial-note"></label>
+              <label class="field"><span>Rufnummer</span><input id="target" list="fritz-numbers" placeholder="**610 oder 0171 …" autocomplete="off" inputmode="tel" aria-describedby="dial-note"><datalist id="fritz-numbers"></datalist></label>
               <button id="prepare" class="btn primary">Anrufen …</button>
             </div>
             <p class="dial-note" id="dial-note" hidden></p>
@@ -502,6 +502,12 @@
     <section class="card narrow">
       <div id="contacts"></div>
       <div id="contacts-empty" class="empty"><b>Noch keine Kontakte</b>„Neuer Kontakt“ legt den ersten an, „Kontakte importieren“ übernimmt sie aus einem Adressbuch.</div>
+    </section>
+    <section class="card narrow" id="fritz-card">
+      <h3>FRITZ!Box-Telefonbuch</h3>
+      <p class="hint">SIPFunk schlägt Nummern aus dem Telefonbuch der FRITZ!Box vor – Faxnummern im Fax-Fenster, die übrigen beim Wählen. Übernommen wird nichts. Live mit einem FRITZ!Box-Benutzer (<code>FRITZ_USER</code>/<code>FRITZ_PASSWORD</code> in der .env), sonst aus einer Datei: in der FRITZ!Box unter Telefonie › Telefonbuch › Sichern.</p>
+      <div class="hint" id="fritz-status" data-no-i18n></div>
+      <div class="actions"><button type="button" class="btn small" id="fritz-refresh">Aktualisieren</button> <button type="button" class="btn small" id="fritz-file-pick">Datei wählen</button> <button type="button" class="btn small quiet" id="fritz-file-del" hidden>Datei entfernen</button><input type="file" id="fritz-file" accept=".xml,text/xml" hidden></div>
     </section>
   </section>
 
@@ -1344,7 +1350,37 @@ $('contacts').onclick = async (ev) => {
   } catch (err) { toast(err.message); }
 };
 $('contacts').onkeydown = (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList.contains('contact')) { ev.preventDefault(); selectContact(contacts.find((c) => c.id === ev.target.dataset.id)); } };
+// ---- FRITZ!Box-Telefonbuch: nur Vorschläge (Faxnummern fürs Fax-Fenster, die übrigen fürs Wählfeld) ----
+let fritzItems = [];
+function renderFritz(fb) {
+  fritzItems = fb.items || [];
+  const voice = fritzItems.filter((x) => x.label !== 'fax');
+  $('fritz-numbers').replaceChildren(...voice.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}` })));
+  const fax = fritzItems.length - voice.length;
+  const counts = I18N.t('{0} Nummern, davon {1} Fax', fritzItems.length, fax);
+  $('fritz-status').textContent = fb.source === 'tr064' ? I18N.t('Live aus der FRITZ!Box: {0}', counts)
+    : fb.source === 'xml' ? I18N.t('Aus der gespeicherten Datei: {0}', counts) + (fb.error ? ' – ' + fb.error : '')
+    : fb.error || I18N.t('Keine Quelle eingerichtet');
+  $('fritz-file-del').hidden = fb.source !== 'xml';
+}
+async function refreshFritz(force) {
+  try { renderFritz(await api('/api/fritz-phonebook' + (force ? '?refresh' : ''))); } catch { $('fritz-card').hidden = true; }
+}
+$('fritz-refresh').onclick = () => refreshFritz(true);
+$('fritz-file-pick').onclick = () => $('fritz-file').click();
+$('fritz-file').onchange = async () => {
+  const f = $('fritz-file').files[0];
+  $('fritz-file').value = '';
+  if (!f) return;
+  try { renderFritz(await api('/api/fritz-phonebook', { xml: await f.text() })); toast(I18N.t('Telefonbuch gespeichert: {0} Nummern', fritzItems.length), 'ok'); } catch (err) { toast(err.message); }
+};
+$('fritz-file-del').onclick = async () => { try { renderFritz(await api('/api/fritz-phonebook', undefined, 'DELETE')); } catch (err) { toast(err.message); } };
+refreshFritz(false);
+
 $('target').oninput = () => {
+  // Vorschlag „Name – Nummer“ aus dem FRITZ!Box-Telefonbuch: nur die Nummer übernehmen
+  const pick = fritzItems.find((x) => $('target').value === `${x.name} – ${x.number}`);
+  if (pick) $('target').value = pick.number;
   const c = contactFor($('target').value) || null;
   if (c?.id !== activeContact?.id) { activeContact = c; $('contact-hint').textContent = c ? `Kontakt: ${c.name}` : ''; renderContacts(); renderCalls(); }
 };

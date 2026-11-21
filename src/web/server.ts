@@ -9,6 +9,7 @@ import { log, logEvents } from '../log.js';
 import { loadSettings, publicSettings, saveSettings, type FormSettings } from '../settings.js';
 import type { CallRecord, TranscriptStore } from '../transcripts.js';
 import type { ContactStore } from '../contacts.js';
+import type { FritzPhonebook } from '../fritzPhonebook.js';
 import { parsePort, portFree } from '../webPort.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
@@ -100,6 +101,8 @@ export interface WebServerOptions {
     discardDraft: (id: string) => boolean;
     draftPdf: (id: string) => Buffer | undefined;
   };
+  /** FRITZ!Box-Telefonbuch (nur lesen, als Vorschläge) */
+  fritzPhonebook?: FritzPhonebook;
   /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage, Fax) */
   bus: EventEmitter;
   store: TranscriptStore;
@@ -432,6 +435,21 @@ export function startWebServer(opts: WebServerOptions): () => void {
         const ok = opts.store.delete(decodeURIComponent(tx[1]));
         if (ok) log.info(`Protokoll gelöscht: ${tx[1]}`);
         return sendJson(res, ok ? 200 : 404, ok ? { ok: true, items: opts.store.list() } : { error: 'Nicht gefunden' });
+      }
+      if (url.pathname === '/api/fritz-phonebook' && opts.fritzPhonebook) {
+        const pb = opts.fritzPhonebook;
+        if (req.method === 'GET') return sendJson(res, 200, { ...(await pb.get(url.searchParams.has('refresh'))), live: pb.live });
+        if (req.method === 'POST') {
+          const { xml } = await readJson(req, MAX_IMPORT_BYTES);
+          if (typeof xml !== 'string') return sendJson(res, 400, { error: 'Datei fehlt' });
+          const count = pb.saveXml(xml);
+          log.info(`FRITZ!Box-Telefonbuch als Datei gespeichert: ${count} Nummern`);
+          return sendJson(res, 200, { ...(await pb.get(true)), live: pb.live });
+        }
+        if (req.method === 'DELETE') {
+          pb.removeXml();
+          return sendJson(res, 200, { ...(await pb.get(true)), live: pb.live });
+        }
       }
       if (url.pathname === '/api/fax') {
         if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet (FAX_USER/FAX_PASSWORD in der .env)' });
