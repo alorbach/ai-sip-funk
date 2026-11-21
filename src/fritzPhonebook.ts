@@ -4,6 +4,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { normalizeImportNumber } from './contactImport.js';
+import { log } from './log.js';
 
 export type FritzLabel = 'fax' | 'mobil' | 'privat' | 'geschäftlich' | 'sonstige';
 
@@ -97,6 +98,7 @@ async function soap(host: string, user: string, password: string, action: string
 export async function fetchFritzPhonebooks(host: string, user: string, password: string): Promise<string> {
   const list = tag(await soap(host, user, password, 'GetPhonebookList'), 'NewPhonebookList') ?? '';
   const ids = list.split(',').map((s) => s.trim()).filter((s) => /^\d+$/.test(s));
+  if (!ids.length) throw new Error('FRITZ!Box meldet keine Telefonbücher');
   // Jedes Buch für sich: ein kaputtes kostet nicht die übrigen; nur wenn keins kommt, gilt der Abruf als gescheitert
   const parts: string[] = [];
   const errors: string[] = [];
@@ -111,7 +113,8 @@ export async function fetchFritzPhonebooks(host: string, user: string, password:
       errors.push(`Telefonbuch ${id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  if (!parts.length && errors.length) throw new Error(errors.join('; '));
+  if (!parts.length) throw new Error(errors.join('; '));
+  if (errors.length) log.warn(`FRITZ!Box-Telefonbuch: ${errors.join('; ')}`);
   return parts.join('\n');
 }
 

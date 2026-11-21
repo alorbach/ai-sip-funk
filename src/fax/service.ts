@@ -65,8 +65,8 @@ export class FaxService extends EventEmitter {
   private readonly drafts = new Map<string, FaxDraft & { pdf: Buffer }>();
   private registered = false;
   private busy = false;
-  /** Auftrag, den pump() gerade sendet (sein Temp-Ordner bleibt beim Beenden stehen, bis pump() ihn räumt) */
-  private activeId?: string;
+  /** Laufende Anmeldung: gleichzeitige Aufrufer teilen sie sich */
+  private registering?: Promise<void>;
   private stopped = false;
 
   constructor(private readonly opts: FaxServiceOptions) {
@@ -86,12 +86,9 @@ export class FaxService extends EventEmitter {
   async stop(): Promise<void> {
     this.stopped = true;
     await this.sip.stop();
-    // Nicht mehr gesendete Aufträge: ihre PDFs im Temp-Ordner entfernen. Den laufenden räumt pump() selbst auf.
-    for (const [id, dir] of this.files) {
-      if (id === this.activeId) continue;
-      rmSync(dir, { recursive: true, force: true });
-      this.files.delete(id);
-    }
+    // PDFs aller Aufträge aus dem Temp-Ordner entfernen, auch des laufenden: der Prozess endet gleich danach
+    for (const dir of this.files.values()) rmSync(dir, { recursive: true, force: true });
+    this.files.clear();
   }
 
   status(): { registered: boolean; user: string; missing: string[]; jobs: FaxJob[]; drafts: FaxDraft[] } {
@@ -168,8 +165,14 @@ export class FaxService extends EventEmitter {
 
   private async ensureRegistered(): Promise<void> {
     if (this.registered) return;
-    await this.sip.start();
-    this.registered = true;
+    this.registering ??= this.sip.start().then(
+      async () => {
+        // Während der Anmeldung beendet: gleich wieder abmelden
+        if (this.stopped) await this.sip.stop();
+        else this.registered = true;
+      },
+    ).finally(() => (this.registering = undefined));
+    await this.registering;
   }
 
   private async pump(): Promise<void> {
@@ -178,7 +181,6 @@ export class FaxService extends EventEmitter {
     try {
       for (let job = this.next(); job && !this.stopped; job = this.next()) {
         const dir = this.files.get(job.id)!;
-        this.activeId = job.id;
         try {
           this.update(job, { state: 'converting' });
           const tiff = path.join(dir, 'senden.tif');
@@ -194,7 +196,6 @@ export class FaxService extends EventEmitter {
         } finally {
           rmSync(dir, { recursive: true, force: true });
           this.files.delete(job.id);
-          this.activeId = undefined;
         }
       }
     } finally {
@@ -248,8 +249,8 @@ export class FaxService extends EventEmitter {
             if (pages) this.update(job, { pages: Number(pages) });
           },
         });
-        // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter. Jedes verworfene Stück zerreißt
-        // das Modemsignal, deshalb erst ab 1 s Rückstand kürzen (T.30 verträgt die Verzögerung)
+        // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter. Rückstand (Uhrendrift) baut sich
+        // je Paket um einen einzelnen Abtastwert ab – das stört das Modemsignal kaum; erst ab 2 s wird hart gekürzt
         let rxBuf = new Int16Array(0);
         let primed = false;
         const txQueue: Buffer[] = [];
@@ -258,7 +259,7 @@ export class FaxService extends EventEmitter {
           const merged = new Int16Array(rxBuf.length + pcm.length);
           merged.set(rxBuf);
           merged.set(pcm, rxBuf.length);
-          rxBuf = merged.length > 8000 ? merged.subarray(merged.length - 1600) : merged;
+          rxBuf = merged.length > 16000 ? merged.subarray(merged.length - 1600) : merged.length > 3200 ? merged.subarray(1) : merged;
           if (rxBuf.length >= 2 * FAX_FRAME) primed = true;
         });
         modem.onTx = (f) => txQueue.push(f);

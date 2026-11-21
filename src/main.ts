@@ -1154,7 +1154,7 @@ const stopWeb = startWebServer({
 });
 await manager.start();
 // Die Anmeldung des Fax-Zugangs kann bis zum SIP-Timeout dauern; sie darf den Start (IPC an die Tray-App) nicht aufhalten
-void fax?.start().catch((err: Error) => log.warn(`Fax: Start fehlgeschlagen: ${err.message}`));
+void fax?.start(); // meldet Fehler selbst
 await faxPrint?.start();
 
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen

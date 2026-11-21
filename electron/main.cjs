@@ -80,12 +80,17 @@ function showFax() {
     title: T('SIPFunk – Fax senden'), icon: ICON,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  // Vorschau des PDFs in einem normalen Fenster öffnen, nicht als rahmenloses Pop-up
-  // Nur die PDF-Vorschau eines Druckauftrags öffnet ein Fenster; andere Links (etwa aus dem PDF) gehen in den Browser
+  // Nur die PDF-Vorschau eines Druckauftrags öffnet ein (normales) Fenster; andere Links, auch aus dem PDF in der
+  // Vorschau, gehen in den Browser bzw. das Mailprogramm
+  const external = (url) => { if (/^(https?|mailto):/i.test(url)) void shell.openExternal(url); };
   faxWin.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith(`${webUrl()}/api/fax/drafts/`)) return { action: 'allow', overrideBrowserWindowOptions: { width: 800, height: 1000, frame: true, alwaysOnTop: false, icon: ICON } };
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    external(url);
     return { action: 'deny' };
+  });
+  faxWin.webContents.on('did-create-window', (child) => {
+    child.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
+    child.webContents.on('will-navigate', (ev, url) => { if (!url.startsWith(`${webUrl()}/api/fax/drafts/`)) { ev.preventDefault(); external(url); } });
   });
   faxWin.once('ready-to-show', () => { if (faxWin && !faxWin.isDestroyed()) { faxWin.show(); faxWin.focus(); } });
   faxWin.on('closed', () => { faxWin = null; });
