@@ -1,0 +1,27 @@
+CHANGELOG.md
+  s_e7bfd3011d4b49::t_5a6257376c793a 9-14
+package.json
+  s_e7bfd3011d4b49::t_5a6257376c793a 3
+.github/workflows/release.yml
+  s_e7bfd3011d4b49::t_7d05304bea5a88 84-93
+CHANGELOG.de.md
+  s_e7bfd3011d4b49::t_5a6257376c793a 9-14
+package-lock.json
+  s_e7bfd3011d4b49::t_334227a12438db 3,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69025d1bfc9ebc8a4da8480d6c6001e2fcd4e73f",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
