@@ -97,13 +97,21 @@ async function soap(host: string, user: string, password: string, action: string
 export async function fetchFritzPhonebooks(host: string, user: string, password: string): Promise<string> {
   const list = tag(await soap(host, user, password, 'GetPhonebookList'), 'NewPhonebookList') ?? '';
   const ids = list.split(',').map((s) => s.trim()).filter((s) => /^\d+$/.test(s));
+  // Jedes Buch für sich: ein kaputtes kostet nicht die übrigen; nur wenn keins kommt, gilt der Abruf als gescheitert
   const parts: string[] = [];
+  const errors: string[] = [];
   for (const id of ids) {
-    const url = tag(await soap(host, user, password, 'GetPhonebook', { NewPhonebookID: id }), 'NewPhonebookURL');
-    if (!url) continue;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (res.ok) parts.push(await res.text());
+    try {
+      const url = tag(await soap(host, user, password, 'GetPhonebook', { NewPhonebookID: id }), 'NewPhonebookURL');
+      if (!url) throw new Error('keine Adresse');
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      parts.push(await res.text());
+    } catch (err) {
+      errors.push(`Telefonbuch ${id}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
+  if (!parts.length && errors.length) throw new Error(errors.join('; '));
   return parts.join('\n');
 }
 
@@ -132,7 +140,9 @@ export class FritzPhonebook {
   /** Einträge; live aus der Box (kurz zwischengespeichert), sonst aus der XML-Datei */
   async get(force = false): Promise<FritzPhonebookStatus> {
     const maxAge = this.opts.maxAgeMs ?? 5 * 60_000;
-    if (!force && this.cache && Date.now() - this.cache.at < maxAge) return this.cache.status;
+    // Fehlschläge nur kurz merken: nach einem Neustart der Box soll der nächste Abruf es bald wieder versuchen
+    const age = this.cache ? Date.now() - this.cache.at : Infinity;
+    if (!force && this.cache && age < (this.cache.status.error ? 30_000 : maxAge)) return this.cache.status;
     const gen = this.generation;
     if (!this.loading) {
       const p = this.load().finally(() => { if (this.loading === p) this.loading = undefined; });

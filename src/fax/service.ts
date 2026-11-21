@@ -65,6 +65,8 @@ export class FaxService extends EventEmitter {
   private readonly drafts = new Map<string, FaxDraft & { pdf: Buffer }>();
   private registered = false;
   private busy = false;
+  /** Auftrag, den pump() gerade sendet (sein Temp-Ordner bleibt beim Beenden stehen, bis pump() ihn räumt) */
+  private activeId?: string;
   private stopped = false;
 
   constructor(private readonly opts: FaxServiceOptions) {
@@ -84,9 +86,12 @@ export class FaxService extends EventEmitter {
   async stop(): Promise<void> {
     this.stopped = true;
     await this.sip.stop();
-    // Nicht mehr gesendete Aufträge: ihre PDFs im Temp-Ordner entfernen
-    for (const dir of this.files.values()) rmSync(dir, { recursive: true, force: true });
-    this.files.clear();
+    // Nicht mehr gesendete Aufträge: ihre PDFs im Temp-Ordner entfernen. Den laufenden räumt pump() selbst auf.
+    for (const [id, dir] of this.files) {
+      if (id === this.activeId) continue;
+      rmSync(dir, { recursive: true, force: true });
+      this.files.delete(id);
+    }
   }
 
   status(): { registered: boolean; user: string; missing: string[]; jobs: FaxJob[]; drafts: FaxDraft[] } {
@@ -98,7 +103,11 @@ export class FaxService extends EventEmitter {
   addDraft(name: string, pdf: Buffer, pages?: number): FaxDraft {
     const draft: FaxDraft = { id: randomBytes(6).toString('hex'), name, pages, created: new Date().toISOString() };
     this.drafts.set(draft.id, { ...draft, pdf });
-    while (this.drafts.size > KEEP_DRAFTS) this.drafts.delete(this.drafts.keys().next().value!);
+    while (this.drafts.size > KEEP_DRAFTS) {
+      const oldest = this.drafts.values().next().value!;
+      this.drafts.delete(oldest.id);
+      log.warn(`Fax: Druckauftrag „${oldest.name}“ verworfen (mehr als ${KEEP_DRAFTS} warten)`);
+    }
     this.emit('draft', draft);
     this.emit('drafts');
     return draft;
@@ -169,6 +178,7 @@ export class FaxService extends EventEmitter {
     try {
       for (let job = this.next(); job && !this.stopped; job = this.next()) {
         const dir = this.files.get(job.id)!;
+        this.activeId = job.id;
         try {
           this.update(job, { state: 'converting' });
           const tiff = path.join(dir, 'senden.tif');
@@ -184,6 +194,7 @@ export class FaxService extends EventEmitter {
         } finally {
           rmSync(dir, { recursive: true, force: true });
           this.files.delete(job.id);
+          this.activeId = undefined;
         }
       }
     } finally {
@@ -237,7 +248,8 @@ export class FaxService extends EventEmitter {
             if (pages) this.update(job, { pages: Number(pages) });
           },
         });
-        // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter, höchstens 200 ms gegen Uhrendrift
+        // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter. Jedes verworfene Stück zerreißt
+        // das Modemsignal, deshalb erst ab 1 s Rückstand kürzen (T.30 verträgt die Verzögerung)
         let rxBuf = new Int16Array(0);
         let primed = false;
         const txQueue: Buffer[] = [];
@@ -246,10 +258,12 @@ export class FaxService extends EventEmitter {
           const merged = new Int16Array(rxBuf.length + pcm.length);
           merged.set(rxBuf);
           merged.set(pcm, rxBuf.length);
-          rxBuf = merged.length > 1600 ? merged.subarray(merged.length - 640) : merged;
+          rxBuf = merged.length > 8000 ? merged.subarray(merged.length - 1600) : merged;
           if (rxBuf.length >= 2 * FAX_FRAME) primed = true;
         });
         modem.onTx = (f) => txQueue.push(f);
+        // Senden erst mit zwei Frames Vorrat: kommt eine Antwort von faxmodem einmal zu spät, reißt der Träger nicht ab
+        let txPrimed = false;
         const zero = new Int16Array(FAX_FRAME);
         rtp!.setSource(() => {
           let frame = zero;
@@ -258,7 +272,8 @@ export class FaxService extends EventEmitter {
             rxBuf = rxBuf.subarray(FAX_FRAME);
           }
           modem!.write(Buffer.from(frame.buffer, frame.byteOffset, FAX_FRAME_BYTES));
-          const out = txQueue.shift();
+          if (!txPrimed && txQueue.length >= 2) txPrimed = true;
+          const out = txPrimed ? txQueue.shift() : undefined;
           return encodeG711(out ? new Int16Array(out.buffer, out.byteOffset, FAX_FRAME) : zero, law);
         });
         // Faxprotokoll fertig: kurze Schlusspause, dann auflegen (meist hat die Gegenstelle schon aufgelegt)

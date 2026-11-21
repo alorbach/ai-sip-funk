@@ -81,7 +81,12 @@ function showFax() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   // Vorschau des PDFs in einem normalen Fenster öffnen, nicht als rahmenloses Pop-up
-  faxWin.webContents.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { width: 800, height: 1000, frame: true, alwaysOnTop: false, icon: ICON } }));
+  // Nur die PDF-Vorschau eines Druckauftrags öffnet ein Fenster; andere Links (etwa aus dem PDF) gehen in den Browser
+  faxWin.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(`${webUrl()}/api/fax/drafts/`)) return { action: 'allow', overrideBrowserWindowOptions: { width: 800, height: 1000, frame: true, alwaysOnTop: false, icon: ICON } };
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
   faxWin.once('ready-to-show', () => { if (faxWin && !faxWin.isDestroyed()) { faxWin.show(); faxWin.focus(); } });
   faxWin.on('closed', () => { faxWin = null; });
   faxWin.loadURL(`${webUrl()}/fax.html`).catch(() => { if (faxWin && !faxWin.isDestroyed()) faxWin.destroy(); faxWin = null; });
