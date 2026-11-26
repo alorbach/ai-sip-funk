@@ -36,6 +36,21 @@
   input { font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: 8px; padding: 7px 10px; min-height: 38px; user-select: text; }
   input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
   .err { color: var(--bad); font-size: 12.5px; min-height: 18px; }
+  .combo { position: relative; display: grid; gap: 5px; -webkit-app-region: no-drag; }
+  .combo > label { display: block; }
+  #sugg { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 10; margin: 0; padding: 4px; list-style: none; max-height: 172px; overflow-y: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+  #sugg li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  #sugg li[aria-selected="true"] { background: var(--accent-soft); }
+  #sugg li:hover { background: var(--surface-2); }
+  #sugg li[aria-selected="true"]:hover { background: var(--accent-soft); }
+  #sugg .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+  #sugg .num { color: var(--text-2); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #sugg .tag { font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 99px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+  #sugg .tag.fax { background: var(--accent-soft); color: var(--accent); }
+  #sugg mark { background: transparent; color: var(--accent); font-weight: 700; }
+  #sugg li.empty { cursor: default; color: var(--text-2); font-size: 12.5px; }
+  #sugg li.empty:hover { background: transparent; }
 
   .btns { display: flex; gap: 8px; margin-top: auto; }
   button.b { flex: 1 1 0; white-space: nowrap; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 36px; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; font-weight: 550; cursor: pointer; }
@@ -97,10 +112,11 @@
   </div>
 
   <div id="compose">
-    <label>An (Faxnummer oder Kontakt)
-      <input id="number" list="contacts" autocomplete="off" spellcheck="false" data-no-i18n>
-    </label>
-    <datalist id="contacts"></datalist>
+    <div class="combo">
+      <label for="number">An (Faxnummer oder Kontakt)</label>
+      <input id="number" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg" autocomplete="off" spellcheck="false" placeholder="Name oder Nummer suchen – * und ? als Platzhalter">
+      <ul id="sugg" role="listbox" hidden></ul>
+    </div>
     <div class="err" id="err" role="alert" data-no-i18n></div>
     <div class="btns">
       <button class="b" id="discard">Verwerfen</button>
@@ -153,9 +169,100 @@ function showDraft(d) {
 /** „Name – Nummer“ aus der Vorschlagsliste in die Nummer auflösen, sonst die Eingabe selbst */
 function target() {
   const v = $('number').value.trim();
-  const hit = contacts.find((c) => v === `${c.name} – ${c.number}` || v.toLowerCase() === c.name.toLowerCase());
+  let hit = contacts.find((c) => v === `${c.name} – ${c.number}` || v.toLowerCase() === c.name.toLowerCase());
+  // Nur Text ohne Ziffern und genau ein Treffer der Suche: der ist gemeint
+  if (!hit && v && !/\d/.test(v)) { const r = search(v); if (r.length === 1) hit = r[0]; }
   return hit ? { number: hit.number, label: `${hit.name} · ${hit.number}` } : { number: v, label: v };
 }
+
+// ---- Suche in Kontakten und FRITZ!Box-Telefonbuch: Wörter in beliebiger Reihenfolge, * und ? als Platzhalter ----
+let results = [], active = -1;
+const digitsOf = (s) => String(s).replace(/\D/g, '');
+const escapeRe = (s) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+/** Ein Suchwort: Teilstück von Name oder Nummer; Ziffern auch ohne Leerzeichen und Striche („0531490“) */
+function termMatcher(term) {
+  const wild = /[*?]/.test(term);
+  const re = new RegExp(escapeRe(term).replace(/\*/g, '.*').replace(/\?/g, '.'), 'i');
+  const numeric = /^[\d\s+\-/*?]+$/.test(term);
+  const numRe = numeric ? new RegExp(term.replace(/[^\d*?]/g, '').replace(/\*/g, '\\d*').replace(/\?/g, '\\d')) : null;
+  return (c) => re.test(c.name) || re.test(c.number) || (numRe !== null && (wild || digitsOf(term).length >= 2) && numRe.test(digitsOf(c.number)));
+}
+function search(q) {
+  const terms = q.trim().split(/\s+/).filter(Boolean);
+  if (!terms.length) return contacts.slice(0, 60);
+  const matchers = terms.map(termMatcher);
+  const first = terms[0].replace(/[*?]/g, '').toLowerCase();
+  return contacts
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => matchers.every((m) => m(c)))
+    // Faxnummern zuerst, dann Namen, die mit dem ersten Wort beginnen, sonst Reihenfolge der Liste
+    .sort((a, b) => (b.c.hint === I18N.t('Fax')) - (a.c.hint === I18N.t('Fax')) || (first && b.c.name.toLowerCase().startsWith(first)) - (first && a.c.name.toLowerCase().startsWith(first)) || a.i - b.i)
+    .slice(0, 60)
+    .map(({ c }) => c);
+}
+/** Name mit hervorgehobenen Treffern (nur einfache Suchwörter) */
+function highlight(el, text, terms) {
+  const plain = terms.filter((t) => !/[*?]/.test(t) && t.length > 0).map(escapeRe);
+  if (!plain.length) { el.textContent = text; return; }
+  const re = new RegExp(`(${plain.join('|')})`, 'ig');
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    if (m.index > last) el.append(text.slice(last, m.index));
+    el.append(Object.assign(document.createElement('mark'), { textContent: m[0] }));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) el.append(text.slice(last));
+}
+function openList() {
+  const q = $('number').value;
+  // Bereits gewählter Eintrag („Name – Nummer“): Liste zu, bis wieder getippt wird
+  if (contacts.some((c) => q === `${c.name} – ${c.number}`)) return closeList();
+  results = search(q);
+  active = results.length && q.trim() ? 0 : -1;
+  const terms = q.trim().split(/\s+/);
+  const items = results.map((c, i) => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.id = 'opt-' + i;
+    li.dataset.i = String(i);
+    const n = document.createElement('span'); n.className = 'n'; highlight(n, c.name, terms);
+    const num = Object.assign(document.createElement('span'), { className: 'num', textContent: c.number });
+    li.append(n, num);
+    if (c.hint) li.append(Object.assign(document.createElement('span'), { className: 'tag' + (c.hint === I18N.t('Fax') ? ' fax' : ''), textContent: c.hint }));
+    return li;
+  });
+  if (!items.length) {
+    if (!q.trim() || !contacts.length) return closeList();
+    items.push(Object.assign(document.createElement('li'), { className: 'empty', textContent: /\d/.test(q) ? I18N.t('Kein Kontakt – die Nummer wird so gewählt.') : I18N.t('Keine Treffer') }));
+  }
+  $('sugg').replaceChildren(...items);
+  $('sugg').hidden = false;
+  $('number').setAttribute('aria-expanded', 'true');
+  markActive();
+}
+function closeList() {
+  $('sugg').hidden = true;
+  $('number').setAttribute('aria-expanded', 'false');
+  $('number').removeAttribute('aria-activedescendant');
+  active = -1;
+}
+function markActive() {
+  for (const li of $('sugg').children) li.setAttribute('aria-selected', String(li.dataset.i === String(active)));
+  const el = active >= 0 ? $('opt-' + active) : null;
+  if (el) { el.scrollIntoView({ block: 'nearest' }); $('number').setAttribute('aria-activedescendant', el.id); }
+  else $('number').removeAttribute('aria-activedescendant');
+}
+function choose(i) {
+  const c = results[i];
+  if (!c) return;
+  $('number').value = `${c.name} – ${c.number}`;
+  closeList();
+  $('err').textContent = '';
+}
+$('sugg').addEventListener('mousedown', (ev) => ev.preventDefault()); // Fokus bleibt im Feld
+$('sugg').addEventListener('click', (ev) => { const li = ev.target.closest('li[data-i]'); if (li) choose(Number(li.dataset.i)); $('number').focus(); });
+$('number').addEventListener('focus', () => { if (contacts.length && $('number').value.trim()) openList(); });
+$('number').addEventListener('blur', () => setTimeout(closeList, 120));
 
 /** Phase des Auftrags für Schrittanzeige und Text */
 function phaseOf(j) {
@@ -314,8 +421,25 @@ $('preview').onclick = (ev) => {
   ev.preventDefault();
   if (draft) window.open(`/api/fax/drafts/${draft.id}/pdf`, '_blank');
 };
-$('number').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('send').click(); });
-$('number').addEventListener('input', () => { $('err').textContent = ''; });
+$('number').addEventListener('keydown', (ev) => {
+  const open = !$('sugg').hidden && results.length > 0;
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    if ($('sugg').hidden) return openList();
+    if (!results.length) return;
+    active = ev.key === 'ArrowDown' ? Math.min(results.length - 1, active + 1) : Math.max(0, active - 1);
+    return markActive();
+  }
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    if (open && active >= 0) return choose(active);
+    closeList();
+    return $('send').click();
+  }
+  if (ev.key === 'Escape' && !$('sugg').hidden) { ev.stopPropagation(); closeList(); }
+  if (ev.key === 'Tab' && open && active >= 0) choose(active);
+});
+$('number').addEventListener('input', () => { $('err').textContent = ''; openList(); });
 // Schließen verwirft nicht: der Druckauftrag bleibt, bis er gefaxt oder verworfen wird; ein laufendes Fax geht weiter
 $('close').onclick = () => window.close();
 $('hide').onclick = () => window.close();
@@ -333,7 +457,7 @@ Promise.all([getJson('/api/fritz-phonebook'), getJson('/api/contacts')]).then(([
   ];
   const seen = new Set();
   contacts = list.filter((x) => { const k = x.name + '|' + x.number; return !seen.has(k) && seen.add(k); });
-  $('contacts').replaceChildren(...contacts.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}`, label: x.hint })));
+  if (document.activeElement === $('number')) openList();
 });
 fetch('/api/settings').then((r) => r.json()).then((s) => I18N.sync(s.uiLang)).catch(() => {});
 poll();
