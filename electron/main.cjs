@@ -51,7 +51,7 @@ let askWin = null;
 function showAsk() {
   if (askWin && !askWin.isDestroyed()) return;
   const area = screen.getPrimaryDisplay().workArea;
-  const w = 480, h = 300;
+  const w = 480, h = 360;
   askWin = new BrowserWindow({
     width: w, height: h, x: area.x + area.width - w - 16, y: area.y + area.height - h - 16,
     frame: false, resizable: false, minimizable: false, maximizable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
@@ -73,7 +73,7 @@ let faxWin = null;
 function showFax() {
   if (faxWin && !faxWin.isDestroyed()) { faxWin.show(); faxWin.focus(); return; }
   const area = screen.getPrimaryDisplay().workArea;
-  const w = 480, h = 300;
+  const w = 480, h = 360;
   faxWin = new BrowserWindow({
     width: w, height: h, x: area.x + area.width - w - 16, y: area.y + area.height - h - 16,
     frame: false, resizable: false, minimizable: false, maximizable: false, skipTaskbar: false, alwaysOnTop: true, show: false,

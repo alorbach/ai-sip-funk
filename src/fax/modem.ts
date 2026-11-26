@@ -1,6 +1,6 @@
 // Fax-Bausteine: PDF -> Fax-TIFF (Ghostscript) und der Hilfsprozess faxmodem (spandsp, T.30 über 8-kHz-Audio).
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { log } from '../log.js';
@@ -55,6 +55,25 @@ export async function toFaxTiff(src: string, dst: string, fine = true): Promise<
     gs.on('error', reject);
     gs.on('close', (code) => (code === 0 && existsSync(dst) ? resolve() : reject(new Error(`PDF ließ sich nicht umwandeln: ${err.trim() || `Ghostscript ${code}`}`))));
   });
+}
+
+/** Seitenzahl eines TIFF (Kette der IFDs); 0 = nicht lesbar */
+export function tiffPageCount(file: string): number {
+  try {
+    const b = readFileSync(file);
+    const le = b.toString('latin1', 0, 2) === 'II';
+    const u16 = (o: number) => (le ? b.readUInt16LE(o) : b.readUInt16BE(o));
+    const u32 = (o: number) => (le ? b.readUInt32LE(o) : b.readUInt32BE(o));
+    let off = u32(4);
+    let pages = 0;
+    while (off > 0 && off + 2 <= b.length && pages < 1000) {
+      pages++;
+      off = u32(off + 2 + u16(off) * 12);
+    }
+    return pages;
+  } catch {
+    return 0;
+  }
 }
 
 /** PostScript (vom Drucker) -> PDF */

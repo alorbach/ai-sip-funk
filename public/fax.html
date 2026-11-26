@@ -7,109 +7,263 @@
 <script src="/i18n-en.js"></script>
 <script src="/i18n.js"></script>
 <style>
-  /* Fenster der Tray-App nach dem Drucken an „SIPFunk Fax“: Zielnummer eingeben, faxen, Fortschritt. Farben wie ring.html. */
-  :root { --bg: #ffffff; --surface-2: #f0f0f3; --line: #d9d9de; --control: #86868b; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-text: #fff; --ok: #1a7f37; --bad: #b3261e; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #1f1f22; --surface-2: #2a2a2e; --line: #3a3a3f; --control: #7d7d85; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-text: #0b1a2b; --ok: #4ac26b; --bad: #ff7b72; } }
+  /* Fenster der Tray-App nach dem Drucken an „SIPFunk Fax“: Zielnummer eingeben, faxen, Fortschritt live. Farben wie ring.html. */
+  :root { --bg: #ffffff; --surface: #f6f6f8; --surface-2: #ececf0; --line: #dcdce1; --control: #8a8a90; --text: #1d1d1f; --text-2: #66666b; --accent: #0066cc; --accent-soft: #0066cc22; --accent-text: #fff; --ok: #1a7f37; --ok-soft: #1a7f3722; --bad: #b3261e; --bad-soft: #b3261e1f; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1c1c1f; --surface: #252529; --surface-2: #2f2f34; --line: #38383e; --control: #7d7d85; --text: #f2f2f4; --text-2: #a6a6ad; --accent: #4c9eff; --accent-soft: #4c9eff29; --accent-text: #0b1a2b; --ok: #4ac26b; --ok-soft: #4ac26b26; --bad: #ff7b72; --bad-soft: #ff7b7224; } }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; border: 1px solid var(--line); overflow: hidden; -webkit-app-region: drag; user-select: none; }
-  .wrap { padding: 14px 16px 12px; display: grid; gap: 10px; height: 100%; grid-template-rows: auto auto auto 1fr auto; }
-  .top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
-  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); font-size: 16px; cursor: pointer; min-width: 28px; min-height: 28px; border-radius: 6px; -webkit-app-region: no-drag; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; -webkit-app-region: drag; user-select: none; }
+  .wrap { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 12px; height: 100%; }
+  .no-drag, a, button, input, label { -webkit-app-region: no-drag; }
+
+  .top { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .top svg { width: 16px; height: 16px; color: var(--accent); }
+  .top .x { margin-left: auto; border: 0; background: transparent; color: var(--text-2); cursor: pointer; width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
   .top .x:hover { background: var(--surface-2); color: var(--text); }
-  .doc { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sub { color: var(--text-2); font-size: 13px; }
-  .sub a { color: var(--accent); -webkit-app-region: no-drag; }
-  label { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); -webkit-app-region: no-drag; }
-  input { font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: 8px; padding: 7px 10px; min-height: 36px; user-select: text; }
-  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .btns { display: flex; gap: 8px; -webkit-app-region: no-drag; }
-  button.b { flex: 1 1 auto; white-space: nowrap; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 34px; background: transparent; color: var(--text); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .top .x svg { color: inherit; width: 14px; height: 14px; }
+
+  .doc { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .doc .ico { flex: none; width: 34px; height: 42px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); position: relative; }
+  .doc .ico::before { content: ""; position: absolute; left: 7px; right: 7px; top: 10px; height: 2px; background: var(--line); box-shadow: 0 6px 0 var(--line), 0 12px 0 var(--line), 0 18px 0 var(--line); }
+  .doc .meta { min-width: 0; flex: 1; }
+  .doc .name { font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc .sub { color: var(--text-2); font-size: 12.5px; }
+  .doc .sub a { color: var(--accent); text-decoration: none; }
+  .doc .sub a:hover { text-decoration: underline; }
+
+  /* Eingabe */
+  label { display: grid; gap: 5px; font-size: 12.5px; color: var(--text-2); }
+  input { font: inherit; font-size: 15px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: 8px; padding: 7px 10px; min-height: 38px; user-select: text; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .err { color: var(--bad); font-size: 12.5px; min-height: 18px; }
+
+  .btns { display: flex; gap: 8px; margin-top: auto; }
+  button.b { flex: 1 1 0; white-space: nowrap; border: 1px solid var(--control); border-radius: 8px; padding: 6px 10px; min-height: 36px; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; font-weight: 550; cursor: pointer; }
   button.b:hover { background: var(--surface-2); }
   button.b:disabled { opacity: .45; cursor: default; }
-  button.b.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+  button.b.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 650; }
+  button.b.primary:hover { filter: brightness(1.08); }
   button.b:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .note { font-size: 13px; min-height: 18px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .note.ok { color: var(--ok); font-weight: 600; }
-  .note.bad { color: var(--bad); font-weight: 600; }
+
+  /* Fortschritt */
+  #compose { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  #progress { display: none; flex-direction: column; gap: 10px; flex: 1; }
+  body.sending #compose { display: none; }
+  body.sending #progress { display: flex; }
+  .to { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .to b { color: var(--text); font-weight: 600; }
+  .status { display: flex; align-items: baseline; gap: 8px; }
+  .status .t { font-size: 16px; font-weight: 650; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status .pct { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 13px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .35s ease-out;
+    background-image: linear-gradient(45deg, rgba(255,255,255,.22) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.22) 50%, rgba(255,255,255,.22) 75%, transparent 75%);
+    background-size: 16px 16px; animation: stripes .8s linear infinite; }
+  @keyframes stripes { to { background-position: 16px 0; } }
+  body.done .bar > i { background-color: var(--ok); background-image: none; }
+  body.failed .bar > i { background-color: var(--bad); background-image: none; }
+  @media (prefers-reduced-motion: reduce) { .bar > i { animation: none; transition: none; } }
+
+  .steps { display: flex; justify-content: space-between; list-style: none; margin: 0; padding: 0; font-size: 11.5px; color: var(--text-2); }
+  .steps li { display: flex; align-items: center; gap: 5px; }
+  .steps li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--control); flex: none; }
+  .steps li.on { color: var(--text); font-weight: 600; }
+  .steps li.on::before { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .steps li.past::before { border-color: var(--accent); background: var(--accent); }
+  body.done .steps li::before { border-color: var(--ok); background: var(--ok); box-shadow: none; }
+  body.failed .steps li.on::before { border-color: var(--bad); background: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+
+  .detail { font-size: 12.5px; color: var(--text-2); display: flex; gap: 6px; flex-wrap: wrap; min-height: 18px; }
+  .detail span + span::before { content: "·"; margin-right: 6px; }
+  .result { font-size: 13px; border-radius: 8px; padding: 8px 10px; display: none; }
+  body.done .result { display: block; background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+  body.failed .result { display: block; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><span>Fax senden</span><button class="x" id="close" aria-label="Fenster schließen" title="Schließen (der Druckauftrag bleibt erhalten)">✕</button></div>
-  <div>
-    <div class="doc" id="doc" data-no-i18n>…</div>
-    <div class="sub"><span id="pages" data-no-i18n></span> <a href="#" id="preview">Vorschau</a></div>
+  <div class="top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>
+    <span>Fax senden</span>
+    <button class="x" id="close" aria-label="Fenster schließen" title="Schließen (der Druckauftrag bleibt erhalten)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
-  <label>An (Faxnummer oder Kontakt)
-    <input id="number" list="contacts" autocomplete="off" spellcheck="false" data-no-i18n>
-  </label>
-  <datalist id="contacts"></datalist>
-  <div></div>
-  <div>
+
+  <div class="doc">
+    <div class="ico" aria-hidden="true"></div>
+    <div class="meta">
+      <div class="name" id="doc" data-no-i18n>…</div>
+      <div class="sub"><span id="pages" data-no-i18n></span><span id="pv"> · <a href="#" id="preview" class="no-drag">Vorschau</a></span></div>
+    </div>
+  </div>
+
+  <div id="compose">
+    <label>An (Faxnummer oder Kontakt)
+      <input id="number" list="contacts" autocomplete="off" spellcheck="false" data-no-i18n>
+    </label>
+    <datalist id="contacts"></datalist>
+    <div class="err" id="err" role="alert" data-no-i18n></div>
     <div class="btns">
       <button class="b" id="discard">Verwerfen</button>
       <button class="b primary" id="send">Faxen</button>
     </div>
-    <div class="note" id="note" role="status"></div>
+  </div>
+
+  <div id="progress" aria-live="polite">
+    <div class="to" id="to" data-no-i18n></div>
+    <div class="status"><span class="t" id="stateText" data-no-i18n>…</span><span class="pct" id="pct" data-no-i18n>0 %</span></div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="bar"><i id="fill"></i></div>
+    <ol class="steps" id="steps">
+      <li data-step="prep">Vorbereiten</li><li data-step="dial">Anwahl</li><li data-step="link">Verbinden</li><li data-step="send">Senden</li><li data-step="end">Fertig</li>
+    </ol>
+    <div class="detail" id="detail" data-no-i18n></div>
+    <div class="result" id="result" role="status" data-no-i18n></div>
+    <div class="btns">
+      <button class="b" id="hide" title="Das Fax läuft im Hintergrund weiter">Ausblenden</button>
+    </div>
   </div>
 </div>
 <script>
 const $ = (id) => document.getElementById(id);
-let draft = null;   // angezeigter Druckauftrag
-let jobId = '';     // laufender Faxauftrag aus diesem Fenster
+let draft = null;      // angezeigter Druckauftrag
+let jobId = '';        // laufender Faxauftrag aus diesem Fenster
+let job = null;        // letzter Stand des Auftrags
 let contacts = [];
 let finishing = false; // Ergebnis steht kurz da, dann der nächste Auftrag
-const STATES = { queued: 'Wartet …', converting: 'Wird vorbereitet …', dialing: 'Wählt …', sending: 'Sendet …' };
+// Zeitpunkte für die Schätzung innerhalb einer Phase bzw. Seite
+let t0 = 0, phaseKey = '', phaseAt = 0, pageAt = 0, pageDurations = [], shownPct = 0;
+const STEP_ORDER = ['prep', 'dial', 'link', 'send', 'end'];
 
-function note(text, cls) {
-  $('note').textContent = text;
-  $('note').className = 'note' + (cls ? ' ' + cls : '');
-}
+/** Laufzeit bis jetzt bzw. bis zum Ende (nie negativ) */
+const elapsed = (j, now) => Math.max(0, (j.finished ? Math.max(Date.parse(j.finished), t0) : now) - t0);
+const fmtTime = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const fmtRate = (r) => `${r.toLocaleString(I18N.locale || 'de-DE')} bit/s`;
+
 function showDraft(d) {
   draft = d;
+  document.body.className = '';
   $('doc').textContent = d.name;
-  $('pages').textContent = d.pages ? I18N.t('{0} Seite(n)', d.pages) + ' ·' : '';
+  $('pages').textContent = d.pages ? I18N.t('{0} Seite(n)', d.pages) : '';
+  $('pv').hidden = false;
+  $('pv').firstChild.textContent = d.pages ? ' · ' : '';
   $('number').value = '';
+  $('err').textContent = '';
   $('send').disabled = $('discard').disabled = $('number').disabled = false;
-  note('');
   $('number').focus();
 }
-/** „Name – Nummer“ aus der Kontaktliste in die Nummer auflösen, sonst die Eingabe selbst */
-function targetNumber() {
+/** „Name – Nummer“ aus der Vorschlagsliste in die Nummer auflösen, sonst die Eingabe selbst */
+function target() {
   const v = $('number').value.trim();
   const hit = contacts.find((c) => v === `${c.name} – ${c.number}` || v.toLowerCase() === c.name.toLowerCase());
-  return hit ? hit.number : v;
+  return hit ? { number: hit.number, label: `${hit.name} · ${hit.number}` } : { number: v, label: v };
 }
+
+/** Phase des Auftrags für Schrittanzeige und Text */
+function phaseOf(j) {
+  if (!j) return 'prep';
+  if (j.state === 'done' || j.state === 'failed') return 'end';
+  if (j.state === 'sending') return j.remoteIdent || j.pages ? 'send' : 'link';
+  if (j.state === 'dialing') return 'dial';
+  return 'prep';
+}
+/** Fortschritt 0–100: feste Abschnitte je Phase, innerhalb einer Seite nach der bisher gemessenen Seitendauer geschätzt */
+function progress(now) {
+  if (!job) return 2;
+  if (job.state === 'done') return 100;
+  const since = now - phaseAt;
+  const ease = (from, to, tau) => from + (to - from) * (1 - Math.exp(-since / tau));
+  switch (phaseOf(job)) {
+    case 'prep': return job.state === 'queued' ? 2 : ease(3, 9, 3000);
+    case 'dial': return ease(10, 22, 12000);
+    case 'link': return ease(22, 30, 6000);
+    case 'send': {
+      const total = Math.max(job.totalPages || draft?.pages || 1, job.pages || 0, 1);
+      const done = Math.min(job.pages || 0, total);
+      if (done >= total) return ease(96, 99, 3000); // letzte Seite bestätigt, Abschluss läuft
+      // Geschätzte Dauer einer Seite: Mittel der bisherigen (Ausreißer unter 2 s zählen nicht), sonst 18 s
+      const est = Math.max(4000, pageDurations.length ? pageDurations.reduce((a, b) => a + b) / pageDurations.length : 18000);
+      const partial = Math.min(0.95, 1 - Math.exp(-(now - pageAt) / (est / 2)));
+      return 30 + 66 * ((done + partial) / total);
+    }
+    default: return shownPct;
+  }
+}
+function statusText(j) {
+  const total = j.totalPages || draft?.pages;
+  switch (j.state) {
+    case 'queued': return I18N.t('Wartet auf die Leitung …');
+    case 'converting': return I18N.t('Dokument wird vorbereitet …');
+    case 'dialing': return I18N.t('Wählt …');
+    case 'sending': {
+      if (phaseOf(j) === 'link') return I18N.t('Verbunden – Faxgeräte stimmen sich ab …');
+      const n = Math.min((j.pages || 0) + 1, total || Infinity);
+      if (total && (j.pages || 0) >= total) return I18N.t('Letzte Seite bestätigt – wird abgeschlossen …');
+      return total ? I18N.t('Sendet Seite {0} von {1}', n, total) : I18N.t('Sendet Seite {0}', n);
+    }
+    case 'done': return I18N.t('Zugestellt');
+    case 'failed': return I18N.t('Fehlgeschlagen');
+    default: return j.state;
+  }
+}
+function render() {
+  const now = Date.now();
+  if (!job) return;
+  const ph = phaseOf(job);
+  const idx = STEP_ORDER.indexOf(ph);
+  for (const li of $('steps').children) {
+    const i = STEP_ORDER.indexOf(li.dataset.step);
+    li.className = i < idx ? 'past' : i === idx ? 'on' : '';
+  }
+  // Der Balken läuft nie rückwärts
+  const p = progress(now);
+  if (job.state !== 'failed' && Number.isFinite(p)) shownPct = Math.max(shownPct, Math.min(100, p));
+  $('fill').style.width = shownPct.toFixed(1) + '%';
+  $('bar').setAttribute('aria-valuenow', String(Math.round(shownPct)));
+  $('pct').textContent = job.state === 'failed' ? '' : `${Math.floor(shownPct)} %`;
+  $('stateText').textContent = statusText(job);
+  const parts = [];
+  if (job.bitRate) parts.push(fmtRate(job.bitRate) + (job.ecm ? ' · ECM' : ''));
+  if (job.remoteIdent) parts.push(I18N.t('Gegenstelle „{0}“', job.remoteIdent));
+  parts.push(fmtTime(elapsed(job, now)));
+  $('detail').replaceChildren(...parts.map((p) => Object.assign(document.createElement('span'), { textContent: p })));
+}
+setInterval(render, 250);
+
+function applyJob(j) {
+  const key = `${j.state}|${phaseOf(j)}`;
+  if (key !== phaseKey) { phaseKey = key; phaseAt = Date.now(); if (phaseOf(j) === 'send' && !pageAt) pageAt = Date.now(); }
+  if (job && (j.pages || 0) > (job.pages || 0)) { // Seite bestätigt: Dauer merken
+    const now = Date.now();
+    if (pageAt && now - pageAt > 2000) pageDurations.push(now - pageAt);
+    pageAt = now;
+  }
+  job = j;
+  if (j.state === 'done') {
+    document.body.classList.add('done');
+    $('result').textContent = I18N.t('{0} Seite(n) zugestellt in {1}', j.pages || 0, fmtTime(elapsed(j, Date.now())));
+  } else if (j.state === 'failed') {
+    document.body.classList.add('failed');
+    $('result').textContent = j.error || I18N.t('Unbekannter Fehler');
+  }
+  render();
+}
+
 async function poll() {
   try {
     const st = await (await fetch('/api/fax')).json();
     if (jobId) {
-      const job = (st.jobs || []).find((j) => j.id === jobId);
-      if (job && job.state === 'done') {
-        note(I18N.t('Zugestellt: {0} Seite(n)', job.pages || 0), 'ok');
-        jobId = '';
-        finishing = true;
-        setTimeout(next, 2500);
-      } else if (job && job.state === 'failed') {
-        note(I18N.t('Fehlgeschlagen: {0}', job.error || ''), 'bad');
-        jobId = '';
-        finishing = true;
-        setTimeout(next, 6000);
-      } else if (job) {
-        note(I18N.t(STATES[job.state] || job.state) + (job.state === 'sending' && job.pages ? ' ' + I18N.t('Seite {0}', job.pages) : ''));
+      const j = (st.jobs || []).find((x) => x.id === jobId);
+      if (!j) {
+        applyJob({ ...(job || {}), state: 'failed', error: I18N.t('Auftrag nicht mehr bekannt – SIPFunk wurde neu gestartet?') });
+        jobId = ''; finishing = true; setTimeout(next, 6000);
       } else {
-        // Auftrag nicht mehr bekannt (z. B. SIPFunk neu gestartet)
-        note(I18N.t('Auftrag nicht mehr bekannt – SIPFunk wurde neu gestartet?'), 'bad');
-        jobId = '';
-        finishing = true;
-        setTimeout(next, 6000);
+        applyJob(j);
+        if (j.state === 'done' || j.state === 'failed') { jobId = ''; finishing = true; setTimeout(next, j.state === 'done' ? 3500 : 8000); }
       }
     } else if (!draft && !finishing) {
       next(st);
     }
   } catch { /* Server kurz weg: weiter versuchen */ }
-  setTimeout(poll, 800);
+  setTimeout(poll, 700);
 }
 /** Nächsten wartenden Druckauftrag zeigen oder das Fenster schließen */
 let nextBusy = false; // Verwerfen und poll() dürfen den nächsten Auftrag nicht doppelt anzeigen
@@ -128,18 +282,24 @@ async function next(st) {
 }
 $('send').onclick = async () => {
   if (!draft) return;
-  const number = targetNumber();
-  if (!number) { note('Bitte eine Faxnummer eingeben.', 'bad'); $('number').focus(); return; }
+  const t = target();
+  if (!t.number) { $('err').textContent = I18N.t('Bitte eine Faxnummer eingeben.'); $('number').focus(); return; }
   $('send').disabled = $('discard').disabled = $('number').disabled = true;
-  note('Wird vorbereitet …');
+  $('err').textContent = '';
   try {
-    const res = await fetch(`/api/fax/drafts/${draft.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number }) });
+    const res = await fetch(`/api/fax/drafts/${draft.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number: t.number }) });
     const info = await res.json();
     if (!res.ok) throw new Error(info.error || res.statusText);
-    jobId = info.id;
-    draft = null;
+    // Ab hier Fortschrittsansicht
+    jobId = info.id; job = null; t0 = Date.now(); phaseKey = ''; pageAt = 0; pageDurations = []; shownPct = 0;
+    $('to').innerHTML = '';
+    $('to').append(I18N.t('An') + ' ', Object.assign(document.createElement('b'), { textContent: t.label }));
+    $('pv').hidden = true;
+    document.body.className = 'sending';
+    applyJob(info);
+    $('hide').focus();
   } catch (err) {
-    note(err.message, 'bad');
+    $('err').textContent = err.message;
     $('send').disabled = $('discard').disabled = $('number').disabled = false;
   }
 };
@@ -155,8 +315,10 @@ $('preview').onclick = (ev) => {
   if (draft) window.open(`/api/fax/drafts/${draft.id}/pdf`, '_blank');
 };
 $('number').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('send').click(); });
-// Schließen verwirft nicht: der Druckauftrag bleibt, bis er gefaxt oder verworfen wird
+$('number').addEventListener('input', () => { $('err').textContent = ''; });
+// Schließen verwirft nicht: der Druckauftrag bleibt, bis er gefaxt oder verworfen wird; ein laufendes Fax geht weiter
 $('close').onclick = () => window.close();
+$('hide').onclick = () => window.close();
 document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); });
 
 // Vorschläge: zuerst Faxnummern aus dem FRITZ!Box-Telefonbuch, dann SIPFunk-Kontakte, dann die übrigen Box-Nummern

@@ -11,7 +11,7 @@ import { SipClient } from '../sip/client.js';
 import { buildOffer, parseAnswer } from '../sip/sdp.js';
 import { RtpSession } from '../rtp/session.js';
 import { decodeG711, encodeG711 } from '../rtp/g711.js';
-import { FAX_FRAME, FAX_FRAME_BYTES, FaxModem, faxPrerequisites, toFaxTiff, type FaxResult } from './modem.js';
+import { FAX_FRAME, FAX_FRAME_BYTES, FaxModem, faxPrerequisites, tiffPageCount, toFaxTiff, type FaxResult } from './modem.js';
 
 export interface FaxServiceOptions {
   sipServer: string;
@@ -41,6 +41,11 @@ export interface FaxJob {
   pages?: number;
   /** Gegenstelle laut Faxprotokoll (CSI) */
   remoteIdent?: string;
+  /** Seiten des umgewandelten Dokuments (für den Fortschritt) */
+  totalPages?: number;
+  /** Übertragungsrate und Fehlerkorrektur laut Faxprotokoll (nach der ersten Seite bekannt) */
+  bitRate?: number;
+  ecm?: boolean;
   error?: string;
 }
 
@@ -188,6 +193,7 @@ export class FaxService extends EventEmitter {
           this.update(job, { state: 'converting' });
           const tiff = path.join(dir, 'senden.tif');
           await toFaxTiff(path.join(dir, 'dokument.pdf'), tiff);
+          this.update(job, { totalPages: tiffPageCount(tiff) || undefined });
           await this.ensureRegistered();
           const r = await this.transmit(job, tiff);
           if (r.code === 0) this.update(job, { state: 'done', pages: r.pages, finished: new Date().toISOString() });
@@ -248,8 +254,8 @@ export class FaxService extends EventEmitter {
           onPhase: (line) => {
             const ident = /^PHASE B gegenstelle="(.*)"$/.exec(line)?.[1]?.trim();
             if (ident) this.update(job, { remoteIdent: ident });
-            const pages = /^PHASE D seiten=(\d+)/.exec(line)?.[1];
-            if (pages) this.update(job, { pages: Number(pages) });
+            const d = /^PHASE D seiten=(\d+) bitrate=(\d+) ecm=(\d+)/.exec(line);
+            if (d) this.update(job, { pages: Number(d[1]), bitRate: Number(d[2]) || undefined, ecm: d[3] !== '0' });
           },
         });
         // Empfang puffern (Paketgröße der Gegenstelle egal), 40 ms Vorpuffer gegen Jitter. Rückstand (Uhrendrift) baut sich

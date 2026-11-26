@@ -33,6 +33,16 @@ export function cleanPostScript(data: Buffer): Buffer {
   return data.subarray(start, end);
 }
 
+/** Titel, die nur den Druckweg benennen, nicht das Dokument */
+const GENERIC_TITLE = /^(MSxpsPS|Microsoft Word - ?|untitled|Unbenannt|Dokument|Document)$/i;
+
+/** Auftragsname aus dem PJL-Kopf („@PJL JOB NAME = "…"“), falls der Treiber ihn mitschickt */
+export function pjlJobName(data: Buffer): string | undefined {
+  const head = data.subarray(0, 4096).toString('latin1');
+  const name = /@PJL\s+JOB\s+NAME\s*=\s*"([^"]+)"/i.exec(head)?.[1]?.trim();
+  return name && !GENERIC_TITLE.test(name) ? name : undefined;
+}
+
 /** Dokumentname und Seitenzahl aus den DSC-Kommentaren des Treibers (%%Title, %%Pages) */
 export function postScriptInfo(ps: Buffer): { title?: string; pages?: number } {
   const head = ps.subarray(0, 64 * 1024).toString('latin1');
@@ -93,7 +103,9 @@ export class FaxPrintPort {
       const pdfFile = path.join(dir, 'auftrag.pdf');
       writeFileSync(psFile, ps);
       await psToPdf(psFile, pdfFile);
-      const name = info.title ?? `Druckauftrag ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+      // „MSxpsPS“ u. ä. ist nur der interne Name des XPS-Druckwegs: dann der Auftragsname aus dem PJL-Kopf, sonst die Uhrzeit
+      const title = info.title && !GENERIC_TITLE.test(info.title) ? info.title : pjlJobName(data);
+      const name = title ?? `Druckauftrag ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
       log.info(`Fax-Drucker: „${name}“ empfangen${info.pages ? ` (${info.pages} Seite(n))` : ''}`);
       this.onDocument({ name, pdf: readFileSync(pdfFile), pages: info.pages });
     } catch (err) {
