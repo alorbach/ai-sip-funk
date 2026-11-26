@@ -864,9 +864,11 @@ Wie in Kapitel 3, nur ein zweites Gerät:
 3. Benutzername und Kennwort vergeben. Das sind die Werte für `FAX_USER` und `FAX_PASSWORD`.
 4. Als ausgehende Rufnummer am besten deine Faxnummer wählen; diese Nummer sieht der Empfänger als Anrufer. Ankommende Anrufe braucht das Gerät nicht.
 
-### 14.2 Fax-Zugang in der `.env`
+### 14.2 Fax-Zugang einstellen
 
-Ohne `FAX_USER` und `FAX_PASSWORD` ist das Faxen aus. Die installierte App öffnet ihre `.env` über das Tray-Menü „Einstellungen (.env) bearbeiten“; danach SIPFunk beenden und neu starten.
+Am einfachsten unter **„Einstellungen › Fax“**: Benutzername und Kennwort des Fax-Telefons, Absenderkennung, Kopfzeile und Geschwindigkeit eintragen, dann **„Speichern und anmelden“**. SIPFunk meldet das Fax-Telefon sofort an der Box an und zeigt, ob es geklappt hat; ein Neustart ist nicht nötig. Der Abschnitt hat einen eigenen Knopf, „Speichern“ links gilt für ihn nicht. „Fax-Zugang entfernen“ schaltet das Faxen ab.
+
+Die Werte stehen danach in der `.env` (das Kennwort im Klartext, wie die übrigen Zugangsdaten). Du kannst sie dort auch von Hand eintragen; die installierte App öffnet ihre `.env` über das Tray-Menü „Einstellungen (.env) bearbeiten“, danach SIPFunk beenden und neu starten. Ohne `FAX_USER` und `FAX_PASSWORD` ist das Faxen aus.
 
 | Variable | Standard | Wirkung |
 | --- | --- | --- |
@@ -881,7 +883,9 @@ Beim Start steht im Log, ob sich der Fax-Zugang anmelden konnte. Schlägt die An
 
 ### 14.3 Drucker „SIPFunk Fax“ einrichten
 
-Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Das Skript liegt bei der installierten App im Programmordner unter `resources\fax\fax-printer.ps1`, im Repository unter `scripts\fax-printer.ps1`. Bei der Standardinstallation:
+Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Am einfachsten unter **„Einstellungen › Fax“** mit **„Drucker einrichten“**: Windows fragt nach Administratorrechten, danach zeigt der Abschnitt „Eingerichtet, druckt an SIPFunk“. Dort lässt er sich auch wieder entfernen, und der Abschnitt meldet, wenn der Drucker auf einen anderen Port druckt, als SIPFunk lauscht.
+
+Ohne Web-UI geht es mit dem Skript. Es liegt bei der installierten App im Programmordner unter `resources\fax\fax-printer.ps1`, im Repository unter `scripts\fax-printer.ps1`. Bei der Standardinstallation:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
@@ -925,7 +929,7 @@ Damit eine Nummer als Faxnummer erkannt wird, trägst du sie im Telefonbuch der 
 
 SIPFunk kommt auf zwei Wegen an das Telefonbuch:
 
-- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“. Welches Recht die Box für das Telefonbuch verlangt, hängt von FRITZ!OS ab: Versuch es zuerst mit dem engsten Recht für Telefonie („Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste“); meldet SIPFunk dann „FRITZ!Box lehnt die Anmeldung ab“, gib zusätzlich „FRITZ!Box Einstellungen“ frei. Das ist Vollzugriff auf die Box, und das Kennwort steht im Klartext in der `.env`; nimm ein eigenes, sonst nirgends verwendetes Kennwort. Der SIP-Zugang des IP-Telefons reicht nicht. In die `.env`:
+- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“. Welches Recht die Box für das Telefonbuch verlangt, hängt von FRITZ!OS ab: Versuch es zuerst mit dem engsten Recht für Telefonie („Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste“); meldet SIPFunk dann „FRITZ!Box lehnt die Anmeldung ab“, gib zusätzlich „FRITZ!Box Einstellungen“ frei. Das ist Vollzugriff auf die Box, und das Kennwort steht im Klartext in der `.env`; nimm ein eigenes, sonst nirgends verwendetes Kennwort. Der SIP-Zugang des IP-Telefons reicht nicht. Benutzer und Kennwort trägst du auf der Seite „Kontakte“ im Bereich „FRITZ!Box-Telefonbuch“ ein und klickst „Speichern und testen“; SIPFunk ruft das Telefonbuch dann gleich ab und zeigt das Ergebnis. Gespeichert wird in der `.env`, wo du die Werte auch von Hand setzen kannst:
 
   | Variable | Standard | Wirkung |
   | --- | --- | --- |
@@ -979,8 +983,8 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 | `LIVE_LISTEN_ENABLED` | true | Mithören im Browser |
 | `WEB_PORT` | 3865 | Startwert für den Port der Web-UI (nur 127.0.0.1); danach gilt die Einstellung unter „Technik“ (Abschnitt 15.3). Weicht `WEB_PORT` später von der Einstellung ab, steht das beim Start im Log |
 | `SIP_DEBUG` | 0 | alle SIP-Nachrichten ins Log |
-| `FAX_…` | – | Fax-Zugang, Absenderkennung, Kopfzeile, Geschwindigkeit, Ports (Abschnitt 14.2) |
-| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box-Benutzer für das Telefonbuch (Abschnitt 14.5) |
+| `FAX_…` | – | Fax-Zugang, Absenderkennung, Kopfzeile, Geschwindigkeit (auch unter „Einstellungen › Fax“), Ports (Abschnitt 14.2) |
+| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box-Benutzer für das Telefonbuch (auch auf der Seite „Kontakte“, Abschnitt 14.5) |
 
 ### 15.2 Web-UI, Abschnitt „Technik“
 
@@ -1051,7 +1055,7 @@ Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stuf
 | E-Mail bleibt aus | Statuszeile der Karte „E-Mail-Versand“; „Verbindung prüfen“; bei OAuth neu verbinden |
 | Rückruf kommt nicht | Inhaber-Kontakt bzw. `OWNER_NUMBERS` vorhanden? Einschätzung „unwichtig“? Schalter bzw. Profil? |
 | Durchstellen klappt nicht | Log „REFER“; die Box muss die Nummer anrufen dürfen |
-| Nach dem Drucken auf „SIPFunk Fax“ kommt kein Fax-Fenster | Läuft SIPFunk? `FAX_USER`/`FAX_PASSWORD` gesetzt und SIPFunk danach neu gestartet? `FAX_PRINT_PORT` und der Port des Druckers gleich (Abschnitt 14.3)? Log „Fax-Drucker: …“ |
+| Nach dem Drucken auf „SIPFunk Fax“ kommt kein Fax-Fenster | Läuft SIPFunk? Fax-Zugang unter „Einstellungen › Fax“ angemeldet? `FAX_PRINT_PORT` und der Port des Druckers gleich (Abschnitt 14.3)? Log „Fax-Drucker: …“ |
 | Log „Fax-Drucker: … kein PostScript“ | Der Drucker nutzt einen anderen Treiber; mit `fax-printer.ps1 -Remove` entfernen und neu einrichten (Abschnitt 14.3) |
 | Fax „Fehlgeschlagen“ | Grund im Fax-Fenster und im Log („Fax: Auftrag … fehlgeschlagen“). Nimmt die Gegenseite nicht ab oder ist kein Fax, kommt kein Faxsignal; bricht es mitten in der Seite ab, `FAX_MAX_BITRATE=9600` und LAN statt WLAN versuchen (Abschnitt 14.7) |
 | Log „Fax: Anmeldung an der FRITZ!Box fehlgeschlagen“ | `FAX_USER`/`FAX_PASSWORD`; ist das IP-Telefon für das Fax in der Box angelegt (Abschnitt 14.1)? |

@@ -6,6 +6,11 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **Fax in der Web-UI einstellen.** Neuer Abschnitt „Einstellungen › Fax“: Fax-Zugang, Absenderkennung, Kopfzeile und Geschwindigkeit eintragen und mit „Speichern und anmelden“ sofort übernehmen, ohne Neustart. Dort lässt sich auch der Drucker „SIPFunk Fax“ einrichten und entfernen; der Abschnitt zeigt, ob er eingerichtet ist und auf den richtigen Port druckt.
+- **FRITZ!Box-Benutzer fürs Telefonbuch auf der Seite „Kontakte“.** Benutzer, Kennwort und Adresse eintragen, „Speichern und testen“ ruft das Telefonbuch gleich ab.
+- **Fax-Fenster mit Live-Status.** Schritte (Vorbereiten, Anwahl, Verbinden, Senden, Fertig), Fortschrittsbalken, „Sendet Seite 2 von 3“, Übertragungsrate, Gegenstelle und Laufzeit; am Ende grün oder rot mit dem Grund.
+- **Dokumentname statt „MSxpsPS“.** Druckt ein Programm über den XPS-Weg, nimmt SIPFunk den Auftragsnamen aus dem Druckerkopf, sonst die Uhrzeit.
+
 ## 1.0.2 – 21.11.2026
 
 - **Faxen über die FRITZ!Box.** SIPFunk sendet Faxe über ein eigenes IP-Telefon der FRITZ!Box (`FAX_USER`/`FAX_PASSWORD` in der .env), per T.30 über G.711 (spandsp). Das Installationspaket bringt das Fax-Modul und Ghostscript mit; Herkunft und Lizenzen stehen in `resources/fax/LIZENZEN.txt`.

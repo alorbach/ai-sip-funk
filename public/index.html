@@ -503,11 +503,21 @@
       <div id="contacts"></div>
       <div id="contacts-empty" class="empty"><b>Noch keine Kontakte</b>„Neuer Kontakt“ legt den ersten an, „Kontakte importieren“ übernimmt sie aus einem Adressbuch.</div>
     </section>
-    <section class="card narrow" id="fritz-card">
-      <h3>FRITZ!Box-Telefonbuch</h3>
-      <p class="hint">SIPFunk schlägt Nummern aus dem Telefonbuch der FRITZ!Box vor – Faxnummern im Fax-Fenster, die übrigen beim Wählen. Übernommen wird nichts. Live mit einem FRITZ!Box-Benutzer (<code>FRITZ_USER</code>/<code>FRITZ_PASSWORD</code> in der .env), sonst aus einer Datei: in der FRITZ!Box unter Telefonie › Telefonbuch › Sichern.</p>
-      <div class="hint" id="fritz-status" data-no-i18n></div>
-      <div class="actions"><button type="button" class="btn small" id="fritz-refresh">Aktualisieren</button> <button type="button" class="btn small" id="fritz-file-pick">Datei wählen</button> <button type="button" class="btn small quiet" id="fritz-file-del" hidden>Datei entfernen</button><input type="file" id="fritz-file" accept=".xml,text/xml" hidden></div>
+    <section class="card narrow" id="fritz-card" style="margin-top:16px">
+      <div class="head"><h2>FRITZ!Box-Telefonbuch</h2><span class="hint" id="fritz-status" data-no-i18n></span></div>
+      <div class="body">
+        <p class="hint">SIPFunk schlägt Nummern aus dem Telefonbuch der FRITZ!Box vor: Faxnummern im Fax-Fenster, die übrigen beim Wählen. Übernommen wird nichts. Live mit einem FRITZ!Box-Benutzer, sonst aus einer Datei (in der FRITZ!Box unter Telefonie › Telefonbuch › Sichern).</p>
+        <h3 style="margin:14px 0 6px">Zugang zur FRITZ!Box (live)</h3>
+        <div class="grid c2">
+          <label class="field"><span>FRITZ!Box-Benutzer</span><input id="fb-user" autocomplete="off" spellcheck="false"><small>System › FRITZ!Box-Benutzer; nicht der SIP-Zugang.</small></label>
+          <label class="field"><span>Kennwort</span><input id="fb-pass" type="password" autocomplete="new-password" spellcheck="false"></label>
+          <label class="field"><span>Adresse der Box</span><input id="fb-host" placeholder="leer = wie die Telefonanlage" spellcheck="false"></label>
+          <div class="span actions"><button type="button" id="fb-save" class="btn small primary">Speichern und testen</button><button type="button" id="fb-off" class="btn small quiet" hidden>Zugang entfernen</button><button type="button" class="btn small" id="fritz-refresh">Aktualisieren</button></div>
+          <p class="state span" id="fb-state" role="status" data-no-i18n></p>
+        </div>
+        <h3 style="margin:14px 0 6px">Oder aus einer Datei</h3>
+        <div class="actions"><button type="button" class="btn small" id="fritz-file-pick">Datei wählen</button> <button type="button" class="btn small quiet" id="fritz-file-del" hidden>Datei entfernen</button><input type="file" id="fritz-file" accept=".xml,text/xml" hidden></div>
+      </div>
     </section>
   </section>
 
@@ -531,6 +541,7 @@
         <button type="button" data-section="settings-mail">E-Mail-Versand</button>
         <button type="button" data-section="settings-scam">Spam-Abwehr</button>
         <button type="button" data-section="settings-mcp">MCP-Schnittstelle</button>
+        <button type="button" data-section="settings-fax">Fax</button>
         <button type="button" data-section="settings-tech" class="adv">Technik</button>
         <div class="save">
           <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
@@ -735,6 +746,26 @@
           </div>
         </section>
 
+        <section class="card" id="settings-fax">
+          <div class="head"><h2>Fax</h2><span class="hint" id="fax-status" data-no-i18n>…</span></div>
+          <div class="body">
+            <p class="hint">SIPFunk sendet Faxe über ein eigenes IP-Telefon der FRITZ!Box (Telefonie › Telefoniegeräte › Neues Gerät › Telefon › LAN/WLAN). Benutzername und Kennwort dieses Geräts gehören hierher. Gespeichert wird mit dem Knopf in diesem Abschnitt, nicht mit „Speichern“ links; das Kennwort landet in der .env.</p>
+            <div class="grid c2">
+              <label class="field"><span>Benutzername des Fax-Telefons</span><input id="fx-user" autocomplete="off" spellcheck="false" data-no-i18n></label>
+              <label class="field"><span>Kennwort</span><input id="fx-pass" type="password" autocomplete="new-password" spellcheck="false"></label>
+              <label class="field"><span>Absenderkennung</span><input id="fx-ident" maxlength="20" placeholder="+49 30 1234567" spellcheck="false" data-no-i18n><small>Zeigt das Faxgerät des Empfängers an; meist die eigene Faxnummer. Höchstens 20 Zeichen.</small></label>
+              <label class="field"><span>Kopfzeile</span><input id="fx-header" maxlength="60" spellcheck="false" data-no-i18n><small>Steht oben auf jeder Seite, z. B. Name oder Firma. Leer = keine.</small></label>
+              <label class="field"><span>Höchste Geschwindigkeit</span><select id="fx-rate"><option value="14400">14.400 bit/s (Standard)</option><option value="9600">9.600 bit/s (bei Abbrüchen)</option><option value="4800">4.800 bit/s</option></select></label>
+              <div class="span actions"><button type="button" id="fx-save" class="btn small primary">Speichern und anmelden</button><button type="button" id="fx-off" class="btn small quiet" hidden>Fax-Zugang entfernen</button></div>
+              <p class="state span" id="fx-state" role="status" data-no-i18n></p>
+            </div>
+            <h3 style="margin:18px 0 6px">Drucker „SIPFunk Fax“</h3>
+            <p class="hint">Aus jedem Programm auf diesen Drucker drucken, dann fragt SIPFunk nach der Faxnummer. Einrichten und Entfernen brauchen einmal Administratorrechte; Windows fragt danach.</p>
+            <div class="actions"><button type="button" id="fx-printer-install" class="btn small">Drucker einrichten</button><button type="button" id="fx-printer-remove" class="btn small quiet" hidden>Drucker entfernen</button></div>
+            <p class="state" id="fx-printer-state" role="status" data-no-i18n style="margin-top:8px"></p>
+            <p class="hint" style="margin-top:12px">Nummernvorschläge im Fax-Fenster kommen aus dem FRITZ!Box-Telefonbuch; den Zugang dazu richtest du auf der Seite „Kontakte“ ein.</p>
+          </div>
+        </section>
         <section class="card adv" id="settings-tech">
           <div class="head"><h2>Technik</h2></div>
           <div class="body">
@@ -1362,7 +1393,34 @@ function renderFritz(fb) {
     : fb.source === 'xml' ? I18N.t('Aus der gespeicherten Datei: {0}', counts) + (fb.error ? ' – ' + fb.error : '')
     : fb.error || I18N.t('Keine Quelle eingerichtet');
   $('fritz-file-del').hidden = fb.source !== 'xml';
+  const a = fb.access;
+  if (a && !$('fb-state').dataset.touched) {
+    $('fb-user').value = a.user || '';
+    $('fb-pass').value = '';
+    $('fb-pass').placeholder = a.hasPassword ? '•••••••• ' + I18N.t('gespeichert') : '';
+    $('fb-host').value = a.host || '';
+    $('fb-off').hidden = !a.user;
+  }
 }
+async function fritzAccess(body, busy) {
+  $('fb-state').dataset.touched = '1';
+  setState('fb-state', 'busy', busy);
+  $('fb-save').disabled = $('fb-off').disabled = true;
+  try {
+    const fb = await api('/api/fritz-phonebook/access', body);
+    delete $('fb-state').dataset.touched;
+    renderFritz(fb);
+    if (!body.user) setState('fb-state', 'ok', I18N.t('Zugang entfernt.'));
+    else if (fb.source === 'tr064') setState('fb-state', 'ok', I18N.t('Verbunden: {0} Nummern aus der FRITZ!Box.', (fb.items || []).length));
+    else setState('fb-state', 'bad', fb.error || I18N.t('Die FRITZ!Box hat kein Telefonbuch geliefert.'));
+  } catch (err) { setState('fb-state', 'bad', err.message); }
+  $('fb-save').disabled = $('fb-off').disabled = false;
+}
+$('fb-save').onclick = () => {
+  if (!$('fb-user').value.trim()) { $('fb-state').dataset.touched = '1'; return setState('fb-state', 'bad', I18N.t('Bitte den FRITZ!Box-Benutzer eingeben.')); }
+  fritzAccess({ user: $('fb-user').value.trim(), password: $('fb-pass').value, host: $('fb-host').value.trim() }, I18N.t('Melde mich an der FRITZ!Box an …'));
+};
+$('fb-off').onclick = () => { $('fb-user').value = ''; $('fb-pass').value = ''; fritzAccess({ user: '', password: '', host: $('fb-host').value.trim() }, I18N.t('Entferne den Zugang …')); };
 async function refreshFritz(force) {
   try { renderFritz(await api('/api/fritz-phonebook' + (force ? '?refresh' : ''))); } catch { $('fritz-card').hidden = true; }
 }
@@ -2105,6 +2163,62 @@ $('ai-admin-save').onclick = () => {
 };
 $('ai-admin-remove').onclick = () => adminKeyAction($('ai-admin-remove'), I18N.t('Entferne den Admin-Schlüssel …'), '', I18N.t('Admin-Schlüssel entfernt.'));
 $('ai-admin-refresh').onclick = async () => { $('ai-admin-refresh').disabled = true; delete $('ai-admin-state').dataset.touched; await loadMonthUsage(true); $('ai-admin-refresh').disabled = false; };
+
+// ---- Einstellungen › Fax: eigener Speichern-Knopf (Zugangsdaten gehen in die .env, der Faxdienst meldet sich neu an) ----
+function renderFaxSettings(f) {
+  if (!f) return;
+  $('fx-user').value = f.user || '';
+  $('fx-pass').value = '';
+  $('fx-pass').placeholder = f.hasPassword ? '•••••••• ' + I18N.t('gespeichert') : '';
+  $('fx-ident').value = f.ident || '';
+  $('fx-header').value = f.header || '';
+  $('fx-rate').value = String(f.maxBitRate || 14400);
+  $('fx-off').hidden = !f.user;
+  $('fax-status').textContent = !f.user ? I18N.t('nicht eingerichtet') : f.registered ? I18N.t('angemeldet') : I18N.t('nicht angemeldet');
+  if (!$('fx-state').dataset.touched) setState('fx-state', !f.user ? '' : f.registered ? 'ok' : 'bad', !f.user ? '' : f.registered ? I18N.t('Fax-Telefon „{0}“ ist an der FRITZ!Box angemeldet.', f.user) : I18N.t('Nicht angemeldet{0}', f.error ? ': ' + f.error : ''));
+  const p = f.printer || {};
+  $('fx-printer-install').hidden = !p.supported || p.installed;
+  $('fx-printer-remove').hidden = !p.supported || !p.installed;
+  $('fx-printer-install').disabled = !p.script || !f.printPort;
+  setState('fx-printer-state', !p.supported ? '' : p.installed ? (p.port && p.port !== f.printPort ? 'bad' : 'ok') : '',
+    !p.supported ? I18N.t('Den Drucker gibt es nur unter Windows.')
+    : !f.printPort ? I18N.t('Der Drucker-Empfang ist aus (FAX_PRINT_PORT=0).')
+    : p.installed ? (p.port && p.port !== f.printPort ? I18N.t('Eingerichtet, druckt aber auf Port {0} statt {1} – bitte neu einrichten.', p.port, f.printPort) : I18N.t('Eingerichtet, druckt an SIPFunk (Port {0}).', f.printPort))
+    : I18N.t('Noch nicht eingerichtet.'));
+  if (p.installed && p.port && p.port !== f.printPort) $('fx-printer-install').hidden = false;
+}
+async function loadFaxSettings() { try { renderFaxSettings(await api('/api/fax/settings')); } catch {} }
+async function saveFax(body, busy) {
+  $('fx-state').dataset.touched = '1';
+  setState('fx-state', 'busy', busy);
+  $('fx-save').disabled = $('fx-off').disabled = true;
+  try {
+    const f = await api('/api/fax/settings', body);
+    delete $('fx-state').dataset.touched;
+    renderFaxSettings(f);
+    if (!f.user) setState('fx-state', 'ok', I18N.t('Fax-Zugang entfernt.'));
+  } catch (err) { setState('fx-state', 'bad', err.message); }
+  $('fx-save').disabled = $('fx-off').disabled = false;
+}
+$('fx-save').onclick = () => {
+  if (!$('fx-user').value.trim()) { $('fx-state').dataset.touched = '1'; return setState('fx-state', 'bad', I18N.t('Bitte den Benutzernamen des Fax-Telefons eingeben.')); }
+  saveFax({ user: $('fx-user').value.trim(), password: $('fx-pass').value, ident: $('fx-ident').value.trim(), header: $('fx-header').value.trim(), maxBitRate: Number($('fx-rate').value) }, I18N.t('Melde das Fax-Telefon an der FRITZ!Box an …'));
+};
+$('fx-off').onclick = () => saveFax({ user: '', password: '', ident: $('fx-ident').value.trim(), header: $('fx-header').value.trim(), maxBitRate: Number($('fx-rate').value) }, I18N.t('Entferne den Fax-Zugang …'));
+async function printerAction(action) {
+  const btns = [$('fx-printer-install'), $('fx-printer-remove')];
+  btns.forEach((b) => (b.disabled = true));
+  setState('fx-printer-state', 'busy', I18N.t('Windows fragt nach Administratorrechten – bitte bestätigen …'));
+  try {
+    await api('/api/fax/printer', { action });
+    setState('fx-printer-state', 'ok', action === 'install' ? I18N.t('Drucker eingerichtet.') : I18N.t('Drucker entfernt.'));
+  } catch (err) { setState('fx-printer-state', 'bad', err.message); }
+  btns.forEach((b) => (b.disabled = false));
+  await loadFaxSettings();
+}
+$('fx-printer-install').onclick = () => printerAction('install');
+$('fx-printer-remove').onclick = () => printerAction('remove');
+loadFaxSettings();
 
 $('mode').onchange = render;
 function renderModes() {

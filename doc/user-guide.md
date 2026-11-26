@@ -866,9 +866,11 @@ As in chapter 3, just a second device:
 3. Set a user name and password. These are the values for `FAX_USER` and `FAX_PASSWORD`.
 4. As outgoing number, preferably choose your fax number; the recipient sees this number as the caller. The device does not need incoming calls.
 
-### 14.2 Fax account in `.env`
+### 14.2 Setting up the fax account
 
-Without `FAX_USER` and `FAX_PASSWORD`, faxing is off. The installed app opens its `.env` from the tray menu "Einstellungen (.env) bearbeiten" (edit settings); then quit and restart SIPFunk.
+The easiest way is **"Einstellungen › Fax"** (Settings › Fax): enter user name and password of the fax phone, sender ID, header line and speed, then **"Speichern und anmelden"** (save and register). SIPFunk registers the fax phone with the box right away and shows whether it worked; no restart is needed. The section has its own button; "Speichern" on the left does not apply to it. "Fax-Zugang entfernen" (remove fax account) switches faxing off.
+
+The values are then stored in `.env` (the password in plain text, like the other credentials). You can also enter them there by hand; the installed app opens its `.env` from the tray menu "Einstellungen (.env) bearbeiten" (edit settings), then quit and restart SIPFunk. Without `FAX_USER` and `FAX_PASSWORD`, faxing is off.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
@@ -883,7 +885,9 @@ At start, the log says whether the fax account could register. If registration f
 
 ### 14.3 Setting up the "SIPFunk Fax" printer
 
-The printer is set up once and needs administrator rights for that. The script ships with the installed app in the program folder as `resources\fax\fax-printer.ps1`; in the repository it is `scripts\fax-printer.ps1`. With the default installation:
+The printer is set up once and needs administrator rights for that. The easiest way is **"Einstellungen › Fax"** with **"Drucker einrichten"** (set up printer): Windows asks for administrator rights, then the section shows "Eingerichtet, druckt an SIPFunk" (set up, prints to SIPFunk). You can remove it there as well, and the section warns if the printer prints to a different port than SIPFunk listens on.
+
+Without the web UI, use the script. It ships with the installed app in the program folder as `resources\fax\fax-printer.ps1`; in the repository it is `scripts\fax-printer.ps1`. With the default installation:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\SIPFunk\resources\fax\fax-printer.ps1"
@@ -927,7 +931,7 @@ For a number to count as a fax number, enter it in the FRITZ!Box phonebook with 
 
 SIPFunk gets the phonebook in one of two ways:
 
-- **Live over TR-064 (recommended).** SIPFunk reads all phonebooks of the box and keeps them for 5 minutes; "Aktualisieren" (refresh) fetches them right away. This needs a **FRITZ!Box user**: FRITZ!Box interface › "System" › "FRITZ!Box-Benutzer" (FRITZ!Box Users) › "Benutzer hinzufügen" (add user), e.g. "sipfunk". Which right the box requires for the phonebook depends on FRITZ!OS: try the narrowest telephony right first ("Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste", voice messages, fax messages, FRITZ!App Fon and call list); if SIPFunk then reports "FRITZ!Box lehnt die Anmeldung ab" (sign-in rejected), also grant "FRITZ!Box Einstellungen" (FRITZ!Box settings). That is full access to the box, and the password is stored in plain text in `.env`; use a separate password you use nowhere else. The SIP account of the IP phone is not enough. In `.env`:
+- **Live over TR-064 (recommended).** SIPFunk reads all phonebooks of the box and keeps them for 5 minutes; "Aktualisieren" (refresh) fetches them right away. This needs a **FRITZ!Box user**: FRITZ!Box interface › "System" › "FRITZ!Box-Benutzer" (FRITZ!Box Users) › "Benutzer hinzufügen" (add user), e.g. "sipfunk". Which right the box requires for the phonebook depends on FRITZ!OS: try the narrowest telephony right first ("Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste", voice messages, fax messages, FRITZ!App Fon and call list); if SIPFunk then reports "FRITZ!Box lehnt die Anmeldung ab" (sign-in rejected), also grant "FRITZ!Box Einstellungen" (FRITZ!Box settings). That is full access to the box, and the password is stored in plain text in `.env`; use a separate password you use nowhere else. The SIP account of the IP phone is not enough. Enter user and password on the Contacts page in the section "FRITZ!Box-Telefonbuch" and click "Speichern und testen" (save and test); SIPFunk fetches the phonebook right away and shows the result. They are stored in `.env`, where you can also set them by hand:
 
   | Variable | Default | Effect |
   | --- | --- | --- |
@@ -981,8 +985,8 @@ The first and fourth row can also be set with the setup assistant (chapter 4.2),
 | `LIVE_LISTEN_ENABLED` | true | listening in via the browser |
 | `WEB_PORT` | 3865 | initial value for the port of the web UI (127.0.0.1 only); after that the setting under "Technik" applies (section 15.3). If `WEB_PORT` later differs from the setting, the log says so at start |
 | `SIP_DEBUG` | 0 | write all SIP messages to the log |
-| `FAX_…` | – | fax account, sender ID, header line, speed, ports (section 14.2) |
-| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box user for the phonebook (section 14.5) |
+| `FAX_…` | – | fax account, sender ID, header line, speed (also under "Einstellungen › Fax"), ports (section 14.2) |
+| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box user for the phonebook (also on the Contacts page, section 14.5) |
 
 ### 15.2 Web UI, section "Technik"
 
@@ -1053,7 +1057,7 @@ The log (in the terminal, on the dashboard in the card "Systemprotokoll" (system
 | No e-mail | status line of the "E-Mail-Versand" card; "Verbindung prüfen"; reconnect for OAuth |
 | No call back | owner contact or `OWNER_NUMBERS` present? Assessment "unimportant"? Switch or profile? |
 | Transfer fails | log "REFER"; the box has to be allowed to call the number |
-| No fax window after printing to "SIPFunk Fax" | Is SIPFunk running? `FAX_USER`/`FAX_PASSWORD` set and SIPFunk restarted afterwards? `FAX_PRINT_PORT` and the printer port the same (section 14.3)? Log "Fax-Drucker: …" |
+| No fax window after printing to "SIPFunk Fax" | Is SIPFunk running? Fax account registered under "Einstellungen › Fax"? `FAX_PRINT_PORT` and the printer port the same (section 14.3)? Log "Fax-Drucker: …" |
 | Log "Fax-Drucker: … kein PostScript" | The printer uses another driver; remove it with `fax-printer.ps1 -Remove` and set it up again (section 14.3) |
 | Fax "Fehlgeschlagen" (failed) | Reason in the fax window and in the log ("Fax: Auftrag … fehlgeschlagen"). If the other side does not answer or is not a fax, there is no fax signal; if it breaks off mid-page, try `FAX_MAX_BITRATE=9600` and LAN instead of Wi-Fi (section 14.7) |
 | Log "Fax: Anmeldung an der FRITZ!Box fehlgeschlagen" (registration failed) | `FAX_USER`/`FAX_PASSWORD`; is the IP phone for faxing set up on the box (section 14.1)? |

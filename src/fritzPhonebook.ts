@@ -140,6 +140,17 @@ export class FritzPhonebook {
     return Boolean(this.opts.user && this.opts.password);
   }
 
+  /** Zugang für die Oberfläche, ohne Kennwort */
+  access(): { host: string; user: string; hasPassword: boolean } {
+    return { host: this.opts.host, user: this.opts.user ?? '', hasPassword: Boolean(this.opts.password) };
+  }
+
+  /** Zugang zur Laufzeit ändern (aus der Web-UI); der nächste Abruf nutzt ihn */
+  configure(patch: { host?: string; user?: string; password?: string }): void {
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) (this.opts as unknown as Record<string, string>)[k] = v;
+    this.invalidate();
+  }
+
   /** Einträge; live aus der Box (kurz zwischengespeichert), sonst aus der XML-Datei */
   async get(force = false): Promise<FritzPhonebookStatus> {
     const maxAge = this.opts.maxAgeMs ?? 5 * 60_000;

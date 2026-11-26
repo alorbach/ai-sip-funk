@@ -13,6 +13,7 @@ import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { FaxService } from './fax/service.js';
 import { FaxPrintPort } from './fax/printPort.js';
+import { changePrinter, printerStatus } from './fax/printer.js';
 import { FritzPhonebook } from './fritzPhonebook.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { agentLabel } from './ai/agentCall.js';
@@ -1026,31 +1027,76 @@ const importProvider = (p: unknown): ImportProvider => {
 };
 
 // Fax über ein eigenes IP-Telefon der FRITZ!Box (FAX_USER); ohne Zugang kein Faxdienst
-const fax = config.fax.sipUser && config.fax.sipPassword
-  ? new FaxService({
-      sipServer: config.sipServer,
-      user: config.fax.sipUser,
-      password: config.fax.sipPassword,
-      sipLocalPort: config.fax.sipLocalPort,
-      rtpPort: config.fax.rtpPort,
-      localIp: config.localIp,
-      sipDebug: config.sipDebug,
-      ident: config.fax.ident,
-      header: config.fax.header,
-      maxBitRate: config.fax.maxBitRate,
-    })
-  : undefined;
-fax?.on('job', (job) => bus.emit('message', { type: 'fax', job }));
+// Faxdienst gibt es immer; ohne Fax-Zugang (Einstellungen › Fax bzw. FAX_USER/FAX_PASSWORD) nimmt er keine Aufträge an
+const fax = new FaxService({
+  sipServer: config.sipServer,
+  user: config.fax.sipUser,
+  password: config.fax.sipPassword,
+  sipLocalPort: config.fax.sipLocalPort,
+  rtpPort: config.fax.rtpPort,
+  localIp: config.localIp,
+  sipDebug: config.sipDebug,
+  ident: config.fax.ident,
+  header: config.fax.header,
+  maxBitRate: config.fax.maxBitRate,
+});
+fax.on('job', (job) => bus.emit('message', { type: 'fax', job }));
 // Drucken an „SIPFunk Fax“: Dokument als Entwurf ablegen, die Tray-App öffnet das Fax-Fenster für die Zielnummer
-fax?.on('draft', () => traySend({ type: 'faxPrint' }));
-const faxPrint = fax && config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
+fax.on('draft', () => traySend({ type: 'faxPrint' }));
+const faxPrint = config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
+
+/** Fax-Einstellungen aus der Web-UI: prüfen, in die .env schreiben, Dienst neu anmelden. Kennwort-Maske = behalten. */
+async function saveFaxSettings(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const str = (k: string) => (typeof input[k] === 'string' ? (input[k] as string).trim() : undefined);
+  const user = str('user') ?? '';
+  const pw = typeof input.password === 'string' ? input.password : '';
+  const keep = pw === SECRET_MASK || pw === '';
+  const password = user ? (keep ? (user === config.fax.sipUser ? config.fax.sipPassword : '') : pw) : '';
+  if (user && !password) throw new Error('Bitte das Kennwort des Fax-Telefons eingeben.');
+  const ident = str('ident') ?? '';
+  if (ident.length > 20 || !/^[0-9+ ]*$/.test(ident)) throw new Error('Absenderkennung: höchstens 20 Zeichen, nur Ziffern, Leerzeichen und +.');
+  const header = str('header') ?? '';
+  if (header.length > 60) throw new Error('Kopfzeile: höchstens 60 Zeichen.');
+  const maxBitRate = Number(input.maxBitRate ?? 14400);
+  if (![14400, 9600, 4800].includes(maxBitRate)) throw new Error('Geschwindigkeit: 14400, 9600 oder 4800.');
+  writeEnvValues(envFile, { FAX_USER: user, FAX_PASSWORD: password, FAX_IDENT: ident, FAX_HEADER: header, FAX_MAX_BITRATE: String(maxBitRate) });
+  Object.assign(config.fax, { sipUser: user, sipPassword: password, ident, header, maxBitRate });
+  log.info(`Fax: Einstellungen gespeichert (.env)${user ? ' – melde an' : ' – Fax-Zugang entfernt'}`);
+  const r = await fax.configure({ user, password, ident, header, maxBitRate });
+  return { ...fax.settings(), ...r };
+}
+
+/** FRITZ!Box-Benutzer fürs Telefonbuch aus der Web-UI: in die .env schreiben und gleich einmal abrufen */
+async function saveFritzAccess(input: Record<string, unknown>): Promise<void> {
+  const user = typeof input.user === 'string' ? input.user.trim() : '';
+  const pw = typeof input.password === 'string' ? input.password : '';
+  const host = typeof input.host === 'string' ? input.host.trim() : '';
+  if (host && !/^[A-Za-z0-9.-]+$/.test(host)) throw new Error('Adresse der FRITZ!Box: nur Name oder IP-Adresse.');
+  const keep = pw === SECRET_MASK || pw === '';
+  const password = user ? (keep ? (user === config.fritz.user ? config.fritz.password : '') : pw) : '';
+  if (user && !password) throw new Error('Bitte das Kennwort des FRITZ!Box-Benutzers eingeben.');
+  writeEnvValues(envFile, { FRITZ_USER: user, FRITZ_PASSWORD: password, FRITZ_HOST: host });
+  Object.assign(config.fritz, { user, password, host: host || config.sipServer });
+  fritzPhonebook.configure({ user, password, host: host || config.sipServer });
+  log.info(`FRITZ!Box-Telefonbuch: Zugang gespeichert (.env)${user ? '' : ' – entfernt, nur noch Datei'}`);
+}
 
 const fritzPhonebook = new FritzPhonebook({ host: config.fritz.host, user: config.fritz.user, password: config.fritz.password, xmlFile: join(dataDir, 'fritz-telefonbuch.xml') });
 
 const stopWeb = startWebServer({
   fritzPhonebook,
-  fax: fax && {
+  // Adresse nur, wenn eigens gesetzt (FRITZ_HOST); sonst gilt die der Telefonanlage
+  fritzAccess: { get: () => ({ ...fritzPhonebook.access(), host: process.env.FRITZ_HOST?.trim() ?? '' }), save: saveFritzAccess },
+  fax: {
     status: () => fax.status(),
+    settings: async () => ({ ...fax.settings(), printPort: config.fax.printPort, printer: await printerStatus() }),
+    saveSettings: saveFaxSettings,
+    printer: async (action) => {
+      if (config.fax.printPort <= 0) return { ok: false, error: 'Der Drucker-Empfang ist aus (FAX_PRINT_PORT=0).' };
+      const r = await changePrinter(action, config.fax.printPort);
+      log.info(`Fax-Drucker: ${action === 'install' ? 'einrichten' : 'entfernen'} – ${r.ok ? 'erledigt' : r.error}`);
+      return { ...r, printer: await printerStatus() };
+    },
     submit: (number, pdf, name) => ({ ...fax.submit(number, pdf, name) }),
     sendDraft: (id, number) => ({ ...fax.sendDraft(id, number) }),
     discardDraft: (id) => fax.discardDraft(id),
@@ -1154,7 +1200,7 @@ const stopWeb = startWebServer({
 });
 await manager.start();
 // Die Anmeldung des Fax-Zugangs kann bis zum SIP-Timeout dauern; sie darf den Start (IPC an die Tray-App) nicht aufhalten
-void fax?.start(); // meldet Fehler selbst
+void fax.start(); // meldet Fehler selbst
 await faxPrint?.start();
 
 // Tray-App (electron/main.cjs) bekommt Zustand und Fehler per IPC, falls wir als Kindprozess laufen
@@ -1173,7 +1219,7 @@ async function shutdown(): Promise<void> {
   stopWeb();
   removePortFile(dataDir, config.webPort);
   faxPrint?.stop();
-  await Promise.all([manager.stop(), fax?.stop()]);
+  await Promise.all([manager.stop(), fax.stop()]);
   process.exit(0);
 }
 // Die Tray-App bittet per IPC ums Beenden: SIGTERM beendet einen Kindprozess unter Windows sofort,

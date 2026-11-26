@@ -94,6 +94,12 @@ export interface WebServerOptions {
   /** Faxversand (nur mit eigenem Fax-Zugang FAX_USER) */
   fax?: {
     status: () => Record<string, unknown>;
+    /** Einstellungen ohne Kennwort, dazu Zustand des Druckers */
+    settings: () => Promise<Record<string, unknown>>;
+    /** Prüft, schreibt in die .env und meldet neu an; wirft bei ungültigen Werten */
+    saveSettings: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    /** Drucker „SIPFunk Fax“ einrichten oder entfernen (UAC-Abfrage) */
+    printer: (action: 'install' | 'remove') => Promise<Record<string, unknown>>;
     /** Prüft Nummer und PDF, reiht den Auftrag ein und liefert ihn */
     submit: (number: string, pdf: Buffer, name?: string) => Record<string, unknown>;
     /** Gedrucktes Dokument (Entwurf) an eine Nummer faxen, verwerfen, als PDF ansehen */
@@ -103,6 +109,8 @@ export interface WebServerOptions {
   };
   /** FRITZ!Box-Telefonbuch (nur lesen, als Vorschläge) */
   fritzPhonebook?: FritzPhonebook;
+  /** FRITZ!Box-Benutzer fürs Telefonbuch (ohne Kennwort lesen, speichern in die .env) */
+  fritzAccess?: { get: () => Record<string, unknown>; save: (input: Record<string, unknown>) => Promise<void> };
   /** 'message' (obj) wird als JSON an alle Browser geschickt (Transkript, Usage, Fax) */
   bus: EventEmitter;
   store: TranscriptStore;
@@ -438,7 +446,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
       }
       if (url.pathname === '/api/fritz-phonebook' && opts.fritzPhonebook) {
         const pb = opts.fritzPhonebook;
-        if (req.method === 'GET') return sendJson(res, 200, { ...(await pb.get(url.searchParams.has('refresh'))), live: pb.live });
+        if (req.method === 'GET') return sendJson(res, 200, { ...(await pb.get(url.searchParams.has('refresh'))), live: pb.live, access: opts.fritzAccess?.get() });
         if (req.method === 'POST') {
           const { xml } = await readJson(req, MAX_IMPORT_BYTES);
           if (typeof xml !== 'string') return sendJson(res, 400, { error: 'Datei fehlt' });
@@ -450,6 +458,32 @@ export function startWebServer(opts: WebServerOptions): () => void {
           pb.removeXml();
           return sendJson(res, 200, { ...(await pb.get(true)), live: pb.live });
         }
+      }
+      if (url.pathname === '/api/fritz-phonebook/access' && req.method === 'POST' && opts.fritzAccess && opts.fritzPhonebook) {
+        try {
+          await opts.fritzAccess.save(await readJson(req));
+        } catch (err) {
+          return sendJson(res, 400, { error: (err as Error).message });
+        }
+        const pb = opts.fritzPhonebook;
+        return sendJson(res, 200, { ...(await pb.get(true)), live: pb.live, access: opts.fritzAccess.get() });
+      }
+      if (url.pathname === '/api/fax/settings' && opts.fax) {
+        if (req.method === 'GET') return sendJson(res, 200, await opts.fax.settings());
+        if (req.method === 'POST') {
+          try {
+            await opts.fax.saveSettings(await readJson(req));
+          } catch (err) {
+            return sendJson(res, 400, { error: (err as Error).message });
+          }
+          return sendJson(res, 200, await opts.fax.settings());
+        }
+      }
+      if (url.pathname === '/api/fax/printer' && req.method === 'POST' && opts.fax) {
+        const action = (await readJson(req)).action;
+        if (action !== 'install' && action !== 'remove') return sendJson(res, 400, { error: 'action: install oder remove' });
+        const r = await opts.fax.printer(action);
+        return sendJson(res, r.ok ? 200 : 400, r.ok ? r : { ...r, error: r.error });
       }
       if (url.pathname === '/api/fax') {
         if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet (FAX_USER/FAX_PASSWORD in der .env)' });

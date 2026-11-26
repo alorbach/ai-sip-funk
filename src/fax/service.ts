@@ -64,7 +64,10 @@ const KEEP_DRAFTS = 10;
 
 /** Events: 'job' (FaxJob) bei jeder Zustandsänderung, 'draft' (FaxDraft) für ein neu gedrucktes Dokument, 'drafts' bei Änderungen der Entwürfe */
 export class FaxService extends EventEmitter {
-  private readonly sip: SipClient;
+  private sip: SipClient;
+  private readonly opts: FaxServiceOptions;
+  /** Letzter Fehler der Anmeldung (für die Einstellungen) */
+  private lastError?: string;
   private readonly jobs: FaxJob[] = [];
   private readonly files = new Map<string, string>();
   private readonly drafts = new Map<string, FaxDraft & { pdf: Buffer }>();
@@ -74,18 +77,58 @@ export class FaxService extends EventEmitter {
   private registering?: Promise<void>;
   private stopped = false;
 
-  constructor(private readonly opts: FaxServiceOptions) {
+  constructor(opts: FaxServiceOptions) {
     super();
-    this.sip = new SipClient({
-      server: opts.sipServer, user: opts.user, password: opts.password,
-      localPort: opts.sipLocalPort, localIp: opts.localIp, debug: opts.sipDebug,
-    });
+    this.opts = { ...opts };
+    this.sip = this.newSip();
+  }
+
+  private newSip(): SipClient {
+    const o = this.opts;
+    return new SipClient({ server: o.sipServer, user: o.user, password: o.password, localPort: o.sipLocalPort, localIp: o.localIp, debug: o.sipDebug });
+  }
+
+  /** Fax-Zugang (Benutzer und Kennwort) eingetragen? Ohne ihn nimmt der Dienst keine Aufträge an. */
+  get configured(): boolean {
+    return Boolean(this.opts.user && this.opts.password);
+  }
+
+  /** Aktuelle Einstellungen für die Oberfläche, ohne Kennwort */
+  settings(): { user: string; hasPassword: boolean; ident: string; header: string; maxBitRate: number; registered: boolean; error?: string } {
+    const o = this.opts;
+    return { user: o.user, hasPassword: Boolean(o.password), ident: o.ident ?? '', header: o.header ?? '', maxBitRate: o.maxBitRate ?? 14400, registered: this.registered, error: this.lastError };
   }
 
   async start(): Promise<void> {
     const missing = faxPrerequisites();
     if (missing.length) log.warn(`Fax: es fehlt ${missing.join(', ')}`);
+    if (!this.configured) return;
     await this.ensureRegistered().catch((err) => log.warn(`Fax: Anmeldung an der FRITZ!Box fehlgeschlagen: ${(err as Error).message}`));
+  }
+
+  /**
+   * Einstellungen zur Laufzeit ändern (aus der Web-UI). Ändert sich der Zugang, meldet sich der Dienst ab und mit den
+   * neuen Daten wieder an; das Ergebnis der Anmeldung kommt zurück. Während ein Fax läuft, geht das nicht.
+   */
+  async configure(patch: Partial<Pick<FaxServiceOptions, 'sipServer' | 'user' | 'password' | 'ident' | 'header' | 'maxBitRate'>>): Promise<{ registered: boolean; error?: string }> {
+    if (this.busy) throw new Error('Bitte warten, bis das laufende Fax fertig ist.');
+    const o = this.opts;
+    const access = (patch.user !== undefined && patch.user !== o.user) || (patch.password !== undefined && patch.password !== o.password) || (patch.sipServer !== undefined && patch.sipServer !== o.sipServer);
+    Object.assign(o, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)));
+    if (access || !this.registered) {
+      await this.registering?.catch(() => undefined);
+      await this.sip.stop();
+      this.registered = false;
+      this.lastError = undefined;
+      this.sip = this.newSip();
+    }
+    if (!this.configured) return { registered: false };
+    try {
+      await this.ensureRegistered();
+      return { registered: true };
+    } catch (err) {
+      return { registered: false, error: (err as Error).message };
+    }
   }
 
   async stop(): Promise<void> {
@@ -148,6 +191,7 @@ export class FaxService extends EventEmitter {
     if (pdf.subarray(0, 5).toString('latin1') !== '%PDF-') throw new Error('Kein PDF');
     const missing = faxPrerequisites();
     if (missing.length) throw new Error(`Faxen nicht möglich, es fehlt: ${missing.join(', ')}`);
+    if (!this.configured) throw new Error('Fax-Zugang nicht eingerichtet (Einstellungen › Fax)');
 
     const job: FaxJob = { id: randomBytes(6).toString('hex'), number, name, state: 'queued', created: new Date().toISOString() };
     const dir = mkdtempSync(path.join(tmpdir(), 'sipfunk-fax-'));
@@ -178,6 +222,11 @@ export class FaxService extends EventEmitter {
         // Während der Anmeldung beendet (stop() hat den Client schon geschlossen): nicht weitermachen
         if (this.stopped) throw new Error('Faxdienst beendet');
         this.registered = true;
+        this.lastError = undefined;
+      },
+      (err: Error) => {
+        this.lastError = err.message;
+        throw err;
       },
     ).finally(() => (this.registering = undefined));
     await this.registering;
