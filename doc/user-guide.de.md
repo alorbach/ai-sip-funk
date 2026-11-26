@@ -502,7 +502,7 @@ Protokolle solcher Gespräche tragen die Markierung „Spam-Abwehr“. Sie zähl
 
 Kontakte (lokal in `contacts.json`) haben Name und Nummer, optional Anrede, Stil, Stimme, Standard-Auftrag und Notizen. Die Auswahl füllt das Anrufformular vor; Notizen und die Zusammenfassung des letzten Gesprächs bekommt die KI als Hintergrundwissen (sie trägt es nicht von sich aus vor, gibt es auf Rückfrage aber preis; bei Anrufen eines KI-Agenten bekommt sie keine Notizen, Abschnitt 13.2). Das Kennzeichen **„Inhaber“** markiert deine eigene Nummer. Mit **„KI-Agent darf ohne Nachfrage anrufen“** gibst du einen Kontakt für die MCP-Schnittstelle frei: Ein Agent wählt ihn, ohne dass du den Anruf bestätigen musst, auch wenn dort „Immer“ nachfragen eingestellt ist (Abschnitt 13.2). In der Liste steht dann „Agent ohne Nachfrage“. Änderst du die Nummer des Kontakts, ist die Freigabe aufgehoben; setz das Häkchen für die neue Nummer erneut.
 
-Auf derselben Seite zeigt der Bereich **„FRITZ!Box-Telefonbuch“**, ob SIPFunk Nummern aus dem Telefonbuch der FRITZ!Box vorschlägt. Diese Nummern werden nicht in die Kontakte übernommen; sie erscheinen nur als Vorschläge im Fax-Fenster und im Wählfeld (Abschnitt 14.5).
+Auf derselben Seite zeigt der Bereich **„FRITZ!Box-Telefonbuch“**, ob SIPFunk Nummern aus dem Telefonbuch der FRITZ!Box vorschlägt. Diese Nummern werden nicht in die Kontakte übernommen; sie erscheinen nur als Vorschläge im Fax-Fenster und im Wählfeld (Abschnitt 14.6).
 
 Ein Kontakt kann **weitere Nummern** haben („Weitere Nummern“, mit Komma getrennt), etwa das Festnetz neben dem Handy. Sie zählen bei eingehenden Anrufen und bei Dubletten; gewählt wird immer die Nummer darüber. Für die MCP-Freigabe „Nur gespeicherte Kontakte“ zählt nur diese Nummer; eine weitere Nummer kann ein Agent also nicht anrufen.
 
@@ -559,7 +559,7 @@ Im Dialog „Datei wählen“ (bis 22 MB; größere Exporte ohne Fotos speichern
 
 ![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
 
-Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, KI-Anbieter und Modell, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
+Gesendete Faxe stehen ebenfalls in der Liste, mit dem Kennzeichen „Fax“ (Abschnitt 14.7). Jedes zustande gekommene KI-Gespräch wird in `transcripts/` als JSON und Markdown gespeichert: Zeit, Nummer, gewählte eigene Nummer, Dauer, Codec, Endegrund, KI-Anbieter und Modell, Auftrag, Gesprächsplan, Ergebnis laut KI, Transkript (Text, keine Audiodaten), Verbrauch, Kostenschätzung, Zusammenfassung, Markierung Spam-Abwehr. Nicht zustande gekommene Anrufe (nicht abgenommen, besetzt) erzeugen kein Protokoll.
 
 ![Protokoll eines Agenten-Anrufs: Markierung „Von KI-Agent“, die Rückfrage der KI an den Agenten und das Ergebnis laut KI im Transkript](images/calls-agent.de.png)
 
@@ -847,11 +847,28 @@ Ein Beispiel-Skill, der einem Agenten genau diesen Ablauf beibringt, liegt im Re
 
 ## 14. Faxen
 
-SIPFunk kann Faxe **senden**, über die FRITZ!Box und ohne Faxgerät: Du druckst ein Dokument aus einem beliebigen Programm auf den Drucker „SIPFunk Fax“, gibst im kleinen Fax-Fenster die Nummer ein, und SIPFunk wählt und überträgt. Empfangen kann SIPFunk keine Faxe; dafür bleibt die Faxfunktion der FRITZ!Box selbst.
+SIPFunk kann Faxe **senden**, über die FRITZ!Box und ohne Faxgerät: Du druckst ein Dokument aus einem beliebigen Programm auf den Drucker „SIPFunk Fax“, suchst im kleinen Fax-Fenster den Empfänger, und SIPFunk wählt, überträgt und zeigt dir dabei live, wie weit es ist. Jedes gesendete Fax steht danach im Anrufe-Log. Empfangen kann SIPFunk keine Faxe; dafür bleibt die Faxfunktion der FRITZ!Box selbst.
+
+**Kurz: so richtest du es ein**
+
+1. In der FRITZ!Box ein zweites IP-Telefon für das Fax anlegen (14.1).
+2. In SIPFunk unter „Einstellungen › Fax“ dessen Benutzername und Kennwort eintragen und „Speichern und anmelden“ (14.2).
+3. Im selben Abschnitt „Drucker einrichten“ und die Windows-Abfrage bestätigen (14.3).
+4. Optional: auf der Seite „Kontakte“ den Zugang zum FRITZ!Box-Telefonbuch eintragen, damit das Fax-Fenster Faxnummern vorschlägt (14.6).
+
+Danach faxt du aus jedem Programm mit „Drucken“ › „SIPFunk Fax“ (14.4).
 
 ### Wie es technisch läuft
 
 Für das Fax meldet sich SIPFunk mit einem **eigenen IP-Telefon** an der Box an, getrennt vom Zugang für die KI-Gespräche. Ein Fax kann so laufen, während die KI telefoniert. Das Dokument wird mit Ghostscript in Faxseiten umgewandelt (A4, 204 × 196 dpi, „fein“), dann überträgt ein Fax-Modem in Software (spandsp) die Seiten nach dem Faxprotokoll T.30 als Töne über die normale Sprachverbindung (G.711), wie ein Faxgerät am Telefonanschluss. Bis 14.400 bit/s, mit Fehlerkorrektur (ECM), mehrseitig. Bietet die Box T.38 an, lehnt SIPFunk ab und bleibt bei G.711; das funktioniert mit der FRITZ!Box zuverlässig.
+
+Der Weg eines Dokuments:
+
+1. **Drucken:** Windows schickt den Druckauftrag als PostScript an SIPFunk (`127.0.0.1`, Port 9101). Der Auftrag verlässt den Rechner dabei nicht.
+2. **Umwandeln:** SIPFunk macht daraus ein PDF (für die Vorschau) und beim Senden die Faxseiten.
+3. **Wählen:** Das Fax-Telefon ruft die Nummer über die FRITZ!Box an.
+4. **Übertragen:** Die Faxgeräte stimmen Geschwindigkeit und Fehlerkorrektur ab, dann geht Seite für Seite hinüber; die Gegenseite bestätigt jede Seite.
+5. **Protokoll:** Das Ergebnis steht im Fax-Fenster und im Anrufe-Log.
 
 Fax-Modem und Ghostscript sind im Installationspaket enthalten, es muss nichts nachinstalliert werden. Herkunft und Lizenzen (spandsp LGPL, Ghostscript AGPL) stehen in `resources\fax\LIZENZEN.txt` im Programmordner.
 
@@ -861,29 +878,42 @@ Wie in Kapitel 3, nur ein zweites Gerät:
 
 1. FRITZ!Box-Oberfläche › „Telefonie“ › „Telefoniegeräte“ › „Neues Gerät einrichten“.
 2. „Telefon (mit und ohne Anrufbeantworter)“ › „LAN/WLAN (IP-Telefon)“, Name z. B. „SIPFunk Fax“.
-3. Benutzername und Kennwort vergeben. Das sind die Werte für `FAX_USER` und `FAX_PASSWORD`.
+3. Benutzername und Kennwort vergeben. Diese beiden Werte trägst du in 14.2 ein.
 4. Als ausgehende Rufnummer am besten deine Faxnummer wählen; diese Nummer sieht der Empfänger als Anrufer. Ankommende Anrufe braucht das Gerät nicht.
+
+Ein eigenes Gerät hat zwei Vorteile: Fax und KI-Gespräche stören sich nicht, und in der Anrufliste der Box siehst du Faxe getrennt von Gesprächen.
 
 ### 14.2 Fax-Zugang einstellen
 
-Am einfachsten unter **„Einstellungen › Fax“**: Benutzername und Kennwort des Fax-Telefons, Absenderkennung, Kopfzeile und Geschwindigkeit eintragen, dann **„Speichern und anmelden“**. SIPFunk meldet das Fax-Telefon sofort an der Box an und zeigt, ob es geklappt hat; ein Neustart ist nicht nötig. Der Abschnitt hat einen eigenen Knopf, „Speichern“ links gilt für ihn nicht. „Fax-Zugang entfernen“ schaltet das Faxen ab.
+![Einstellungen › Fax: Fax-Zugang, Absenderkennung, Kopfzeile, Geschwindigkeit und der Drucker](images/settings-fax.de.png)
+
+Unter **„Einstellungen › Fax“**:
+
+| Feld | Bedeutung |
+| --- | --- |
+| Benutzername des Fax-Telefons, Kennwort | die Werte aus 14.1. Ein gespeichertes Kennwort wird nicht angezeigt; Feld leer lassen = es bleibt |
+| Absenderkennung | erscheint auf dem Faxgerät des Empfängers und in seinem Faxprotokoll, meist deine Faxnummer im internationalen Format, z. B. `+49 30 1234567`. Höchstens 20 Zeichen, nur Ziffern, Leerzeichen und `+` |
+| Kopfzeile | steht oben auf jeder gesendeten Seite, z. B. dein Name oder deine Firma. Leer = keine Kopfzeile |
+| Höchste Geschwindigkeit | 14.400 bit/s ist der Standard. Brechen Faxe mitten in der Seite ab, hilft 9.600 bit/s; 4.800 bit/s nur für sehr schlechte Verbindungen |
+
+**„Speichern und anmelden“** prüft die Eingaben, speichert sie und meldet das Fax-Telefon sofort an der Box an; die Zeile darunter zeigt „Fax-Telefon … ist an der FRITZ!Box angemeldet“ oder den Fehler. Ein Neustart ist nicht nötig. Der Abschnitt hat einen eigenen Knopf, „Speichern“ links gilt für ihn nicht. Oben rechts im Abschnitt steht der Zustand: „angemeldet“, „nicht angemeldet“ oder „nicht eingerichtet“. **„Fax-Zugang entfernen“** schaltet das Faxen ab. Während ein Fax läuft, lassen sich die Werte nicht ändern.
 
 Die Werte stehen danach in der `.env` (das Kennwort im Klartext, wie die übrigen Zugangsdaten). Du kannst sie dort auch von Hand eintragen; die installierte App öffnet ihre `.env` über das Tray-Menü „Einstellungen (.env) bearbeiten“, danach SIPFunk beenden und neu starten. Ohne `FAX_USER` und `FAX_PASSWORD` ist das Faxen aus.
 
 | Variable | Standard | Wirkung |
 | --- | --- | --- |
 | `FAX_USER`, `FAX_PASSWORD` | –, – | Benutzername und Kennwort des IP-Telefons aus 14.1 |
-| `FAX_IDENT` | – | Absenderkennung, die das Faxgerät des Empfängers anzeigt; meist die eigene Faxnummer, z. B. `+49 30 1234567`. Höchstens 20 Zeichen, nur Ziffern, Leerzeichen und `+`; längere werden nicht gesendet (Hinweis im Log) |
-| `FAX_HEADER` | – | Kopfzeile oben auf jeder Seite, z. B. Name oder Firma. Leer = keine Kopfzeile |
-| `FAX_MAX_BITRATE` | 14400 | höchste Geschwindigkeit: 14400, 9600 oder 4800. Bei wiederholten Abbrüchen mitten in der Seite hilft 9600 |
-| `FAX_SIP_LOCAL_PORT`, `FAX_RTP_PORT` | 5064, 40100 | lokale UDP-Ports des Fax-Zugangs; nur ändern, wenn sie belegt sind |
-| `FAX_PRINT_PORT` | 9101 | Port auf 127.0.0.1, an den der Drucker „SIPFunk Fax“ druckt; 0 schaltet den Drucker-Empfang ab |
+| `FAX_IDENT` | – | Absenderkennung (siehe oben); längere als 20 Zeichen werden nicht gesendet (Hinweis im Log) |
+| `FAX_HEADER` | – | Kopfzeile oben auf jeder Seite |
+| `FAX_MAX_BITRATE` | 14400 | höchste Geschwindigkeit: 14400, 9600 oder 4800 |
+| `FAX_SIP_LOCAL_PORT`, `FAX_RTP_PORT` | 5064, 40100 | lokale UDP-Ports des Fax-Zugangs; nur ändern, wenn sie belegt sind (nur in der `.env`) |
+| `FAX_PRINT_PORT` | 9101 | Port auf 127.0.0.1, an den der Drucker „SIPFunk Fax“ druckt; 0 schaltet den Drucker-Empfang ab (nur in der `.env`) |
 
 Beim Start steht im Log, ob sich der Fax-Zugang anmelden konnte. Schlägt die Anmeldung fehl, versucht SIPFunk es beim nächsten Fax erneut.
 
 ### 14.3 Drucker „SIPFunk Fax“ einrichten
 
-Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Am einfachsten unter **„Einstellungen › Fax“** mit **„Drucker einrichten“**: Windows fragt nach Administratorrechten, danach zeigt der Abschnitt „Eingerichtet, druckt an SIPFunk“. Dort lässt er sich auch wieder entfernen, und der Abschnitt meldet, wenn der Drucker auf einen anderen Port druckt, als SIPFunk lauscht.
+Der Drucker wird einmal eingerichtet und braucht dafür Administratorrechte. Am einfachsten unter **„Einstellungen › Fax“** mit **„Drucker einrichten“**: Windows fragt nach Administratorrechten, danach zeigt der Abschnitt „Eingerichtet, druckt an SIPFunk“. Dort lässt er sich auch wieder entfernen („Drucker entfernen“). Druckt der Drucker auf einen anderen Port, als SIPFunk lauscht (etwa nach einer Änderung von `FAX_PRINT_PORT`), meldet der Abschnitt das; „Drucker einrichten“ richtet ihn dann passend neu ein.
 
 Ohne Web-UI geht es mit dem Skript. Es liegt bei der installierten App im Programmordner unter `resources\fax\fax-printer.ps1`, im Repository unter `scripts\fax-printer.ps1`. Bei der Standardinstallation:
 
@@ -896,52 +926,104 @@ Hast du bei der Installation einen anderen Ordner gewählt, ersetze `$env:LOCALA
 - Anderen Port verwenden (passend zu `FAX_PRINT_PORT`): `… fax-printer.ps1 -Port 9102`
 - Drucker wieder entfernen: `… fax-printer.ps1 -Remove`
 
-Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt der Auftrag mit einem Fehler in der Druckerwarteschlange von Windows.
+Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt der Auftrag mit einem Fehler in der Druckerwarteschlange von Windows; sobald SIPFunk wieder läuft, kannst du ihn dort neu starten.
 
 ### 14.4 Ein Fax senden
 
 1. Im Programm (Word, PDF-Betrachter, Browser …) „Drucken“ wählen, Drucker **„SIPFunk Fax“**. Papierformat A4; Farbe wird zu Schwarzweiß.
 2. Unten rechts öffnet sich das Fax-Fenster mit dem Namen des Dokuments und der Seitenzahl. **„Vorschau“** zeigt das Dokument als PDF so, wie es gefaxt wird.
-3. Im Feld **„An (Faxnummer oder Kontakt)“** die Nummer eingeben oder einen Vorschlag wählen (14.5). Schreibweise wie beim Wählen: `030 1234567` oder `+49 30 1234567`.
-4. **„Faxen“** (oder Enter). Das Fenster zeigt den Fortschritt: „Wird vorbereitet …“, „Wählt …“, „Sendet … Seite 2“, am Ende **„Zugestellt: 2 Seite(n)“** oder „Fehlgeschlagen: …“ mit dem Grund.
+3. Im Feld **„An (Faxnummer oder Kontakt)“** den Empfänger suchen (14.5) oder die Nummer direkt eingeben. Schreibweise wie beim Wählen: `030 1234567` oder `+49 30 1234567`.
+4. **„Faxen“** oder Enter.
+
+![Fax-Fenster beim Senden: Schritte, Fortschrittsbalken, Seite 2 von 3, Übertragungsrate, Gegenstelle und Laufzeit](images/fax-progress.de.png)
+
+Nach „Faxen“ zeigt das Fenster den Fortschritt live:
+
+| Schritt | Was passiert | Anzeige |
+| --- | --- | --- |
+| Vorbereiten | Das Dokument wird in Faxseiten umgewandelt; wartet ein anderes Fax, steht der Auftrag in der Warteschlange | „Dokument wird vorbereitet …“, „Wartet auf die Leitung …“ |
+| Anwahl | Das Fax-Telefon ruft die Nummer an, es klingelt | „Wählt …“ |
+| Verbinden | Die Gegenseite hat abgenommen; die Faxgeräte stimmen Geschwindigkeit und Fehlerkorrektur ab | „Verbunden – Faxgeräte stimmen sich ab …“ |
+| Senden | Seite für Seite geht hinüber | „Sendet Seite 2 von 3“ |
+| Fertig | Die Gegenseite hat jede Seite bestätigt bzw. es ist ein Fehler aufgetreten | grün „Zugestellt“ mit Seitenzahl und Dauer, oder rot „Fehlgeschlagen“ mit dem Grund |
+
+Der **Balken** steigt mit den Schritten; innerhalb einer Seite schätzt SIPFunk den Fortschritt nach der Dauer der bisherigen Seiten (die erste Seite mit rund 18 Sekunden). Darunter stehen, sobald bekannt, die ausgehandelte **Übertragungsrate** und ob **ECM** (Fehlerkorrektur) aktiv ist, die **Gegenstelle** (die Kennung, die das empfangende Gerät meldet) und die **Laufzeit**.
+
+**„Ausblenden“** (oder ✕, Esc) schließt nur das Fenster, das Fax läuft im Hintergrund weiter; das Ergebnis findest du im Anrufe-Log (14.7). Nach dem Ergebnis zeigt das Fenster den nächsten wartenden Druckauftrag oder schließt sich.
 
 Weitere Hinweise:
 
-- **„Verwerfen“** löscht den Druckauftrag. **✕** oder Esc schließt nur das Fenster; der Auftrag bleibt liegen und erscheint beim nächsten Druck wieder.
+- **„Verwerfen“** löscht den Druckauftrag. ✕ oder Esc vor dem Senden schließt nur das Fenster; der Auftrag bleibt liegen und erscheint beim nächsten Druck wieder.
 - Druckst du mehrere Dokumente, zeigt das Fenster sie nacheinander. Es warten höchstens 10 Druckaufträge, ältere werden verworfen (Hinweis im Log). Druckaufträge liegen nur im Arbeitsspeicher; nach einem Neustart von SIPFunk sind sie weg.
 - Gesendet wird ein Fax nach dem anderen. Ein Faxanruf dauert höchstens 15 Minuten.
-- **Gesperrte Ziele:** Es gelten dieselben Regeln wie für Anrufe (Kapitel 6): Notruf, Behörden-, Sonder-, Service- und Mehrwertnummern (z. B. 110, 115, 118…, 0180, 0900), Call-by-Call (010…) und **Auslandsnummern** (`00…` und `+` außer `+49`) lehnt SIPFunk ab. Interne Nebenstellen der Box (`**…`) gehen auch nicht, dort kann kein Fax ankommen.
+- **Gesperrte Ziele:** Es gelten dieselben Regeln wie für Anrufe (Kapitel 6): Notruf, Behörden-, Sonder-, Service- und Mehrwertnummern (z. B. 110, 115, 118…, 0180, 0900), Call-by-Call (010…) und **Auslandsnummern** (`00…` und `+` außer `+49`) lehnt SIPFunk ab. Interne Nebenstellen der Box (`**…`) gehen auch nicht, dort kann kein Fax ankommen. Das Fenster sagt dir das, bevor gewählt wird.
 - Ob ein Fax angekommen ist, entscheidet das Faxprotokoll: „Zugestellt“ heißt, das Gerät der Gegenseite hat jede Seite bestätigt.
 
-Zum Ausprobieren eignet sich ein Testfax-Empfang im Internet, etwa [simple-fax.de](https://simple-fax.de/test-fax-empfangen): Dort steht eine Testnummer, und das empfangene Fax erscheint nach ein bis zwei Minuten als Bild auf der Seite.
+Zum Ausprobieren eignet sich ein Testfax-Empfang im Internet, etwa [simple-fax.de](https://simple-fax.de/test-fax-empfangen): Dort steht eine Testnummer, und das empfangene Fax erscheint nach ein bis zwei Minuten als Bild auf der Seite. So siehst du auch, wie Kopfzeile und Absenderkennung beim Empfänger ankommen.
 
-### 14.5 Nummernvorschläge und FRITZ!Box-Telefonbuch
+### 14.5 Empfänger suchen
 
-Beim Tippen schlägt das Fax-Fenster Nummern vor, in dieser Reihenfolge:
+![Suche im Fax-Fenster: „st“ findet Namen und Nummern, Faxnummern stehen oben](images/fax-search.de.png)
 
-1. **Faxnummern aus dem FRITZ!Box-Telefonbuch** (Nummern mit dem Typ „Fax“), gekennzeichnet mit „Fax“,
-2. deine **SIPFunk-Kontakte** (Kapitel 11.1),
-3. die **übrigen Nummern aus dem FRITZ!Box-Telefonbuch**, gekennzeichnet mit „FRITZ!Box“.
+Sobald du im Feld „An“ tippst, öffnet sich eine Trefferliste aus deinen **SIPFunk-Kontakten** und dem **FRITZ!Box-Telefonbuch** (14.6). Jede Zeile zeigt Name, Nummer und die Herkunft: „Fax“ für Faxnummern aus dem Telefonbuch, „FRITZ!Box“ für die übrigen Nummern von dort, ohne Kennzeichen für SIPFunk-Kontakte. Treffer im Namen sind hervorgehoben.
 
-Tippst du nur einen Namen, nimmt SIPFunk dessen Faxnummer, sonst die erste passende Nummer. Das Wählfeld auf dem Dashboard schlägt ebenfalls Nummern aus dem FRITZ!Box-Telefonbuch vor, dort aber **keine** Faxnummern.
+So funktioniert die Suche:
 
-Damit eine Nummer als Faxnummer erkannt wird, trägst du sie im Telefonbuch der FRITZ!Box beim Kontakt mit dem Typ **„Fax“** ein. Übernommen wird nichts: Das FRITZ!Box-Telefonbuch bleibt die einzige Quelle, deine SIPFunk-Kontakte ändern sich nicht.
+- Gesucht wird in **Name und Nummer**, ohne Rücksicht auf Groß- und Kleinschreibung, an jeder Stelle (nicht nur am Anfang).
+- **Mehrere Wörter** müssen alle passen, in beliebiger Reihenfolge.
+- **`*`** steht für beliebig viele Zeichen, **`?`** für genau eines.
+- Ziffern findest du auch ohne Leerzeichen, Striche oder Schrägstriche: `0301234` findet `030 1234567`.
+- **Faxnummern stehen oben**, dann Namen, die mit dem ersten Suchwort beginnen.
+
+| Eingabe | findet zum Beispiel |
+| --- | --- |
+| `kanz` | „Kanzlei Beispiel“ |
+| `st*er` | „Steuerbüro Muster“, „Stadtwerke Musterstadt“ |
+| `müller praxis` | „Praxis Dr. Müller“, „Müller Physiopraxis“ |
+| `0301234` | alle Nummern, die mit 030 1234… beginnen oder es enthalten |
+| `*09` | Nummern, in denen `09` vorkommt |
+| `M?ier` | „Maier“, „Meier“ |
+
+Bedienung: **Pfeil runter/hoch** wählt einen Treffer, **Enter** oder **Tab** übernimmt ihn, ein Klick auch; **Esc** schließt die Liste (ein zweites Esc das Fenster). Nach dem Übernehmen steht „Name – Nummer“ im Feld; gefaxt wird an die Nummer. Tippst du nur einen Namen ohne Ziffern und gibt es genau einen Treffer, nimmt SIPFunk diesen. Findet die Suche nichts und hast du eine Nummer eingegeben, steht „Kein Kontakt – die Nummer wird so gewählt.“ da.
+
+### 14.6 FRITZ!Box-Telefonbuch
+
+![Seite „Kontakte“, Bereich FRITZ!Box-Telefonbuch: Zugang zur Box oder Telefonbuch-Datei](images/contacts-phonebook.de.png)
+
+Das Fax-Fenster und das Wählfeld auf dem Dashboard schlagen Nummern aus dem Telefonbuch der FRITZ!Box vor: das Fax-Fenster vor allem die **Faxnummern**, das Wählfeld die übrigen Nummern (dort **keine** Faxnummern). Übernommen wird nichts: Das FRITZ!Box-Telefonbuch bleibt die einzige Quelle, deine SIPFunk-Kontakte ändern sich nicht.
+
+Damit eine Nummer als Faxnummer gilt, trägst du sie im Telefonbuch der FRITZ!Box beim Kontakt mit dem Typ **„Fax“** ein (FRITZ!Box-Oberfläche › „Telefonie“ › „Telefonbuch“ › Kontakt bearbeiten › Nummer, Typ „Fax“).
 
 SIPFunk kommt auf zwei Wegen an das Telefonbuch:
 
-- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“. Welches Recht die Box für das Telefonbuch verlangt, hängt von FRITZ!OS ab: Versuch es zuerst mit dem engsten Recht für Telefonie („Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste“); meldet SIPFunk dann „FRITZ!Box lehnt die Anmeldung ab“, gib zusätzlich „FRITZ!Box Einstellungen“ frei. Das ist Vollzugriff auf die Box, und das Kennwort steht im Klartext in der `.env`; nimm ein eigenes, sonst nirgends verwendetes Kennwort. Der SIP-Zugang des IP-Telefons reicht nicht. Benutzer und Kennwort trägst du auf der Seite „Kontakte“ im Bereich „FRITZ!Box-Telefonbuch“ ein und klickst „Speichern und testen“; SIPFunk ruft das Telefonbuch dann gleich ab und zeigt das Ergebnis. Gespeichert wird in der `.env`, wo du die Werte auch von Hand setzen kannst:
+- **Live über TR-064 (empfohlen).** SIPFunk liest alle Telefonbücher der Box und hält sie 5 Minuten vor; „Aktualisieren“ holt sie sofort neu. Dafür braucht es einen **FRITZ!Box-Benutzer**: FRITZ!Box-Oberfläche › „System“ › „FRITZ!Box-Benutzer“ › „Benutzer hinzufügen“, z. B. „sipfunk“. Welches Recht die Box für das Telefonbuch verlangt, hängt von FRITZ!OS ab: Versuch es zuerst mit dem engsten Recht für Telefonie („Sprachnachrichten, Faxnachrichten, FRITZ!App Fon und Anrufliste“); meldet SIPFunk dann „FRITZ!Box lehnt die Anmeldung ab“, gib zusätzlich „FRITZ!Box Einstellungen“ frei. Das ist Vollzugriff auf die Box, und das Kennwort steht im Klartext in der `.env`; nimm ein eigenes, sonst nirgends verwendetes Kennwort. Der SIP-Zugang des IP-Telefons reicht nicht.
+
+  Benutzer und Kennwort trägst du auf der Seite **„Kontakte“** im Bereich **„FRITZ!Box-Telefonbuch“** unter „Zugang zur FRITZ!Box (live)“ ein und klickst **„Speichern und testen“**; SIPFunk ruft das Telefonbuch dann gleich ab und zeigt „Verbunden: 50 Nummern aus der FRITZ!Box.“ oder den Fehler. „Adresse der Box“ bleibt meist leer (dann gilt die der Telefonanlage). „Zugang entfernen“ löscht ihn wieder. Gespeichert wird in der `.env`, wo du die Werte auch von Hand setzen kannst:
 
   | Variable | Standard | Wirkung |
   | --- | --- | --- |
   | `FRITZ_USER`, `FRITZ_PASSWORD` | –, – | FRITZ!Box-Benutzer für das Telefonbuch |
   | `FRITZ_HOST` | wie `SIP_SERVER` | Adresse der Box, falls sie anders lautet |
 
-  Unter „Einstellungen › Heimnetz › Netzwerk › Netzwerkeinstellungen“ muss „Zugriff für Anwendungen zulassen“ (TR-064) eingeschaltet sein.
-- **Aus einer Datei.** Ohne FRITZ!Box-Benutzer sicherst du das Telefonbuch in der FRITZ!Box („Telefonie“ › „Telefonbuch“ › „Sichern“) und lädst die XML-Datei auf der Seite „Kontakte“ im Bereich **„FRITZ!Box-Telefonbuch“** mit „Datei wählen“ hoch. Sie liegt dann als `fritz-telefonbuch.xml` im Datenordner. Änderungen in der Box siehst du erst, wenn du die Datei neu sicherst und hochlädst. Ist ein FRITZ!Box-Benutzer eingerichtet und die Box nicht erreichbar, nimmt SIPFunk die Datei als Ersatz.
+  Unter „Heimnetz › Netzwerk › Netzwerkeinstellungen“ muss „Zugriff für Anwendungen zulassen“ (TR-064) eingeschaltet sein. Zu viele falsche Anmeldungen sperren die Anmeldung der Box eine Weile.
+- **Aus einer Datei.** Ohne FRITZ!Box-Benutzer sicherst du das Telefonbuch in der FRITZ!Box („Telefonie“ › „Telefonbuch“ › „Sichern“) und lädst die XML-Datei im selben Bereich unter „Oder aus einer Datei“ mit **„Datei wählen“** hoch. Sie liegt dann als `fritz-telefonbuch.xml` im Datenordner. Änderungen in der Box siehst du erst, wenn du die Datei neu sicherst und hochlädst. „Datei entfernen“ löscht sie. Ist ein FRITZ!Box-Benutzer eingerichtet und die Box nicht erreichbar, nimmt SIPFunk die Datei als Ersatz.
 
-Der Bereich „FRITZ!Box-Telefonbuch“ auf der Seite „Kontakte“ zeigt die Quelle und die Zahl der Nummern, etwa „Live aus der FRITZ!Box: 50 Nummern, davon 3 Fax“, und bei Problemen den Fehler.
+Oben rechts im Bereich steht die Quelle und die Zahl der Nummern, etwa „Live aus der FRITZ!Box: 50 Nummern, davon 3 Fax“ oder „Aus der gespeicherten Datei: …“, bei Problemen der Fehler.
 
-### 14.6 Faxen ohne Drucker: `/api/fax`
+### 14.7 Gesendete Faxe im Anrufe-Log
+
+![Anrufe-Log mit einem Fax: Kennzeichen „Fax“, Dokument, Ergebnis, Seiten, Übertragung und Gegenstelle](images/calls-fax.de.png)
+
+Jedes Fax, das zugestellt wurde oder fehlgeschlagen ist, steht danach auf der Seite **„Anrufe“** (und unter „Letzte Anrufe“ auf dem Dashboard), zwischen den Gesprächen, nach Zeit sortiert:
+
+- In der Liste ist es mit **„Fax“** gekennzeichnet, ein fehlgeschlagenes zusätzlich rot mit **„Fehlgeschlagen“**. Die Zeile darunter nennt Dokument, Seitenzahl und Übertragungsrate bzw. den Grund des Fehlschlags.
+- Ein Klick zeigt statt eines Transkripts die Eckdaten: **Dokument**, **Ergebnis**, **Seiten** (gesendet von insgesamt), **Übertragung** (Rate, ECM) und **Gegenstelle**.
+- Die Suche über der Liste findet Faxe wie Gespräche nach Name oder Nummer; über den Kontakt („Verlauf“) siehst du Faxe und Gespräche mit diesem Kontakt zusammen.
+- „Als Kontakt speichern“ legt die Faxnummer als Kontakt an, „Protokoll löschen“ entfernt den Eintrag.
+
+Fax-Einträge folgen derselben Aufbewahrungsfrist wie Gesprächsprotokolle (Einstellungen › Technik, Standard 7 Tage) und liegen wie diese als `.json` und `.md` im Ordner `transcripts`. Das Dokument selbst speichert SIPFunk nicht, nur seinen Namen.
+
+### 14.8 Faxen ohne Drucker: `/api/fax`
 
 Programme und Skripte auf demselben Rechner können ein PDF direkt faxen:
 
@@ -951,14 +1033,25 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3865/api/fax -ContentType '
   -Body (@{ number = '030 1234567'; name = 'Rechnung'; pdf = $pdf } | ConvertTo-Json)
 ```
 
-Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zustand aller Aufträge (`queued`, `converting`, `dialing`, `sending`, `done`, `failed`) und ob der Fax-Zugang angemeldet ist. Angenommen werden nur PDFs bis etwa 22 MB. Wie die ganze Web-UI ist die Schnittstelle nur auf 127.0.0.1 erreichbar und hat keine Anmeldung ([SECURITY](../SECURITY.de.md)).
+Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zustand aller Aufträge (`queued`, `converting`, `dialing`, `sending`, `done`, `failed`, dazu `pages`, `totalPages`, `bitRate`, `ecm`, `remoteIdent`, `error`) und ob der Fax-Zugang angemeldet ist. Angenommen werden nur PDFs bis etwa 22 MB. Auch so gesendete Faxe stehen im Anrufe-Log. Wie die ganze Web-UI ist die Schnittstelle nur auf 127.0.0.1 erreichbar und hat keine Anmeldung ([SECURITY](../SECURITY.de.md)).
 
-### 14.7 Grenzen
+### 14.9 Tipps und häufige Fragen
+
+- **Im Fax-Fenster steht „Druckauftrag 14:05“ statt des Dokumentnamens.** Manche Programme schicken den Namen nicht mit (etwa beim Druck über den XPS-Weg von Windows). Dann nimmt SIPFunk die Uhrzeit. Am Fax ändert das nichts.
+- **Wie sieht mein Fax beim Empfänger aus?** Schick ein Testfax an einen Testfax-Empfang (14.4). Die Kopfzeile steht oben auf jeder Seite, die Absenderkennung im Faxprotokoll des Empfängers.
+- **Kann ich faxen, während die KI telefoniert?** Ja. Das Fax läuft über ein eigenes IP-Telefon (14.1).
+- **Mehrere Seiten, Farbe, Querformat?** Mehrseitige Dokumente gehen in einem Fax. Farbe wird zu Schwarzweiß, Querformat wird auf A4 hochkant eingepasst; für gut lesbare Faxe besser hochkant drucken.
+- **Das Fax bricht immer an derselben Stelle ab.** Höchste Geschwindigkeit auf 9.600 bit/s stellen (14.2) und den Rechner möglichst per LAN-Kabel anschließen.
+- **Die Gegenseite nimmt ab, aber es kommt kein Fax zustande.** Meist ist die Nummer kein Faxanschluss (ein Mensch oder ein Anrufbeantworter hebt ab). Das Ergebnis lautet dann „Fehlgeschlagen“ mit einer Meldung des Faxprotokolls (auf Englisch, etwa eine Zeitüberschreitung beim Verbindungsaufbau).
+- **Die Oberfläche ist auf Englisch, die Fehlermeldung nicht?** Fax-Fenster und Einstellungen folgen der Sprache unter „Einstellungen › Sprache“. Meldungen der FRITZ!Box oder der Gegenstelle (etwa „486 Busy Here“) gibt SIPFunk unverändert weiter.
+
+### 14.10 Grenzen
 
 - Nur Senden, kein Empfang. Nur Ziele im Inland.
-- Fax über eine Sprachverbindung ist empfindlich: Netzwerkaussetzer oder ein stark ausgelasteter Rechner können eine Übertragung abbrechen. Ein Rechner am LAN-Kabel ist zuverlässiger als WLAN. Mit ECM werden gestörte Stellen meist neu gesendet; bricht es trotzdem ab, `FAX_MAX_BITRATE=9600` versuchen.
+- Fax über eine Sprachverbindung ist empfindlich: Netzwerkaussetzer oder ein stark ausgelasteter Rechner können eine Übertragung abbrechen. Ein Rechner am LAN-Kabel ist zuverlässiger als WLAN. Mit ECM werden gestörte Stellen meist neu gesendet; bricht es trotzdem ab, 9.600 bit/s versuchen.
 - Seiten werden auf A4 eingepasst. Sehr feine Schrift und Graustufen leiden wie bei jedem Fax.
 - Der Drucker „SIPFunk Fax“ braucht den Treiber „Microsoft PS Class Driver“ (PostScript). Mit einem anderen Treiber meldet das Log „kein PostScript“.
+- Der Fortschritt innerhalb einer Seite ist geschätzt; genau bekannt ist nur, wann eine Seite bestätigt ist.
 
 ---
 
@@ -984,7 +1077,7 @@ Die erste und die vierte Zeile lassen sich auch mit dem Einrichtungsassistenten 
 | `WEB_PORT` | 3865 | Startwert für den Port der Web-UI (nur 127.0.0.1); danach gilt die Einstellung unter „Technik“ (Abschnitt 15.3). Weicht `WEB_PORT` später von der Einstellung ab, steht das beim Start im Log |
 | `SIP_DEBUG` | 0 | alle SIP-Nachrichten ins Log |
 | `FAX_…` | – | Fax-Zugang, Absenderkennung, Kopfzeile, Geschwindigkeit (auch unter „Einstellungen › Fax“), Ports (Abschnitt 14.2) |
-| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box-Benutzer für das Telefonbuch (auch auf der Seite „Kontakte“, Abschnitt 14.5) |
+| `FRITZ_USER`, `FRITZ_PASSWORD`, `FRITZ_HOST` | – | FRITZ!Box-Benutzer für das Telefonbuch (auch auf der Seite „Kontakte“, Abschnitt 14.6) |
 
 ### 15.2 Web-UI, Abschnitt „Technik“
 
@@ -1057,7 +1150,7 @@ Das Log (im Terminal, auf dem Dashboard in der Karte „Systemprotokoll“ (Stuf
 | Durchstellen klappt nicht | Log „REFER“; die Box muss die Nummer anrufen dürfen |
 | Nach dem Drucken auf „SIPFunk Fax“ kommt kein Fax-Fenster | Läuft SIPFunk? Fax-Zugang unter „Einstellungen › Fax“ angemeldet? `FAX_PRINT_PORT` und der Port des Druckers gleich (Abschnitt 14.3)? Log „Fax-Drucker: …“ |
 | Log „Fax-Drucker: … kein PostScript“ | Der Drucker nutzt einen anderen Treiber; mit `fax-printer.ps1 -Remove` entfernen und neu einrichten (Abschnitt 14.3) |
-| Fax „Fehlgeschlagen“ | Grund im Fax-Fenster und im Log („Fax: Auftrag … fehlgeschlagen“). Nimmt die Gegenseite nicht ab oder ist kein Fax, kommt kein Faxsignal; bricht es mitten in der Seite ab, `FAX_MAX_BITRATE=9600` und LAN statt WLAN versuchen (Abschnitt 14.7) |
+| Fax „Fehlgeschlagen“ | Grund im Fax-Fenster und im Log („Fax: Auftrag … fehlgeschlagen“). Nimmt die Gegenseite nicht ab oder ist kein Fax, kommt kein Faxsignal; bricht es mitten in der Seite ab, `FAX_MAX_BITRATE=9600` und LAN statt WLAN versuchen (Abschnitt 14.10) |
 | Log „Fax: Anmeldung an der FRITZ!Box fehlgeschlagen“ | `FAX_USER`/`FAX_PASSWORD`; ist das IP-Telefon für das Fax in der Box angelegt (Abschnitt 14.1)? |
 | FRITZ!Box-Telefonbuch: „FRITZ!Box lehnt die Anmeldung ab“ | `FRITZ_USER`/`FRITZ_PASSWORD` prüfen (FRITZ!Box-Benutzer, nicht der SIP-Zugang); zu viele Fehlversuche sperren die Anmeldung der Box eine Weile |
 

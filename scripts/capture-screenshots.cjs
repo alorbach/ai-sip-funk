@@ -114,7 +114,7 @@ function demoRecord(start, durationSec, target, rest) {
   };
 }
 
-function writeDemoData(webPort) {
+function writeDemoData(webPort, faxPort) {
   fs.writeFileSync(path.join(dataDir, '.env'), [
     'SIP_SERVER=127.0.0.1',
     'SIP_USER=demo',
@@ -126,8 +126,26 @@ function writeDemoData(webPort) {
     'GEMINI_API_KEY=AIza-demo-00000000000000000000',
     'AI_KEY_CDEMO1=sk-demo-1111111111111111',
     `WEB_PORT=${webPort}`,
+    // Fax: Demo-Zugang an der Schein-Anlage, Drucker-Empfang auf einem freien Port
+    'FAX_USER=demo-fax',
+    'FAX_PASSWORD=demo-fax',
+    'FAX_SIP_LOCAL_PORT=5076',
+    'FAX_RTP_PORT=40250',
+    `FAX_PRINT_PORT=${faxPort}`,
+    "FAX_IDENT='+49 30 23125100'",
+    "FAX_HEADER='Max Mustermann'",
     '',
   ].join('\n'));
+
+  // FRITZ!Box-Telefonbuch als gesicherte Datei (erfundene Einträge)
+  const pbEntry = (name, numbers) => `<contact><person><realName>${name}</realName></person><telephony>${numbers.map(([type, n]) => `<number type="${type}">${n}</number>`).join('')}</telephony></contact>`;
+  fs.writeFileSync(path.join(dataDir, 'fritz-telefonbuch.xml'), `<?xml version="1.0" encoding="utf-8"?><phonebooks><phonebook name="Telefonbuch">${[
+    pbEntry('Kanzlei Beispiel', [['work', '030 23125400'], ['fax_work', '030 23125409']]),
+    pbEntry('Steuerbüro Muster', [['work', '030 23125500'], ['fax_work', '030 23125509']]),
+    pbEntry('Praxis Dr. Sommer', [['fax_work', '030 23125609']]),
+    pbEntry('Stadtwerke Musterstadt', [['work', '030 23125700']]),
+    pbEntry('Erika Mustermann', [['mobile', '0171 3920034'], ['home', '030 23125748']]),
+  ].join('')}</phonebook></phonebooks>`);
 
   fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
     uiMode: 'easy',
@@ -250,6 +268,15 @@ function writeDemoData(webPort) {
       ],
     }),
   ];
+  // Gesendete Faxe stehen ebenfalls im Anrufe-Log
+  const faxStart = isoAgo(1, 14, 5);
+  records.push({
+    id: demoRecord(faxStart, 0, '03023125409', { entries: [] }).id + '_fax',
+    startedAt: faxStart.toISOString(), endedAt: new Date(faxStart.getTime() + 52000).toISOString(),
+    target: '03023125409', mode: 'fax', durationSec: 52, endReason: 'zugestellt', entries: [],
+    summary: 'Fax „Kündigung Stromvertrag“: 2 Seite(n) zugestellt · 14400 bit/s, ECM · Gegenstelle „+49 30 23125409“',
+    fax: { name: 'Kündigung Stromvertrag', delivered: true, pages: 2, totalPages: 2, bitRate: 14400, ecm: true, remoteIdent: '+49 30 23125409' },
+  });
   for (const r of records) fs.writeFileSync(path.join(dataDir, 'transcripts', `${r.id}.json`), JSON.stringify(r, null, 2) + '\n');
 
   // Monatsverbrauch: erfundene Zahlen für den laufenden Monat
@@ -327,7 +354,7 @@ function startFakeRegistrar() {
 function startServer() {
   const env = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (/(API_KEY|ADMIN_KEY|_TOKEN|SECRET|PASSWORD|^SIP_|^OPENAI_|^GEMINI_|^SMTP_|^MAIL_|^AI_|^OWNER_|^WEB_PORT$|^RTP_PORT$|^LOCAL_IP$|^ELECTRON_)/i.test(k)) continue;
+    if (/(API_KEY|ADMIN_KEY|_TOKEN|SECRET|PASSWORD|^SIP_|^OPENAI_|^GEMINI_|^SMTP_|^MAIL_|^AI_|^OWNER_|^FAX_|^FRITZ_|^WEB_PORT$|^RTP_PORT$|^LOCAL_IP$|^ELECTRON_)/i.test(k)) continue;
     env[k] = v;
   }
   env.SIPFUNK_DATA_DIR = dataDir;
@@ -380,6 +407,21 @@ const SHOTS = [
   { name: 'calls-agent', hash: 'calls', mode: 'easy', height: 980, after: `(() => { const row = [...document.querySelectorAll('#page-calls .call.row')].find((r) => r.querySelector('.t')?.textContent.includes('Restaurant Sonne')); if (row) row.click(); })()` },
   // Port wie in der Doku (die Demo läuft auf einem freien Port)
   { name: 'settings-tech', hash: 'settings', mode: 'advanced', height: 1100, section: 'settings-tech', after: `(() => { $('t-web-port').value = '3865'; })()` },
+  // Fax: Einstellungen (Drucker-Zustand erfunden, damit das Bild nicht vom aufnehmenden Rechner abhängt), Telefonbuch, Anrufe-Log, Fax-Fenster
+  { name: 'settings-fax', hash: 'settings', mode: 'easy', height: 960, section: 'settings-fax', after: `(async () => { const f = await api('/api/fax/settings'); delete $('fx-state').dataset.touched; renderFaxSettings({ ...f, registered: true, printer: { supported: true, installed: true, port: f.printPort, script: true } }); })()` },
+  { name: 'contacts-phonebook', hash: 'contacts', mode: 'easy', height: 1180 },
+  { name: 'calls-fax', hash: 'calls', mode: 'easy', height: 760, after: `(() => { const row = [...document.querySelectorAll('#page-calls .call.row')].find((r) => r.querySelector('.pill')?.textContent === 'Fax'); if (row) row.click(); })()` },
+  { name: 'fax-search', page: 'fax.html', width: 480, height: 360, after: `(() => { const i = $('number'); i.focus(); i.value = 'st'; openList(); })()` },
+  { name: 'fax-progress', page: 'fax.html', width: 480, height: 360, after: `(() => {
+    const now = Date.now();
+    jobId = ''; finishing = true; draft = null;
+    t0 = now - 31000; phaseKey = 'sending|send'; phaseAt = now - 9000; pageAt = now - 7000; pageDurations = [12000]; shownPct = 0;
+    $('to').replaceChildren(I18N.t('An') + ' ', Object.assign(document.createElement('b'), { textContent: 'Kanzlei Beispiel · 030 23125409' }));
+    $('pv').hidden = true;
+    document.body.className = 'sending';
+    job = { state: 'sending', totalPages: 3, pages: 1, bitRate: 14400, ecm: true, remoteIdent: '+49 30 23125409' };
+    render();
+  })()` },
   // Import-Dialog mit einer erfundenen Vorschau (es wird nichts geladen und nichts importiert)
   { name: 'contacts-import', hash: 'contacts', mode: 'easy', height: 820, after: `(async () => {
     $('contact-import').click();
@@ -402,12 +444,13 @@ async function setSettings(port, values) {
 }
 
 async function capture(port, lang, shot) {
-  const win = new BrowserWindow({ width: 1280, height: shot.height, show: false, useContentSize: true, backgroundColor: '#ffffff', webPreferences: { partition: `shots-${lang}-${shot.name}`, backgroundThrottling: false } });
+  const width = shot.width || 1280;
+  const win = new BrowserWindow({ width, height: shot.height, show: false, useContentSize: true, backgroundColor: '#ffffff', webPreferences: { partition: `shots-${lang}-${shot.name}`, backgroundThrottling: false } });
   try {
     if (args.verbose) win.webContents.on('console-message', (_e, _level, message) => process.stdout.write(`[${shot.name}] ${message}\n`));
     const step = (t) => { if (args.verbose) process.stdout.write(`[${shot.name}.${lang}] ${t}\n`); };
-    const url = `http://127.0.0.1:${port}/#${shot.hash}`;
-    await setSettings(port, { uiLang: lang, uiMode: shot.mode, aiConnection: shot.connection || 'openai' });
+    const url = shot.page ? `http://127.0.0.1:${port}/${shot.page}?lang=${lang}` : `http://127.0.0.1:${port}/#${shot.hash}`;
+    await setSettings(port, { uiLang: lang, uiMode: shot.mode || 'easy', aiConnection: shot.connection || 'openai' });
     step('Einstellungen gesetzt');
     await win.loadURL(url);
     step('Seite geladen');
@@ -416,7 +459,8 @@ async function capture(port, lang, shot) {
     // (eine Abfrage in der Seite ginge beim Neuladen verloren).
     let state = '';
     let stableSince = '';
-    for (let i = 0; i < 60; i++) {
+    // Eigene Seiten (Fax-Fenster) haben keine Statuszeile: nur kurz warten
+    for (let i = 0; i < (shot.page ? 0 : 60); i++) {
       await sleep(500);
       try { state = await win.webContents.executeJavaScript(`document.readyState === 'complete' && [performance.timeOrigin, document.documentElement.lang, document.documentElement.dataset.ui, document.getElementById('regtext').textContent].join('|')`); } catch { state = ''; }
       const [origin, pageLang, pageMode, text] = String(state || '').split('|');
@@ -439,9 +483,9 @@ async function capture(port, lang, shot) {
     if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`); await sleep(300); }
     step('nehme auf');
     // Ein verstecktes Fenster zeichnet Änderungen im Dialog nicht immer neu: vor der Aufnahme neu zeichnen lassen
-    win.setContentSize(1280, shot.height + 1);
+    win.setContentSize(width, shot.height + 1);
     await sleep(200);
-    win.setContentSize(1280, shot.height);
+    win.setContentSize(width, shot.height);
     win.webContents.invalidate();
     await sleep(400);
     const image = await win.webContents.capturePage();
@@ -458,7 +502,8 @@ async function main() {
   nativeTheme.themeSource = 'light';
   fs.mkdirSync(outDir, { recursive: true });
   const port = await freePort(8930);
-  writeDemoData(port);
+  const faxPort = await freePort(9130);
+  writeDemoData(port, faxPort);
   const registrar = await startFakeRegistrar();
   if (!registrar) process.stdout.write('Hinweis: Port 5060 auf 127.0.0.1 ist belegt, die Anlage erscheint als nicht verbunden.\n');
   const server = startServer();
@@ -466,6 +511,13 @@ async function main() {
   try {
     await waitForServer(port, server);
     await sleep(1500);
+    // Druckauftrag an „SIPFunk Fax“ schicken, damit das Fax-Fenster etwas zu zeigen hat
+    await new Promise((resolve) => {
+      const sock = net.connect(faxPort, '127.0.0.1', () => sock.end(fs.readFileSync(path.join(ROOT, 'tools', 'faxmodem', 'test', 'testseite.ps'))));
+      sock.on('close', resolve);
+      sock.on('error', resolve);
+    });
+    await sleep(4000);
     if (args.verbose) process.stdout.write('--- Server-Log nach dem Start ---\n' + server.log().slice(-2500) + '\n');
     for (const lang of langs) {
       for (const shot of SHOTS) {

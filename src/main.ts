@@ -11,7 +11,7 @@ import { CallManager, type AudioHandler } from './callManager.js';
 import { log, logEvents } from './log.js';
 import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
-import { FaxService } from './fax/service.js';
+import { FaxService, type FaxJob } from './fax/service.js';
 import { FaxPrintPort } from './fax/printPort.js';
 import { changePrinter, printerStatus } from './fax/printer.js';
 import { FritzPhonebook } from './fritzPhonebook.js';
@@ -1040,7 +1040,41 @@ const fax = new FaxService({
   header: config.fax.header,
   maxBitRate: config.fax.maxBitRate,
 });
-fax.on('job', (job) => bus.emit('message', { type: 'fax', job }));
+fax.on('job', (job) => {
+  bus.emit('message', { type: 'fax', job });
+  if (job.state === 'done' || job.state === 'failed') logFax(job);
+});
+
+/** Abgeschlossenes Fax ins Anrufe-Log (Protokoll mit mode 'fax'); läuft über die normale Aufbewahrungsfrist */
+function logFax(job: FaxJob): void {
+  const started = new Date(job.created);
+  const ended = job.finished ? new Date(job.finished) : new Date();
+  const delivered = job.state === 'done';
+  const pages = job.pages ?? 0;
+  const details = [
+    delivered ? `${pages} Seite(n) zugestellt` : `Fehlgeschlagen: ${job.error ?? 'unbekannter Fehler'}`,
+    job.bitRate ? `${job.bitRate} bit/s${job.ecm ? ', ECM' : ''}` : '',
+    job.remoteIdent ? `Gegenstelle „${job.remoteIdent}“` : '',
+  ].filter(Boolean);
+  const record: CallRecord = {
+    id: TranscriptStore.makeId(started, job.number) + '_fax',
+    startedAt: started.toISOString(),
+    endedAt: ended.toISOString(),
+    target: job.number,
+    mode: 'fax',
+    durationSec: Math.max(0, Math.round((ended.getTime() - started.getTime()) / 1000)),
+    endReason: delivered ? 'zugestellt' : (job.error ?? 'fehlgeschlagen'),
+    entries: [],
+    summary: `Fax „${job.name}“: ${details.join(' · ')}`,
+    fax: { name: job.name, delivered, pages, totalPages: job.totalPages, bitRate: job.bitRate, ecm: job.ecm, remoteIdent: job.remoteIdent },
+  };
+  try {
+    store.save(record);
+    bus.emit('message', { type: 'transcripts', items: store.list() });
+  } catch (err) {
+    log.warn(`Fax-Protokoll nicht gespeichert: ${(err as Error).message}`);
+  }
+}
 // Drucken an „SIPFunk Fax“: Dokument als Entwurf ablegen, die Tray-App öffnet das Fax-Fenster für die Zielnummer
 fax.on('draft', () => traySend({ type: 'faxPrint' }));
 const faxPrint = config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
