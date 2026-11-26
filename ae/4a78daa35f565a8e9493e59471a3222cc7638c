@@ -1,0 +1,54 @@
+src/fax/printer.ts
+  s_e7bfd3011d4b49::t_adffa4238e5f40 1-57
+doc/user-guide.de.md
+  s_e7bfd3011d4b49::t_c66d8977043629 886-888
+  s_e7bfd3011d4b49::t_f323372fb69d51 986-987,1058
+  s_e7bfd3011d4b49::t_0eff2465641faa 932
+  s_e7bfd3011d4b49::t_faca1061cd6540 867,869-871
+src/fritzPhonebook.ts
+  s_e7bfd3011d4b49::t_106c4f4a6da107 143-153
+doc/user-guide.md
+  s_e7bfd3011d4b49::t_f6f1cef1a7c5b7 869,871-873
+  s_e7bfd3011d4b49::t_0eff2465641faa 934
+  s_e7bfd3011d4b49::t_f323372fb69d51 988-989,1060
+  s_e7bfd3011d4b49::t_487ac11183048e 888-890
+src/main.ts
+  s_e7bfd3011d4b49::t_f9d6c226ee4f00 16,1030-1043,1045-1082,1090,1092-1099,1203,1222
+  s_e7bfd3011d4b49::t_9a9a6d970ead92 1088-1089
+public/i18n-en.js
+  s_e7bfd3011d4b49::t_f16a14e9b34aab 552-599
+  s_e7bfd3011d4b49::t_617b88b8c32783 608-609
+src/web/server.ts
+  s_e7bfd3011d4b49::t_b60956a1c6b3f4 97-102,112-113,449,462-487
+public/index.html
+  s_e7bfd3011d4b49::t_7faf45a5239cd2 506-512,514-515,518-520
+  s_e7bfd3011d4b49::t_4ab7c784f432f3 513,516-517,544,749-762,764-768
+  s_e7bfd3011d4b49::t_1eee7345eb26ac 1396-1400,1402-1417,1419-1423,2167-2221
+  s_e7bfd3011d4b49::t_9a9a6d970ead92 1401
+  s_e7bfd3011d4b49::t_d64d290d5d9916 763
+  s_e7bfd3011d4b49::t_e8eeeca7df9c3f 2222
+src/fax/service.ts
+  s_e7bfd3011d4b49::t_15cd2ab894e046 227-229
+  s_e7bfd3011d4b49::t_03dd63863edef2 67-70,80,82-99,105,109-133,194,225
+  s_e7bfd3011d4b49::t_be3cba6305ae2f 226
+CHANGELOG.de.md
+  s_e7bfd3011d4b49::t_a2ab7fbdf497d5 9-13
+CHANGELOG.md
+  s_e7bfd3011d4b49::t_34d54fb6cb6de5 9-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae4a78daa35f565a8e9493e59471a3222cc7638c",
+  "prompts": {},
+  "sessions": {
+    "s_e7bfd3011d4b49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a65b3133-7071-4199-a295-95e330c73447",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
