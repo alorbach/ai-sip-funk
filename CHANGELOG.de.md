@@ -6,6 +6,12 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.3 – 26.11.2026
+
+- **Faxe im Anrufe-Log.** Jedes gesendete oder fehlgeschlagene Fax steht auf der Seite „Anrufe“ und unter den letzten Anrufen auf dem Dashboard, gekennzeichnet mit „Fax“ (fehlgeschlagen zusätzlich rot). Ein Klick zeigt Dokument, Ergebnis, Seiten, Übertragungsrate und Gegenstelle. Die Einträge folgen der Aufbewahrungsfrist der Protokolle; das Dokument selbst wird nicht gespeichert.
+- **Empfänger im Fax-Fenster suchen.** Eigene Trefferliste aus SIPFunk-Kontakten und FRITZ!Box-Telefonbuch: Suche in Name und Nummer an jeder Stelle, mehrere Wörter, `*` und `?` als Platzhalter, Ziffern auch ohne Leerzeichen; Faxnummern zuerst, Treffer hervorgehoben, Bedienung mit Pfeiltasten, Enter und Tab.
+- **Englische Oberfläche vollständig.** Neue Texte in Fax-Fenster, Fax-Einstellungen, Telefonbuch und Anrufe-Log sind übersetzt, ebenso die Meldungen des Faxdiensts und der Telefonbuch-Abfrage.
+- **Benutzerhandbuch: Kapitel „Faxen“ ausgebaut.** Kurzanleitung, Ablauf eines Dokuments, Einstellungen, Live-Fenster beim Senden, Empfängersuche mit Beispielen, FRITZ!Box-Telefonbuch, Faxe im Anrufe-Log, Schnittstelle, Tipps und häufige Fragen, mit neuen Bildern; alle Bilder des Handbuchs neu aufgenommen.
 - **Fax in der Web-UI einstellen.** Neuer Abschnitt „Einstellungen › Fax“: Fax-Zugang, Absenderkennung, Kopfzeile und Geschwindigkeit eintragen und mit „Speichern und anmelden“ sofort übernehmen, ohne Neustart. Dort lässt sich auch der Drucker „SIPFunk Fax“ einrichten und entfernen; der Abschnitt zeigt, ob er eingerichtet ist und auf den richtigen Port druckt.
 - **FRITZ!Box-Benutzer fürs Telefonbuch auf der Seite „Kontakte“.** Benutzer, Kennwort und Adresse eintragen, „Speichern und testen“ ruft das Telefonbuch gleich ab.
 - **Fax-Fenster mit Live-Status.** Schritte (Vorbereiten, Anwahl, Verbinden, Senden, Fertig), Fortschrittsbalken, „Sendet Seite 2 von 3“, Übertragungsrate, Gegenstelle und Laufzeit; am Ende grün oder rot mit dem Grund.

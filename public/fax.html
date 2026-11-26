@@ -349,7 +349,7 @@ function applyJob(j) {
     $('result').textContent = I18N.t('{0} Seite(n) zugestellt in {1}', j.pages || 0, fmtTime(elapsed(j, Date.now())));
   } else if (j.state === 'failed') {
     document.body.classList.add('failed');
-    $('result').textContent = j.error || I18N.t('Unbekannter Fehler');
+    $('result').textContent = j.error ? I18N.t(j.error) : I18N.t('Unbekannter Fehler');
   }
   render();
 }
@@ -406,7 +406,7 @@ $('send').onclick = async () => {
     applyJob(info);
     $('hide').focus();
   } catch (err) {
-    $('err').textContent = err.message;
+    $('err').textContent = I18N.t(err.message);
     $('send').disabled = $('discard').disabled = $('number').disabled = false;
   }
 };

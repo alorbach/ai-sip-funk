@@ -36,6 +36,18 @@ export interface CallRecord {
   notify?: boolean;
   /** 'mcp' = ein KI-Agent hat den Anruf über die MCP-Schnittstelle ausgelöst */
   origin?: 'mcp';
+  /** Faxversand (mode 'fax'): Dokument und Ergebnis laut Faxprotokoll */
+  fax?: FaxInfo;
+}
+
+export interface FaxInfo {
+  name: string;
+  delivered: boolean;
+  pages: number;
+  totalPages?: number;
+  bitRate?: number;
+  ecm?: boolean;
+  remoteIdent?: string;
 }
 
 export interface CallRecordSummary {
@@ -52,6 +64,7 @@ export interface CallRecordSummary {
   called?: string;
   notify?: boolean;
   origin?: 'mcp';
+  fax?: FaxInfo;
 }
 
 export class TranscriptStore {
@@ -79,8 +92,8 @@ export class TranscriptStore {
       .flatMap((f) => {
         const r = this.read(f.slice(0, -5));
         if (!r) return [];
-        const { id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin } = r;
-        return [{ id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin }];
+        const { id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin, fax } = r;
+        return [{ id, startedAt, target, mode, durationSec, endReason, outcome, summary, costUsd, spam, called, notify, origin, fax }];
       });
   }
 
@@ -140,6 +153,18 @@ export class TranscriptStore {
 }
 
 export function toMarkdown(r: CallRecord): string {
+  if (r.fax) {
+    return [
+      `# Fax ${r.startedAt.slice(0, 16).replace('T', ' ')} – ${r.target}`,
+      '',
+      `- Dokument: ${r.fax.name}`,
+      `- Ergebnis: ${r.endReason}`,
+      `- Seiten: ${r.fax.pages}${r.fax.totalPages ? ` von ${r.fax.totalPages}` : ''} · Dauer: ${r.durationSec}s`,
+      ...(r.fax.bitRate ? [`- Übertragung: ${r.fax.bitRate} bit/s${r.fax.ecm ? ', ECM' : ''}`] : []),
+      ...(r.fax.remoteIdent ? [`- Gegenstelle: ${r.fax.remoteIdent}`] : []),
+      '',
+    ].join('\n');
+  }
   const lines = [
     `# Gespräch ${r.startedAt.slice(0, 16).replace('T', ' ')} – ${r.target}`,
     '',

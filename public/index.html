@@ -241,6 +241,7 @@
   .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn-ink); vertical-align: middle; white-space: nowrap; }
   .pill.in { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); }
   .pill.out { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+  .pill.bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--text); }
   .ringbox { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
   .ringbox .v { font-weight: 600; }
   .ringbox .v[data-l="spam"] { color: var(--danger); }
@@ -332,6 +333,9 @@
   #setup details ol { margin: 8px 0 2px; padding-left: 20px; display: grid; gap: 4px; }
   .state { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 8px 12px; border-radius: var(--radius-s); background: var(--surface-2); color: var(--text-2); overflow-wrap: anywhere; }
   .state:empty { display: none; }
+  .fax-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 4px 0; font-size: 14px; }
+  .fax-facts dt { color: var(--text-2); }
+  .fax-facts dd { margin: 0; overflow-wrap: anywhere; }
   .state::before { content: "○"; flex: none; font-weight: 700; }
   .state[data-k="ok"] { color: var(--ok-ink); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); }
   .state[data-k="ok"]::before { content: "✓"; }
@@ -475,7 +479,7 @@
         <button id="calls-all" class="btn small quiet" style="display:none">Filter aufheben</button>
         <input id="calls-filter" class="search" type="search" placeholder="Name oder Nummer suchen" aria-label="Anrufe durchsuchen" style="flex:0 1 260px;width:auto;min-width:0">
       </div>
-      <p class="hint">Gespeicherte Protokolle, automatisch gelöscht nach <span id="retention">7</span> Tagen. Jeder Anruf ist als „Eingehend“, „Ausgehend“ oder „Rückruf an dich“ gekennzeichnet, Spam-Gespräche zusätzlich als „Spam-Abwehr“.</p>
+      <p class="hint">Gespeicherte Protokolle, automatisch gelöscht nach <span id="retention">7</span> Tagen. Jeder Anruf ist als „Eingehend“, „Ausgehend“ oder „Rückruf an dich“ gekennzeichnet, Spam-Gespräche zusätzlich als „Spam-Abwehr“. Gesendete Faxe stehen als „Fax“ dabei.</p>
     </div>
     <div class="two">
       <section class="card">
@@ -1226,12 +1230,23 @@ function renderUsage(u, model, costUsd) { $('usage').textContent = usageText(u, 
 // ---- Anrufe ----
 /** Name des Kontakts bzw. die Nummer – von der Übersetzung ausgenommen; nur „anonym“ ist ein Text der Oberfläche. */
 const nameHtml = (contact, target) => (contact || target ? `<span data-no-i18n>${esc(contact ? contact.name : target)}</span>` : 'anonym');
+/** Zeile unter einem Fax-Eintrag, in der Sprache der Oberfläche */
+function faxSummary(c) {
+  const f = c.fax;
+  const parts = [f.delivered ? I18N.t('{0} Seite(n) zugestellt', f.pages) : I18N.t('Fehlgeschlagen: {0}', I18N.t(c.endReason))];
+  if (f.bitRate) parts.push(`${f.bitRate.toLocaleString(I18N.locale)} bit/s${f.ecm ? ' · ECM' : ''}`);
+  return `${I18N.t('Fax')} „${f.name}“ · ${parts.join(' · ')}`;
+}
+/** Kennzeichen eines Fax-Eintrags: „Fax“ und bei einem Fehlschlag „fehlgeschlagen“ */
+function faxPills(f) {
+  return ' <span class="pill out">Fax</span>' + (f.delivered ? '' : ' <span class="pill bad">Fehlgeschlagen</span>');
+}
 function callRow(c, compact) {
   const contact = contactFor(c.target);
   const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0; d.setAttribute('role', 'button');
   if (c.id === selectedCallId && !compact) d.setAttribute('aria-current', 'true');
-  const sum = ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
-  const pills = `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${c.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
+  const sum = c.fax ? faxSummary(c) : ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
+  const pills = c.fax ? faxPills(c.fax) : `${c.called ? ' <span class="pill in">Eingehend</span>' : c.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${c.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${c.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
   d.innerHTML = `<div class="t">${nameHtml(contact, c.target)}${pills}</div>
     <div class="m">${esc(when(c.startedAt))} · ${fmt(c.durationSec)}</div>
     <div class="s" data-no-i18n>${esc(sum || c.endReason)}</div>`;
@@ -1272,10 +1287,33 @@ async function showCall(id) {
   const r = await api('/api/transcripts/' + encodeURIComponent(id));
   selectedCallId = id;
   const contact = contactFor(r.target);
-  const pills = `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${r.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
+  const pills = r.fax ? faxPills(r.fax) : `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${r.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
   $('call-detail-head').innerHTML = `<div class="t">${nameHtml(contact, r.target)}${contact ? ` <span class="hint" data-no-i18n>${esc(r.target)}</span>` : ''}${pills}</div>
-    <div class="m" data-no-i18n>${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.endReason)}${r.called ? ' · ' + esc(r.called) : ''}</div>
+    <div class="m" data-no-i18n>${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.fax ? I18N.t(r.endReason) : r.endReason)}${r.called ? ' · ' + esc(r.called) : ''}</div>
     ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> <span data-no-i18n>${esc(r.outcome.result)}${r.outcome.open ? ' · ' + esc(r.outcome.open) : ''}</span></div>` : ''}`;
+  // Fax: statt Transkript die Eckdaten der Übertragung
+  if (r.fax) {
+    const f = r.fax;
+    const rows = [
+      [I18N.t('Dokument'), f.name],
+      [I18N.t('Ergebnis'), f.delivered ? I18N.t('zugestellt') : I18N.t(r.endReason)],
+      [I18N.t('Seiten'), f.totalPages ? I18N.t('{0} von {1}', f.pages, f.totalPages) : String(f.pages)],
+      ...(f.bitRate ? [[I18N.t('Übertragung'), `${f.bitRate.toLocaleString(I18N.locale)} bit/s${f.ecm ? ' · ECM' : ''}`]] : []),
+      ...(f.remoteIdent ? [[I18N.t('Gegenstelle'), f.remoteIdent]] : []),
+    ];
+    const dl = document.createElement('dl'); dl.className = 'fax-facts';
+    for (const [k, v] of rows) dl.append(Object.assign(document.createElement('dt'), { textContent: k }), Object.assign(document.createElement('dd'), { textContent: v }));
+    $('call-transcript').replaceChildren(dl);
+    $('call-transcript').style.display = '';
+    $('call-summary').style.display = 'none';
+    $('call-usage').textContent = ''; $('call-usage-row').hidden = true;
+    const digitsF = (r.target || '').replace(/\D/g, '');
+    const af = $('call-actions'); af.style.display = ''; af.innerHTML = '';
+    if (!contact && digitsF.length >= 3) af.innerHTML += `<button class="btn small quiet" data-newcontact="${esc(r.target)}">Als Kontakt speichern</button>`;
+    af.innerHTML += `<button class="btn small quiet" data-del="${esc(r.id)}">Protokoll löschen</button>`;
+    renderCalls();
+    return;
+  }
   $('call-transcript').style.display = '';
   renderTranscriptInto($('call-transcript'), r.entries || [], 'Kein Transkript gespeichert.');
   renderSummaryInto($('call-summary'), r.summary || '');
@@ -1390,8 +1428,8 @@ function renderFritz(fb) {
   const fax = fritzItems.length - voice.length;
   const counts = I18N.t('{0} Nummern, davon {1} Fax', fritzItems.length, fax);
   $('fritz-status').textContent = fb.source === 'tr064' ? I18N.t('Live aus der FRITZ!Box: {0}', counts)
-    : fb.source === 'xml' ? I18N.t('Aus der gespeicherten Datei: {0}', counts) + (fb.error ? ' – ' + fb.error : '')
-    : fb.error || I18N.t('Keine Quelle eingerichtet');
+    : fb.source === 'xml' ? I18N.t('Aus der gespeicherten Datei: {0}', counts) + (fb.error ? ' – ' + I18N.t(fb.error) : '')
+    : fb.error ? I18N.t(fb.error) : I18N.t('Keine Quelle eingerichtet');
   $('fritz-file-del').hidden = fb.source !== 'xml';
   const a = fb.access;
   if (a && !$('fb-state').dataset.touched) {
@@ -1412,8 +1450,8 @@ async function fritzAccess(body, busy) {
     renderFritz(fb);
     if (!body.user) setState('fb-state', 'ok', I18N.t('Zugang entfernt.'));
     else if (fb.source === 'tr064') setState('fb-state', 'ok', I18N.t('Verbunden: {0} Nummern aus der FRITZ!Box.', (fb.items || []).length));
-    else setState('fb-state', 'bad', fb.error || I18N.t('Die FRITZ!Box hat kein Telefonbuch geliefert.'));
-  } catch (err) { setState('fb-state', 'bad', err.message); }
+    else setState('fb-state', 'bad', fb.error ? I18N.t(fb.error) : I18N.t('Die FRITZ!Box hat kein Telefonbuch geliefert.'));
+  } catch (err) { setState('fb-state', 'bad', I18N.t(err.message)); }
   $('fb-save').disabled = $('fb-off').disabled = false;
 }
 $('fb-save').onclick = () => {
@@ -2175,7 +2213,7 @@ function renderFaxSettings(f) {
   $('fx-rate').value = String(f.maxBitRate || 14400);
   $('fx-off').hidden = !f.user;
   $('fax-status').textContent = !f.user ? I18N.t('nicht eingerichtet') : f.registered ? I18N.t('angemeldet') : I18N.t('nicht angemeldet');
-  if (!$('fx-state').dataset.touched) setState('fx-state', !f.user ? '' : f.registered ? 'ok' : 'bad', !f.user ? '' : f.registered ? I18N.t('Fax-Telefon „{0}“ ist an der FRITZ!Box angemeldet.', f.user) : I18N.t('Nicht angemeldet{0}', f.error ? ': ' + f.error : ''));
+  if (!$('fx-state').dataset.touched) setState('fx-state', !f.user ? '' : f.registered ? 'ok' : 'bad', !f.user ? '' : f.registered ? I18N.t('Fax-Telefon „{0}“ ist an der FRITZ!Box angemeldet.', f.user) : I18N.t('Nicht angemeldet{0}', f.error ? ': ' + I18N.t(f.error) : ''));
   const p = f.printer || {};
   $('fx-printer-install').hidden = !p.supported || p.installed;
   $('fx-printer-remove').hidden = !p.supported || !p.installed;
@@ -2197,7 +2235,7 @@ async function saveFax(body, busy) {
     delete $('fx-state').dataset.touched;
     renderFaxSettings(f);
     if (!f.user) setState('fx-state', 'ok', I18N.t('Fax-Zugang entfernt.'));
-  } catch (err) { setState('fx-state', 'bad', err.message); }
+  } catch (err) { setState('fx-state', 'bad', I18N.t(err.message)); }
   $('fx-save').disabled = $('fx-off').disabled = false;
 }
 $('fx-save').onclick = () => {
@@ -2212,7 +2250,7 @@ async function printerAction(action) {
   try {
     await api('/api/fax/printer', { action });
     setState('fx-printer-state', 'ok', action === 'install' ? I18N.t('Drucker eingerichtet.') : I18N.t('Drucker entfernt.'));
-  } catch (err) { setState('fx-printer-state', 'bad', err.message); }
+  } catch (err) { setState('fx-printer-state', 'bad', I18N.t(err.message)); }
   btns.forEach((b) => (b.disabled = false));
   await loadFaxSettings();
 }

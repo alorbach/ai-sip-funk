@@ -81,3 +81,19 @@ test('Fax-Drucker: nur Aufträge, die mit PostScript oder PJL beginnen (keine HT
   assert.throws(() => cleanPostScript(Buffer.from('POST / HTTP/1.1\r\nHost: 127.0.0.1:9101\r\n\r\n%!PS-Adobe-3.0\nshowpage\n')), /kein PostScript/);
   assert.equal(cleanPostScript(Buffer.from('\x04\r\n%!PS-Adobe-3.0\nshowpage\n', 'latin1')).toString('latin1'), '%!PS-Adobe-3.0\nshowpage\n');
 });
+
+test('Fax im Anrufe-Log: Protokoll mit mode „fax“, in der Liste und als Markdown', async () => {
+  const { TranscriptStore } = await import('../src/transcripts.js');
+  const dir = mkdtempSync(path.join(tmpdir(), 'sipfunk-faxlog-'));
+  const store = new TranscriptStore(dir, 7);
+  const id = TranscriptStore.makeId(new Date('2026-11-26T10:00:00Z'), '0301234567') + '_fax';
+  store.save({
+    id, startedAt: '2026-11-26T10:00:00.000Z', endedAt: '2026-11-26T10:00:48.000Z', target: '0301234567', mode: 'fax',
+    durationSec: 48, endReason: 'zugestellt', entries: [], summary: 'Fax „Rechnung“: 2 Seite(n) zugestellt',
+    fax: { name: 'Rechnung', delivered: true, pages: 2, totalPages: 2, bitRate: 14400, ecm: true },
+  });
+  const item = store.list().find((r) => r.id === id);
+  assert.equal(item?.mode, 'fax');
+  assert.equal(item?.fax?.pages, 2);
+  assert.match(readFileSync(path.join(dir, `${id}.md`), 'utf8'), /^# Fax .*\n\n- Dokument: Rechnung\n- Ergebnis: zugestellt\n- Seiten: 2 von 2/);
+});

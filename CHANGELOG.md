@@ -6,6 +6,12 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+## 1.0.3 – 26 November 2026
+
+- **Faxes in the call log.** Every fax sent or failed is listed on the Calls page and among the recent calls on the dashboard, tagged "Fax" (failed ones additionally in red). A click shows document, result, pages, transmission rate and remote station. The entries follow the retention period of the call logs; the document itself is not stored.
+- **Search for the recipient in the fax window.** A list of matches from SIPFunk contacts and the FRITZ!Box phonebook: searches name and number anywhere, several words, `*` and `?` as wildcards, digits also without spaces; fax numbers first, matches highlighted, controlled with arrow keys, Enter and Tab.
+- **English interface complete.** New texts in the fax window, fax settings, phonebook and call log are translated, as are the messages of the fax service and the phonebook lookup.
+- **User guide: chapter "Faxing" expanded.** Quick start, the path of a document, settings, the live window while sending, recipient search with examples, FRITZ!Box phonebook, faxes in the call log, interface, tips and frequently asked questions, with new pictures; all pictures in the guide recaptured.
 - **Fax settings in the web UI.** New section "Einstellungen › Fax" (Settings › Fax): enter the fax account, sender ID, header line and speed and apply them right away with "Speichern und anmelden" (save and register), without a restart. The "SIPFunk Fax" printer can be set up and removed there too; the section shows whether it is set up and prints to the right port.
 - **FRITZ!Box user for the phonebook on the Contacts page.** Enter user, password and address; "Speichern und testen" (save and test) fetches the phonebook right away.
 - **Fax window with live status.** Steps (prepare, dial, connect, send, done), a progress bar, "Sendet Seite 2 von 3" (sending page 2 of 3), transmission rate, remote station and elapsed time; at the end green or red with the reason.
