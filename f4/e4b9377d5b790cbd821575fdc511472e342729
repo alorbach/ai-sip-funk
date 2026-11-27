@@ -1,0 +1,46 @@
+doc/user-guide.de.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 117
+package.json
+  s_5b8db699bd2409::t_498ebea0d4c4d9 3
+  s_5b8db699bd2409::t_8945f6cdf4844d 128
+CONTRIBUTING.de.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 40
+doc/privacy.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 13,19
+doc/store-listing.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 15,90,151
+doc/privacy.de.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 13,19
+CONTRIBUTING.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 40
+electron/main.cjs
+  s_5b8db699bd2409::t_d92c9c366ebcfd 268-285
+  s_5b8db699bd2409::t_8945f6cdf4844d 231,327
+CHANGELOG.de.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 9-12
+doc/user-guide.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 119
+build/appxmanifest.xml
+  s_5b8db699bd2409::t_498ebea0d4c4d9 9-10
+  s_5b8db699bd2409::t_100459841d1f6a 4-7,20
+CHANGELOG.md
+  s_5b8db699bd2409::t_c74ede4e61ca14 9-12
+package-lock.json
+  s_5b8db699bd2409::t_22034b4cf9e8fd 3,9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4e4b9377d5b790cbd821575fdc511472e342729",
+  "prompts": {},
+  "sessions": {
+    "s_5b8db699bd2409": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "876a3af3-f4de-4456-a162-06ba8b47af01",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
