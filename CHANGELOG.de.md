@@ -6,6 +6,10 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.7 – 27.11.2026
+
+- **Store-Fassung ohne eingeschränkte Fähigkeit für den Datenordner.** Microsoft hat `unvirtualizedResources` abgelehnt. Die Store-Fassung arbeitet weiter mit einem vorhandenen `%APPDATA%\SIPFunk` der Installer-Fassung; bei einer Neuinstallation liegen ihre Daten im Paketordner der App und werden beim Deinstallieren gelöscht. „Datenordner öffnen“ und „Einstellungen (.env) bearbeiten“ finden den Ordner in beiden Fällen.
+
 ## 1.0.6 – 27.11.2026
 
 - **Microsoft-Store-Fassung.** Der Release baut zusätzlich ein Paket für den Microsoft Store (MSIX). Die Store-Fassung ist von Microsoft signiert und zeigt daher keine SmartScreen-Warnung; Updates kommen über den Store. Sie nutzt denselben Datenordner wie die Installer-Fassung. Den Autostart verwaltet Windows, im Tray-Menü öffnet „Autostart in Windows einstellen …“ die Seite „Autostart-Apps“.

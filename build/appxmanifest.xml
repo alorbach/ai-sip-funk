@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Manifest of the Microsoft Store package (package.json: build.appx.customManifestPath). It is
-  electron-builder's template with two additions:
+  electron-builder's template plus firewall rules. File system write virtualization stays on (the
+  Store denied unvirtualizedResources): new files under %APPDATA%\SIPFunk land in the package's private
+  folder, existing ones of the installer edition are read from the real folder. The tray opens the
+  private copy where one exists (electron/main.cjs, outsidePath).
 
-  - FileSystemWriteVirtualization disabled (needs the restricted capability unvirtualizedResources):
-    SIPFunk writes to the real %APPDATA%\SIPFunk like the installer version. Otherwise Explorer and the
-    editor ("Open data folder", "Edit settings (.env)") would see an empty folder, an entry for Claude
-    Desktop would stay invisible to Claude, and uninstalling would delete .env and all data.
-  - Firewall rules for incoming SIP and RTP (UDP) on the default ports from .env.example, so Windows
-    need not ask on the first call. Other ports configured by the user still get the usual prompt.
+  Firewall rules for incoming SIP and RTP (UDP) on the default ports from .env.example, so Windows
+  need not ask on the first call. Other ports configured by the user still get the usual prompt.
 
   The ${...} placeholders are filled in by electron-builder.
 -->
@@ -18,9 +17,7 @@
    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
    xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
    xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2"
-   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
-   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-   IgnorableNamespaces="desktop6">
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
   <Identity Name="${identityName}"
     ProcessorArchitecture="${arch}"
     Publisher="${publisher}"
@@ -30,7 +27,6 @@
     <PublisherDisplayName>${publisherDisplayName}</PublisherDisplayName>
     <Description>${description}</Description>
     <Logo>${logo}</Logo>
-    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
   </Properties>
   <Resources>
     ${resourceLanguages}

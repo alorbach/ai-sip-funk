@@ -10,13 +10,13 @@ SIPFunk runs entirely on your computer. The publisher of SIPFunk runs no server,
 
 ## What is stored on your computer
 
-In the data folder (`%APPDATA%\SIPFunk`, tray menu "Open data folder"):
+In the data folder (`%APPDATA%\SIPFunk`, or the app's package folder for the Store edition without a prior installer edition; tray menu "Open data folder"):
 
 - `.env`: credentials for the phone system, the AI provider and, if used, mail, in plain text.
 - `settings.json`, `contacts.json`: settings, contacts and notes, including contacts imported from an address book.
 - Call logs as text (transcript, summary, result) and the operating log with phone numbers. SIPFunk deletes both after the configured period (default 7 days).
 
-SIPFunk stores no call audio. The data folder is not encrypted; protect your computer accordingly (e.g. BitLocker). Uninstalling leaves the data folder in place so that a reinstallation or the other edition can carry on. You can delete it yourself at any time.
+SIPFunk stores no call audio. The data folder is not encrypted; protect your computer accordingly (e.g. BitLocker). Uninstalling leaves `%APPDATA%\SIPFunk` in place so that a reinstallation or the other edition can carry on; Windows deletes a package folder of the Store edition along with the app. You can delete it yourself at any time.
 
 ## Where data goes
 
