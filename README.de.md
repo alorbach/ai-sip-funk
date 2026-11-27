@@ -126,6 +126,7 @@ FRITZ!Box ist eine Marke der AVM GmbH, OpenAI eine Marke von OpenAI, Google und 
 - [Benutzerhandbuch](doc/user-guide.de.md): Einrichtung, alle Funktionen und Einstellungen, Fehlersuche.
 - [Richtlinien für den Einsatz](doc/guidelines.de.md): wofür SIPFunk gedacht ist und wofür nicht.
 - [Rechtliche Aspekte](doc/legal.de.md): KI-Verordnung, Datenschutz, Telefonwerbung, Risiken der Spam-Abwehr.
+- [Datenschutzerklärung](doc/privacy.de.md): was SIPFunk speichert und wohin Daten gehen.
 - [Architektur](doc/architecture.de.md): Aufbau, Gesprächsablauf, Entwurfsentscheidungen.
 - [Manuelle Testliste](doc/test-checklist.de.md): was sich nur am echten Anschluss prüfen lässt.
 - [Ablauf eines Agenten-Anrufs](doc/mcp-flow.de.md): wie ein Anruf eines KI-Agenten über MCP Schritt für Schritt abläuft.

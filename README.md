@@ -130,6 +130,7 @@ FRITZ!Box is a trademark of AVM GmbH, OpenAI is a trademark of OpenAI, Google an
 | Setup, all features and settings, troubleshooting | [User guide](doc/user-guide.md) | [Benutzerhandbuch](doc/user-guide.de.md) |
 | What SIPFunk is meant for and what not | [Usage guidelines](doc/guidelines.md) | [Richtlinien](doc/guidelines.de.md) |
 | AI Act, data protection, telephone advertising, risks of the spam defence | [Legal aspects](doc/legal.md) | [Rechtliches](doc/legal.de.md) |
+| What SIPFunk stores and where data goes | [Privacy policy](doc/privacy.md) | [Datenschutzerklärung](doc/privacy.de.md) |
 | Structure, call flow, design decisions | [Architecture](doc/architecture.md) | [Architektur](doc/architecture.de.md) |
 | What can only be checked on a real line | [Manual test checklist](doc/test-checklist.md) | [Testliste](doc/test-checklist.de.md) |
 | How an AI agent's call runs over MCP, step by step | [How an agent call works](doc/mcp-flow.md) | [Ablauf eines Agenten-Anrufs](doc/mcp-flow.de.md) |
