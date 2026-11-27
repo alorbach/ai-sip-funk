@@ -29,7 +29,22 @@ copy_deps() {
 copy_deps "$BIN/faxmodem.exe"
 copy_deps "$BIN/gswin64c.exe"
 
-# Herkunft und Lizenzen
+# Herkunft und Lizenzen: Paketliste, Lizenztexte aus den Paketen, Quellpakete
+PKGS=$(for f in "$BIN"/*; do
+  case "$(basename "$f")" in faxmodem.exe) continue ;; esac
+  pacman -Qoq "/ucrt64/bin/$(basename "$f")" 2>/dev/null || true
+done | sort -u)
+
+mkdir -p "$OUT/licenses"
+for pkg in $PKGS; do
+  name=${pkg#mingw-w64-ucrt-x86_64-}
+  { pacman -Qlq "$pkg" | grep -E '/share/licenses/.+[^/]$' || true; } | while read -r lic; do
+    mkdir -p "$OUT/licenses/$name"
+    cp "$lic" "$OUT/licenses/$name/"
+  done
+done
+cp LICENSE "$OUT/licenses/SIPFunk-LICENSE.txt"
+
 {
   echo "Fax-Bausteine von SIPFunk (vendor/fax/bin)"
   echo "==========================================="
@@ -37,15 +52,22 @@ copy_deps "$BIN/gswin64c.exe"
   echo "faxmodem.exe: Teil von SIPFunk (AGPL-3.0-or-later), Quelle tools/faxmodem/faxmodem.c im SIPFunk-Repository."
   echo
   echo "Die übrigen Dateien stammen unverändert aus MSYS2 (UCRT64), https://www.msys2.org/."
-  echo "Quellcode und Bauanleitung jedes Pakets: https://packages.msys2.org/ bzw. https://github.com/msys2/MINGW-packages"
-  echo "Wichtige Pakete: spandsp (LGPL-2.1), Ghostscript (AGPL-3.0), libtiff (libtiff-Lizenz, BSD-artig)."
+  echo "Die Lizenztexte der Pakete liegen im Ordner licenses/ neben dieser Datei."
+  echo "Wichtige Pakete: spandsp (LGPL-2.1), Ghostscript (AGPL-3.0), libtiff (MIT-artig),"
+  echo "jbigkit (GPL-2.0-or-later; MSYS2 schreibt nur \"GPL-2.0\", die Quelldateien erlauben"
+  echo "\"any later version\", daher mit der AGPL-3.0 von SIPFunk vereinbar)."
+  echo
+  echo "Quellcode: Zu jedem Paket gibt es das unveränderte Quellpaket unter der angegebenen Adresse."
+  echo "Ist eine Adresse nicht mehr erreichbar, stellt das SIPFunk-Projekt den Quellcode der"
+  echo "mitgelieferten Fassung auf Anfrage bereit (Issue unter https://github.com/alorbach/ai-sip-funk)."
   echo
   echo "Enthaltene Pakete:"
-  for f in "$BIN"/*; do
-    case "$(basename "$f")" in faxmodem.exe) continue ;; esac
-    pacman -Qoq "/ucrt64/bin/$(basename "$f")" 2>/dev/null || true
-  done | sort -u | while read -r pkg; do
-    printf '  %-45s %s\n' "$(pacman -Q "$pkg")" "$(pacman -Qi "$pkg" | sed -n 's/^Licenses\s*:\s*//p')"
+  for pkg in $PKGS; do
+    ver=$(pacman -Q "$pkg" | cut -d' ' -f2)
+    printf '  %-45s %s\n' "$pkg $ver" "$(pacman -Qi "$pkg" | sed -n 's/^Licenses\s*:\s*//p')"
+    # Quellpakete heißen nach dem Basispaket (libgcc und libstdc++ kommen aus gcc)
+    base=$(sed -n '/^%BASE%$/{n;p}' "/var/lib/pacman/local/$pkg-$ver/desc")
+    printf '    Quelle: https://repo.msys2.org/mingw/sources/%s-%s.src.tar.zst\n' "${base:-$pkg}" "$ver"
   done
 } > "$OUT/LIZENZEN.txt"
 
