@@ -24,6 +24,23 @@ function powershell(args: string[], timeoutMs: number): Promise<{ code: number; 
   });
 }
 
+/** Vor- und Nachsilben, die nur das Programm nennen („Microsoft Word - Brief.docx“, „Brief.txt - Editor“) */
+const APP_PREFIX = /^(Microsoft (Word|Excel|PowerPoint|Outlook) - )/i;
+const APP_SUFFIX = / - (Editor|Notepad|Paint|WordPad)$/i;
+
+/**
+ * Dokumentname des Auftrags, der gerade an „SIPFunk Fax“ gedruckt wird, aus der Windows-Warteschlange.
+ * Der Klassentreiber schickt nur „MSxpsPS“ o. ä. mit; der Spooler kennt den echten Namen, solange der Auftrag läuft.
+ */
+export async function spoolerDocumentName(): Promise<string | undefined> {
+  if (process.platform !== 'win32') return undefined;
+  const cmd = `[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-PrintJob -PrinterName '${PRINTER_NAME}' -ErrorAction SilentlyContinue | Sort-Object SubmittedTime | Select-Object -Last 1 -ExpandProperty DocumentName`;
+  const r = await powershell(['-Command', cmd], 10_000);
+  if (r.code !== 0) return undefined;
+  const name = r.out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop()?.replace(APP_PREFIX, '').replace(APP_SUFFIX, '').trim();
+  return name || undefined;
+}
+
 export interface PrinterStatus {
   /** false = kein Windows, Drucker lässt sich hier nicht verwalten */
   supported: boolean;

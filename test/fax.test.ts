@@ -57,17 +57,25 @@ test('Fax-Drucker: Druckauftrag über TCP wird zum PDF-Entwurf', { skip }, async
   const port = 19000 + Math.floor(Math.random() * 1000);
   let resolveDoc!: (d: PrintedDocument) => void;
   const got = new Promise<PrintedDocument>((r) => (resolveDoc = r));
-  const printer = new FaxPrintPort(port, resolveDoc);
+  // Name aus der Druckwarteschlange geht vor; der Port schließt erst, wenn die Abfrage fertig ist
+  let closedBeforeName = false, nameDone = false;
+  const printer = new FaxPrintPort(port, resolveDoc, () => new Promise((r) => setTimeout(() => { nameDone = true; r('Brief an Amt.docx'); }, 150)));
   await printer.start();
   try {
     const sock = connect(port, '127.0.0.1');
     await new Promise<void>((r) => sock.once('connect', () => r()));
+    sock.on('close', () => { if (!nameDone) closedBeforeName = true; });
+    sock.on('data', () => undefined);
     sock.end(readFileSync('tools/faxmodem/test/testseite.ps'));
     const doc = await got;
+    assert.equal(doc.name, 'Brief an Amt.docx');
+    assert.equal(closedBeforeName, false);
     assert.equal(doc.pdf.subarray(0, 5).toString('latin1'), '%PDF-');
     const fax = new FaxService({ sipServer: '127.0.0.1', user: 'fax', password: 'x', sipLocalPort: 0, rtpPort: 0 });
     const draft = fax.addDraft(doc.name, doc.pdf, doc.pages);
     assert.equal(fax.status().drafts[0].id, draft.id);
+    const png = await fax.draftThumbnail(draft.id);
+    assert.equal(png?.subarray(1, 4).toString('latin1'), 'PNG', 'Vorschaubild der ersten Seite');
     assert.throws(() => fax.sendDraft(draft.id, '0900123'), /Mehrwertnummer/);
     assert.equal(fax.status().drafts.length, 1, 'abgelehnte Nummer: Entwurf bleibt');
     assert.ok(fax.discardDraft(draft.id));

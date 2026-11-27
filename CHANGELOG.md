@@ -6,6 +6,12 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+- **Real document name for the fax printer.** The name comes from the Windows print queue (without program additions such as "Microsoft Word -" or "- Notepad") instead of "Druckauftrag HH:MM".
+- **Thumbnail in the fax window.** The first page appears as a small image; a click opens the whole document as a PDF.
+- **Names from the FRITZ!Box phonebook on the dashboard.** Call list, details and call bar show names from the box's phonebook with a "FRITZ!Box" mark when the number is not among your own contacts; the search finds them too.
+- **Links to the AI provider's pages.** Every AI connection links usage, limits, keys and billing (Gemini also the Google Cloud project).
+- **Fixed:** clicking a match in the recipient search of the fax window did not select it.
+
 ## 1.0.3 – 26 November 2026
 
 - **Faxes in the call log.** Every fax sent or failed is listed on the Calls page and among the recent calls on the dashboard, tagged "Fax" (failed ones additionally in red). A click shows document, result, pages, transmission rate and remote station. The entries follow the retention period of the call logs; the document itself is not stored.

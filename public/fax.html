@@ -23,7 +23,11 @@
   .top .x svg { color: inherit; width: 14px; height: 14px; }
 
   .doc { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .doc .ico { flex: none; width: 34px; height: 42px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); position: relative; }
+  .doc .ico { flex: none; width: 54px; height: 76px; padding: 0; border-radius: 4px; background: #fff; border: 1px solid var(--line); position: relative; overflow: hidden; cursor: pointer; }
+  .doc .ico:hover, .doc .ico:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .doc .ico img { display: none; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .doc .ico.has-img img { display: block; }
+  .doc .ico.has-img::before { display: none; }
   .doc .ico::before { content: ""; position: absolute; left: 7px; right: 7px; top: 10px; height: 2px; background: var(--line); box-shadow: 0 6px 0 var(--line), 0 12px 0 var(--line), 0 18px 0 var(--line); }
   .doc .meta { min-width: 0; flex: 1; }
   .doc .name { font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -40,6 +44,7 @@
   .combo > label { display: block; }
   #sugg { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 10; margin: 0; padding: 4px; list-style: none; max-height: 172px; overflow-y: auto;
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+  #sugg, #sugg li { -webkit-app-region: no-drag; } /* Liste ragt über die Zieh-Fläche des Fensters: sonst schluckt Windows den Klick */
   #sugg li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
   #sugg li[aria-selected="true"] { background: var(--accent-soft); }
   #sugg li:hover { background: var(--surface-2); }
@@ -104,7 +109,7 @@
   </div>
 
   <div class="doc">
-    <div class="ico" aria-hidden="true"></div>
+    <button class="ico" id="thumbBtn" type="button" title="Vorschau öffnen" aria-label="Vorschau öffnen"><img id="thumb" alt=""></button>
     <div class="meta">
       <div class="name" id="doc" data-no-i18n>…</div>
       <div class="sub"><span id="pages" data-no-i18n></span><span id="pv"> · <a href="#" id="preview" class="no-drag">Vorschau</a></span></div>
@@ -161,6 +166,11 @@ function showDraft(d) {
   $('pages').textContent = d.pages ? I18N.t('{0} Seite(n)', d.pages) : '';
   $('pv').hidden = false;
   $('pv').firstChild.textContent = d.pages ? ' · ' : '';
+  // Vorschaubild der ersten Seite (Ghostscript im Server); bis es da ist, das Platzhalter-Blatt
+  $('thumbBtn').classList.remove('has-img');
+  $('thumb').onload = () => $('thumbBtn').classList.add('has-img');
+  $('thumb').onerror = () => $('thumbBtn').classList.remove('has-img');
+  $('thumb').src = `/api/fax/drafts/${d.id}/thumb`;
   $('number').value = '';
   $('err').textContent = '';
   $('send').disabled = $('discard').disabled = $('number').disabled = false;
@@ -417,7 +427,7 @@ $('discard').onclick = async () => {
   draft = null;
   next();
 };
-$('preview').onclick = (ev) => {
+$('preview').onclick = $('thumbBtn').onclick = (ev) => {
   ev.preventDefault();
   if (draft) window.open(`/api/fax/drafts/${draft.id}/pdf`, '_blank');
 };

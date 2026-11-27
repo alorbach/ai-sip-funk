@@ -13,7 +13,7 @@ import { EchoHandler, ToneHandler } from './rtp/testSources.js';
 import { startWebServer } from './web/server.js';
 import { FaxService, type FaxJob } from './fax/service.js';
 import { FaxPrintPort } from './fax/printPort.js';
-import { changePrinter, printerStatus } from './fax/printer.js';
+import { changePrinter, printerStatus, spoolerDocumentName } from './fax/printer.js';
 import { FritzPhonebook } from './fritzPhonebook.js';
 import { RealtimeBridge, type CallOutcome, type TranscriptEntry, type Usage } from './ai/realtimeBridge.js';
 import { agentLabel } from './ai/agentCall.js';
@@ -1077,7 +1077,7 @@ function logFax(job: FaxJob): void {
 }
 // Drucken an „SIPFunk Fax“: Dokument als Entwurf ablegen, die Tray-App öffnet das Fax-Fenster für die Zielnummer
 fax.on('draft', () => traySend({ type: 'faxPrint' }));
-const faxPrint = config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages)) : undefined;
+const faxPrint = config.fax.printPort > 0 ? new FaxPrintPort(config.fax.printPort, (doc) => fax.addDraft(doc.name, doc.pdf, doc.pages), spoolerDocumentName) : undefined;
 
 /** Fax-Einstellungen aus der Web-UI: prüfen, in die .env schreiben, Dienst neu anmelden. Kennwort-Maske = behalten. */
 async function saveFaxSettings(input: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1135,6 +1135,7 @@ const stopWeb = startWebServer({
     sendDraft: (id, number) => ({ ...fax.sendDraft(id, number) }),
     discardDraft: (id) => fax.discardDraft(id),
     draftPdf: (id) => fax.draftPdf(id),
+    draftThumbnail: (id) => fax.draftThumbnail(id),
   },
   contactImport: {
     status: () => contactSources.status(),
