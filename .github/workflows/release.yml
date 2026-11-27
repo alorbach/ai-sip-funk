@@ -115,6 +115,19 @@ jobs:
       - name: Build Windows installer and portable ZIP
         run: npm run dist:win
 
+      # Microsoft Store package (MSIX/AppX, package.json: build.appx). It stays unsigned because the
+      # Store signs it on publishing, so it cannot be installed directly and is not a release asset.
+      # It is kept as a workflow artifact for the upload in Partner Center.
+      - name: Build Microsoft Store package
+        run: npx electron-builder --win appx --publish never
+
+      - name: Keep Microsoft Store package
+        uses: actions/upload-artifact@v7
+        with:
+          name: SIPFunk-${{ steps.vars.outputs.version }}-store
+          path: release/SIPFunk-*-store-*.appx
+          if-no-files-found: error
+
       # The changelog is written by GitHub Copilot CLI from the commit subjects.
       # It needs a fine-grained PAT with the "Copilot Requests" permission in
       # the COPILOT_GITHUB_TOKEN secret; without it the release falls back to

@@ -185,6 +185,7 @@ const EN = {
   'Telefonanlage verbunden': 'Phone system connected', 'Telefonanlage nicht verbunden': 'Phone system not connected',
   'SIPFunk öffnen': 'Open SIPFunk', 'Im Browser öffnen': 'Open in browser', 'Anrufbeantworter': 'Answering machine', 'Anrufbeantworter an': 'Answering machine on',
   'Einstellungen (.env) bearbeiten': 'Edit settings (.env)', 'Datenordner öffnen': 'Open data folder', 'Beim Anmelden starten': 'Start at login',
+  'Autostart in Windows einstellen …': 'Set up autostart in Windows …',
   'Server neu starten': 'Restart server', 'Beenden': 'Quit', 'Fehler': 'Error',
   'dist/main.js fehlt – erst „npm run build“': 'dist/main.js is missing – run "npm run build" first',
   'Anrufbeantworter konnte nicht umgeschaltet werden': 'The answering machine could not be switched',
@@ -193,6 +194,7 @@ const EN = {
   'SIPFunk – Fax senden': 'SIPFunk – send fax',
   'Port {0} war belegt. Die Oberfläche läuft jetzt auf Port {1}. Eingetragene KI-Agenten bitte in den Einstellungen aktualisieren.': 'Port {0} was in use. The web UI now runs on port {1}. Please update registered AI agents in the settings.',
   'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.': 'SIPFunk now starts after you sign in to Windows. To turn this off: tray menu › "Start at login".',
+  'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Autostart in Windows einstellen …“.': 'SIPFunk now starts after you sign in to Windows. To turn this off: tray menu › "Set up autostart in Windows …".',
 };
 function uiLang() {
   let pref = 'auto';
@@ -259,6 +261,10 @@ async function setIncoming(enabled) {
 // Autostart nach der Windows-Anmeldung (Eintrag unter HKCU\…\Run mit der AppUserModelId als Name; der
 // Deinstaller entfernt ihn, siehe build/installer.nsh). Nur für das gepackte Programm: Aus dem Repository
 // gestartet würde der Eintrag auf ein nacktes electron.exe zeigen.
+// Die Store-Fassung (MSIX) startet stattdessen über den Startup-Task im Paketmanifest (build.appx.addAutoLaunchExtension).
+// Windows schaltet ihn nach dem ersten Start ein; ändern lässt er sich nur in den Windows-Einstellungen. Ein Run-Eintrag
+// aus dem Paket heraus landete in der privaten Registry des Pakets und hätte keine Wirkung.
+const STORE = !!process.windowsStore;
 function autostartOn() {
   const s = app.getLoginItemSettings();
   // executableWillLaunchAtLogin beachtet auch, ob der Eintrag in den Windows-Einstellungen abgeschaltet wurde
@@ -274,14 +280,17 @@ function setAutostart(on) {
  * Die portable ZIP-Fassung (kein Deinstaller neben der .exe) schaltet nichts von selbst ein.
  */
 function firstRunAutostart() {
-  const installed = app.isPackaged && fs.existsSync(path.join(path.dirname(process.execPath), `Uninstall ${pkg.build?.productName || 'SIPFunk'}.exe`));
+  const installed = STORE || (app.isPackaged && fs.existsSync(path.join(path.dirname(process.execPath), `Uninstall ${pkg.build?.productName || 'SIPFunk'}.exe`)));
   const mark = path.join(dataDir, 'autostart.flag');
   if (!installed || fs.existsSync(mark)) return;
   try {
     fs.mkdirSync(dataDir, { recursive: true });
     fs.writeFileSync(mark, 'Autostart wurde beim ersten Start eingerichtet. Ein-/Ausschalten: Tray-Menü.\n');
-    app.setLoginItemSettings({ openAtLogin: true, enabled: true });
-    if (Notification.isSupported()) new Notification({ title: 'SIPFunk', body: T('SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.'), icon: ICON_PNG }).show();
+    if (!STORE) app.setLoginItemSettings({ openAtLogin: true, enabled: true });
+    const hint = STORE
+      ? 'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Autostart in Windows einstellen …“.'
+      : 'SIPFunk startet künftig nach der Windows-Anmeldung. Abschalten: Tray-Menü › „Beim Anmelden starten“.';
+    if (Notification.isSupported()) new Notification({ title: 'SIPFunk', body: T(hint), icon: ICON_PNG }).show();
   } catch { /* ohne Autostart läuft SIPFunk trotzdem */ }
 }
 
@@ -298,7 +307,8 @@ function buildMenu() {
     { type: 'separator' },
     { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
     { label: T('Datenordner öffnen'), click: () => shell.openPath(dataDir) },
-    ...(app.isPackaged ? [{ label: T('Beim Anmelden starten'), type: 'checkbox', checked: autostartOn(), click: (item) => setAutostart(item.checked) }] : []),
+    ...(STORE ? [{ label: T('Autostart in Windows einstellen …'), click: () => shell.openExternal('ms-settings:startupapps') }]
+      : app.isPackaged ? [{ label: T('Beim Anmelden starten'), type: 'checkbox', checked: autostartOn(), click: (item) => setAutostart(item.checked) }] : []),
     { type: 'separator' },
     { label: T('Server neu starten'), click: () => restart() },
     { label: T('Beenden'), click: () => app.quit() },

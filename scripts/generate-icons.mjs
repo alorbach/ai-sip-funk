@@ -1,11 +1,15 @@
 // Erzeugt assets/icon.png (256 px) und assets/icon.ico (256/48/32/16 px, PNG-komprimiert) ohne Abhängigkeiten:
-// blauer Kreis mit weißem Telefonhörer. Aufruf: node scripts/generate-icons.mjs
+// blauer Kreis mit weißem Telefonhörer. Dazu die Kacheln für das Store-Paket (MSIX) in build/appx, die
+// electron-builder dort sucht; ohne sie nähme es Platzhalterbilder, die die Store-Prüfung ablehnt.
+// Aufruf: node scripts/generate-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(ROOT, 'assets');
+const APPX = join(ROOT, 'build', 'appx');
 const SIZE = 256;
 const BG = [0x00, 0x66, 0xcc];
 
@@ -26,15 +30,15 @@ function chunk(type, data) {
   return Buffer.concat([len, td, crc]);
 }
 
-/** RGBA-Pixel (Uint8Array, size*size*4) als PNG */
-function png(size, rgba) {
-  const raw = Buffer.alloc((size * 4 + 1) * size);
-  for (let y = 0; y < size; y++) {
-    raw[y * (size * 4 + 1)] = 0;
-    rgba.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
+/** RGBA-Pixel (Buffer, w*h*4) als PNG; h fehlt = quadratisch */
+function png(w, rgba, h = w) {
+  const raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 4 + 1)] = 0;
+    rgba.copy(raw, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4);
   }
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4); ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
@@ -90,3 +94,18 @@ const pngs = sizes.map((s) => ({ size: s, data: png(s, render(s)) }));
 writeFileSync(join(OUT, 'icon.png'), pngs[0].data);
 writeFileSync(join(OUT, 'icon.ico'), ico(pngs));
 console.log(`assets/icon.png und assets/icon.ico geschrieben (${sizes.join('/')} px)`);
+
+/** Icon der Größe icon mittig auf transparenter Fläche w×h */
+function tile(w, h, icon) {
+  const out = Buffer.alloc(w * h * 4);
+  const src = render(icon);
+  const ox = Math.floor((w - icon) / 2), oy = Math.floor((h - icon) / 2);
+  for (let y = 0; y < icon; y++) src.copy(out, ((oy + y) * w + ox) * 4, y * icon * 4, (y + 1) * icon * 4);
+  return png(w, out, h);
+}
+
+// Store-Kacheln mit etwas Rand, wie es die Windows-Vorgaben für Kachelbilder vorsehen
+mkdirSync(APPX, { recursive: true });
+const tiles = { 'StoreLogo.png': [50, 50, 50], 'Square44x44Logo.png': [44, 44, 44], 'Square150x150Logo.png': [150, 150, 100], 'Wide310x150Logo.png': [310, 150, 100] };
+for (const [name, [w, h, icon]] of Object.entries(tiles)) writeFileSync(join(APPX, name), tile(w, h, icon));
+console.log(`build/appx: ${Object.keys(tiles).join(', ')} geschrieben`);
