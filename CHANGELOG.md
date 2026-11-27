@@ -6,6 +6,11 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+## 1.0.6 – 27 November 2026
+
+- **Microsoft Store edition.** The release also builds a package for the Microsoft Store (MSIX). The Store edition is signed by Microsoft and therefore shows no SmartScreen warning; updates come through the Store. It uses the same data folder as the installer edition. Windows manages its autostart; in the tray menu "Autostart in Windows einstellen …" (set up autostart in Windows) opens the "Startup apps" page.
+- **Privacy policy** in `doc/privacy.md` and `doc/privacy.de.md`: what SIPFunk stores and where data goes.
+
 ## 1.0.5 – 27 November 2026
 
 - **Licenses in the fax bundle.** The fax components now ship the license texts of every bundled library (folder `fax/licenses`), and `LIZENZEN.txt` names the source package for each one. jbigkit is recorded as GPL-2.0-or-later.
