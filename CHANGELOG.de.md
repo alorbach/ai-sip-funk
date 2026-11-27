@@ -6,6 +6,10 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.5 – 27.11.2026
+
+- **Lizenzen im Fax-Paket.** Die Fax-Bausteine bringen die Lizenztexte aller mitgelieferten Bibliotheken mit (Ordner `fax/licenses`), `LIZENZEN.txt` nennt zu jedem Paket das Quellpaket. jbigkit ist als GPL-2.0-or-later vermerkt.
+
 ## 1.0.4 – 27.11.2026
 
 - **Eigenes Fenster statt Browser.** Ein Doppelklick aufs Tray-Symbol öffnet SIPFunk in einem eigenen Windows-Fenster; „Im Browser öffnen“ im Tray-Menü gibt es weiterhin. Das Fenster läuft unabhängig vom Tray, Schließen beendet SIPFunk nicht. Es merkt sich Größe, Lage und Zoom; Strg+Plus/Minus/0 zoomen.
