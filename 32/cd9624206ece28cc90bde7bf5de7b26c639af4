@@ -1,0 +1,53 @@
+CHANGELOG.md
+  s_86380606205b1e::t_06e159439895df 11
+  s_86380606205b1e::t_2289deabac1c93 12-16
+src/fax/printPort.ts
+  s_86380606205b1e::t_2289deabac1c93 54-56,60-64,68-69,72-74,86-90,110,119-122
+doc/user-guide.de.md
+  s_86380606205b1e::t_2289deabac1c93 248-249,941,1028,1048,1119-1125
+  s_86380606205b1e::t_e6b63b593c5070 1126
+public/index.html
+  s_86380606205b1e::t_2289deabac1c93 266-268,1142-1154,1226,1231,1289-1290,1303,1318,1348,1350,1382,1485,1955-1961,1988
+src/fax/modem.ts
+  s_86380606205b1e::t_2289deabac1c93 91-109
+electron/main.cjs
+  s_86380606205b1e::t_2289deabac1c93 76
+public/fax.html
+  s_86380606205b1e::t_2289deabac1c93 26-30,47,112,169-173,430
+src/web/server.ts
+  s_86380606205b1e::t_2289deabac1c93 111,514,532-540
+  s_86380606205b1e::t_3ecc1940dde54a 541
+doc/user-guide.md
+  s_86380606205b1e::t_2289deabac1c93 250-251,943,1030,1050,1121-1127
+  s_86380606205b1e::t_424d66d7e6e213 1128
+public/i18n-en.js
+  s_86380606205b1e::t_2289deabac1c93 478-484,661-662
+src/fax/printer.ts
+  s_86380606205b1e::t_2289deabac1c93 27-43
+src/main.ts
+  s_86380606205b1e::t_2289deabac1c93 16,1080,1138
+test/fax.test.ts
+  s_86380606205b1e::t_2289deabac1c93 60-62,67-68,71-72,77-78
+src/fax/service.ts
+  s_86380606205b1e::t_2289deabac1c93 14,185-207
+  s_86380606205b1e::t_47b75712ec0b12 208-209
+CHANGELOG.de.md
+  s_86380606205b1e::t_06e159439895df 11
+  s_86380606205b1e::t_2289deabac1c93 12-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32cd9624206ece28cc90bde7bf5de7b26c639af4",
+  "prompts": {},
+  "sessions": {
+    "s_86380606205b1e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c3eee8b-fb3f-40b6-b911-f1db6dec7b74",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
