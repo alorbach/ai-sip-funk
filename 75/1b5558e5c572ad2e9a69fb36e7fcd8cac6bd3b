@@ -1,0 +1,21 @@
+doc/user-guide.md
+  s_5b8db699bd2409::t_2a8418fa441fa2 119-120
+doc/user-guide.de.md
+  s_5b8db699bd2409::t_2a8418fa441fa2 117-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "751b5558e5c572ad2e9a69fb36e7fcd8cac6bd3b",
+  "prompts": {},
+  "sessions": {
+    "s_5b8db699bd2409": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "876a3af3-f4de-4456-a162-06ba8b47af01",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
