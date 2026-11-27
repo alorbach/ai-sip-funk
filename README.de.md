@@ -56,6 +56,8 @@ Die Windows-Firewall fragt beim ersten Start nach den UDP-Ports für SIP und RTP
 
 ### Windows-App (Installer, Tray, Autostart)
 
+Am einfachsten: SIPFunk aus dem [Microsoft Store](https://apps.microsoft.com/detail/9NQJH8DJ2K5X) installieren. Die Store-Fassung ist von Microsoft signiert, zeigt also keine SmartScreen-Warnung, und aktualisiert sich über den Store. Sie nutzt denselben Datenordner wie der Installer; wer wechselt, deinstalliert die Installer-Fassung vorher (Benutzerhandbuch, Abschnitt 4.3).
+
 Ohne Node.js: `SIPFunk-<Version>-win-x64.exe` unter [Releases](https://github.com/alorbach/ai-sip-funk/releases) herunterladen und ausführen. Die Datei ist nicht signiert, Windows SmartScreen warnt deshalb („Weitere Informationen“ → „Trotzdem ausführen“). Der Installer installiert in der Vorgabe für den angemeldeten Benutzer, ohne Administratorrechte, und legt einen Eintrag im Startmenü an. SIPFunk läuft danach im Infobereich, ohne Fenster und ohne Konsole; Doppelklick auf das Symbol öffnet die Web-UI, beim ersten Start mit dem Einrichtungsassistenten.
 
 Nach der Installation startet SIPFunk nach der Windows-Anmeldung von selbst. Aus- und einschalten: Tray-Menü, „Beim Anmelden starten“. Konfiguration und Daten liegen unter `%APPDATA%\SIPFunk`; sie bleiben bei Updates (den neueren Installer über die alte Fassung laufen lassen) und auch bei der Deinstallation erhalten. Die portable ZIP-Datei (`SIPFunk-<Version>-win-x64.zip`) läuft ohne Installation und richtet den Autostart nicht von selbst ein.
