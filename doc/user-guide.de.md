@@ -245,6 +245,8 @@ Eine Verbindung ist die aktive. Sie übernimmt alles: das Gespräch selbst, Gesp
 
 Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standardstimme“ (mit „Probe hören“), „Sprachmodell für Anrufe“, „Textmodell“, in der Stufe „Erweitert“ zusätzlich je eine „Eigene Modell-ID“, „Modelle aktualisieren“, den Zustand des Schlüssels, „API-Schlüssel“, „Schlüssel prüfen und speichern“, „Verbindung testen“, „Diese Verbindung verwenden“ (bei der aktiven steht stattdessen „Diese Verbindung führt die Gespräche.“) und „Verbindung entfernen“. Eingaben, die noch nicht gespeichert sind (z. B. ein eingetippter Schlüssel), bleiben stehen, wenn du eine andere Verbindung auf- oder zuklappst.
 
+Unter „Anbieter“ führt die Zeile **„Beim Anbieter:“** direkt zu den Seiten des Kontos, im Browser: bei Gemini „Nutzung und Limits“ und „API-Schlüssel und Projekte“ in Google AI Studio sowie „Abrechnung“ und „Google-Cloud-Projekt“ in der Google Cloud Console; bei OpenAI „Nutzung“, „Limits“, „API-Schlüssel“ und „Abrechnung“ auf platform.openai.com. Angemeldet wirst du dort mit deinem Konto beim Anbieter, nicht über SIPFunk.
+
 „Aufgeklappt“ und „aktiv“ sind verschiedene Dinge: Aufgeklappt heißt, die Einstellungen der Verbindung sind zu sehen; aktiv heißt, sie führt die Gespräche („✓ aktiv“).
 
 - **Hinzufügen:** unter „Neue Verbindung bei“ den Anbieter wählen und auf „Verbindung hinzufügen“ klicken. Die neue Verbindung hat noch keinen Schlüssel und benutzt die Vorgabe-Modelle ihres Anbieters.
@@ -936,7 +938,7 @@ Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt de
 ### 14.4 Ein Fax senden
 
 1. Im Programm (Word, PDF-Betrachter, Browser …) „Drucken“ wählen, Drucker **„SIPFunk Fax“**. Papierformat A4; Farbe wird zu Schwarzweiß.
-2. Unten rechts öffnet sich das Fax-Fenster mit dem Namen des Dokuments und der Seitenzahl. **„Vorschau“** zeigt das Dokument als PDF so, wie es gefaxt wird.
+2. Unten rechts öffnet sich das Fax-Fenster mit einem Vorschaubild der ersten Seite, dem Namen des Dokuments und der Seitenzahl. Ein Klick auf das Bild oder auf **„Vorschau“** zeigt das ganze Dokument als PDF so, wie es gefaxt wird.
 3. Im Feld **„An (Faxnummer oder Kontakt)“** den Empfänger suchen (14.5) oder die Nummer direkt eingeben. Schreibweise wie beim Wählen: `030 1234567` oder `+49 30 1234567`.
 4. **„Faxen“** oder Enter.
 
@@ -1023,6 +1025,7 @@ Jedes Fax, das zugestellt wurde oder fehlgeschlagen ist, steht danach auf der Se
 
 - In der Liste ist es mit **„Fax“** gekennzeichnet, ein fehlgeschlagenes zusätzlich rot mit **„Fehlgeschlagen“**. Die Zeile darunter nennt Dokument, Seitenzahl und Übertragungsrate bzw. den Grund des Fehlschlags.
 - Ein Klick zeigt statt eines Transkripts die Eckdaten: **Dokument**, **Ergebnis**, **Seiten** (gesendet von insgesamt), **Übertragung** (Rate, ECM) und **Gegenstelle**.
+- Steht die Nummer nicht bei deinen Kontakten, aber im FRITZ!Box-Telefonbuch (14.6), zeigt SIPFunk den Namen von dort mit dem kleinen Zeichen **„FRITZ!Box“**. Das gilt für Faxe und Gespräche, in der Liste, im Detail und in der Anrufleiste.
 - Die Suche über der Liste findet Faxe wie Gespräche nach Name oder Nummer; über den Kontakt („Verlauf“) siehst du Faxe und Gespräche mit diesem Kontakt zusammen.
 - „Als Kontakt speichern“ legt die Faxnummer als Kontakt an, „Protokoll löschen“ entfernt den Eintrag.
 
@@ -1042,7 +1045,7 @@ Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zus
 
 ### 14.9 Tipps und häufige Fragen
 
-- **Im Fax-Fenster steht „Druckauftrag 14:05“ statt des Dokumentnamens.** Manche Programme schicken den Namen nicht mit (etwa beim Druck über den XPS-Weg von Windows). Dann nimmt SIPFunk die Uhrzeit. Am Fax ändert das nichts.
+- **Im Fax-Fenster steht „Druckauftrag 14:05“ statt des Dokumentnamens.** SIPFunk liest den Namen aus der Windows-Druckwarteschlange, so wie ihn das Programm vergibt (bei Word ohne die Vorsilbe „Microsoft Word -“). Klappt das nicht und schickt auch der Druckauftrag keinen Namen mit, nimmt SIPFunk die Uhrzeit. Am Fax ändert das nichts.
 - **Wie sieht mein Fax beim Empfänger aus?** Schick ein Testfax an einen Testfax-Empfang (14.4). Die Kopfzeile steht oben auf jeder Seite, die Absenderkennung im Faxprotokoll des Empfängers.
 - **Kann ich faxen, während die KI telefoniert?** Ja. Das Fax läuft über ein eigenes IP-Telefon (14.1).
 - **Mehrere Seiten, Farbe, Querformat?** Mehrseitige Dokumente gehen in einem Fax. Farbe wird zu Schwarzweiß, Querformat wird auf A4 hochkant eingepasst; für gut lesbare Faxe besser hochkant drucken.
@@ -1112,6 +1115,14 @@ Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwer
 ### 15.3 Port der Web-UI
 
 Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf `127.0.0.1`. Standard ist 3865. Wer SIPFunk schon vor Version 1.0.1 eingerichtet hat, behält seinen bisherigen Port (meist 8080), sofern in der `.env` eine Zeile `WEB_PORT=…` steht; bei der installierten App ist das immer so. Ohne diese Zeile gilt seit 1.0.1 der Port 3865, und eingetragene Agenten zeigen „Veraltet“.
+
+**Von 8080 auf den Standardport 3865 umstellen.** Maßgeblich ist die Einstellung unter „Technik“ (gespeichert in `settings.json`); `WEB_PORT` in der `.env` ist nur der Startwert, solange dort nichts gespeichert ist. Ein Ändern der `.env` allein bewirkt also nichts. So geht es:
+
+1. „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“) auf **3865** setzen und speichern.
+2. **„Jetzt neu starten“** wählen (oder SIPFunk beenden und neu starten). Die Oberfläche wechselt danach auf `http://127.0.0.1:3865`.
+3. Unter „Einstellungen › MCP-Schnittstelle“ die eingetragenen KI-Agenten aktualisieren (Abschnitt 13.3); sie zeigen bis dahin „Veraltet“. Laufende Agenten (Claude Code, Codex …) danach neu starten oder die MCP-Verbindung neu aufbauen, damit sie die neue Adresse lesen.
+
+Wer möchte, setzt `WEB_PORT=3865` zusätzlich in der `.env`, damit beides übereinstimmt. Bei Microsoft 365 als Mail-Zugang auch die Redirect-Adresse anpassen (siehe unten).
 
 - **Ändern**: „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“), speichern. Erlaubt sind 1024 bis 65535; einen Port, den gerade ein anderes Programm belegt, nimmt die Oberfläche nicht an. Der neue Port gilt nach einem Neustart; mit der Tray-App bietet die Oberfläche „Jetzt neu starten“ an und wechselt danach von selbst auf die neue Adresse. Ohne Tray-App (`npm start`) SIPFunk von Hand beenden und wieder starten.
 - **Port belegt**: Ist der eingestellte Port beim Start von einem anderen Programm belegt, nimmt SIPFunk den nächsten freien darüber und speichert ihn als neue Einstellung. Das steht im Log, die Tray-App zeigt einen Hinweis, und die Oberfläche meldet es beim nächsten Öffnen. Die Adresse ändert sich danach nicht wieder von selbst, solange der neue Port frei bleibt.

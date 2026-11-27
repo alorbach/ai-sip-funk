@@ -88,6 +88,25 @@ export async function psToPdf(src: string, dst: string): Promise<void> {
   });
 }
 
+/** Erste Seite eines PDF als kleines PNG (Vorschaubild im Fax-Fenster); dpi 30 ≈ 250×350 Pixel bei A4 */
+export async function pdfThumbnail(src: string, dpi = 30): Promise<Buffer> {
+  const args = ['-q', '-dSAFER', '-dBATCH', '-dNOPAUSE', '-dNOPROMPT', '-sDEVICE=png16m', `-r${dpi}`, '-dFirstPage=1', '-dLastPage=1',
+    '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4', '-sOutputFile=%stdout', src];
+  return new Promise<Buffer>((resolve, reject) => {
+    const gs = spawn(GHOSTSCRIPT, args, { env: childEnv(), windowsHide: true });
+    const out: Buffer[] = [];
+    let err = '';
+    gs.stdout.on('data', (d: Buffer) => out.push(d));
+    gs.stderr.on('data', (d) => (err += d));
+    gs.on('error', reject);
+    gs.on('close', (code) => {
+      const png = Buffer.concat(out);
+      if (code === 0 && png.subarray(1, 4).toString('latin1') === 'PNG') resolve(png);
+      else reject(new Error(`Vorschau ließ sich nicht erzeugen: ${err.trim() || `Ghostscript ${code}`}`));
+    });
+  });
+}
+
 export interface FaxResult {
   /** 0 = Erfolg (spandsp T30_ERR_OK) */
   code: number;

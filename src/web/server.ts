@@ -108,6 +108,7 @@ export interface WebServerOptions {
     sendDraft: (id: string, number: string) => Record<string, unknown>;
     discardDraft: (id: string) => boolean;
     draftPdf: (id: string) => Buffer | undefined;
+    draftThumbnail: (id: string) => Promise<Buffer | undefined>;
   };
   /** FRITZ!Box-Telefonbuch (nur lesen, als Vorschläge) */
   fritzPhonebook?: FritzPhonebook;
@@ -510,7 +511,7 @@ export function startWebServer(opts: WebServerOptions): () => void {
           }
         }
       }
-      const fdx = /^\/api\/fax\/drafts\/([0-9a-f]+)(\/send|\/pdf)?$/.exec(url.pathname);
+      const fdx = /^\/api\/fax\/drafts\/([0-9a-f]+)(\/send|\/pdf|\/thumb)?$/.exec(url.pathname);
       if (fdx) {
         if (!opts.fax) return sendJson(res, 404, { error: 'Faxdienst nicht eingerichtet' });
         const [, id, action] = fdx;
@@ -527,6 +528,16 @@ export function startWebServer(opts: WebServerOptions): () => void {
           if (!pdf) return sendJson(res, 404, { error: 'Nicht gefunden' });
           res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline' });
           return res.end(pdf);
+        }
+        if (req.method === 'GET' && action === '/thumb') {
+          try {
+            const png = await opts.fax.draftThumbnail(id);
+            if (!png) return sendJson(res, 404, { error: 'Nicht gefunden' });
+            res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=600' });
+            return res.end(png);
+          } catch (err) {
+            return sendJson(res, 500, { error: (err as Error).message });
+          }
         }
         if (req.method === 'DELETE' && !action) return sendJson(res, opts.fax.discardDraft(id) ? 200 : 404, {});
       }

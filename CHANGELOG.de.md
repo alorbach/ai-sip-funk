@@ -8,7 +8,12 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 - **Eigenes Fenster statt Browser.** Ein Doppelklick aufs Tray-Symbol öffnet SIPFunk in einem eigenen Windows-Fenster; „Im Browser öffnen“ im Tray-Menü gibt es weiterhin. Das Fenster läuft unabhängig vom Tray, Schließen beendet SIPFunk nicht. Es merkt sich Größe, Lage und Zoom; Strg+Plus/Minus/0 zoomen.
 - **Einfacheres Dashboard in der Stufe „Einfach“.** Eine Spalte, Reiter „Start“; Stil, Stimme, Anrede und KI-Verbindung hinter „Stimme und Stil“, das Transkript nur während und nach einem Gespräch, Hinweistext und „Als Standard speichern“ nur noch in „Erweitert“.
-- **Auftrag einsprechen.** Mikrofon-Taste im Feld „Auftrag an die KI“: Die Sprache erkennt der Anbieter der aktiven KI-Verbindung (OpenAI `gpt-4o-mini-transcribe` oder das Gemini-Textmodell), der Text wird an den Auftrag angehängt.
+- **Auftrag einsprechen.** Mikrofon-Taste neben dem Feld „Auftrag an die KI“: Die Sprache erkennt der Anbieter der aktiven KI-Verbindung (OpenAI `gpt-4o-mini-transcribe` oder das Gemini-Textmodell), der Text wird an den Auftrag angehängt.
+- **Echter Dokumentname beim Faxdrucker.** Der Name kommt aus der Windows-Druckwarteschlange (ohne Programm-Zusätze wie „Microsoft Word -“ oder „- Editor“) statt „Druckauftrag HH:MM“.
+- **Vorschaubild im Fax-Fenster.** Die erste Seite erscheint als kleines Bild; ein Klick öffnet das ganze Dokument als PDF.
+- **Namen aus dem FRITZ!Box-Telefonbuch im Dashboard.** Anrufliste, Details und Anrufleiste zeigen Namen aus dem Telefonbuch der Box mit dem Zeichen „FRITZ!Box“, wenn die Nummer nicht bei den eigenen Kontakten steht; die Suche findet sie ebenfalls.
+- **Links zu den Seiten beim KI-Anbieter.** Jede KI-Verbindung verlinkt Nutzung, Limits, Schlüssel und Abrechnung (Gemini zusätzlich das Google-Cloud-Projekt).
+- **Behoben:** Ein Klick auf einen Treffer in der Empfängersuche des Fax-Fensters wählte ihn nicht aus.
 
 ## 1.0.3 – 26.11.2026
 

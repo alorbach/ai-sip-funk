@@ -51,16 +51,27 @@ export function postScriptInfo(ps: Buffer): { title?: string; pages?: number } {
   return { title: title || undefined, pages: Number.isFinite(pages) && pages > 0 ? pages : undefined };
 }
 
+/** Höchstens so lange auf den Namen aus der Druckwarteschlange warten */
+const DOC_NAME_WAIT_MS = 8000;
+
 export class FaxPrintPort {
   private server?: Server;
 
-  constructor(private readonly port: number, private readonly onDocument: (doc: PrintedDocument) => void) {}
+  /**
+   * @param documentName fragt den Dokumentnamen des laufenden Auftrags ab (Windows-Warteschlange). Läuft gleich zu Beginn
+   * der Verbindung; der Port schließt erst danach, damit der Auftrag solange in der Warteschlange steht.
+   */
+  constructor(private readonly port: number, private readonly onDocument: (doc: PrintedDocument) => void, private readonly documentName?: () => Promise<string | undefined>) {}
 
   start(): Promise<void> {
     return new Promise((resolve) => {
-      const server = createServer((sock) => {
+      // allowHalfOpen: nach dem Ende der Daten bleibt die Verbindung offen, bis der Name abgefragt ist (Auftrag bleibt in der Warteschlange)
+      const server = createServer({ allowHalfOpen: true }, (sock) => {
         const chunks: Buffer[] = [];
         let size = 0;
+        const spooled = this.documentName
+          ? Promise.race([this.documentName().catch(() => undefined), new Promise<undefined>((r) => { const t = setTimeout(r, DOC_NAME_WAIT_MS) as { unref?: () => void }; t.unref?.(); })])
+          : Promise.resolve(undefined);
         sock.on('data', (d: Buffer) => {
           size += d.length;
           if (size > MAX_JOB_BYTES) {
@@ -72,9 +83,11 @@ export class FaxPrintPort {
         });
         sock.on('error', () => undefined);
         sock.on('end', () => {
-          sock.end();
-          if (size === 0 || size > MAX_JOB_BYTES) return;
-          void this.handle(Buffer.concat(chunks));
+          void spooled.then((spoolName) => {
+            sock.end();
+            if (size === 0 || size > MAX_JOB_BYTES) return;
+            void this.handle(Buffer.concat(chunks), spoolName);
+          });
         });
       });
       server.on('error', (err) => {
@@ -94,7 +107,7 @@ export class FaxPrintPort {
     this.server = undefined;
   }
 
-  private async handle(data: Buffer): Promise<void> {
+  private async handle(data: Buffer, spoolName?: string): Promise<void> {
     const dir = mkdtempSync(path.join(tmpdir(), 'sipfunk-print-'));
     try {
       const ps = cleanPostScript(data);
@@ -103,8 +116,10 @@ export class FaxPrintPort {
       const pdfFile = path.join(dir, 'auftrag.pdf');
       writeFileSync(psFile, ps);
       await psToPdf(psFile, pdfFile);
-      // „MSxpsPS“ u. ä. ist nur der interne Name des XPS-Druckwegs: dann der Auftragsname aus dem PJL-Kopf, sonst die Uhrzeit
-      const title = info.title && !GENERIC_TITLE.test(info.title) ? info.title : pjlJobName(data);
+      // Name aus der Windows-Warteschlange; sonst %%Title („MSxpsPS“ u. ä. ist nur der interne Name des XPS-Druckwegs),
+      // dann der Auftragsname aus dem PJL-Kopf, zuletzt die Uhrzeit
+      const usable = (t?: string) => (t && !GENERIC_TITLE.test(t) ? t : undefined);
+      const title = usable(spoolName) ?? usable(info.title) ?? pjlJobName(data);
       const name = title ?? `Druckauftrag ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
       log.info(`Fax-Drucker: „${name}“ empfangen${info.pages ? ` (${info.pages} Seite(n))` : ''}`);
       this.onDocument({ name, pdf: readFileSync(pdfFile), pages: info.pages });

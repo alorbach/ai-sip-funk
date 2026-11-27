@@ -263,6 +263,9 @@
   .call .m { color: var(--text-3); font-size: 12px; white-space: nowrap; }
   .badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
   .badge.owner { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok-ink); border-color: transparent; }
+  .provider-links { margin: 6px 0 0; font-size: 13px; line-height: 1.7; }
+  .provider-links a { white-space: nowrap; }
+  .src-fritz { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--text-2); vertical-align: middle; line-height: 16px; white-space: nowrap; }
   .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn-ink); vertical-align: middle; white-space: nowrap; }
   .pill.in { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); }
   .pill.out { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
@@ -1136,6 +1139,19 @@ function contactFor(number) {
   const k = key(number);
   return k ? contactIndex.map.get(k) : undefined;
 }
+// Fürs Anzeigen: eigener Kontakt, sonst Eintrag aus dem FRITZ!Box-Telefonbuch ({ name, fritz: true }, ohne id)
+let fritzIndex = { list: null, map: new Map() };
+function whoFor(number) {
+  const c = contactFor(number);
+  if (c) return c;
+  if (fritzIndex.list !== fritzItems) {
+    const map = new Map();
+    for (const x of fritzItems) { const k = key(x.number); if (k && !map.has(k)) map.set(k, { name: x.name, fritz: true }); }
+    fritzIndex = { list: fritzItems, map };
+  }
+  const k = key(number);
+  return k ? fritzIndex.map.get(k) : undefined;
+}
 
 // ---- Seiten (Tab-Leiste): Dashboard, Anrufe, Kontakte, Einstellungen; letzte Seite wird gemerkt ----
 const PAGES = ['dashboard', 'calls', 'contacts', 'settings'];
@@ -1207,12 +1223,12 @@ function render() {
   $('callbar').hidden = !showBar;
   $('callbar').dataset.k = status.phase === 'connected' ? 'ok' : status.phase === 'ended' ? 'warn' : 'accent';
   $('phase').textContent = busy || status.phase === 'ended' ? label.charAt(0).toUpperCase() + label.slice(1) : label;
-  const c = status.target ? contactFor(status.target) : null;
+  const c = status.target ? whoFor(status.target) : null;
   if (ringing && !busy) { $('phase').textContent = 'Es klingelt'; $('callbar').dataset.k = 'accent'; }
   $('meta').innerHTML = ringing && !busy
     ? `<b>${ringState.callerName || ringState.caller ? `<span data-no-i18n>${esc(ringState.callerName || ringState.caller)}</span>` : 'Nummer unterdrückt'}</b>${ringState.line ? ' · für ' + esc(ringState.line) : ''} · die KI nimmt nicht an`
     : status.target
-    ? `<b data-no-i18n>${esc(c ? c.name : status.target)}</b>${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}<span class="adv">${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}</span>`
+    ? `<b data-no-i18n>${esc(c ? c.name : status.target)}</b>${c?.fritz ? ' ' + fritzMark : ''}${c ? ' · ' + esc(status.target) : ''} · ${fmt(status.durationSec)}<span class="adv">${status.codec ? ' · ' + esc(status.codec) : ''} · RTP ${status.rtpSent}/${status.rtpReceived}</span>`
     : '';
   $('hangup').disabled = !busy;
   $('prepare').disabled = busy || !status.registered;
@@ -1270,7 +1286,8 @@ function renderUsage(u, model, costUsd) { $('usage').textContent = usageText(u, 
 
 // ---- Anrufe ----
 /** Name des Kontakts bzw. die Nummer – von der Übersetzung ausgenommen; nur „anonym“ ist ein Text der Oberfläche. */
-const nameHtml = (contact, target) => (contact || target ? `<span data-no-i18n>${esc(contact ? contact.name : target)}</span>` : 'anonym');
+const fritzMark = '<span class="src-fritz" title="Aus dem FRITZ!Box-Telefonbuch">FRITZ!Box</span>';
+const nameHtml = (contact, target) => (contact || target ? `<span data-no-i18n>${esc(contact ? contact.name : target)}</span>${contact?.fritz ? ' ' + fritzMark : ''}` : 'anonym');
 /** Zeile unter einem Fax-Eintrag, in der Sprache der Oberfläche */
 function faxSummary(c) {
   const f = c.fax;
@@ -1283,7 +1300,7 @@ function faxPills(f) {
   return ' <span class="pill out">Fax</span>' + (f.delivered ? '' : ' <span class="pill bad">Fehlgeschlagen</span>');
 }
 function callRow(c, compact) {
-  const contact = contactFor(c.target);
+  const contact = whoFor(c.target);
   const d = document.createElement('div'); d.className = 'call row' + (c.id === selectedCallId && !compact ? ' active' : ''); d.dataset.id = c.id; d.tabIndex = 0; d.setAttribute('role', 'button');
   if (c.id === selectedCallId && !compact) d.setAttribute('aria-current', 'true');
   const sum = c.fax ? faxSummary(c) : ((c.outcome && c.outcome.result) || c.summary || '').replace(/\*\*/g, '').split('\n')[0];
@@ -1298,7 +1315,7 @@ function renderCalls() {
   let items = allCalls;
   if (activeContact) items = items.filter((c) => numbersOf(activeContact).some((n) => sameNumber(c.target, n)));
   const qDigits = /^[\d\s+*\-/()]+$/.test(q) ? q.replace(/[^\d*]/g, '') : '';
-  if (q) items = items.filter((c) => { const n = contactFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (qDigits && (c.target || '').includes(qDigits)) || (c.summary || '').toLowerCase().includes(q); });
+  if (q) items = items.filter((c) => { const n = whoFor(c.target)?.name || ''; return n.toLowerCase().includes(q) || (c.target || '').includes(q) || (qDigits && (c.target || '').includes(qDigits)) || (c.summary || '').toLowerCase().includes(q); });
   const el = $('calls'); el.innerHTML = '';
   $('calls-empty').style.display = items.length ? 'none' : 'block';
   for (const c of items) el.appendChild(callRow(c, false));
@@ -1328,8 +1345,9 @@ async function showCall(id) {
   const r = await api('/api/transcripts/' + encodeURIComponent(id));
   selectedCallId = id;
   const contact = contactFor(r.target);
+  const who = whoFor(r.target); // auch FRITZ!Box-Telefonbuch, nur zum Anzeigen
   const pills = r.fax ? faxPills(r.fax) : `${r.called ? ' <span class="pill in">Eingehend</span>' : r.notify ? ' <span class="pill out">Rückruf an dich</span>' : ' <span class="pill out">Ausgehend</span>'}${r.spam ? ' <span class="pill">Spam-Abwehr</span>' : ''}${r.origin === 'mcp' ? ' <span class="pill in">Von KI-Agent</span>' : ''}`;
-  $('call-detail-head').innerHTML = `<div class="t">${nameHtml(contact, r.target)}${contact ? ` <span class="hint" data-no-i18n>${esc(r.target)}</span>` : ''}${pills}</div>
+  $('call-detail-head').innerHTML = `<div class="t">${nameHtml(who, r.target)}${who ? ` <span class="hint" data-no-i18n>${esc(r.target)}</span>` : ''}${pills}</div>
     <div class="m" data-no-i18n>${esc(when(r.startedAt))} · ${fmt(r.durationSec)} · ${esc(r.fax ? I18N.t(r.endReason) : r.endReason)}${r.called ? ' · ' + esc(r.called) : ''}</div>
     ${r.outcome && r.outcome.result ? `<div class="m"><b>Ergebnis laut KI:</b> <span data-no-i18n>${esc(r.outcome.result)}${r.outcome.open ? ' · ' + esc(r.outcome.open) : ''}</span></div>` : ''}`;
   // Fax: statt Transkript die Eckdaten der Übertragung
@@ -1361,7 +1379,7 @@ async function showCall(id) {
   $('call-usage').textContent = r.usage ? usageText(r.usage, r.model, r.costUsd) : ''; $('call-usage-row').hidden = !r.usage;
   const digits = (r.target || '').replace(/\D/g, '');
   const a = $('call-actions'); a.style.display = ''; a.innerHTML = '';
-  if (r.called && digits.length >= 3 && !contact && !onSpamList(r.target)) a.innerHTML += `<button class="btn small quiet" data-spam="${esc(r.target)}">Nummer auf die Spam-Liste</button>`;
+  if (r.called && digits.length >= 3 && !who && !onSpamList(r.target)) a.innerHTML += `<button class="btn small quiet" data-spam="${esc(r.target)}">Nummer auf die Spam-Liste</button>`;
   if (r.spam) a.innerHTML += `<button class="btn small quiet" data-complaint="${esc(r.id)}">Beschwerde-Entwurf</button>`;
   if (!contact && digits.length >= 3) a.innerHTML += `<button class="btn small quiet" data-newcontact="${esc(r.target)}">Als Kontakt speichern</button>`;
   a.innerHTML += `<button class="btn small quiet" data-del="${esc(r.id)}">Protokoll löschen</button>`;
@@ -1464,6 +1482,7 @@ $('contacts').onkeydown = (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') &
 let fritzItems = [];
 function renderFritz(fb) {
   fritzItems = fb.items || [];
+  if (allCalls.length) renderCalls(); // Namen aus dem Telefonbuch in der Anrufliste
   const voice = fritzItems.filter((x) => x.label !== 'fax');
   $('fritz-numbers').replaceChildren(...voice.map((x) => Object.assign(document.createElement('option'), { value: `${x.name} – ${x.number}` })));
   const fax = fritzItems.length - voice.length;
@@ -1933,6 +1952,13 @@ const PROVIDER_NOTES = {
   openai: ['OpenAI Realtime. Braucht ein OpenAI-Konto mit Guthaben; Gespräche kosten je nach Länge einige Cent.', 'Schlüssel erstellen: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a>. Ein ChatGPT-Abo ersetzt ihn nicht.'],
   gemini: ['Gemini Live API mit einem Schlüssel aus Google AI Studio. Erst in wenigen Telefonaten erprobt – lies die Hinweise unten.', 'Schlüssel erstellen: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a>. Dafür genügt ein Google-Konto.'],
 };
+/** Seiten beim Anbieter: Verbrauch, Schlüssel, Abrechnung, Projekt (öffnen im Browser) */
+const PROVIDER_LINKS = {
+  openai: [['Nutzung', 'https://platform.openai.com/usage'], ['Limits', 'https://platform.openai.com/settings/organization/limits'], ['API-Schlüssel', 'https://platform.openai.com/api-keys'], ['Abrechnung', 'https://platform.openai.com/settings/organization/billing/overview']],
+  gemini: [['Nutzung und Limits', 'https://aistudio.google.com/usage'], ['API-Schlüssel und Projekte', 'https://aistudio.google.com/apikey'], ['Abrechnung', 'https://console.cloud.google.com/billing'], ['Google-Cloud-Projekt', 'https://console.cloud.google.com/iam-admin/settings']],
+};
+const providerLinksHtml = (provider) => (PROVIDER_LINKS[provider] || [])
+  .map(([label, url]) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}<span aria-hidden="true" data-no-i18n> ↗</span></a>`).join('<span aria-hidden="true"> · </span>');
 /** Eintrag einer Verbindung bauen: Kopfzeile zum Auf- und Zuklappen, darunter ihre eigenen Felder. */
 function buildConn(x) {
   const id = x.id, p = aiProvider(x.provider), notes = PROVIDER_NOTES[x.provider] || ['', ''];
@@ -1959,7 +1985,7 @@ function buildConn(x) {
           <button type="button" data-f="models-refresh" class="btn small quiet">Modelle aktualisieren</button>
           <span data-f="models-state" class="hint" role="status" data-no-i18n></span>
         </div>
-        <div class="field span"><span>Anbieter</span><p class="state" data-f="key-state" role="status" data-no-i18n></p><small>${notes[0]}</small></div>
+        <div class="field span"><span>Anbieter</span><p class="state" data-f="key-state" role="status" data-no-i18n></p><small>${notes[0]}</small>${PROVIDER_LINKS[x.provider] ? `<p class="provider-links"><span class="hint">Beim Anbieter:</span> ${providerLinksHtml(x.provider)}</p>` : ''}</div>
         <label class="field span"><span>API-Schlüssel</span><input data-f="key" type="password" autocomplete="new-password" spellcheck="false"><small>${notes[1]}</small></label>
         <div class="actions span">
           <button type="button" data-f="key-save" class="btn">Schlüssel prüfen und speichern</button>
