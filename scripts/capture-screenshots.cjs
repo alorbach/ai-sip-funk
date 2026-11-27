@@ -11,6 +11,8 @@
  *   --out <ordner>   Zielordner (Standard: doc/images)
  *   --only a,b       nur die genannten Bilder (z. B. dashboard,settings-ai)
  *   --lang de,en     nur diese Sprachen (Standard: beide)
+ *   --store          Bilder für den Microsoft Store: 1366 × 768 (Mindestmaß für Desktop-Screenshots),
+ *                    nur die Store-Auswahl, Zielordner doc/images/store
  *   --verbose        Server-Log und Konsolenmeldungen der Seite ausgeben
  *   --keep-temp      den temporären Datenordner behalten (zur Fehlersuche)
  *
@@ -48,9 +50,12 @@ const { app, BrowserWindow, nativeTheme } = electron;
 
 const ROOT = path.resolve(__dirname, '..');
 const args = parseArgs(process.argv.slice(2));
-const outDir = path.resolve(args.out || path.join(ROOT, 'doc', 'images'));
+const STORE = !!args.store;
+const outDir = path.resolve(args.out || path.join(ROOT, 'doc', 'images', ...(STORE ? ['store'] : [])));
 const langs = String(args.lang || 'de,en').split(',').map((s) => s.trim()).filter(Boolean);
-const only = args.only ? String(args.only).split(',').map((s) => s.trim()) : null;
+// Store-Auswahl in der Reihenfolge, in der sie im Partner Center hochgeladen wird (doc/store-listing.md)
+const STORE_SHOTS = ['dashboard', 'calls', 'settings-incoming', 'contacts', 'calls-fax', 'settings-mcp'];
+const only = args.only ? String(args.only).split(',').map((s) => s.trim()) : STORE ? STORE_SHOTS : null;
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sipfunk-shots-'));
 const dataDir = path.join(tempRoot, 'data');
@@ -444,8 +449,10 @@ async function setSettings(port, values) {
 }
 
 async function capture(port, lang, shot) {
-  const width = shot.width || 1280;
-  const win = new BrowserWindow({ width, height: shot.height, show: false, useContentSize: true, backgroundColor: '#ffffff', webPreferences: { partition: `shots-${lang}-${shot.name}`, backgroundThrottling: false } });
+  // Für den Store einheitlich 1366 × 768; was darunter liegt, schneidet das Fenster ab
+  const width = STORE ? 1366 : shot.width || 1280;
+  const height = STORE ? 768 : shot.height;
+  const win = new BrowserWindow({ width, height, show: false, useContentSize: true, backgroundColor: '#ffffff', webPreferences: { partition: `shots-${lang}-${shot.name}`, backgroundThrottling: false } });
   try {
     if (args.verbose) win.webContents.on('console-message', (_e, _level, message) => process.stdout.write(`[${shot.name}] ${message}\n`));
     const step = (t) => { if (args.verbose) process.stdout.write(`[${shot.name}.${lang}] ${t}\n`); };
@@ -483,9 +490,9 @@ async function capture(port, lang, shot) {
     if (shot.section) { await win.webContents.executeJavaScript(`(() => { const el = document.getElementById(${JSON.stringify(shot.section)}); const head = document.querySelector('header'); showSection(el.id); window.scrollTo({ top: ${shot.bottom ? 'document.documentElement.scrollHeight' : 0}, behavior: 'instant' }); })()`); await sleep(300); }
     step('nehme auf');
     // Ein verstecktes Fenster zeichnet Änderungen im Dialog nicht immer neu: vor der Aufnahme neu zeichnen lassen
-    win.setContentSize(width, shot.height + 1);
+    win.setContentSize(width, height + 1);
     await sleep(200);
-    win.setContentSize(width, shot.height);
+    win.setContentSize(width, height);
     win.webContents.invalidate();
     await sleep(400);
     const image = await win.webContents.capturePage();

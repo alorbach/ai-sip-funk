@@ -165,6 +165,4 @@ First release in the Microsoft Store.
 
 ## Screenshots
 
-Die Bilder aus `doc/images` (erfundene Beispieldaten, `npm run screenshots`) passen, jeweils `.de.png` für Deutsch und `.en.png` für Englisch. Vorschlag in dieser Reihenfolge: `dashboard`, `calls`, `settings-incoming`, `contacts`, `calls-fax`, `settings-mcp`.
-
-Achtung: Die Bilder sind 1280 Pixel breit. Für Desktop-Screenshots nennt das Partner Center mindestens 1366 × 768; das Partner Center zeigt beim Hochladen, ob es sie annimmt. Sonst die Bilder mit breiterem Fenster neu aufnehmen.
+Die Bilder in `doc/images/store` (1366 × 768, erfundene Beispieldaten), jeweils `.de.png` für Deutsch und `.en.png` für Englisch, in dieser Reihenfolge: `dashboard`, `calls`, `settings-incoming`, `contacts`, `calls-fax`, `settings-mcp`. Neu aufnehmen: `npm run screenshots:store`.
