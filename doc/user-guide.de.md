@@ -1111,6 +1111,14 @@ Die übrigen Abschnitte sind in den Kapiteln 6 bis 10 beschrieben. Ihre Startwer
 
 Die Web-UI und die MCP-Schnittstelle lauschen auf demselben Port, immer nur auf `127.0.0.1`. Standard ist 3865. Wer SIPFunk schon vor Version 1.0.1 eingerichtet hat, behält seinen bisherigen Port (meist 8080), sofern in der `.env` eine Zeile `WEB_PORT=…` steht; bei der installierten App ist das immer so. Ohne diese Zeile gilt seit 1.0.1 der Port 3865, und eingetragene Agenten zeigen „Veraltet“.
 
+**Von 8080 auf den Standardport 3865 umstellen.** Maßgeblich ist die Einstellung unter „Technik“ (gespeichert in `settings.json`); `WEB_PORT` in der `.env` ist nur der Startwert, solange dort nichts gespeichert ist. Ein Ändern der `.env` allein bewirkt also nichts. So geht es:
+
+1. „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“) auf **3865** setzen und speichern.
+2. **„Jetzt neu starten“** wählen (oder SIPFunk beenden und neu starten). Die Oberfläche wechselt danach auf `http://127.0.0.1:3865`.
+3. Unter „Einstellungen › MCP-Schnittstelle“ die eingetragenen KI-Agenten aktualisieren (Abschnitt 13.3); sie zeigen bis dahin „Veraltet“. Laufende Agenten (Claude Code, Codex …) danach neu starten oder die MCP-Verbindung neu aufbauen, damit sie die neue Adresse lesen.
+
+Wer möchte, setzt `WEB_PORT=3865` zusätzlich in der `.env`, damit beides übereinstimmt. Bei Microsoft 365 als Mail-Zugang auch die Redirect-Adresse anpassen (siehe unten).
+
 - **Ändern**: „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“), speichern. Erlaubt sind 1024 bis 65535; einen Port, den gerade ein anderes Programm belegt, nimmt die Oberfläche nicht an. Der neue Port gilt nach einem Neustart; mit der Tray-App bietet die Oberfläche „Jetzt neu starten“ an und wechselt danach von selbst auf die neue Adresse. Ohne Tray-App (`npm start`) SIPFunk von Hand beenden und wieder starten.
 - **Port belegt**: Ist der eingestellte Port beim Start von einem anderen Programm belegt, nimmt SIPFunk den nächsten freien darüber und speichert ihn als neue Einstellung. Das steht im Log, die Tray-App zeigt einen Hinweis, und die Oberfläche meldet es beim nächsten Öffnen. Die Adresse ändert sich danach nicht wieder von selbst, solange der neue Port frei bleibt.
 - **Wiederfinden**: Das Tray-Menü „Web-UI öffnen (Port …)“ und der Doppelklick auf das Tray-Symbol öffnen immer die richtige Adresse. Der Port der laufenden App steht außerdem in der Datei `sipfunk.port` im Datenordner.
