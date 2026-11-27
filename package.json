@@ -46,6 +46,7 @@
     "build": "tsc -p tsconfig.build.json",
     "icons": "node scripts/generate-icons.mjs",
     "screenshots": "npm run build && electron scripts/capture-screenshots.cjs",
+    "screenshots:store": "npm run build && electron scripts/capture-screenshots.cjs --store",
     "tray": "npm run build && electron .",
     "dist:win": "npm run build && npm run icons && electron-builder --win --publish never",
     "dist:store": "npm run build && npm run icons && electron-builder --win appx --publish never",
