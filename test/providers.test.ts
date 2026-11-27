@@ -128,3 +128,31 @@ test('Brücke über die Schicht: flag_spam wechselt Anweisung und Tools und wirk
   assert.deepEqual(h.live.named('toolOutput').at(-1), ['toolOutput', 'c2', 'flag_spam', 'Unbekannte Funktion']);
   h.bridge.close();
 });
+
+test('Spracheingabe: OpenAI schickt die Aufnahme an die Transkription, Gemini an das Textmodell', async () => {
+  const wav = Buffer.concat([Buffer.from('RIFF\0\0\0\0WAVE'), Buffer.alloc(40)]);
+  const seen: { url: string; init: RequestInit }[] = [];
+  const reply = (body: unknown) => (async (url: string | URL | Request, init?: RequestInit) => {
+    seen.push({ url: String(url), init: init ?? {} });
+    return new Response(JSON.stringify(body), { status: 200 });
+  }) as typeof fetch;
+
+  const o = await providerById('openai').transcribe('sk-test', wav, 'gpt-6-luna', reply({ text: ' Frag nach den Öffnungszeiten. ' }));
+  assert.equal(o, 'Frag nach den Öffnungszeiten.');
+  assert.equal(seen[0].url, 'https://api.openai.com/v1/audio/transcriptions');
+  const form = seen[0].init.body as FormData;
+  assert.equal(form.get('model'), 'gpt-4o-mini-transcribe');
+  assert.ok(form.get('file') instanceof Blob);
+
+  const g = await providerById('gemini').transcribe('AIza-test', wav, 'gemini-3.5-flash-lite', reply({ candidates: [{ content: { parts: [{ text: 'Gedanke', thought: true }, { text: 'Hallo Welt' }] } }] }));
+  assert.equal(g, 'Hallo Welt', 'Gedanken des Modells gehören nicht in den Auftrag');
+  assert.match(seen[1].url, /\/models\/gemini-3\.5-flash-lite:generateContent$/);
+  const body = JSON.parse(String(seen[1].init.body)) as { contents: { parts: { inlineData?: { mimeType: string; data: string } }[] }[] };
+  assert.equal(body.contents[0].parts[1].inlineData?.mimeType, 'audio/wav');
+  assert.equal(body.contents[0].parts[1].inlineData?.data, wav.toString('base64'));
+
+  // Die Fehlerantwort (bei OpenAI mit Teilen des Schlüssels) gelangt nicht in die Meldung
+  const leak = (async () => new Response('{"error":{"message":"Incorrect API key provided: sk-test-****0000"}}', { status: 401 })) as typeof fetch;
+  await assert.rejects(providerById('openai').transcribe('sk-test', wav, '', leak), (err: Error) => /Schlüssel abgelehnt/.test(err.message) && !/sk-|0000/.test(err.message));
+  await assert.rejects(providerById('gemini').transcribe('AIza-test', wav, '', (async () => new Response('x', { status: 429 })) as typeof fetch), /Kontingent/);
+});

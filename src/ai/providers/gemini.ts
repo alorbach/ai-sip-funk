@@ -204,4 +204,18 @@ export const gemini: AiProvider = {
     const audio = Buffer.from(b64, 'base64');
     return { data: audio.subarray(0, 4).toString('latin1') === 'RIFF' ? audio : wav(audio, 24000), ext: 'wav', mime: 'audio/wav' };
   },
+  async transcribe(key, audio, textModel, fetchImpl = fetch) {
+    // Das Textmodell versteht auch Audio: wörtlich aufschreiben lassen, ohne Antwort auf den Inhalt
+    const res = await call(fetchImpl, `/models/${encodeURIComponent(textModel || TEXT_MODEL)}:generateContent`, key, {
+      contents: [{ role: 'user', parts: [
+        { text: 'Schreibe wörtlich auf, was in der Aufnahme gesagt wird. Nur den gesprochenen Text mit Satzzeichen, ohne Einleitung, ohne Anführungszeichen, ohne Antwort auf den Inhalt. Ist nichts zu verstehen, antworte mit einer leeren Zeile.' },
+        { inlineData: { mimeType: 'audio/wav', data: audio.toString('base64') } },
+      ] }],
+      generationConfig: { temperature: 0, maxOutputTokens: 2048 },
+    }, 60_000);
+    const error = statusError(res.status);
+    if (error) throw new Error(error);
+    const data = (res.json() ?? {}) as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+    return (data.candidates?.[0]?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? '').join('').trim();
+  },
 };

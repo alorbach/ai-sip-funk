@@ -6,6 +6,10 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+- **A window of its own instead of the browser.** A double click on the tray icon opens SIPFunk in its own Windows window; "Im Browser öffnen" (open in browser) remains in the tray menu. The window runs independently of the tray; closing it does not quit SIPFunk. It remembers size, position and zoom; Ctrl+Plus/Minus/0 zoom.
+- **Simpler dashboard in level "Einfach".** One column, tab "Start"; style, voice, form of address and AI connection behind "Stimme und Stil" (voice and style), the transcript only during and after a call, hint text and "Als Standard speichern" only in "Erweitert".
+- **Dictate the task.** Microphone button in the field "Auftrag an die KI": speech is recognised by the provider of the active AI connection (OpenAI `gpt-4o-mini-transcribe` or the Gemini text model), and the text is appended to the task.
+
 ## 1.0.3 – 26 November 2026
 
 - **Faxes in the call log.** Every fax sent or failed is listed on the Calls page and among the recent calls on the dashboard, tagged "Fax" (failed ones additionally in red). A click shows document, result, pages, transmission rate and remote station. The entries follow the retention period of the call logs; the document itself is not stored.

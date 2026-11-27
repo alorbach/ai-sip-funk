@@ -1194,6 +1194,13 @@ const stopWeb = startWebServer({
     const s = loadSettings();
     return voiceSample(provider, key, voice, sampleText(s.aiName || 'Alex', s.principal || 'Max'), join(dataDir, 'voice-samples', ...(provider.id === 'openai' ? [] : [provider.id])));
   },
+  transcribe: async (wav) => {
+    const r = ai();
+    if (!r.key) throw new Error(`Die Spracheingabe braucht den ${r.provider.label}-Schlüssel (Einstellungen › KI-Verbindungen)`);
+    const text = await r.provider.transcribe(r.key, wav, r.textModel);
+    log.info(`Spracheingabe über ${r.provider.label}: ${text.length} Zeichen erkannt`);
+    return text;
+  },
   models: async (refresh, connectionId) => {
     const connection = connectionById(connectionId);
     if (!connection) throw new Error('Unbekannte KI-Verbindung');

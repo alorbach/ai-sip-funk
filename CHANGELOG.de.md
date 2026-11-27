@@ -6,6 +6,10 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **Eigenes Fenster statt Browser.** Ein Doppelklick aufs Tray-Symbol öffnet SIPFunk in einem eigenen Windows-Fenster; „Im Browser öffnen“ im Tray-Menü gibt es weiterhin. Das Fenster läuft unabhängig vom Tray, Schließen beendet SIPFunk nicht. Es merkt sich Größe, Lage und Zoom; Strg+Plus/Minus/0 zoomen.
+- **Einfacheres Dashboard in der Stufe „Einfach“.** Eine Spalte, Reiter „Start“; Stil, Stimme, Anrede und KI-Verbindung hinter „Stimme und Stil“, das Transkript nur während und nach einem Gespräch, Hinweistext und „Als Standard speichern“ nur noch in „Erweitert“.
+- **Auftrag einsprechen.** Mikrofon-Taste im Feld „Auftrag an die KI“: Die Sprache erkennt der Anbieter der aktiven KI-Verbindung (OpenAI `gpt-4o-mini-transcribe` oder das Gemini-Textmodell), der Text wird an den Auftrag angehängt.
+
 ## 1.0.3 – 26.11.2026
 
 - **Faxe im Anrufe-Log.** Jedes gesendete oder fehlgeschlagene Fax steht auf der Seite „Anrufe“ und unter den letzten Anrufen auf dem Dashboard, gekennzeichnet mit „Fax“ (fehlgeschlagen zusätzlich rot). Ein Klick zeigt Dokument, Ergebnis, Seiten, Übertragungsrate und Gegenstelle. Die Einträge folgen der Aufbewahrungsfrist der Protokolle; das Dokument selbst wird nicht gespeichert.

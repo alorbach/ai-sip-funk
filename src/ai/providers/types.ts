@@ -175,6 +175,8 @@ export interface AiProvider {
   text(key: string, model: string, prompt: string, maxOutputTokens: number, format?: { name: string; schema: object }, fetchImpl?: typeof fetch): Promise<string>;
   createLive(config: LiveConfig, events: LiveEvents): LiveSession;
   voiceSample(key: string, voice: string, text: string, fetchImpl?: typeof fetch): Promise<VoiceSampleAudio>;
+  /** Gesprochenes in Text umsetzen (Spracheingabe des Auftrags); wav = PCM16 mono als WAV. textModel = Textmodell der Verbindung */
+  transcribe(key: string, wav: Buffer, textModel: string, fetchImpl?: typeof fetch): Promise<string>;
   /** Kennung des Hörproben-Modells (Teil des Cache-Namens) */
   readonly sampleModel: string;
 }
