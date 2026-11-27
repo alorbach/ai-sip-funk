@@ -68,7 +68,7 @@ npm install
 npm start
 ```
 
-Danach <http://127.0.0.1:3865> öffnen. Für den ersten Start ist keine Konfigurationsdatei nötig. Ist der Port 3865 belegt, nimmt SIPFunk den nächsten freien und nennt ihn im Log und im Tray-Menü („Web-UI öffnen (Port …)“); ändern lässt er sich unter „Einstellungen › Technik“ (Abschnitt 15.3).
+Danach <http://127.0.0.1:3865> öffnen. Für den ersten Start ist keine Konfigurationsdatei nötig. Ist der Port 3865 belegt, nimmt SIPFunk den nächsten freien und nennt ihn im Log und im Tray-Menü („Im Browser öffnen (Port …)“); ändern lässt er sich unter „Einstellungen › Technik“ (Abschnitt 15.3).
 
 ### 4.2 Der Einrichtungsassistent
 
@@ -106,7 +106,9 @@ Installiert mit dem Installer von der Seite [Releases](https://github.com/alorba
 npm run tray
 ```
 
-Ein Symbol im Infobereich zeigt den Zustand (registriert, bereit, verbunden). Doppelklick öffnet die Web-UI, ein Klick das Menü: „Web-UI öffnen“, „Anrufbeantworter“ (an/aus), „Einstellungen (.env) bearbeiten“, „Datenordner öffnen“, „Beim Anmelden starten“ (nicht beim Start aus dem Repository), „Server neu starten“, „Beenden“. Fehler (z. B. eine gescheiterte Anmeldung) stehen als Zeile im Menü; ein Klick kopiert sie. Nach einem angenommenen Anruf erscheint eine Windows-Benachrichtigung; ein Klick darauf öffnet die Web-UI.
+Ein Symbol im Infobereich zeigt den Zustand (registriert, bereit, verbunden). Doppelklick öffnet die Oberfläche in einem eigenen Fenster, ein Klick das Menü: „SIPFunk öffnen“ (dasselbe Fenster), „Im Browser öffnen (Port …)“ (die Web-UI im Standardbrowser), „Anrufbeantworter“ (an/aus), „Einstellungen (.env) bearbeiten“, „Datenordner öffnen“, „Beim Anmelden starten“ (nicht beim Start aus dem Repository), „Server neu starten“, „Beenden“. Fehler (z. B. eine gescheiterte Anmeldung) stehen als Zeile im Menü; ein Klick kopiert sie. Nach einem angenommenen Anruf erscheint eine Windows-Benachrichtigung; ein Klick darauf öffnet das Fenster.
+
+**Das SIPFunk-Fenster** zeigt dieselbe Oberfläche wie der Browser unter <http://127.0.0.1:3865>, nur ohne Browser. Es läuft unabhängig vom Tray: Schließen beendet SIPFunk nicht (das geht nur über „Beenden“ im Tray-Menü), und Anrufe, Anrufbeantworter und Pop-ups laufen weiter, auch wenn das Fenster hängt oder zu ist. Links zu Anbietern und Anmeldungen bei Google oder Microsoft öffnen sich im Standardbrowser. Das Fenster darf nur das Mikrofon benutzen (für die Spracheingabe des Auftrags, Abschnitt 5), sonst nichts. Strg+Plus und Strg+Minus vergrößern und verkleinern die Ansicht, Strg+0 setzt sie zurück. Größe, Lage und Zoom merkt sich das Fenster in `window.json` im Datenordner; liegt es danach auf keinem vorhandenen Bildschirm mehr (Monitor abgesteckt), öffnet es sich wieder mittig.
 
 **Installer.** `SIPFunk-<Version>-win-x64.exe` von der Release-Seite installiert SIPFunk für den angemeldeten Benutzer ohne Administratorrechte (Eintrag im Startmenü, Deinstallation über „Installierte Apps“ in Windows). Lass die Vorauswahl „nur für mich“ stehen: Eine Installation für alle Benutzer braucht Administratorrechte, und der Autostart samt seinem Entfernen bei der Deinstallation hängt dann an dem Konto, das sie bestätigt hat. Die Datei ist nicht signiert, Windows SmartScreen warnt deshalb: „Weitere Informationen“ → „Trotzdem ausführen“. Die Version steht im Tray-Menü und auf der Seite „Einstellungen“. Für ein Update den neueren Installer über die alte Fassung laufen lassen; der Datenordner bleibt dabei unberührt, und er bleibt auch bei der Deinstallation liegen.
 
@@ -138,7 +140,9 @@ Die Kopfzeile ist immer sichtbar: links die vier Seiten, rechts der Verbindungss
 
 **Mithören** in der Gesprächsleiste spielt beide Gesprächsseiten im Browser ab (nur live, keine Aufzeichnung). Mit `LIVE_LISTEN_ENABLED=false` ist die Funktion aus.
 
-- **Dashboard**: links die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“) und die letzten fünf Anrufe; rechts das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll (nur in der Stufe „Erweitert“).
+- **Dashboard** (in der Stufe „Einfach“ heißt der Reiter „Start“): die Karte „Anruf“ (Rufnummer oder Kontakt, Auftrag mit Mikrofon-Taste, Art des Anrufs, Stil, Stimme, Anrede, „KI-Verbindung“, „Anrufen …“, „Als Standard speichern“), die letzten fünf Anrufe und das Transkript des laufenden Gesprächs mit Verbrauch und Zusammenfassung, darunter das Systemprotokoll (nur in der Stufe „Erweitert“). In „Einfach“ steht alles in einer Spalte: oben „Anruf“, darunter das Gespräch (nur wenn eins läuft oder gerade lief), darunter die letzten Anrufe. Stil, Stimme, Anrede und KI-Verbindung liegen dort hinter „Stimme und Stil“; daneben steht kurz, was gerade gilt.
+
+**Auftrag einsprechen.** Die Mikrofon-Taste neben dem Feld „Auftrag an die KI“ nimmt auf: einmal klicken, sprechen, noch einmal klicken. Während der Aufnahme steht über dem Feld, wie lange schon aufgenommen wird und welcher Anbieter den Text erkennt; nach zwei Minuten endet die Aufnahme von selbst, die letzten 15 Sekunden sind hervorgehoben. Der erkannte Text wird an den Auftrag angehängt und lässt sich danach bearbeiten. Erkannt wird über die aktive KI-Verbindung mit demselben Schlüssel: bei OpenAI mit dem Transkriptionsmodell `gpt-4o-mini-transcribe`, bei Google Gemini mit dem Textmodell der Verbindung. Die Aufnahme geht nur an diesen Anbieter und wird nicht gespeichert; ein Diktat kostet Bruchteile eines Cents. Den Zugriff aufs Mikrofon muss Windows erlauben („Einstellungen › Datenschutz und Sicherheit › Mikrofon“, auch für Desktop-Apps), im Browser zusätzlich die Seite.
 - **Anrufe**: alle gespeicherten Gespräche mit Suche nach Name oder Nummer und den Markierungen „Eingehend“, „Ausgehend“, „Rückruf an dich“, „Spam-Abwehr“ und „Von KI-Agent“. Ein Klick zeigt Transkript, Ergebnis laut KI, Zusammenfassung und Kosten sowie die Knöpfe „Nummer auf die Spam-Liste“, „Beschwerde-Entwurf“, „Als Kontakt speichern“ und „Protokoll löschen“.
 - **Kontakte**: Liste mit „Anrufen“ (übernimmt den Kontakt ins Dashboard), „Verlauf“ (filtert die Anrufliste), „Bearbeiten“ und Löschen; „Neuer Kontakt“ oben rechts.
 - **Einstellungen**: die Abschnitte KI-Assistent, KI-Verbindungen, Anrufbeantworter, Benachrichtigungen, E-Mail-Versand, Spam-Abwehr, MCP-Schnittstelle und Technik (nur in der Stufe „Erweitert“). Die Abschnittsliste links arbeitet wie Reiter: Rechts steht nur die Karte des gewählten Abschnitts, und die Auswahl wird gemerkt. „Speichern“ (oder Strg+S) unter der Liste speichert weiterhin alle Abschnitte dieser Seite – nur die Werte, die du geändert hast –, sie gelten ab dem nächsten Anruf. Ausnahme sind Änderungen an KI-Verbindungen: Sie gelten sofort, ohne „Speichern“ (Abschnitt 6.2). „Einrichtungsassistent …“ oben öffnet den Einrichtungsassistenten. Im Abschnitt „Technik“ stehen außerdem zur Information die Werte, die nur in der `.env` stehen (Box, Ports, Datenordner).
@@ -151,7 +155,7 @@ Der Schalter oben rechts auf jeder Seite legt fest, wie viel die Web-UI zeigt. E
 
 | Bereich | „Einfach“ zeigt | „Erweitert“ zusätzlich |
 | --- | --- | --- |
-| Dashboard | Rufnummer, Auftrag, Stil, Stimme mit Hörprobe, Anrede, KI-Verbindung, „Anrufen …“, letzte Anrufe, Live-Transkript | Art des Anrufs (KI, Echo, Testton), Systemprotokoll, Codec und RTP-Zähler, Token-Verbrauch |
+| Dashboard | Rufnummer, Auftrag mit Mikrofon-Taste, „Anrufen …“, unter „Stimme und Stil“ Stil, Stimme mit Hörprobe, Anrede, KI-Verbindung; letzte Anrufe, Live-Transkript (nur während und nach einem Gespräch); alles in einer Spalte | Art des Anrufs (KI, Echo, Testton), Hinweistext und „Als Standard speichern“, Systemprotokoll, Codec und RTP-Zähler, Lautstärke beim Mithören, Token-Verbrauch; zwei Spalten |
 | Anrufe, Kontakte | alles | Token-Verbrauch und Kosten eines Gesprächs |
 | KI-Assistent | Name der KI, „Im Auftrag von“, Verhalten im Gespräch (vier Auswahlfelder und freier Text) | – |
 | KI-Verbindungen | Liste der Verbindungen zum Aufklappen, Hinzufügen, Umbenennen, Umschalten und Entfernen, Standardstimme mit Hörprobe, Sprachmodell, Textmodell, Ausweich-Sprach- und -Textmodelle, Schlüssel, „Verbindung testen“, Verbrauch in diesem Monat, Hinweise zu Gemini | eigene Modell-IDs, tatsächliche Kosten laut OpenAI (Admin-Schlüssel) |
@@ -597,6 +601,7 @@ Der Datenordner ist beim Start aus dem Repository der Projektordner, bei der ins
 | `usage.json` | Monatsverbrauch je KI-Anbieter: Zahl der Gespräche, Sekunden, geschätzte Kosten; die letzten 13 Monate (Abschnitt 6.2) | nein |
 | `autostart.flag` | nur installierte Tray-App: merkt, dass der Autostart beim ersten Start eingerichtet wurde, damit ein Update ihn nicht wieder einschaltet (Abschnitt 4.3) | nein |
 | `sipfunk.port` | Port der laufenden App; wird beim Beenden entfernt (Abschnitt 15.3) | nein |
+| `window.json` | nur Tray-App: Größe, Lage und Zoom des SIPFunk-Fensters (Abschnitt 4.3) | nein |
 | `voice-samples/` | zwischengespeicherte Hörproben (MP3; bei Gemini WAV im Unterordner `gemini/`) | nein |
 | `sim-results/` | Berichte des Simulators (im Projektordner) | nein, sofern die Szenarien erfunden sind |
 
@@ -1121,7 +1126,7 @@ Wer möchte, setzt `WEB_PORT=3865` zusätzlich in der `.env`, damit beides über
 
 - **Ändern**: „Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle“ (Stufe „Erweitert“), speichern. Erlaubt sind 1024 bis 65535; einen Port, den gerade ein anderes Programm belegt, nimmt die Oberfläche nicht an. Der neue Port gilt nach einem Neustart; mit der Tray-App bietet die Oberfläche „Jetzt neu starten“ an und wechselt danach von selbst auf die neue Adresse. Ohne Tray-App (`npm start`) SIPFunk von Hand beenden und wieder starten.
 - **Port belegt**: Ist der eingestellte Port beim Start von einem anderen Programm belegt, nimmt SIPFunk den nächsten freien darüber und speichert ihn als neue Einstellung. Das steht im Log, die Tray-App zeigt einen Hinweis, und die Oberfläche meldet es beim nächsten Öffnen. Die Adresse ändert sich danach nicht wieder von selbst, solange der neue Port frei bleibt.
-- **Wiederfinden**: Das Tray-Menü „Web-UI öffnen (Port …)“ und der Doppelklick auf das Tray-Symbol öffnen immer die richtige Adresse. Der Port der laufenden App steht außerdem in der Datei `sipfunk.port` im Datenordner.
+- **Wiederfinden**: Das Tray-Menü „Im Browser öffnen (Port …)“ und der Doppelklick auf das Tray-Symbol öffnen immer die richtige Adresse. Der Port der laufenden App steht außerdem in der Datei `sipfunk.port` im Datenordner.
 - **Was sich mit dem Port ändert**: Lesezeichen im Browser; die Adresse `http://127.0.0.1:PORT/mcp` bei eingetragenen KI-Agenten (Abschnitt 13.3 zeigt, wie sie mit einem Klick aktualisiert werden); bei Microsoft 365 die Redirect-Adresse der App-Registrierung (Abschnitt 9). Der Browser merkt sich Kleinigkeiten wie die zuletzt gewählte Nummer je Adresse; sie beginnen unter dem neuen Port neu.
 
 ## 16. Kosten

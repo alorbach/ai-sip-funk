@@ -12,6 +12,16 @@
     'Einfach': 'Simple',
     'Erweitert': 'Advanced',
     'Dashboard': 'Dashboard',
+    'Start': 'Home',
+    'Stimme und Stil': 'Voice and style',
+    'Auftrag einsprechen': 'Dictate the task',
+    'Auftrag einsprechen: klicken, sprechen, noch einmal klicken': 'Dictate the task: click, speak, click again',
+    'Aufnahme beenden': 'Stop recording',
+    'Aufnahme {0} / 2:00 – {1} erkennt den Text, gespeichert wird nichts. Zum Beenden noch einmal klicken.': 'Recording {0} / 2:00 – {1} recognises the text, nothing is stored. Click again to stop.',
+    'Wird erkannt …': 'Recognising …',
+    'Nichts verstanden – bitte noch einmal.': 'Nothing recognised – please try again.',
+    'Kein Zugriff auf das Mikrofon. Bitte in den Windows-Einstellungen (Datenschutz › Mikrofon) bzw. im Browser erlauben.': 'No access to the microphone. Please allow it in the Windows settings (Privacy › Microphone) or in your browser.',
+    'Kein Mikrofon gefunden.': 'No microphone found.',
     'Anrufe': 'Calls',
     'Kontakte': 'Contacts',
     'Einstellungen': 'Settings',
@@ -704,6 +714,7 @@
     'Benutzername: ohne Leerzeichen, Anführungszeichen, „@“ oder spitze Klammern': 'User name: no spaces, quotation marks, "@" or angle brackets',
     'Das sieht nicht nach einem OpenAI-Schlüssel aus (beginnt meist mit „sk-“, ohne Leerzeichen)': 'This does not look like an OpenAI key (usually starts with "sk-", no spaces)',
     'OpenAI hat den Schlüssel abgelehnt – bitte neu kopieren.': 'OpenAI rejected the key – please copy it again.',
+    'OpenAI hat den Schlüssel abgelehnt – bitte unter Einstellungen › KI-Verbindungen neu eintragen.': 'OpenAI rejected the key – please enter it again under Settings › AI connections.',
     'OpenAI ist nicht erreichbar – besteht eine Internetverbindung?': 'OpenAI cannot be reached – is there an internet connection?',
     'OpenAI meldet ein erschöpftes Kontingent oder zu viele Anfragen – Guthaben im OpenAI-Konto prüfen.': 'OpenAI reports an exhausted quota or too many requests – check the credit in your OpenAI account.',
     'Die Telefonanlage hat Benutzername oder Kennwort abgelehnt.': 'The phone system rejected the user name or password.',
@@ -921,6 +932,8 @@
   };
 
   const patterns = [
+    [/^Spracheingabe: (.+)$/, (m, a) => `Voice input: ${tr(a)}`],
+    [/^Die Spracherkennung von OpenAI antwortete mit Status (\d+)\.$/, (m, a) => `OpenAI speech recognition answered with status ${a}.`],
     [/^Anruf nicht möglich: (.+)$/, (m, a) => `Call not possible: ${tr(a)}`],
     [/^Die Auswahl konnte nicht gespeichert werden: (.+)$/, (m, a) => `The selection could not be saved: ${tr(a)}`],
     [/^Faxen nicht möglich, es fehlt: (.+)$/, (m, a) => `Faxing not possible, missing: ${a}`],

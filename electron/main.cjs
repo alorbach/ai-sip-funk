@@ -1,11 +1,11 @@
 'use strict';
 // SIPFunk als Windows-Tray-App: startet den Server (dist/main.js) als Kindprozess, zeigt Zustand im Tray,
-// öffnet die Web-UI per Doppelklick. Kein Fenster – alles läuft über das Tray-Menü.
+// öffnet die Oberfläche per Doppelklick in einem eigenen Fenster (oder auf Wunsch im Browser).
 
 const fs = require('fs');
 const path = require('path');
 const { fork } = require('child_process');
-const { app, Menu, nativeImage, shell, Tray, dialog, clipboard, Notification, BrowserWindow, screen } = require('electron');
+const { app, Menu, nativeImage, shell, Tray, dialog, clipboard, Notification, BrowserWindow, screen, session } = require('electron');
 const pkg = require('../package.json');
 
 const ROOT = path.join(__dirname, '..');
@@ -97,13 +97,93 @@ function showFax() {
   faxWin.loadURL(`${webUrl()}/fax.html`).catch(() => { if (faxWin && !faxWin.isDestroyed()) faxWin.destroy(); faxWin = null; });
 }
 
+/**
+ * Hauptfenster: dieselbe Oberfläche wie im Browser, nur in einem eigenen Fenster. Läuft in einem eigenen
+ * Renderer-Prozess – Tray und Server laufen unabhängig weiter, auch wenn das Fenster hängt oder geschlossen wird.
+ * Schließen beendet SIPFunk nicht; das geht nur über das Tray-Menü.
+ */
+let mainWin = null;
+/** Größe, Lage und Zoom des Fensters (window.json im Datenordner; settings.json gehört dem Server) */
+const WINDOW_FILE = path.join(dataDir, 'window.json');
+function loadWindowState() {
+  try {
+    const w = JSON.parse(fs.readFileSync(WINDOW_FILE, 'utf8'));
+    const b = { x: Number(w.x), y: Number(w.y), width: Number(w.width), height: Number(w.height) };
+    if (![b.x, b.y, b.width, b.height].every(Number.isFinite) || b.width < 420 || b.height < 480) return null;
+    // Nur übernehmen, wenn das Fenster noch auf einem vorhandenen Bildschirm liegt (Monitor abgesteckt)
+    const area = screen.getDisplayMatching(b).workArea;
+    const visible = b.x < area.x + area.width - 80 && b.x + b.width > area.x + 80 && b.y >= area.y - 20 && b.y < area.y + area.height - 80;
+    return visible ? { ...b, maximized: w.maximized === true, zoom: Math.max(-3, Math.min(5, Number(w.zoom) || 0)) } : null;
+  } catch { return null; }
+}
+function saveWindowState(win) {
+  try {
+    const b = win.getNormalBounds();
+    fs.writeFileSync(WINDOW_FILE, JSON.stringify({ ...b, maximized: win.isMaximized(), zoom: win.webContents.getZoomLevel() }));
+  } catch { /* nicht wichtig */ }
+}
+/** Strg+Plus / Strg+Minus / Strg+0: Das Fenster hat kein Menü, also auch nicht dessen Tastenkürzel zum Zoomen */
+function zoomKeys(win) {
+  win.webContents.on('before-input-event', (ev, input) => {
+    if (input.type !== 'keyDown' || !input.control || input.alt || input.meta) return;
+    const wc = win.webContents;
+    // Zeichen der Taste (deutsche wie englische Tastatur), dazu der Ziffernblock über seinen Tastencode
+    const step = { '+': 0.5, '=': 0.5, '-': -0.5 }[input.key] ?? { NumpadAdd: 0.5, NumpadSubtract: -0.5 }[input.code];
+    if (step !== undefined) wc.setZoomLevel(Math.max(-3, Math.min(5, wc.getZoomLevel() + step)));
+    else if (input.key === '0' || input.code === 'Numpad0') wc.setZoomLevel(0);
+    else return;
+    ev.preventDefault();
+  });
+}
+function showMain() {
+  if (mainWin && !mainWin.isDestroyed()) {
+    if (mainWin.isMinimized()) mainWin.restore();
+    mainWin.show(); mainWin.focus();
+    return;
+  }
+  const area = screen.getPrimaryDisplay().workArea;
+  const saved = loadWindowState();
+  mainWin = new BrowserWindow({
+    ...(saved ? { x: saved.x, y: saved.y, width: saved.width, height: saved.height } : { width: Math.min(1280, area.width - 40), height: Math.min(900, area.height - 40) }),
+    minWidth: 420, minHeight: 480,
+    show: false, autoHideMenuBar: true, title: 'SIPFunk', icon: ICON,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  mainWin.removeMenu();
+  zoomKeys(mainWin);
+  if (saved?.maximized) mainWin.maximize();
+  // Zoom gilt erst, wenn die Seite geladen ist (Chromium merkt ihn je Adresse, nicht über einen Neustart)
+  mainWin.webContents.on('did-finish-load', () => { if (saved?.zoom && mainWin && !mainWin.isDestroyed() && mainWin.webContents.getZoomLevel() === 0) mainWin.webContents.setZoomLevel(saved.zoom); });
+  const win = mainWin;
+  win.on('close', () => saveWindowState(win));
+  const own = (url) => url === webUrl() || url.startsWith(`${webUrl()}/`);
+  const external = (url) => { if (/^(https?|mailto):/i.test(url)) void shell.openExternal(url); };
+  // Neue Fenster (Anmeldung bei Google/Microsoft, Links zu Anbietern, PDF-Vorschau) gehen in den Browser
+  mainWin.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
+  mainWin.webContents.on('will-navigate', (ev, url) => { if (!own(url)) { ev.preventDefault(); external(url); } });
+  mainWin.once('ready-to-show', () => { if (mainWin && !mainWin.isDestroyed()) mainWin.show(); });
+  mainWin.on('closed', () => { mainWin = null; });
+  mainWin.loadURL(webUrl()).catch(() => { /* Server gerade nicht erreichbar: die Seite versucht es selbst erneut */ });
+}
+
+/** Mikrofon (Spracheingabe für den Auftrag) nur für die eigene Oberfläche erlauben, alles andere ablehnen. */
+function limitPermissions() {
+  const ok = (wc, permission, details) => {
+    const origin = details?.requestingUrl || details?.securityOrigin || wc?.getURL() || '';
+    return (permission === 'media' || permission === 'clipboard-sanitized-write') && (origin === webUrl() || origin.startsWith(`${webUrl()}/`))
+      && (!details?.mediaTypes || details.mediaTypes.every((t) => t === 'audio'));
+  };
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => cb(ok(wc, permission, details)));
+  session.defaultSession.setPermissionCheckHandler((wc, permission, origin, details) => ok(wc, permission, { ...details, securityOrigin: origin }));
+}
+
 // Sprache des Tray-Menüs: wie in der Web-UI eingestellt (settings.json, uiLang), sonst nach dem System.
 // Deutsch ist die Quelle; fehlt eine Übersetzung, bleibt der deutsche Text stehen.
 const EN = {
   'startet': 'starting', 'läuft': 'running', 'beendet': 'stopped', 'nicht registriert': 'not registered', 'bereit': 'ready', 'wählt': 'dialling',
   'klingelt': 'ringing', 'eingehender Anruf': 'incoming call', 'verbunden': 'connected',
   'Telefonanlage verbunden': 'Phone system connected', 'Telefonanlage nicht verbunden': 'Phone system not connected',
-  'Web-UI öffnen': 'Open web UI', 'Anrufbeantworter': 'Answering machine', 'Anrufbeantworter an': 'Answering machine on',
+  'SIPFunk öffnen': 'Open SIPFunk', 'Im Browser öffnen': 'Open in browser', 'Anrufbeantworter': 'Answering machine', 'Anrufbeantworter an': 'Answering machine on',
   'Einstellungen (.env) bearbeiten': 'Edit settings (.env)', 'Datenordner öffnen': 'Open data folder', 'Beim Anmelden starten': 'Start at login',
   'Server neu starten': 'Restart server', 'Beenden': 'Quit', 'Fehler': 'Error',
   'dist/main.js fehlt – erst „npm run build“': 'dist/main.js is missing – run "npm run build" first',
@@ -140,7 +220,7 @@ function webUrl() {
 }
 
 function openUi() {
-  if (state.server === 'läuft') shell.openExternal(webUrl());
+  if (state.server === 'läuft') showMain();
   else openEnv();
 }
 
@@ -212,7 +292,8 @@ function buildMenu() {
     { label: stateLine(), enabled: false },
     ...(state.error ? [{ label: `${T('Fehler')}: ${state.error.slice(0, 80)}`, click: () => clipboard.writeText(state.error) }] : []),
     { type: 'separator' },
-    { label: running ? `${T('Web-UI öffnen')} (Port ${state.webPort})` : T('Web-UI öffnen'), enabled: running, click: () => shell.openExternal(webUrl()) },
+    { label: T('SIPFunk öffnen'), enabled: running, click: showMain },
+    { label: running ? `${T('Im Browser öffnen')} (Port ${state.webPort})` : T('Im Browser öffnen'), enabled: running, click: () => shell.openExternal(webUrl()) },
     { label: T('Anrufbeantworter'), type: 'checkbox', checked: state.incoming, enabled: running, click: (item) => setIncoming(item.checked) },
     { type: 'separator' },
     { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
@@ -292,12 +373,14 @@ function startServer() {
     if (!msg || typeof msg !== 'object') return;
     if (msg.type === 'ready') {
       state.server = 'läuft'; state.webPort = Number(msg.webPort) || state.webPort;
-      // Noch nicht eingerichtet: Web-UI öffnen, dort führt der Einrichtungsassistent durch das Nötigste
-      if (msg.setupNeeded && !setupOpened) { setupOpened = true; shell.openExternal(webUrl()); }
+      // Das Fenster zeigt noch die alte Adresse (Port geändert): neu laden
+      if (mainWin && !mainWin.isDestroyed() && !mainWin.webContents.getURL().startsWith(webUrl())) mainWin.loadURL(webUrl()).catch(() => {});
+      // Noch nicht eingerichtet: Oberfläche öffnen, dort führt der Einrichtungsassistent durch das Nötigste
+      if (msg.setupNeeded && !setupOpened) { setupOpened = true; showMain(); }
       // Der eingestellte Port war belegt: SIPFunk ist ausgewichen und hat den neuen Port gespeichert
       if (msg.webPortMovedFrom && Notification.isSupported()) {
         const n = new Notification({ title: 'SIPFunk', body: T('Port {0} war belegt. Die Oberfläche läuft jetzt auf Port {1}. Eingetragene KI-Agenten bitte in den Einstellungen aktualisieren.').replace('{0}', msg.webPortMovedFrom).replace('{1}', state.webPort), icon: ICON_PNG });
-        n.on('click', () => shell.openExternal(`${webUrl()}/#settings`));
+        n.on('click', () => { showMain(); mainWin?.loadURL(`${webUrl()}/#settings`).catch(() => {}); });
         n.show();
       }
     }
@@ -314,7 +397,7 @@ function startServer() {
       // Hinweis nach einem angenommenen Anruf; Klick öffnet die Web-UI
       if (Notification.isSupported()) {
         const n = new Notification({ title: String(msg.title || 'SIPFunk'), body: String(msg.body || ''), icon: ICON_PNG });
-        n.on('click', () => shell.openExternal(webUrl()));
+        n.on('click', showMain);
         n.show();
       }
     }
@@ -364,6 +447,7 @@ app.whenReady().then(() => {
   // appId in der package.json passen (build/installer.nsh entfernt den Eintrag unter diesem Namen).
   app.setAppUserModelId(pkg.build?.appId || 'org.sipfunk.app');
   firstRunAutostart();
+  limitPermissions();
   tray = new Tray(icon());
   tray.on('double-click', openUi);
   tray.on('click', () => tray.popUpContextMenu());

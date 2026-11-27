@@ -48,6 +48,8 @@ export interface WebServerOptions {
   onSettingsChanged?: (settings: FormSettings) => void;
   /** Hörprobe einer Stimme des gewählten Anbieters (nur mit Schlüssel) */
   voiceSample: (voice: string, connectionId?: string) => Promise<{ data: Buffer; mime: string }>;
+  /** Spracheingabe: Aufnahme (WAV) mit dem Anbieter der aktiven KI-Verbindung in Text umsetzen */
+  transcribe?: (wav: Buffer) => Promise<string>;
   /** Modelle zur Auswahl, vom Anbieter geladen (ohne Angabe: vom gewählten); scheitert der Abruf, steht die Meldung im Ergebnis (kein Fehlerstatus) */
   models: (refresh: boolean, connection?: string) => Promise<Record<string, unknown>>;
   /** Klingelnder Anruf: Zustand mit Spam-Einschätzung und Umleiten (Pop-up der Tray-App, Web-UI) */
@@ -123,6 +125,9 @@ const MAX_BODY_BYTES = 1_000_000;
 
 /** Fax-PDFs kommen base64-kodiert (ein Drittel größer) */
 const MAX_FAX_BYTES = 30_000_000;
+
+/** Spracheingabe: höchstens zwei Minuten WAV mit 16 kHz mono (knapp 4 MB), base64-kodiert */
+const MAX_DICTATION_BYTES = 6_000_000;
 
 /** Adressbuch-Dateien (vCard mit Fotos, base64-kodiert, also etwa ein Drittel größer als die Datei) dürfen größer sein */
 const MAX_IMPORT_BYTES = 30_000_000;
@@ -302,6 +307,13 @@ export function startWebServer(opts: WebServerOptions): () => void {
       // Modell-Liste von OpenAI (zwischengespeichert); POST verlangt einen neuen Abruf („Aktualisieren“)
       if ((req.method === 'GET' || req.method === 'POST') && url.pathname === '/api/models') {
         return sendJson(res, 200, await opts.models(req.method === 'POST', url.searchParams.get('connection') ?? undefined));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/transcribe') {
+        if (!opts.transcribe) return sendJson(res, 400, { error: 'Spracheingabe ist nicht verfügbar' });
+        const body = await readJson(req, MAX_DICTATION_BYTES);
+        const wav = typeof body.audio === 'string' ? Buffer.from(body.audio, 'base64') : Buffer.alloc(0);
+        if (wav.length < 44 || wav.subarray(0, 4).toString('latin1') !== 'RIFF' || wav.subarray(8, 12).toString('latin1') !== 'WAVE') return sendJson(res, 400, { error: 'Keine gültige Aufnahme' });
+        return sendJson(res, 200, { text: await opts.transcribe(wav) });
       }
       const vx = /^\/api\/voices\/([A-Za-z]+)\/sample$/.exec(url.pathname);
       if (vx && req.method === 'GET') {

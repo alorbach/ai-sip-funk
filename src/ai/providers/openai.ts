@@ -7,6 +7,7 @@ import { OpenAiLive } from './openaiLive.js';
 import type { AiProvider, CheckResult } from './types.js';
 
 const TTS_MODEL = 'gpt-4o-mini-tts';
+const TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
 
 /** Form eines OpenAI-Schlüssels grob prüfen (keine Leerzeichen, plausibel lang); wirft mit Meldung. */
 export function cleanOpenAiKey(input: unknown): string {
@@ -60,5 +61,26 @@ export const openai: AiProvider = {
     });
     if (!res.ok) throw new Error(`Hörprobe fehlgeschlagen: ${res.status} ${(await res.text()).slice(0, 200)}`);
     return { data: Buffer.from(await res.arrayBuffer()), ext: 'mp3', mime: 'audio/mpeg' };
+  },
+  async transcribe(key, wav, _textModel, fetchImpl = fetch) {
+    const form = new FormData();
+    form.append('model', TRANSCRIBE_MODEL);
+    form.append('language', 'de');
+    form.append('response_format', 'json');
+    form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'auftrag.wav');
+    const res = await fetchImpl('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      signal: AbortSignal.timeout(60_000),
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+    });
+    // Die Antwort von OpenAI enthält bei einem falschen Schlüssel Teile davon: nicht weiterreichen, nur den Status übersetzen
+    if (!res.ok) {
+      if (res.status === 401) throw new Error('OpenAI hat den Schlüssel abgelehnt – bitte unter Einstellungen › KI-Verbindungen neu eintragen.');
+      if (res.status === 429) throw new Error('OpenAI meldet ein erschöpftes Kontingent oder zu viele Anfragen – Guthaben im OpenAI-Konto prüfen.');
+      throw new Error(`Die Spracherkennung von OpenAI antwortete mit Status ${res.status}.`);
+    }
+    const data = (await res.json()) as { text?: unknown };
+    return typeof data.text === 'string' ? data.text.trim() : '';
   },
 };

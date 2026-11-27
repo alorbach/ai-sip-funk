@@ -70,7 +70,7 @@ npm install
 npm start
 ```
 
-Then open <http://127.0.0.1:3865>. No configuration file is needed for the first start. If port 3865 is in use, SIPFunk takes the next free one and names it in the log and in the tray menu ("Web-UI öffnen (Port …)"); you can change it under "Einstellungen › Technik" (section 15.3).
+Then open <http://127.0.0.1:3865>. No configuration file is needed for the first start. If port 3865 is in use, SIPFunk takes the next free one and names it in the log and in the tray menu ("Im Browser öffnen (Port …)", open in browser); you can change it under "Einstellungen › Technik" (section 15.3).
 
 ### 4.2 The setup assistant
 
@@ -108,7 +108,9 @@ Installed with the installer from [Releases](https://github.com/alorbach/ai-sip-
 npm run tray
 ```
 
-An icon in the notification area shows the state (registered, ready, connected). A double click opens the web UI, a single click the menu: "Web-UI öffnen" (open web UI), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login; not when started from the repository), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the web UI.
+An icon in the notification area shows the state (registered, ready, connected). A double click opens the interface in a window of its own, a single click the menu: "SIPFunk öffnen" (open SIPFunk, the same window), "Im Browser öffnen (Port …)" (open the web UI in the default browser), "Anrufbeantworter" (answering machine on/off), "Einstellungen (.env) bearbeiten" (edit `.env`), "Datenordner öffnen" (open data folder), "Beim Anmelden starten" (start at login; not when started from the repository), "Server neu starten" (restart server), "Beenden" (quit). Errors (e.g. a failed registration) appear as a menu line; clicking it copies the text. After an answered call a Windows notification appears; clicking it opens the window.
+
+**The SIPFunk window** shows the same interface as the browser at <http://127.0.0.1:3865>, just without a browser. It runs independently of the tray: closing it does not quit SIPFunk (only "Beenden" in the tray menu does), and calls, answering machine and pop-ups keep running even if the window hangs or is closed. Links to providers and sign-ins with Google or Microsoft open in the default browser. The window may use the microphone (for dictating the task, section 5) and nothing else. Ctrl+Plus and Ctrl+Minus zoom in and out, Ctrl+0 resets. The window remembers its size, position and zoom in `window.json` in the data folder; if it would end up on no existing screen (monitor unplugged), it opens centred again.
 
 **Installer.** `SIPFunk-<version>-win-x64.exe` from the releases page installs SIPFunk for the current user without administrator rights (Start menu entry, uninstallation via Windows "Installed apps"). Keep the preselected "only for me": an installation for all users needs administrator rights, and autostart and its removal on uninstalling are then tied to the account that confirmed them. The file is not code-signed, so Windows SmartScreen warns: "More info" → "Run anyway". The version is shown in the tray menu and on the settings page. To update, run the newer installer over the old version; the data folder is left alone, and it is also kept when you uninstall.
 
@@ -140,7 +142,9 @@ The header is always visible: the four pages on the left, the connection status 
 
 **Mithören** (listen in) in the call bar plays both sides of the call in the browser (live only, no recording). `LIVE_LISTEN_ENABLED=false` switches the feature off.
 
-- **Dashboard**: on the left the "Anruf" (call) card (number or contact, task, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)) and the last five calls; on the right the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll"; level "Erweitert" only).
+- **Dashboard** (called "Start" in level "Einfach"): the "Anruf" (call) card (number or contact, task with microphone button, type of call, style, voice, form of address, "KI-Verbindung" (AI connection), "Anrufen …", "Als Standard speichern" (save as default)), the last five calls and the transcript of the running call with usage and summary, below it the system log ("Systemprotokoll"; level "Erweitert" only). In "Einfach" everything is in one column: the call card on top, below it the conversation (only while a call runs or just ended), then the last calls. Style, voice, form of address and AI connection sit behind "Stimme und Stil" (voice and style), with a short line saying what currently applies.
+
+**Dictating the task.** The microphone button next to the field "Auftrag an die KI" (task for the AI) records: click once, speak, click again. While recording, the line above the field shows how long it has been recording and which provider recognises the text; recording stops by itself after two minutes, the last 15 seconds are highlighted. The recognised text is appended to the task and can be edited afterwards. Recognition uses the active AI connection with the same key: OpenAI with the transcription model `gpt-4o-mini-transcribe`, Google Gemini with the connection's text model. The recording goes only to that provider and is not stored; a dictation costs a fraction of a cent. Windows must allow microphone access ("Settings › Privacy & security › Microphone", including desktop apps), and in a browser the page as well.
 - **Anrufe** (calls): all stored calls with a search by name or number and the tags "Eingehend" (incoming), "Ausgehend" (outgoing), "Rückruf an dich" (call back to you), "Spam-Abwehr" (spam defence) and "Von KI-Agent" (by AI agent). A click shows transcript, result according to the AI, summary and cost, plus the buttons "Nummer auf die Spam-Liste" (add number to spam list), "Beschwerde-Entwurf" (complaint draft), "Als Kontakt speichern" (save as contact) and "Protokoll löschen" (delete log).
 - **Kontakte** (contacts): list with "Anrufen" (call; loads the contact into the dashboard), "Verlauf" (history; filters the call list), "Bearbeiten" (edit) and delete; "Neuer Kontakt" (new contact) at the top right.
 - **Einstellungen** (settings): the sections KI-Assistent (AI assistant), KI-Verbindungen (AI connections), Anrufbeantworter (answering machine), Benachrichtigungen (notifications), E-Mail-Versand (e-mail), Spam-Abwehr (spam defence), MCP-Schnittstelle (MCP interface) and Technik (technical; level "Erweitert" only). The section list on the left works like tabs: only the card of the selected section is shown on the right, and the choice is remembered. "Speichern" (save, or Ctrl+S) below the list still saves all sections of this page – only the values you changed – and they apply from the next call. Changes to AI connections are the exception: they take effect immediately, without "Speichern" (section 6.2). "Einrichtungsassistent …" at the top opens the setup assistant. The section "Technik" also lists, for information, the values that exist only in `.env` (box, ports, data folder).
@@ -153,7 +157,7 @@ The switch at the top right of every page sets how much the web UI shows. It app
 
 | Area | "Einfach" shows | "Erweitert" adds |
 | --- | --- | --- |
-| Dashboard | number, task, style, voice with sample, form of address, AI connection, "Anrufen …", last calls, live transcript | type of call (AI, echo, test tone), system log, codec and RTP counters, token usage |
+| Dashboard | number, task with microphone button, "Anrufen …", behind "Stimme und Stil" (voice and style) style, voice with sample, form of address, AI connection; last calls, live transcript (only during and after a call); all in one column | type of call (AI, echo, test tone), hint text and "Als Standard speichern", system log, codec and RTP counters, listen-in volume, token usage; two columns |
 | Anrufe, Kontakte | everything | token usage and cost of a call |
 | KI-Assistent | name of the AI, "Im Auftrag von" (on behalf of), behaviour in the call (four choices and free text) | – |
 | KI-Verbindungen | expandable list of connections, add, rename, switch and remove, default voice with sample, voice model, text model, fallback voice and text models, key, "Verbindung testen" (test connection), usage this month, notes on Gemini | custom model IDs, actual costs according to OpenAI (admin key) |
@@ -599,6 +603,7 @@ The data folder is the project folder when starting from the repository, and `%A
 | `usage.json` | monthly usage per AI provider: number of calls, seconds, estimated cost; the last 13 months (section 6.2) | no |
 | `autostart.flag` | installed tray app only: notes that autostart was set up on first start, so that an update does not switch it on again (section 4.3) | no |
 | `sipfunk.port` | port of the running app; removed when it quits (section 15.3) | no |
+| `window.json` | tray app only: size, position and zoom of the SIPFunk window (section 4.3) | no |
 | `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 
@@ -1123,7 +1128,7 @@ If you like, also set `WEB_PORT=3865` in the `.env` so both match. If you use Mi
 
 - **Changing it**: "Einstellungen › Technik › Port der Oberfläche und der MCP-Schnittstelle" (level "Erweitert"), then save. Allowed values are 1024 to 65535; the web UI does not accept a port that another program is using at that moment. The new port takes effect after a restart; with the tray app the web UI offers "Jetzt neu starten" (restart now) and then switches to the new address by itself. Without the tray app (`npm start`), quit SIPFunk and start it again by hand.
 - **Port in use**: if the configured port is taken by another program at start, SIPFunk takes the next free one above it and stores it as the new setting. This is written to the log, the tray app shows a notification, and the web UI says so the next time it is opened. After that the address does not change by itself again as long as the new port stays free.
-- **Finding it again**: the tray menu "Web-UI öffnen (Port …)" and a double click on the tray icon always open the right address. The port of the running app is also in the file `sipfunk.port` in the data folder.
+- **Finding it again**: the tray menu "Im Browser öffnen (Port …)" (open in browser) and a double click on the tray icon (SIPFunk window) always open the right address. The port of the running app is also in the file `sipfunk.port` in the data folder.
 - **What changes with the port**: browser bookmarks; the address `http://127.0.0.1:PORT/mcp` in registered AI agents (section 13.3 shows how to update them with one click); with Microsoft 365 the redirect address of the app registration (chapter 9). The browser remembers small things such as the last dialled number per address; they start afresh under the new port.
 
 ## 16. Cost
