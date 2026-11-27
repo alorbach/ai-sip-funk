@@ -94,7 +94,7 @@ Fax
 OpenAI
 ```
 
-### Neuigkeiten (Version 1.0.5)
+### Neuigkeiten (Version 1.0.6)
 
 ```text
 Erste Fassung im Microsoft Store.
@@ -155,7 +155,7 @@ fax
 OpenAI
 ```
 
-### What's new (version 1.0.5)
+### What's new (version 1.0.6)
 
 ```text
 First release in the Microsoft Store.
