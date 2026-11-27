@@ -10,13 +10,13 @@ SIPFunk läuft vollständig auf deinem Computer. Der Herausgeber von SIPFunk bet
 
 ## Was auf deinem Computer gespeichert wird
 
-Im Datenordner (`%APPDATA%\SIPFunk`, im Tray-Menü „Datenordner öffnen“):
+Im Datenordner (`%APPDATA%\SIPFunk`, bei der Store-Fassung ohne vorherige Installer-Fassung im Paketordner der App; im Tray-Menü „Datenordner öffnen“):
 
 - `.env`: Zugangsdaten zu Telefonanlage, KI-Anbieter und ggf. Mail, im Klartext.
 - `settings.json`, `contacts.json`: Einstellungen, Kontakte und Notizen, auch aus einem Adressbuch importierte Kontakte.
 - Gesprächsprotokolle als Text (Mitschrift, Zusammenfassung, Ergebnis) und das Betriebslog mit Rufnummern. Beides löscht SIPFunk nach der eingestellten Frist (Standard 7 Tage).
 
-SIPFunk speichert keine Gesprächsaudios. Der Datenordner ist nicht verschlüsselt; schütze deinen Computer entsprechend (z. B. BitLocker). Beim Deinstallieren bleibt der Datenordner erhalten, damit eine Neuinstallation oder die andere Fassung weiterarbeiten kann. Löschen kannst du ihn jederzeit selbst.
+SIPFunk speichert keine Gesprächsaudios. Der Datenordner ist nicht verschlüsselt; schütze deinen Computer entsprechend (z. B. BitLocker). Beim Deinstallieren bleibt `%APPDATA%\SIPFunk` erhalten, damit eine Neuinstallation oder die andere Fassung weiterarbeiten kann; einen Paketordner der Store-Fassung löscht Windows mit. Löschen kannst du ihn jederzeit selbst.
 
 ## Wohin Daten gehen
 

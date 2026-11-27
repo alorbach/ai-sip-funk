@@ -228,7 +228,7 @@ function openUi() {
 
 function openEnv() {
   ensureEnv();
-  shell.openPath(envFile);
+  shell.openPath(outsidePath(envFile));
 }
 
 function icon() {
@@ -265,6 +265,24 @@ async function setIncoming(enabled) {
 // Windows schaltet ihn nach dem ersten Start ein; ändern lässt er sich nur in den Windows-Einstellungen. Ein Run-Eintrag
 // aus dem Paket heraus landete in der privaten Registry des Pakets und hätte keine Wirkung.
 const STORE = !!process.windowsStore;
+
+/**
+ * Pfad für Programme außerhalb des Pakets (Explorer, Editor). Die Store-Fassung schreibt neue Dateien unter
+ * %APPDATA% in ihren privaten Paketordner; nur sie selbst sieht beide Orte zusammengeführt. Liegt die Datei
+ * dort, zeigt dieser Pfad auf die private Kopie, sonst bleibt es beim echten Ort (Daten der Installer-Fassung).
+ */
+function outsidePath(p) {
+  const roaming = process.env.APPDATA, local = process.env.LOCALAPPDATA;
+  if (!STORE || !roaming || !local) return p;
+  const rel = path.relative(roaming, p);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return p;
+  try {
+    const pkgDir = fs.readdirSync(path.join(local, 'Packages')).find((d) => d.startsWith('delta2win.SIPFunk_'));
+    const priv = pkgDir && path.join(local, 'Packages', pkgDir, 'LocalCache', 'Roaming', rel);
+    if (priv && fs.existsSync(priv)) return priv;
+  } catch { /* kein Paketordner: echter Ort */ }
+  return p;
+}
 function autostartOn() {
   const s = app.getLoginItemSettings();
   // executableWillLaunchAtLogin beachtet auch, ob der Eintrag in den Windows-Einstellungen abgeschaltet wurde
@@ -306,7 +324,7 @@ function buildMenu() {
     { label: T('Anrufbeantworter'), type: 'checkbox', checked: state.incoming, enabled: running, click: (item) => setIncoming(item.checked) },
     { type: 'separator' },
     { label: T('Einstellungen (.env) bearbeiten'), click: openEnv },
-    { label: T('Datenordner öffnen'), click: () => shell.openPath(dataDir) },
+    { label: T('Datenordner öffnen'), click: () => shell.openPath(outsidePath(dataDir)) },
     ...(STORE ? [{ label: T('Autostart in Windows einstellen …'), click: () => shell.openExternal('ms-settings:startupapps') }]
       : app.isPackaged ? [{ label: T('Beim Anmelden starten'), type: 'checkbox', checked: autostartOn(), click: (item) => setAutostart(item.checked) }] : []),
     { type: 'separator' },

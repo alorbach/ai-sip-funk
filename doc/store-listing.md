@@ -12,7 +12,7 @@ Vorlage für das Partner Center: Store-Listing (Deutsch und Englisch), Begründu
 - Copyright: Copyright © 2026 Andre Lorbach
 - Zusätzliche Lizenzbedingungen: GNU Affero General Public License v3.0, Quellcode: https://github.com/alorbach/ai-sip-funk (Lizenztext: https://github.com/alorbach/ai-sip-funk/blob/main/LICENSE)
 
-## Begründung der eingeschränkten Fähigkeiten (Englisch, Feld „Submission options“)
+## Begründung der eingeschränkten Fähigkeit (Englisch, Feld „Submission options“)
 
 ```text
 runFullTrust: SIPFunk is a packaged Win32 desktop application (Electron). It runs as a tray app,
@@ -20,13 +20,6 @@ registers as an IP phone with the user's own router or SIP server (SIP and RTP o
 network), serves its user interface on 127.0.0.1 only, starts its bundled fax modem and Ghostscript
 executables, and can set up a local "SIPFunk Fax" printer on request. None of this is possible in an
 AppContainer.
-
-unvirtualizedResources: file system write virtualization is disabled so that SIPFunk keeps its data in
-the regular %APPDATA%\SIPFunk folder, the same folder used by the edition distributed on GitHub.
-The tray menu opens this folder in Explorer and the settings file (.env) in the user's editor; both run
-outside the package and would only see an empty folder under virtualization. Users switching from the
-GitHub edition keep their settings, contacts and logs, and uninstalling does not delete the user's
-credentials and contacts without notice. SIPFunk writes nothing outside the user's profile.
 ```
 
 ## Hinweise für die Prüfer (Englisch, Feld „Notes for certification“)
@@ -94,7 +87,7 @@ Fax
 OpenAI
 ```
 
-### Neuigkeiten (Version 1.0.6)
+### Neuigkeiten (Version 1.0.7)
 
 ```text
 Erste Fassung im Microsoft Store.
@@ -155,7 +148,7 @@ fax
 OpenAI
 ```
 
-### What's new (version 1.0.6)
+### What's new (version 1.0.7)
 
 ```text
 First release in the Microsoft Store.
