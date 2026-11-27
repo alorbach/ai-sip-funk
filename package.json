@@ -114,6 +114,10 @@
     "appx": {
       "customManifestPath": "appxmanifest.xml",
       "artifactName": "SIPFunk-${version}-store-${arch}.${ext}",
+      "identityName": "delta2win.SIPFunk",
+      "publisher": "CN=A24BF929-59B8-4B7C-9D56-1BE02925DEE0",
+      "publisherDisplayName": "delta2win",
+      "applicationId": "SIPFunk",
       "displayName": "SIPFunk",
       "languages": [
         "de-DE",
