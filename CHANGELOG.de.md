@@ -6,6 +6,8 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+## 1.0.4 – 27.11.2026
+
 - **Eigenes Fenster statt Browser.** Ein Doppelklick aufs Tray-Symbol öffnet SIPFunk in einem eigenen Windows-Fenster; „Im Browser öffnen“ im Tray-Menü gibt es weiterhin. Das Fenster läuft unabhängig vom Tray, Schließen beendet SIPFunk nicht. Es merkt sich Größe, Lage und Zoom; Strg+Plus/Minus/0 zoomen.
 - **Einfacheres Dashboard in der Stufe „Einfach“.** Eine Spalte, Reiter „Start“; Stil, Stimme, Anrede und KI-Verbindung hinter „Stimme und Stil“, das Transkript nur während und nach einem Gespräch, Hinweistext und „Als Standard speichern“ nur noch in „Erweitert“.
 - **Auftrag einsprechen.** Mikrofon-Taste neben dem Feld „Auftrag an die KI“: Die Sprache erkennt der Anbieter der aktiven KI-Verbindung (OpenAI `gpt-4o-mini-transcribe` oder das Gemini-Textmodell), der Text wird an den Auftrag angehängt.
