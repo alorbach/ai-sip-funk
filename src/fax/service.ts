@@ -11,7 +11,7 @@ import { SipClient } from '../sip/client.js';
 import { buildOffer, parseAnswer } from '../sip/sdp.js';
 import { RtpSession } from '../rtp/session.js';
 import { decodeG711, encodeG711 } from '../rtp/g711.js';
-import { FAX_FRAME, FAX_FRAME_BYTES, FaxModem, faxPrerequisites, tiffPageCount, toFaxTiff, type FaxResult } from './modem.js';
+import { FAX_FRAME, FAX_FRAME_BYTES, FaxModem, faxPrerequisites, pdfThumbnail, tiffPageCount, toFaxTiff, type FaxResult } from './modem.js';
 
 export interface FaxServiceOptions {
   sipServer: string;
@@ -180,6 +180,31 @@ export class FaxService extends EventEmitter {
   /** Entwurf als PDF (Vorschau im Fax-Fenster) */
   draftPdf(id: string): Buffer | undefined {
     return this.drafts.get(id)?.pdf;
+  }
+
+  private readonly thumbs = new Map<string, Promise<Buffer>>();
+  /** Erste Seite des Entwurfs als PNG (einmal erzeugt, dann aus dem Speicher) */
+  async draftThumbnail(id: string): Promise<Buffer | undefined> {
+    const draft = this.drafts.get(id);
+    if (!draft) return undefined;
+    let png = this.thumbs.get(id);
+    if (!png) {
+      png = (async () => {
+        const dir = mkdtempSync(path.join(tmpdir(), 'sipfunk-thumb-'));
+        try {
+          const file = path.join(dir, 'vorschau.pdf');
+          writeFileSync(file, draft.pdf);
+          return await pdfThumbnail(file);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      })();
+      this.thumbs.set(id, png);
+      png.catch(() => this.thumbs.delete(id));
+      // nur für vorhandene Entwürfe aufheben
+      for (const k of this.thumbs.keys()) if (!this.drafts.has(k)) this.thumbs.delete(k);
+    }
+    return png;
   }
 
   /** Nimmt ein PDF zum Versand an; liefert den Auftrag (Zustand dann über status()/Event 'job'). */

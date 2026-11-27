@@ -6,6 +6,12 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **Echter Dokumentname beim Faxdrucker.** Der Name kommt aus der Windows-Druckwarteschlange (ohne Programm-Zusätze wie „Microsoft Word -“ oder „- Editor“) statt „Druckauftrag HH:MM“.
+- **Vorschaubild im Fax-Fenster.** Die erste Seite erscheint als kleines Bild; ein Klick öffnet das ganze Dokument als PDF.
+- **Namen aus dem FRITZ!Box-Telefonbuch im Dashboard.** Anrufliste, Details und Anrufleiste zeigen Namen aus dem Telefonbuch der Box mit dem Zeichen „FRITZ!Box“, wenn die Nummer nicht bei den eigenen Kontakten steht; die Suche findet sie ebenfalls.
+- **Links zu den Seiten beim KI-Anbieter.** Jede KI-Verbindung verlinkt Nutzung, Limits, Schlüssel und Abrechnung (Gemini zusätzlich das Google-Cloud-Projekt).
+- **Behoben:** Ein Klick auf einen Treffer in der Empfängersuche des Fax-Fensters wählte ihn nicht aus.
+
 ## 1.0.3 – 26.11.2026
 
 - **Faxe im Anrufe-Log.** Jedes gesendete oder fehlgeschlagene Fax steht auf der Seite „Anrufe“ und unter den letzten Anrufen auf dem Dashboard, gekennzeichnet mit „Fax“ (fehlgeschlagen zusätzlich rot). Ein Klick zeigt Dokument, Ergebnis, Seiten, Übertragungsrate und Gegenstelle. Die Einträge folgen der Aufbewahrungsfrist der Protokolle; das Dokument selbst wird nicht gespeichert.

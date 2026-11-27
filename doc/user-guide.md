@@ -243,6 +243,8 @@ One connection is the active one. It handles everything: the call itself, call p
 
 Each connection has its own fields: "Name der Verbindung" (name of the connection), "Standardstimme" (default voice, with "Probe hören" – hear sample), "Sprachmodell für Anrufe" (voice model for calls), "Textmodell" (text model), in level "Erweitert" additionally one "Eigene Modell-ID" (custom model ID) each, "Modelle aktualisieren" (refresh models), the state of the key, "API-Schlüssel" (API key), "Schlüssel prüfen und speichern" (check key and save), "Verbindung testen" (test connection), "Diese Verbindung verwenden" (use this connection; the active one shows "Diese Verbindung führt die Gespräche." – this connection handles the calls – instead) and "Verbindung entfernen" (remove connection). Input that is not saved yet (e.g. a key you have typed) stays in place when you expand or collapse another connection.
 
+Below "Anbieter" (provider), the line **"At the provider:"** takes you straight to the pages of your account, in the browser: for Gemini "Usage and limits" and "API keys and projects" in Google AI Studio plus "Billing" and "Google Cloud project" in the Google Cloud Console; for OpenAI "Usage", "Limits", "API key" and "Billing" on platform.openai.com. You sign in there with your account at the provider, not through SIPFunk.
+
 "Expanded" and "active" are different things: expanded means the settings of the connection are visible; active means it handles the calls ("✓ aktiv").
 
 - **Add:** choose the provider under "Neue Verbindung bei" (new connection with) and click "Verbindung hinzufügen" (add connection). The new connection has no key yet and uses the default models of its provider.
@@ -933,7 +935,7 @@ The printer only works while SIPFunk is running. If SIPFunk is not running, the 
 ### 14.4 Sending a fax
 
 1. In the program (Word, PDF viewer, browser …) choose "Print" and the printer **"SIPFunk Fax"**. Paper size A4; colour becomes black and white.
-2. The fax window opens at the bottom right with the document name and the page count. **"Vorschau"** (preview) shows the document as a PDF, the way it will be faxed.
+2. The fax window opens at the bottom right with a thumbnail of the first page, the document name and the page count. A click on the thumbnail or on **"Preview"** shows the whole document as a PDF, the way it will be faxed.
 3. In the field **"An (Faxnummer oder Kontakt)"** (to: fax number or contact), search for the recipient (14.5) or enter the number directly. Same notation as for dialling: `030 1234567` or `+49 30 1234567`.
 4. **"Faxen"** (send fax), or Enter.
 
@@ -1020,6 +1022,7 @@ Every fax that was delivered or failed is then listed on the **Calls** page (and
 
 - In the list it is tagged **"Fax"**, a failed one additionally in red with **"Failed"**. The line below names the document, page count and transmission rate, or the reason it failed.
 - A click shows the key facts instead of a transcript: **Document**, **Result**, **Pages** (sent of total), **Transmission** (rate, ECM) and **Remote station**.
+- If the number is not among your contacts but is in the FRITZ!Box phonebook (14.6), SIPFunk shows the name from there with the small **"FRITZ!Box"** mark. This applies to faxes and calls, in the list, in the details and in the call bar.
 - The search above the list finds faxes like calls by name or number; through a contact ("History") you see faxes and calls with that contact together.
 - "Save as contact" creates a contact for the fax number, "Delete log" removes the entry.
 
@@ -1039,7 +1042,7 @@ The response contains the job with its `id`; `GET /api/fax` returns the state of
 
 ### 14.9 Tips and frequently asked questions
 
-- **The fax window shows "Druckauftrag 14:05" instead of the document name.** Some programs do not send the name (for example when printing via the Windows XPS path). Then SIPFunk uses the time of day. It makes no difference to the fax.
+- **The fax window shows "Druckauftrag 14:05" (print job) instead of the document name.** SIPFunk reads the name from the Windows print queue, as the program sets it (for Word without the prefix "Microsoft Word -"). If that fails and the print job carries no name either, SIPFunk uses the time of day. It makes no difference to the fax.
 - **What does my fax look like at the recipient's end?** Send a test fax to a test fax receiver (14.4). The header line is at the top of every page, the sender ID in the recipient's fax log.
 - **Can I fax while the AI is on a call?** Yes. The fax uses an IP phone of its own (14.1).
 - **Several pages, colour, landscape?** Multi-page documents go out in one fax. Colour becomes black and white, landscape is fitted to A4 portrait; for readable faxes, print in portrait.

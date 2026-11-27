@@ -241,6 +241,8 @@ Eine Verbindung ist die aktive. Sie übernimmt alles: das Gespräch selbst, Gesp
 
 Jede Verbindung hat ihre eigenen Felder: „Name der Verbindung“, „Standardstimme“ (mit „Probe hören“), „Sprachmodell für Anrufe“, „Textmodell“, in der Stufe „Erweitert“ zusätzlich je eine „Eigene Modell-ID“, „Modelle aktualisieren“, den Zustand des Schlüssels, „API-Schlüssel“, „Schlüssel prüfen und speichern“, „Verbindung testen“, „Diese Verbindung verwenden“ (bei der aktiven steht stattdessen „Diese Verbindung führt die Gespräche.“) und „Verbindung entfernen“. Eingaben, die noch nicht gespeichert sind (z. B. ein eingetippter Schlüssel), bleiben stehen, wenn du eine andere Verbindung auf- oder zuklappst.
 
+Unter „Anbieter“ führt die Zeile **„Beim Anbieter:“** direkt zu den Seiten des Kontos, im Browser: bei Gemini „Nutzung und Limits“ und „API-Schlüssel und Projekte“ in Google AI Studio sowie „Abrechnung“ und „Google-Cloud-Projekt“ in der Google Cloud Console; bei OpenAI „Nutzung“, „Limits“, „API-Schlüssel“ und „Abrechnung“ auf platform.openai.com. Angemeldet wirst du dort mit deinem Konto beim Anbieter, nicht über SIPFunk.
+
 „Aufgeklappt“ und „aktiv“ sind verschiedene Dinge: Aufgeklappt heißt, die Einstellungen der Verbindung sind zu sehen; aktiv heißt, sie führt die Gespräche („✓ aktiv“).
 
 - **Hinzufügen:** unter „Neue Verbindung bei“ den Anbieter wählen und auf „Verbindung hinzufügen“ klicken. Die neue Verbindung hat noch keinen Schlüssel und benutzt die Vorgabe-Modelle ihres Anbieters.
@@ -931,7 +933,7 @@ Der Drucker funktioniert nur, solange SIPFunk läuft. Ist SIPFunk aus, bleibt de
 ### 14.4 Ein Fax senden
 
 1. Im Programm (Word, PDF-Betrachter, Browser …) „Drucken“ wählen, Drucker **„SIPFunk Fax“**. Papierformat A4; Farbe wird zu Schwarzweiß.
-2. Unten rechts öffnet sich das Fax-Fenster mit dem Namen des Dokuments und der Seitenzahl. **„Vorschau“** zeigt das Dokument als PDF so, wie es gefaxt wird.
+2. Unten rechts öffnet sich das Fax-Fenster mit einem Vorschaubild der ersten Seite, dem Namen des Dokuments und der Seitenzahl. Ein Klick auf das Bild oder auf **„Vorschau“** zeigt das ganze Dokument als PDF so, wie es gefaxt wird.
 3. Im Feld **„An (Faxnummer oder Kontakt)“** den Empfänger suchen (14.5) oder die Nummer direkt eingeben. Schreibweise wie beim Wählen: `030 1234567` oder `+49 30 1234567`.
 4. **„Faxen“** oder Enter.
 
@@ -1018,6 +1020,7 @@ Jedes Fax, das zugestellt wurde oder fehlgeschlagen ist, steht danach auf der Se
 
 - In der Liste ist es mit **„Fax“** gekennzeichnet, ein fehlgeschlagenes zusätzlich rot mit **„Fehlgeschlagen“**. Die Zeile darunter nennt Dokument, Seitenzahl und Übertragungsrate bzw. den Grund des Fehlschlags.
 - Ein Klick zeigt statt eines Transkripts die Eckdaten: **Dokument**, **Ergebnis**, **Seiten** (gesendet von insgesamt), **Übertragung** (Rate, ECM) und **Gegenstelle**.
+- Steht die Nummer nicht bei deinen Kontakten, aber im FRITZ!Box-Telefonbuch (14.6), zeigt SIPFunk den Namen von dort mit dem kleinen Zeichen **„FRITZ!Box“**. Das gilt für Faxe und Gespräche, in der Liste, im Detail und in der Anrufleiste.
 - Die Suche über der Liste findet Faxe wie Gespräche nach Name oder Nummer; über den Kontakt („Verlauf“) siehst du Faxe und Gespräche mit diesem Kontakt zusammen.
 - „Als Kontakt speichern“ legt die Faxnummer als Kontakt an, „Protokoll löschen“ entfernt den Eintrag.
 
@@ -1037,7 +1040,7 @@ Die Antwort enthält den Auftrag mit seiner `id`; `GET /api/fax` liefert den Zus
 
 ### 14.9 Tipps und häufige Fragen
 
-- **Im Fax-Fenster steht „Druckauftrag 14:05“ statt des Dokumentnamens.** Manche Programme schicken den Namen nicht mit (etwa beim Druck über den XPS-Weg von Windows). Dann nimmt SIPFunk die Uhrzeit. Am Fax ändert das nichts.
+- **Im Fax-Fenster steht „Druckauftrag 14:05“ statt des Dokumentnamens.** SIPFunk liest den Namen aus der Windows-Druckwarteschlange, so wie ihn das Programm vergibt (bei Word ohne die Vorsilbe „Microsoft Word -“). Klappt das nicht und schickt auch der Druckauftrag keinen Namen mit, nimmt SIPFunk die Uhrzeit. Am Fax ändert das nichts.
 - **Wie sieht mein Fax beim Empfänger aus?** Schick ein Testfax an einen Testfax-Empfang (14.4). Die Kopfzeile steht oben auf jeder Seite, die Absenderkennung im Faxprotokoll des Empfängers.
 - **Kann ich faxen, während die KI telefoniert?** Ja. Das Fax läuft über ein eigenes IP-Telefon (14.1).
 - **Mehrere Seiten, Farbe, Querformat?** Mehrseitige Dokumente gehen in einem Fax. Farbe wird zu Schwarzweiß, Querformat wird auf A4 hochkant eingepasst; für gut lesbare Faxe besser hochkant drucken.
