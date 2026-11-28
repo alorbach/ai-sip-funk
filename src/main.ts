@@ -22,7 +22,7 @@ import { sampleText, voiceSample } from './ai/voiceSample.js';
 import { McpGateway, type AgentCallControl } from './mcp/gateway.js';
 import { handleMcpHttp } from './mcp/http.js';
 import { agentStatus, installAgent, removeAgent, userAgentEnv, type McpTarget } from './mcp/agents.js';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mcpPolicyFrom, incomingFrom, incomingOverride, loadSettings, saveSettings, saveWebPort, settingsBroken, type FormSettings, mailConfigFrom, SECRET_MASK, notifyPolicies, parseProfiles, profileFor, scamActive, scamAllowed, SCAM_DEFAULT_SPEED, scamMaxSeconds, scamSpeed, shouldNotify, tuningFrom } from './settings.js';
 import { buildScamInstructions, isScamNumber, scamGender, scamGreeting, type ScamStyle } from './ai/scam.js';
 import { draftComplaint } from './ai/complaint.js';
@@ -48,6 +48,8 @@ import { TranscriptStore, type CallRecord } from './transcripts.js';
 import { normalizeTarget } from './dialPolicy.js';
 import { ContactStore, numberKey, sameMainNumber } from './contacts.js';
 import { writeEnvValues } from './envFile.js';
+import { BackupPasswordError, backupFileName, createBackup, readBackup, restoreContacts, restoredConfig } from './backup.js';
+import { writeFileAtomic } from './fsutil.js';
 import { cleanSipAccount, explainSipError, testSipAccount } from './setup.js';
 
 // Datenordner: .env, settings.json, contacts.json, transcripts/. Standard = Projektordner; die Tray-App
@@ -1117,7 +1119,38 @@ async function saveFritzAccess(input: Record<string, unknown>): Promise<void> {
 
 const fritzPhonebook = new FritzPhonebook({ host: config.fritz.host, user: config.fritz.user, password: config.fritz.password, xmlFile: join(dataDir, 'fritz-telefonbuch.xml') });
 
+/** Sicherung: .env, settings.json, Kontakte; mit Kennwörtern auch die Anmeldung des Mail-Postfachs */
+const readText = (file: string) => (existsSync(file) ? readFileSync(file, 'utf8') : '');
+const settingsFile = join(dataDir, 'settings.json');
+const mailTokenFile = join(dataDir, 'mail-token.json');
+const backup = {
+  create: (secrets: boolean, password?: string) => {
+    if (settingsBroken()) throw new Error('settings.json ist nicht lesbar – bitte die Einstellungen einmal speichern und dann sichern');
+    const text = createBackup({ envText: readText(envFile), settingsText: readText(settingsFile), contacts: contacts.list(), mailTokenText: readText(mailTokenFile) || undefined }, { secrets, password, app: VERSION });
+    log.info(`Sicherung erstellt (${secrets ? 'mit' : 'ohne'} Kennwörter)`);
+    return { filename: backupFileName(), text };
+  },
+  restore: (text: string, password?: string) => {
+    let read;
+    try {
+      read = readBackup(text, password);
+    } catch (err) {
+      if (err instanceof BackupPasswordError) return { needPassword: true, error: err.message };
+      throw err;
+    }
+    const next = restoredConfig(read.data, { envText: readText(envFile), settingsText: settingsBroken() ? '' : readText(settingsFile) });
+    const result = restoreContacts(contacts, read.data.contacts);
+    writeFileAtomic(envFile, next.envText);
+    writeFileAtomic(settingsFile, next.settingsText);
+    if (read.data.mailToken !== undefined) writeFileAtomic(mailTokenFile, JSON.stringify(read.data.mailToken, null, 2) + '\n');
+    onSettingsChanged(loadSettings());
+    log.info(`Sicherung vom ${read.created.slice(0, 10)} wiederhergestellt: ${result.created} Kontakte neu, ${result.merged} ergänzt${result.skipped.length ? `, ${result.skipped.length} übersprungen` : ''}`);
+    return { ok: true, created: result.created, merged: result.merged, skipped: result.skipped, secrets: read.secrets, canRestart: typeof process.send === 'function' };
+  },
+};
+
 const stopWeb = startWebServer({
+  backup,
   fritzPhonebook,
   // Adresse nur, wenn eigens gesetzt (FRITZ_HOST); sonst gilt die der Telefonanlage
   fritzAccess: { get: () => ({ ...fritzPhonebook.access(), host: process.env.FRITZ_HOST?.trim() ?? '' }), save: saveFritzAccess },

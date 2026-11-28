@@ -563,6 +563,8 @@ Im Dialog „Datei wählen“ (bis 22 MB; größere Exporte ohne Fotos speichern
 
 *Wenn es nicht klappt:* „People API has not been used in project“ – People API aktivieren (Schritt 2). `AADSTS50011` (Umleitung passt nicht) – Umleitungs-URI der App-Registrierung prüfen. `AADSTS65001` oder „Administratorgenehmigung erforderlich“ – der Administrator muss Contacts.Read zustimmen. „Anmeldung abgelaufen“ – Anmeldung neu starten.
 
+*Exportieren:* „Exportieren“ auf der Seite „Kontakte“ speichert alle Kontakte mit Nummern und Notizen als vCard (`.vcf`, für Outlook, Google Kontakte und das Handy) oder als CSV (`.csv`, mit Semikolon für deutsches Excel). Die Hauptnummer, die SIPFunk wählt, steht zuerst. SIPFunk kann beide Dateien wieder importieren. Einstellungen wie Stil, Stimme oder Auftrag eines Kontakts stehen nicht darin; die nimmt die Sicherung mit (Abschnitt 11.4).
+
 ### 11.2 Protokolle
 
 ![Anrufe mit Protokoll, Ergebnis und Zusammenfassung](images/calls.de.png)
@@ -607,7 +609,18 @@ Der Datenordner ist beim Start aus dem Repository der Projektordner, bei der ins
 | `voice-samples/` | zwischengespeicherte Hörproben (MP3; bei Gemini WAV im Unterordner `gemini/`) | nein |
 | `sim-results/` | Berichte des Simulators (im Projektordner) | nein, sofern die Szenarien erfunden sind |
 
-Beim Start aus dem Repository stehen die Dateien im Projektordner in der `.gitignore`; `autostart.flag` gibt es nur im Datenordner der installierten App. Beim Sichern des Rechners den Datenordner mitsichern, aber verschlüsselt.
+Beim Start aus dem Repository stehen die Dateien im Projektordner in der `.gitignore`; `autostart.flag` gibt es nur im Datenordner der installierten App. Beim Sichern des Rechners den Datenordner mitsichern, aber verschlüsselt. Für einen Umzug auf einen anderen Rechner gibt es die Sicherung in SIPFunk (Abschnitt 11.4).
+
+### 11.4 Sicherung und Umzug
+
+„Einstellungen › Sicherung“ schreibt eine Datei `SIPFunk-Sicherung-JJJJ-MM-TT.sipfunk` mit dem Inhalt von `.env` und `settings.json` (darin auch die Anrufbeantworter-Profile und die Spam-Liste) und allen Kontakten mit ihren Einstellungen. Nicht dabei sind die Gesprächsprotokolle, das Log, Hörproben und Verbrauch sowie die Werte, die zu diesem Rechner gehören: Port der Oberfläche und eigene IP-Adresse (`LOCAL_IP`).
+
+- **Ohne Kennwörter** (Standard): Die Datei ist lesbarer Text ohne SIP-, Fax- und FRITZ!Box-Kennwort, ohne Schlüssel der KI-Verbindungen und ohne Mail-Zugang. Nach dem Wiederherstellen auf einem neuen Rechner gibst du diese im Einrichtungsassistenten und in den Einstellungen neu ein.
+- **Mit Kennwörtern** („Kennwörter und Schlüssel einschließen“): Die Datei enthält auch die Zugangsdaten und die Anmeldung des Mail-Postfachs und ist mit einem Passwort verschlüsselt (scrypt und AES-256-GCM). Ohne das Passwort lässt sie sich nicht öffnen; SIPFunk kann es nicht wiederherstellen.
+
+Speicherst du die Datei in deinem OneDrive-Ordner, liegt sie auch in der Cloud deines Microsoft-Kontos. Eine automatische Sicherung über das Microsoft-Konto gibt es für Store-Apps unter Windows 11 nicht mehr.
+
+**Wiederherstellen:** „Sicherung wählen …“, bei einer verschlüsselten Datei das Passwort eingeben. Einstellungen und Profile werden durch die der Sicherung ersetzt; Kontakte werden wie beim Import zusammengeführt: Ein Kontakt mit bekannter Nummer bekommt nur fehlende Nummern, alle anderen werden mit ihren Einstellungen neu angelegt. Enthält die Sicherung keine Kennwörter, bleiben die gespeicherten; wechselt sie aber die Adresse der Telefonanlage oder des Mailservers, entfällt das bisherige Kennwort dafür, damit es nicht an einen anderen Server geht. Zugangsdaten zur Telefonanlage und KI gelten nach einem Neustart, den SIPFunk danach anbietet.
 
 ---
 

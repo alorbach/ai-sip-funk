@@ -565,6 +565,8 @@ In the dialog, "Datei wählen" (choose file; up to 22 MB, save larger exports wi
 
 *If it fails:* "People API has not been used in project" – enable the People API (step 2). `AADSTS50011` (redirect mismatch) – check the redirect URI of the app registration. `AADSTS65001` or "admin approval required" – the administrator has to consent to Contacts.Read. "Anmeldung abgelaufen" – start the sign-in again.
 
+*Export:* "Export" on the "Contacts" page saves all contacts with numbers and notes as vCard (`.vcf`, for Outlook, Google Contacts and your phone) or as CSV (`.csv`, with semicolons for German Excel). The main number that SIPFunk dials comes first. SIPFunk can import both files again. Per-contact settings such as style, voice or task are not included; the backup takes them along (section 11.4).
+
 ### 11.2 Call logs
 
 ![Calls with transcript, result and summary](images/calls.en.png)
@@ -609,7 +611,18 @@ The data folder is the project folder when starting from the repository, and `%A
 | `voice-samples/` | cached voice samples (MP3; for Gemini WAV in the subfolder `gemini/`) | no |
 | `sim-results/` | simulator reports (in the project folder) | no, as long as the scenarios are made up |
 
-When you start from the repository, the files in the project folder are listed in `.gitignore`; `autostart.flag` only exists in the data folder of the installed app. When backing up the computer, include the data folder, but encrypted.
+When you start from the repository, the files in the project folder are listed in `.gitignore`; `autostart.flag` only exists in the data folder of the installed app. When backing up the computer, include the data folder, but encrypted. To move to another computer, use the backup in SIPFunk (section 11.4).
+
+### 11.4 Backup and moving
+
+"Settings › Backup" writes a file `SIPFunk-Sicherung-YYYY-MM-DD.sipfunk` with the content of `.env` and `settings.json` (including the answering machine profiles and the spam list) and all contacts with their settings. Not included are call logs, the log, voice samples and usage, and the values that belong to this computer: the port of the UI and the own IP address (`LOCAL_IP`).
+
+- **Without passwords** (default): The file is readable text without SIP, fax and FRITZ!Box passwords, without the keys of the AI connections and without mail access. After restoring on a new computer, you enter them again in the setup assistant and the settings.
+- **With passwords** ("Include passwords and keys"): The file also contains the credentials and the mail sign-in and is encrypted with a password (scrypt and AES-256-GCM). Without the password it cannot be opened; SIPFunk cannot recover it.
+
+If you save the file in your OneDrive folder, it is also stored in the cloud of your Microsoft account. Windows 11 no longer offers an automatic backup through the Microsoft account for Store apps.
+
+**Restore:** "Choose backup …", for an encrypted file enter the password. Settings and profiles are replaced by those in the backup; contacts are merged as with the import: a contact with a known number only gets missing numbers, all others are created with their settings. If the backup contains no passwords, the stored ones are kept; if it changes the address of the phone system or the mail server, the previous password for it is dropped so that it is not sent to another server. Credentials for the phone system and AI take effect after a restart, which SIPFunk offers afterwards.
 
 ---
 

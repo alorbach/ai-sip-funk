@@ -138,6 +138,9 @@
   .subnav button:hover { background: var(--surface-2); color: var(--text); }
   .subnav button[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--text); font-weight: 600; }
   .subnav button[hidden] { display: none; }
+  label.radio { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+  label.radio input { width: auto; min-width: 0; flex: none; margin: 3px 0 0; accent-color: var(--accent); }
+  label.radio span { min-width: 0; }
   .subnav .save { margin-top: 12px; display: grid; gap: 6px; }
   .subnav .save .hint { font-size: 12px; }
   .settings .card { scroll-margin-top: calc(var(--header-h) + 20px); }
@@ -535,7 +538,7 @@
   <section class="page" id="page-contacts" role="tabpanel" aria-labelledby="tab-contacts" hidden>
     <div class="page-head">
       <h1>Kontakte</h1>
-      <div class="actions"><button id="contact-import" class="btn">Kontakte importieren</button> <button id="contact-new" class="btn primary">Neuer Kontakt</button></div>
+      <div class="actions"><button id="contact-import" class="btn">Kontakte importieren</button> <button id="contact-export" class="btn">Exportieren</button> <button id="contact-new" class="btn primary">Neuer Kontakt</button></div>
       <p class="hint">Kontakte belegen beim Anruf Stil, Stimme, Anrede und Auftrag vor; ihre Notizen bekommt die KI als Hintergrundwissen. Kontakte werden von der Spam-Erkennung im Gespräch nie als Spam eingestuft.</p>
     </div>
     <section class="card narrow">
@@ -581,6 +584,7 @@
         <button type="button" data-section="settings-scam">Spam-Abwehr</button>
         <button type="button" data-section="settings-mcp">MCP-Schnittstelle</button>
         <button type="button" data-section="settings-fax">Fax</button>
+        <button type="button" data-section="settings-backup">Sicherung</button>
         <button type="button" data-section="settings-tech" class="adv">Technik</button>
         <div class="save">
           <button id="save-settings" class="btn primary" title="Strg+S">Speichern</button>
@@ -805,6 +809,22 @@
             <p class="hint" style="margin-top:12px">Nummernvorschläge im Fax-Fenster kommen aus dem FRITZ!Box-Telefonbuch; den Zugang dazu richtest du auf der Seite „Kontakte“ ein.</p>
           </div>
         </section>
+        <section class="card" id="settings-backup">
+          <div class="head"><h2>Sicherung</h2></div>
+          <div class="body">
+            <p class="hint">Eine Datei mit Einstellungen, Kontakten, Anrufbeantworter-Profilen und Spam-Liste; Gesprächsprotokolle gehören nicht dazu. Speicherst du sie in deinem OneDrive-Ordner, liegt sie auch in der Cloud deines Microsoft-Kontos. Dieser Abschnitt hat eigene Knöpfe; „Speichern“ links braucht es dafür nicht.</p>
+            <div class="grid c2">
+              <label class="switch span"><span>Kennwörter und Schlüssel einschließen<small>SIP- und Fax-Kennwort, KI-Schlüssel, Mail-Zugang. Die Datei wird dann mit einem Passwort verschlüsselt; ohne dieses Passwort lässt sie sich nicht wiederherstellen.</small></span><input type="checkbox" id="bk-secrets" role="switch"></label>
+              <label class="field" data-bk-pass hidden><span>Passwort der Sicherung</span><input id="bk-pass" type="password" autocomplete="new-password" spellcheck="false"><small>Mindestens 8 Zeichen.</small></label>
+              <label class="field" data-bk-pass hidden><span>Passwort wiederholen</span><input id="bk-pass2" type="password" autocomplete="new-password" spellcheck="false"></label>
+              <div class="span actions"><button type="button" id="bk-create" class="btn small primary">Sicherung erstellen</button></div>
+            </div>
+            <h3 style="margin:18px 0 6px">Wiederherstellen</h3>
+            <p class="hint">Einstellungen und Profile werden durch die der Sicherung ersetzt, Kontakte mit den vorhandenen zusammengeführt. Enthält die Sicherung keine Kennwörter, bleiben die hier gespeicherten.</p>
+            <div class="actions"><button type="button" id="bk-restore" class="btn small">Sicherung wählen …</button><input type="file" id="bk-file" accept=".sipfunk,.json" hidden></div>
+            <p class="state" id="bk-state" role="status" data-no-i18n style="margin-top:8px"></p>
+          </div>
+        </section>
         <section class="card adv" id="settings-tech">
           <div class="head"><h2>Technik</h2></div>
           <div class="body">
@@ -950,6 +970,31 @@
   <div class="foot">
     <button id="ask-no" class="btn quiet">Abbrechen</button>
     <button id="ask-yes" class="btn destructive"></button>
+  </div>
+</dialog>
+
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <div class="head"><h3 id="export-title">Kontakte exportieren</h3></div>
+  <div class="body">
+    <p class="hint">Exportiert alle Kontakte mit Nummern und Notizen. SIPFunk kann beide Formate auch wieder importieren.</p>
+    <label class="radio"><input type="radio" name="export-format" value="vcf" checked> <span><b>vCard (.vcf)</b> – für Outlook, Google Kontakte und das Handy</span></label>
+    <label class="radio"><input type="radio" name="export-format" value="csv"> <span><b>CSV (.csv)</b> – für Excel</span></label>
+  </div>
+  <div class="foot">
+    <button id="export-no" class="btn quiet">Abbrechen</button>
+    <button id="export-yes" class="btn primary">Exportieren</button>
+  </div>
+</dialog>
+
+<dialog id="bk-pass-dialog" aria-labelledby="bk-pass-title">
+  <div class="head"><h3 id="bk-pass-title">Passwort der Sicherung</h3></div>
+  <div class="body">
+    <p class="hint" id="bk-pass-text">Diese Sicherung enthält Kennwörter und ist mit einem Passwort geschützt.</p>
+    <label class="field"><span>Passwort</span><input id="bk-pass-in" type="password" autocomplete="off" spellcheck="false"></label>
+  </div>
+  <div class="foot">
+    <button id="bk-pass-no" class="btn quiet">Abbrechen</button>
+    <button id="bk-pass-yes" class="btn primary">Weiter</button>
   </div>
 </dialog>
 
@@ -1523,6 +1568,86 @@ async function refreshFritz(force) {
   try { renderFritz(await api('/api/fritz-phonebook' + (force ? '?refresh' : ''))); } catch { $('fritz-card').hidden = true; }
 }
 $('fritz-refresh').onclick = () => refreshFritz(true);
+// ---- Kontakt-Export und Sicherung: Datei kommt vom Server als Text und wird hier gespeichert ----
+function saveFile(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+$('contact-export').onclick = () => { $('export-dialog').showModal(); $('export-yes').focus(); };
+$('export-no').onclick = () => $('export-dialog').close();
+$('export-yes').onclick = async () => {
+  const format = document.querySelector('input[name="export-format"]:checked').value;
+  $('export-dialog').close();
+  try {
+    const r = await api('/api/contacts/export', { format });
+    saveFile(r.filename, r.text, format === 'csv' ? 'text/csv;charset=utf-8' : 'text/vcard;charset=utf-8');
+    toast(I18N.t('{0} Kontakte exportiert', r.count), 'ok');
+  } catch (err) { toast(err.message); }
+};
+$('bk-secrets').onchange = () => { for (const el of document.querySelectorAll('[data-bk-pass]')) el.hidden = !$('bk-secrets').checked; };
+$('bk-create').onclick = async () => {
+  const secrets = $('bk-secrets').checked, password = $('bk-pass').value;
+  if (secrets && password.length < 8) return setState('bk-state', 'bad', I18N.t('Das Passwort braucht mindestens 8 Zeichen.'));
+  if (secrets && password !== $('bk-pass2').value) return setState('bk-state', 'bad', I18N.t('Die beiden Passwörter stimmen nicht überein.'));
+  setState('bk-state', 'busy', I18N.t('Sicherung wird erstellt …'));
+  try {
+    const r = await api('/api/backup', { secrets, password: secrets ? password : undefined });
+    saveFile(r.filename, r.text, 'application/json');
+    $('bk-pass').value = ''; $('bk-pass2').value = '';
+    setState('bk-state', 'ok', secrets ? I18N.t('Sicherung erstellt, mit Kennwörtern und verschlüsselt. Bewahre das Passwort gut auf.') : I18N.t('Sicherung erstellt, ohne Kennwörter.'));
+  } catch (err) { setState('bk-state', 'bad', I18N.t(err.message)); }
+};
+/** Passwort für eine verschlüsselte Sicherung abfragen; null = abgebrochen */
+function askBackupPassword(text) {
+  return new Promise((resolve) => {
+    $('bk-pass-text').textContent = text; $('bk-pass-in').value = '';
+    const done = (v) => { $('bk-pass-dialog').close(); resolve(v); };
+    $('bk-pass-yes').onclick = () => done($('bk-pass-in').value);
+    $('bk-pass-in').onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); done($('bk-pass-in').value); } };
+    $('bk-pass-no').onclick = () => done(null);
+    $('bk-pass-dialog').oncancel = (ev) => { ev.preventDefault(); done(null); };
+    $('bk-pass-dialog').showModal(); $('bk-pass-in').focus();
+  });
+}
+$('bk-restore').onclick = () => $('bk-file').click();
+$('bk-file').onchange = async () => {
+  const f = $('bk-file').files[0];
+  $('bk-file').value = '';
+  if (!f) return;
+  const text = await f.text();
+  let meta;
+  try { meta = JSON.parse(text.replace(/^﻿/, '')); } catch { meta = null; }
+  if (!meta || meta.format !== 'sipfunk-backup') return setState('bk-state', 'bad', I18N.t('Das ist keine SIPFunk-Sicherung'));
+  const date = when(meta.created);
+  if (!(await ask(I18N.t('Sicherung vom {0} wiederherstellen?', date), I18N.t('Einstellungen und Profile werden durch die der Sicherung ersetzt, Kontakte mit den vorhandenen zusammengeführt. Danach startet SIPFunk am besten neu.'), I18N.t('Wiederherstellen')))) return;
+  let password, prompt = I18N.t('Diese Sicherung enthält Kennwörter und ist mit einem Passwort geschützt.');
+  for (;;) {
+    if (meta.encryption) { password = await askBackupPassword(prompt); if (password === null) return; }
+    setState('bk-state', 'busy', I18N.t('Sicherung wird wiederhergestellt …'));
+    let r;
+    try { r = await api('/api/backup/restore', { text, password }); } catch (err) { return setState('bk-state', 'bad', I18N.t(err.message)); }
+    if (r.needPassword) { prompt = I18N.t('Das Passwort ist falsch. Bitte noch einmal.'); continue; }
+    const msg = I18N.t('Wiederhergestellt: {0} Kontakte neu, {1} ergänzt.', r.created, r.merged) + (r.skipped.length ? ' ' + I18N.t('{0} übersprungen (Nummer schon vergeben).', r.skipped.length) : '');
+    setState('bk-state', 'ok', msg);
+    // Das Formular zeigt noch den alten Stand: Speichern würde die Sicherung überschreiben, darum die Seite neu laden
+    const restartNow = await ask(I18N.t('Sicherung wiederhergestellt'), msg + ' ' + I18N.t('Zugangsdaten zur Telefonanlage und KI gelten erst nach einem Neustart von SIPFunk.'), r.canRestart ? I18N.t('Jetzt neu starten') : I18N.t('Seite neu laden'));
+    if (restartNow && r.canRestart) {
+      try { await api('/api/restart', {}); toast(I18N.t('SIPFunk startet neu …'), 'ok'); } catch (err) { toast(err.message, 'error'); }
+      // Neu laden, sobald SIPFunk wieder antwortet (der alte Server beendet sich erst nach einem Moment)
+      await new Promise((ok) => setTimeout(ok, 2000));
+      for (let i = 0; i < 40; i++) {
+        try { if ((await (await fetch('/hello', { cache: 'no-store', signal: AbortSignal.timeout(1500) })).json()).app === 'sipfunk') break; } catch { /* startet noch */ }
+        await new Promise((ok) => setTimeout(ok, 750));
+      }
+    }
+    location.reload();
+    return;
+  }
+};
+
 $('fritz-file-pick').onclick = () => $('fritz-file').click();
 $('fritz-file').onchange = async () => {
   const f = $('fritz-file').files[0];
