@@ -6,6 +6,8 @@ Notable changes per version. Versions follow `package.json`.
 
 ## Unreleased
 
+- **Backup and contact export.** "Settings › Backup" writes settings, contacts, answering machine profiles and spam list to one file and restores them; passwords and keys on request, then encrypted with a password. On the "Contacts" page, "Export" saves all contacts as vCard or CSV.
+
 ## 1.0.7 – 27 November 2026
 
 - **Store edition without a restricted capability for the data folder.** Microsoft denied `unvirtualizedResources`. The Store edition carries on with an existing `%APPDATA%\SIPFunk` of the installer edition; on a fresh install its data lives in the app's package folder and is deleted on uninstall. "Open data folder" and "Edit settings (.env)" find the folder either way.

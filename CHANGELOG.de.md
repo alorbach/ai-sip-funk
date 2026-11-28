@@ -6,6 +6,8 @@ Wesentliche Änderungen je Version. Die Versionen folgen der `package.json`.
 
 ## Unveröffentlicht
 
+- **Sicherung und Kontakt-Export.** „Einstellungen › Sicherung“ schreibt Einstellungen, Kontakte, Anrufbeantworter-Profile und Spam-Liste in eine Datei und stellt sie wieder her; Kennwörter und Schlüssel auf Wunsch, dann mit Passwort verschlüsselt. Auf der Seite „Kontakte“ exportiert „Exportieren“ alle Kontakte als vCard oder CSV.
+
 ## 1.0.7 – 27.11.2026
 
 - **Store-Fassung ohne eingeschränkte Fähigkeit für den Datenordner.** Microsoft hat `unvirtualizedResources` abgelehnt. Die Store-Fassung arbeitet weiter mit einem vorhandenen `%APPDATA%\SIPFunk` der Installer-Fassung; bei einer Neuinstallation liegen ihre Daten im Paketordner der App und werden beim Deinstallieren gelöscht. „Datenordner öffnen“ und „Einstellungen (.env) bearbeiten“ finden den Ordner in beiden Fällen.

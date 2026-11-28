@@ -11,6 +11,7 @@ import type { CallRecord, TranscriptStore } from '../transcripts.js';
 import type { ContactStore } from '../contacts.js';
 import type { FritzPhonebook } from '../fritzPhonebook.js';
 import { parsePort, portFree } from '../webPort.js';
+import { exportFileName, toCsv, toVcard } from '../contactExport.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
 
@@ -109,6 +110,11 @@ export interface WebServerOptions {
     discardDraft: (id: string) => boolean;
     draftPdf: (id: string) => Buffer | undefined;
     draftThumbnail: (id: string) => Promise<Buffer | undefined>;
+  };
+  /** Sicherung: erstellen (mit Kennwörtern nur mit Passwort) und wiederherstellen; needPassword = verschlüsselt, Passwort fehlt oder falsch */
+  backup?: {
+    create: (secrets: boolean, password?: string) => { filename: string; text: string };
+    restore: (text: string, password?: string) => Record<string, unknown>;
   };
   /** FRITZ!Box-Telefonbuch (nur lesen, als Vorschläge) */
   fritzPhonebook?: FritzPhonebook;
@@ -427,6 +433,21 @@ export function startWebServer(opts: WebServerOptions): () => void {
         const c = opts.contacts.create(await readJson(req));
         log.info(`Kontakt angelegt: ${c.name}`);
         return sendJson(res, 200, c);
+      }
+      // Export als POST: Die Liste soll nicht über eine bloße Adresse abrufbar sein
+      if (req.method === 'POST' && url.pathname === '/api/contacts/export') {
+        const format = (await readJson(req)).format === 'csv' ? 'csv' : 'vcf';
+        const list = opts.contacts.list();
+        log.info(`Kontakte exportiert (${format}, ${list.length})`);
+        return sendJson(res, 200, { filename: exportFileName(format), text: format === 'csv' ? toCsv(list) : toVcard(list), count: list.length });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/backup' && opts.backup) {
+        const body = await readJson(req);
+        return sendJson(res, 200, opts.backup.create(body.secrets === true, typeof body.password === 'string' ? body.password : undefined));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/backup/restore' && opts.backup) {
+        const body = await readJson(req, MAX_IMPORT_BYTES);
+        return sendJson(res, 200, opts.backup.restore(String(body.text ?? ''), typeof body.password === 'string' ? body.password : undefined));
       }
       const cx = /^\/api\/contacts\/([^/]+)$/.exec(url.pathname);
       if (cx && req.method === 'PUT') {
