@@ -1,0 +1,45 @@
+src/main.ts
+  s_5b8db699bd2409::t_d5437e447c143b 25,51-52,1122-1144,1146-1151,1153
+  s_5b8db699bd2409::t_e18385eb4d14ef 1145
+src/web/server.ts
+  s_5b8db699bd2409::t_0d04745ca6a9f6 14,114-118,437-451
+CHANGELOG.de.md
+  s_5b8db699bd2409::t_73f8925c493355 9-10
+src/contactExport.ts
+  s_5b8db699bd2409::t_a9032cbba821ab 1-36
+public/index.html
+  s_5b8db699bd2409::t_2f0af5cd67ed8a 142-143
+  s_5b8db699bd2409::t_45f00e714dd32f 141,1571-1632,1647-1650
+  s_5b8db699bd2409::t_c4948e80d96583 541,587,812-827,976-1000
+  s_5b8db699bd2409::t_1f5f011838b49c 1639-1644
+  s_5b8db699bd2409::t_39d9b37bb634f8 1633-1638,1645-1646
+doc/user-guide.de.md
+  s_5b8db699bd2409::t_73f8925c493355 566-567,612-623
+src/backup.ts
+  s_5b8db699bd2409::t_6618aa199c4a62 1-49,52-165
+  s_5b8db699bd2409::t_d3bfa1bffdf1f0 50-51
+CHANGELOG.md
+  s_5b8db699bd2409::t_73f8925c493355 9-10
+doc/user-guide.md
+  s_5b8db699bd2409::t_73f8925c493355 568-569,614-625
+test/backup.test.ts
+  s_5b8db699bd2409::t_b1d5e65d71f466 1-111
+public/i18n-en.js
+  s_5b8db699bd2409::t_515f9b78e671b5 131-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7b26fb21121426398987c3e1c59fce8170316d4",
+  "prompts": {},
+  "sessions": {
+    "s_5b8db699bd2409": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "876a3af3-f4de-4456-a162-06ba8b47af01",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Andre Lorbach <alorbach@users.noreply.github.com>"
+    }
+  }
+}
